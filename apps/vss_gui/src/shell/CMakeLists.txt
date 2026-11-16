@@ -18,6 +18,8 @@ add_library(vss_gui_shell STATIC
   launcher.hpp
   licence_notice.cpp
   licence_notice.hpp
+  plugin_notice.cpp
+  plugin_notice.hpp
   level_service.cpp
   level_service.hpp
   port_warnings.cpp
@@ -36,6 +38,8 @@ add_library(vss_gui_shell STATIC
   undo_service.hpp
   undo_steps.cpp
   undo_steps.hpp
+  update_notice.cpp
+  update_notice.hpp
   ../simple/job_form.cpp
   ../simple/job_form.hpp
   ../simple/job_grid.cpp

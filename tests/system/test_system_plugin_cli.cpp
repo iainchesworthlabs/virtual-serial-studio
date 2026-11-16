@@ -9,13 +9,20 @@
 // and a file that stands for the program.
 //
 
+#include <vss/license/sign.hpp>
+#include <vss/license/signed_file.hpp>
+#include <vss/plugin/hash.hpp>
+#include <vss/plugin/signature.hpp>
+
 #include <boost/json.hpp>
 
 #include "child_process.hpp"
 #include "scratch_directory.hpp"
 #include "test_framework.hpp"
 
+#include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
@@ -223,7 +230,11 @@ TEST_CASE("plugin cli: list prints a block for each plugin")
     const std::string folder = shown(good);
     REQUIRE(has_line(lines, "  Folder:       " + folder));
     REQUIRE(has_line(lines, "  Installed for: you only"));
-    REQUIRE(has_line(lines, "  Signature:    not signed"));
+    REQUIRE(has_line(lines,
+                     "  Signature:    Not signed. Studio cannot tell who "
+                     "made it or whether it was changed."));
+    REQUIRE(has_line(lines, "  Trust:        Unsigned"));
+    REQUIRE(has_line(lines, "  Key:          none"));
     REQUIRE(has_line(lines, "  State:        found"));
 
     const auto print = line_starting(lines, "  Fingerprint:  ", found);
@@ -302,7 +313,7 @@ TEST_CASE("plugin cli: list --json prints one JSON object")
     REQUIRE(object.at("roots_not_read").as_array().empty());
 }
 
-TEST_CASE("plugin cli: a signature file is shown and is not checked")
+TEST_CASE("plugin cli: a signature file that does not hold is shown as such")
 {
     const scratch_directory scratch;
     const fs::path signed_one =
@@ -312,8 +323,11 @@ TEST_CASE("plugin cli: a signature file is shown and is not checked")
     const cli_result text =
         run_cli({"list", "--root", scratch.path().string()});
     REQUIRE_EQ(text.code.value_or(-1), 0);
-    REQUIRE(has_line(lines_of(text.output),
-                     "  Signature:    present, not checked by this build"));
+    const auto signature =
+        line_starting(lines_of(text.output), "  Signature:    ", 0);
+    REQUIRE(signature.has_value());
+    REQUIRE(signature.value().rfind(
+                "  Signature:    The signature does not hold: ", 0) == 0);
 
     const cli_result as_json =
         run_cli({"list", "--json", "--root", scratch.path().string()});
@@ -322,8 +336,10 @@ TEST_CASE("plugin cli: a signature file is shown and is not checked")
     const json::object& item =
         top.as_object().at("plugins").as_array()[0].as_object();
     REQUIRE_EQ(text_of(item.at("signature")), std::string("present"));
-    // The plugin is still found: the command says nothing about the key.
+    // The plugin is still found, and the verdict says the signature fails.
     REQUIRE_EQ(text_of(item.at("state")), std::string("found"));
+    REQUIRE_EQ(text_of(item.at("signature_state")), std::string("invalid"));
+    REQUIRE(item.at("trust").is_null());
 }
 
 TEST_CASE("plugin cli: the first root wins and the second copy is shadowed")
@@ -479,4 +495,370 @@ TEST_CASE("plugin cli: list with no --root reads the usual folders")
     const json::object& policy = object.at("policy").as_object();
     REQUIRE(policy.at("present").is_bool());
     REQUIRE(policy.at("used").is_bool());
+}
+
+// -- verify, install and remove ---------------------------------------------
+
+namespace
+{
+
+/// A key nobody on a test computer knows.  THROWAWAY TEST KEY: a private
+/// key made of one repeated byte, written down here for anyone to read.
+constexpr std::uint8_t stranger_fill = 0x05;
+
+std::string listed_manifest(std::string_view id, std::string_view program)
+{
+    std::string out = manifest_text(id);
+    // Replace the closing brace with a list of the files.
+    const std::size_t close = out.rfind('}');
+    out.erase(close);
+    while (!out.empty() && (out.back() == '\n' || out.back() == ' '))
+        out.pop_back();
+    out += ",\n  \"files\": [ { \"path\": \"bin/prog\", \"size\": ";
+    out += std::to_string(program.size());
+    out += ", \"sha512\": \"";
+    out += vss::plugin::to_hex(vss::plugin::sha512_of(program));
+    out += "\" } ]\n}\n";
+    return out;
+}
+
+/// A plugin that lists its program and is signed with a key that the test
+/// computer does not know, so that it is signed with an unknown key.
+fs::path make_signed_plugin(const fs::path& parent, std::string_view folder,
+                            std::string_view id,
+                            std::string_view program = "program bytes")
+{
+    const fs::path directory = parent / std::string(folder);
+    const std::string manifest = listed_manifest(id, program);
+    write_file(directory / "plugin.json", manifest);
+    write_file(directory / "bin" / "prog", program);
+
+    std::string claim = "{ \"plugin_id\": \"";
+    claim += id;
+    claim += "\", \"version\": \"1.2.0\", \"manifest_sha512\": \"";
+    claim += vss::plugin::to_hex(vss::plugin::sha512_of(manifest));
+    claim += "\" }";
+    std::vector<std::uint8_t> payload(claim.begin(), claim.end());
+    vss::license::signing::seed seed{};
+    seed.fill(stranger_fill);
+    write_file(directory / "plugin.sig",
+               vss::license::signed_file::write(vss::license::signing::sign(
+                   vss::plugin::plugin_purpose, "nobody-1", payload, seed)));
+    return directory;
+}
+
+/// The names in a folder, sorted; none when it is not there.
+std::vector<std::string> names_in(const fs::path& directory)
+{
+    std::vector<std::string> names;
+    std::error_code ec;
+    if (!fs::is_directory(directory, ec))
+        return names;
+    for (const fs::directory_entry& each : fs::directory_iterator(directory))
+        names.push_back(each.path().filename().string());
+    std::sort(names.begin(), names.end());
+    return names;
+}
+
+std::string read_file(const fs::path& path)
+{
+    std::ifstream in(path, std::ios::binary);
+    REQUIRE(in.is_open());
+    return std::string((std::istreambuf_iterator<char>(in)),
+                       std::istreambuf_iterator<char>());
+}
+
+} // namespace
+
+TEST_CASE("plugin cli: verify says what the checks found and exits 0 for a "
+          "plugin that can be installed")
+{
+    const scratch_directory scratch;
+    const fs::path folder =
+        make_signed_plugin(scratch.path(), "signed", "com.example.signed");
+
+    // A key nobody approved proves nothing about who made the plugin, so the
+    // plugin installs only with --allow-unsigned, and the answer says which
+    // it is.
+    const cli_result refused = run_cli({"verify", folder.string()});
+    REQUIRE_EQ(refused.code.value_or(-1), 1);
+    const auto why = line_starting(lines_of(refused.output),
+                                   "  Install:      ", 0);
+    REQUIRE(why.has_value());
+    REQUIRE(why.value().find("--allow-unsigned") != std::string::npos);
+    REQUIRE(why.value().find("signed with a key nobody has approved") !=
+            std::string::npos);
+
+    const cli_result result =
+        run_cli({"verify", "--allow-unsigned", folder.string()});
+    REQUIRE_EQ(result.code.value_or(-1), 0);
+    const std::vector<std::string> lines = lines_of(result.output);
+    REQUIRE(has_line(lines, "com.example.signed  1.2.0  Modbus fixture"));
+    REQUIRE(has_line(lines, "  Folder:       " + shown(folder)));
+    REQUIRE(has_line(lines, "  Trust:        Signed by an author you have not "
+                            "approved"));
+    REQUIRE(has_line(lines, "  Key:          nobody-1"));
+    REQUIRE(has_line(lines, "  Licence:      none needed"));
+    REQUIRE(has_line(lines, "  Install:      can be installed"));
+    const auto may_run = line_starting(lines, "  May run:      no, ", 0);
+    REQUIRE(may_run.has_value());
+    REQUIRE_EQ(lines.back(), std::string("This build does not run plugins."));
+
+    const cli_result as_json =
+        run_cli({"verify", "--json", "--allow-unsigned", folder.string()});
+    REQUIRE_EQ(as_json.code.value_or(-1), 0);
+    const json::object item = parse_output(as_json.output).as_object();
+    REQUIRE_EQ(text_of(item.at("id")), std::string("com.example.signed"));
+    REQUIRE_EQ(text_of(item.at("trust")), std::string("signed_unknown_key"));
+    REQUIRE_EQ(text_of(item.at("signature_state")),
+               std::string("unknown_key"));
+    REQUIRE_EQ(text_of(item.at("key_id")), std::string("nobody-1"));
+    REQUIRE(item.at("installable").as_bool());
+    REQUIRE(item.at("problem").is_null());
+    REQUIRE(!item.at("may_run").as_bool());
+    REQUIRE(!text_of(item.at("run_reason")).empty());
+    REQUIRE(!item.at("licence").as_object().at("checked").as_bool());
+}
+
+TEST_CASE("plugin cli: verify exits 1 for an unsigned plugin unless "
+          "--allow-unsigned is given")
+{
+    const scratch_directory scratch;
+    const fs::path folder =
+        make_plugin(scratch.path(), "plain", "com.example.plain");
+
+    const cli_result refused = run_cli({"verify", folder.string()});
+    REQUIRE_EQ(refused.code.value_or(-1), 1);
+    REQUIRE(has_line(lines_of(refused.output), "  Trust:        Unsigned"));
+    const auto install = line_starting(lines_of(refused.output),
+                                       "  Install:      ", 0);
+    REQUIRE(install.has_value());
+    REQUIRE(install.value().find("--allow-unsigned") != std::string::npos);
+
+    const cli_result allowed =
+        run_cli({"verify", "--allow-unsigned", folder.string()});
+    REQUIRE_EQ(allowed.code.value_or(-1), 0);
+}
+
+TEST_CASE("plugin cli: verify exits 1 for an id that install would refuse")
+{
+    const scratch_directory scratch;
+    const fs::path folder =
+        make_plugin(scratch.path(), "device", "con.example");
+
+    const cli_result result =
+        run_cli({"verify", "--allow-unsigned", folder.string()});
+    REQUIRE_EQ(result.code.value_or(-1), 1);
+    const auto install = line_starting(lines_of(result.output),
+                                       "  Install:      ", 0);
+    REQUIRE(install.has_value());
+    REQUIRE(install.value().find("layout_invalid") != std::string::npos);
+
+    const fs::path root = scratch.path() / "installed";
+    const cli_result refused = run_cli({"install", folder.string(),
+                                        "--allow-unsigned", "--root",
+                                        root.string()});
+    REQUIRE_EQ(refused.code.value_or(-1), 1);
+    REQUIRE(names_in(root).empty());
+}
+
+TEST_CASE("plugin cli: verify exits 1 for a plugin whose file was changed")
+{
+    const scratch_directory scratch;
+    const fs::path folder =
+        make_signed_plugin(scratch.path(), "signed", "com.example.signed");
+    write_file(folder / "bin" / "prog", "program bytez");
+
+    const cli_result result = run_cli({"verify", "--json", folder.string()});
+    REQUIRE_EQ(result.code.value_or(-1), 1);
+    const json::object item = parse_output(result.output).as_object();
+    REQUIRE_EQ(text_of(item.at("problem")), std::string("signature_invalid"));
+    REQUIRE(!item.at("installable").as_bool());
+    REQUIRE(item.at("trust").is_null());
+
+    const cli_result text = run_cli({"verify", folder.string()});
+    REQUIRE_EQ(text.code.value_or(-1), 1);
+    const auto problem =
+        line_starting(lines_of(text.output), "  Problem:      ", 0);
+    REQUIRE(problem.has_value());
+    REQUIRE(problem.value().find("bin/prog") != std::string::npos);
+}
+
+TEST_CASE("plugin cli: verify, install and remove need their arguments")
+{
+    REQUIRE_EQ(run_cli({"verify"}).code.value_or(-1), 2);
+    REQUIRE_EQ(run_cli({"install"}).code.value_or(-1), 2);
+    REQUIRE_EQ(run_cli({"remove"}).code.value_or(-1), 2);
+    REQUIRE_EQ(run_cli({"verify", "a", "b"}).code.value_or(-1), 2);
+    REQUIRE_EQ(run_cli({"verify", "--replace", "a"}).code.value_or(-1), 2);
+    REQUIRE_EQ(run_cli({"install", "--json", "a"}).code.value_or(-1), 2);
+    REQUIRE_EQ(run_cli({"install", "a", "--root"}).code.value_or(-1), 2);
+    REQUIRE_EQ(run_cli({"remove", "a", "--replace"}).code.value_or(-1), 2);
+}
+
+TEST_CASE("plugin cli: an installed plugin is listed with its verdict")
+{
+    const scratch_directory scratch;
+    const fs::path source =
+        make_signed_plugin(scratch.path(), "source", "com.example.signed");
+    const fs::path root = scratch.path() / "installed";
+
+    const cli_result without =
+        run_cli({"install", source.string(), "--root", root.string()});
+    REQUIRE_EQ(without.code.value_or(-1), 1);
+    REQUIRE(without.output.find("key_unknown") != std::string::npos);
+    REQUIRE(names_in(root).empty());
+
+    const cli_result done = run_cli({"install", source.string(),
+                                     "--allow-unsigned", "--root",
+                                     root.string()});
+    REQUIRE_EQ(done.code.value_or(-1), 0);
+    const std::vector<std::string> lines = lines_of(done.output);
+    REQUIRE(has_line(lines, "Installed com.example.signed  1.2.0  Modbus "
+                            "fixture"));
+    REQUIRE(has_line(lines, "  Folder:       " +
+                                shown(root / "com.example.signed")));
+    REQUIRE(has_line(lines, "  Trust:        Signed by an author you have "
+                            "not approved"));
+    REQUIRE_EQ(lines.back(), std::string("This build does not run plugins."));
+    REQUIRE_EQ(read_file(root / "com.example.signed" / "bin" / "prog"),
+               std::string("program bytes"));
+    REQUIRE_EQ(names_in(root).size(), std::size_t{1});
+
+    const cli_result listed =
+        run_cli({"list", "--json", "--root", root.string()});
+    REQUIRE_EQ(listed.code.value_or(-1), 0);
+    const json::value listed_top = parse_output(listed.output);
+    const json::array& plugins =
+        listed_top.as_object().at("plugins").as_array();
+    REQUIRE_EQ(plugins.size(), std::size_t{1});
+    const json::object& item = plugins[0].as_object();
+    REQUIRE_EQ(text_of(item.at("id")), std::string("com.example.signed"));
+    REQUIRE_EQ(text_of(item.at("state")), std::string("found"));
+    REQUIRE_EQ(text_of(item.at("signature")), std::string("present"));
+    REQUIRE_EQ(text_of(item.at("signature_state")),
+               std::string("unknown_key"));
+    REQUIRE_EQ(text_of(item.at("trust")), std::string("signed_unknown_key"));
+    REQUIRE_EQ(text_of(item.at("key_id")), std::string("nobody-1"));
+    REQUIRE(!item.at("may_run").as_bool());
+
+    const cli_result text = run_cli({"list", "--root", root.string()});
+    const std::vector<std::string> list_lines = lines_of(text.output);
+    REQUIRE(has_line(list_lines, "  Trust:        Signed by an author you "
+                                 "have not approved"));
+    REQUIRE(has_line(list_lines, "  Key:          nobody-1"));
+    REQUIRE_EQ(list_lines.back(),
+               std::string("1 plugin found. This build does not run "
+                           "plugins."));
+}
+
+TEST_CASE("plugin cli: install refuses a changed folder and writes nothing")
+{
+    const scratch_directory scratch;
+    const fs::path source =
+        make_signed_plugin(scratch.path(), "source", "com.example.signed");
+    write_file(source / "bin" / "prog", "program bytez");
+    const fs::path root = scratch.path() / "installed";
+
+    const cli_result result = run_cli({"install", source.string(),
+                                       "--allow-unsigned", "--root",
+                                       root.string()});
+    REQUIRE_EQ(result.code.value_or(-1), 1);
+    REQUIRE(result.output.find("signature_invalid") != std::string::npos);
+    REQUIRE(names_in(root).empty());
+}
+
+TEST_CASE("plugin cli: install needs --allow-unsigned for an unsigned plugin, "
+          "--replace for a second copy")
+{
+    const scratch_directory scratch;
+    const fs::path source =
+        make_plugin(scratch.path(), "source", "com.example.plain");
+    const fs::path root = scratch.path() / "installed";
+
+    const cli_result refused =
+        run_cli({"install", source.string(), "--root", root.string()});
+    REQUIRE_EQ(refused.code.value_or(-1), 1);
+    REQUIRE(refused.output.find("signature_missing") != std::string::npos);
+    REQUIRE(names_in(root).empty());
+
+    const cli_result done = run_cli({"install", source.string(),
+                                     "--allow-unsigned", "--root",
+                                     root.string()});
+    REQUIRE_EQ(done.code.value_or(-1), 0);
+    REQUIRE(has_line(lines_of(done.output), "  Trust:        Unsigned"));
+
+    const cli_result again = run_cli({"install", source.string(),
+                                      "--allow-unsigned", "--root",
+                                      root.string()});
+    REQUIRE_EQ(again.code.value_or(-1), 1);
+    REQUIRE(again.output.find("already installed") != std::string::npos);
+
+    const cli_result replaced =
+        run_cli({"install", source.string(), "--allow-unsigned", "--replace",
+                 "--root", root.string()});
+    REQUIRE_EQ(replaced.code.value_or(-1), 0);
+    REQUIRE(has_line(lines_of(replaced.output),
+                     "Replaced com.example.plain  1.2.0  Modbus fixture"));
+    REQUIRE_EQ(names_in(root).size(), std::size_t{1});
+}
+
+TEST_CASE("plugin cli: install --for-everyone refuses a folder that others "
+          "can write to")
+{
+    const scratch_directory scratch;
+    const fs::path source =
+        make_signed_plugin(scratch.path(), "source", "com.example.signed");
+    const fs::path root = scratch.path() / "machine";
+
+    const cli_result result =
+        run_cli({"install", source.string(), "--allow-unsigned",
+                 "--for-everyone", "--root", root.string()});
+    REQUIRE_EQ(result.code.value_or(-1), 1);
+    REQUIRE(result.output.find("administrator") != std::string::npos);
+    // The folder is not made.
+    REQUIRE(!fs::exists(root));
+
+    const cli_result removal = run_cli({"remove", "com.example.signed",
+                                        "--for-everyone", "--root",
+                                        root.string()});
+    REQUIRE_EQ(removal.code.value_or(-1), 1);
+    REQUIRE(removal.output.find("administrator") != std::string::npos);
+    REQUIRE(!fs::exists(root));
+}
+
+TEST_CASE("plugin cli: remove takes a plugin out and keeps the others")
+{
+    const scratch_directory scratch;
+    const fs::path root = scratch.path() / "installed";
+    const fs::path one =
+        make_signed_plugin(scratch.path(), "one", "com.example.one");
+    const fs::path two =
+        make_signed_plugin(scratch.path(), "two", "com.example.two");
+    REQUIRE_EQ(run_cli({"install", one.string(), "--allow-unsigned", "--root",
+                        root.string()})
+                   .code.value_or(-1),
+               0);
+    REQUIRE_EQ(run_cli({"install", two.string(), "--allow-unsigned", "--root",
+                        root.string()})
+                   .code.value_or(-1),
+               0);
+
+    const cli_result removed =
+        run_cli({"remove", "com.example.one", "--root", root.string()});
+    REQUIRE_EQ(removed.code.value_or(-1), 0);
+    REQUIRE(removed.output.find("Removed com.example.one") !=
+            std::string::npos);
+    const std::vector<std::string> names = names_in(root);
+    REQUIRE_EQ(names.size(), std::size_t{1});
+    REQUIRE_EQ(names[0], std::string("com.example.two"));
+
+    REQUIRE_EQ(
+        run_cli({"remove", "com.example.one", "--root", root.string()})
+            .code.value_or(-1),
+        1);
+    REQUIRE_EQ(run_cli({"remove", "../two", "--root", root.string()})
+                   .code.value_or(-1),
+               1);
+    REQUIRE_EQ(names_in(root).size(), std::size_t{1});
 }

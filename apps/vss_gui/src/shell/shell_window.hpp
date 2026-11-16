@@ -39,6 +39,7 @@ class EventLogPanel;
 class InspectorPanel;
 class Launcher;
 class LicenceNotice;
+class PluginNotice;
 class FixtureBehaviours;
 struct setup_group;
 class MonitorPanel;
@@ -51,6 +52,12 @@ class SendPanel;
 class StatusBar;
 class StudioTray;
 class TopologyJsonEditor;
+class UpdateNotice;
+
+namespace updates
+{
+class UpdateService;
+} // namespace updates
 
 namespace topology
 {
@@ -117,6 +124,26 @@ public:
     StudioTray* tray() const noexcept { return tray_; }
     NoteBanner* resume_banner() const noexcept { return resume_banner_; }
     LicenceNotice* licence_notice() const noexcept { return licence_notice_; }
+    PluginNotice* plugin_notice() const noexcept { return plugin_notice_; }
+
+    /// Gives the window the update service, once, after the window is made
+    /// and before it is shown. The window then has the update notice under
+    /// the licence notice, the update chip in the status bar, and the About
+    /// and Settings dialogs it opens have their update parts. Null, the
+    /// default, means no update screen at all. `service` outlives the window.
+    void set_update_service(updates::UpdateService* service);
+    UpdateNotice* update_notice() const noexcept { return update_notice_; }
+
+    /// Opens the update dialog and returns when it is closed. Nothing
+    /// happens without a service or while no update is on offer. `main`
+    /// connects `update_dialog_requested` to this; a test that only wants to
+    /// know that the dialog was asked for leaves it unconnected.
+    void show_update_dialog();
+
+Q_SIGNALS:
+    /// The person asked for the update dialog: the chip, "Details" on the
+    /// notice, or "Update..." in About (which is closed first).
+    void update_dialog_requested();
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -204,8 +231,25 @@ private:
     void open_settings();
     void open_troubleshoot();
     void open_shortcuts();
-    void open_about();
+    /// With `updates_tab` the dialog opens on the Updates tab and a check
+    /// by hand starts.
+    void open_about(bool updates_tab = false);
+    /// Only says that the update dialog is wanted.
+    void open_update_dialog();
+    /// Sets the tooltip of "Check for updates..." and its enabled state from
+    /// the service.
+    void update_update_action();
     void open_licence();
+    /// Opens Plugins, on the plugin with this id (and folder) when given, and
+    /// asks for the decision about it when `decide` is set.
+    void open_plugins(const QString& plugin_id = {},
+                      const QString& folder = {}, bool decide = false);
+    /// Shows what the plugin host reports in the toolbox, on the canvas and
+    /// in the Inspector.
+    void update_plugin_surfaces();
+    void connect_plugins();
+    /// A note's action, or "Show in Plugins", on a part a plugin provides.
+    void handle_part_action(const QString& plugin_id, int action);
     void open_support();
     void open_help_contents();
     void open_bundle();
@@ -223,12 +267,29 @@ private:
     void new_document();
     void open_document();
     void open_path(const QString& path);
-    /// Applies `document` to the engine on a worker thread, with the window
+    /// Puts `document` into the engine on a worker thread, with the window
     /// locked and a progress bar showing, then runs `finished` on the GUI
-    /// thread.  Nothing happens while an earlier apply is still running.
+    /// thread.  `replace` makes the running setup equal the document (File,
+    /// Open and templates); otherwise the document is added to what runs,
+    /// which is for the restore at start-up.  Nothing happens while an
+    /// earlier apply, or the JSON view's, is still running.  `finished` is
+    /// told what a replace that failed left behind; when that is not the
+    /// setup that was running, the setup is already marked as changed.
+    enum class failed_apply
+    {
+        /// The same ports and links, with the same ids: nothing was touched.
+        untouched,
+        /// The same setup, but ports or links were removed and made again.
+        remade,
+        /// Not the setup that was running.
+        different
+    };
     void apply_in_background(
-        vss::config::document document,
-        std::function<void(const vss::result<void>&)> finished);
+        vss::config::document document, bool replace,
+        std::function<void(const vss::result<void>&, failed_apply)> finished);
+    /// True while the engine is being given a setup, by the window or by the
+    /// JSON view.  Opening, a new setup and quitting wait for it.
+    bool setup_busy() const;
     void save_document();
     void save_document_as();
     bool confirm_discard();
@@ -290,6 +351,9 @@ private:
     OwnerBar* owner_bar_ = nullptr;
     NoteBanner* lost_banner_ = nullptr;
     LicenceNotice* licence_notice_ = nullptr;
+    PluginNotice* plugin_notice_ = nullptr;
+    UpdateNotice* update_notice_ = nullptr;
+    updates::UpdateService* update_service_ = nullptr;
     QThread* recreate_thread_ = nullptr;
     EventLogPanel* event_log_ = nullptr;
     TopologyJsonEditor* json_editor_ = nullptr;

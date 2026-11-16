@@ -539,8 +539,8 @@ bool TemplatesDialog::use_current()
 
 bool TemplatesDialog::open_file(const QString& path)
 {
-    VSS_PROFILE_ZONE_NAMED(kProfileZone, "gui.dialogs.templates.open_file");
-    VSS_PROFILE_ZONE_TEXT(kProfileZone, path.toStdString());
+    VSS_PROFILE_ZONE_NAMED(zone, "gui.dialogs.templates.open_file");
+    VSS_PROFILE_ZONE_TEXT(zone, path.toStdString());
     clear_error();
     const auto document = vss::config::load_file(path.toStdString());
     if (!document)
@@ -563,8 +563,8 @@ bool TemplatesDialog::open_file(const QString& path)
 
 bool TemplatesDialog::save_current_template(const QString& path)
 {
-    VSS_PROFILE_ZONE_NAMED(kProfileZone, "gui.dialogs.templates.save");
-    VSS_PROFILE_ZONE_TEXT(kProfileZone, path.toStdString());
+    VSS_PROFILE_ZONE_NAMED(zone, "gui.dialogs.templates.save");
+    VSS_PROFILE_ZONE_TEXT(zone, path.toStdString());
     clear_error();
     const auto saved =
         vss::config::save_file(path.toStdString(), backend_.snapshot());

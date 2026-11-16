@@ -38,6 +38,8 @@ QStringList badge_texts(const node_data& data)
         badges.append(topology_text::owner_badge());
     if (data.dropped)
         badges.append(topology_text::dropped_badge());
+    if (!data.plugin_badge.isEmpty())
+        badges.append(data.plugin_badge);
     return badges;
 }
 
@@ -356,15 +358,24 @@ void NodeItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
         if (x + chip_width > body.width() - padding_x)
             break;
         const bool owner = badge == topology_text::owner_badge();
-        draw_chip(
-            painter,
-            QRectF(x, content_top + (name_height - chip_height) / 2.0,
-                   chip_width, chip_height),
-            badge,
-            theme.colour(owner ? colour_role::okSoft : colour_role::amberSoft),
-            theme.colour(owner ? colour_role::okLine : colour_role::amberLine),
-            theme.colour(owner ? colour_role::ok : colour_role::amber),
-            badge_font);
+        // A plugin that is not available is a plain fact: neutral, with a
+        // word, never a colour alone.
+        const bool plugin =
+            !data_.plugin_badge.isEmpty() && badge == data_.plugin_badge;
+        draw_chip(painter,
+                  QRectF(x, content_top + (name_height - chip_height) / 2.0,
+                         chip_width, chip_height),
+                  badge,
+                  theme.colour(plugin  ? colour_role::fill
+                               : owner ? colour_role::okSoft
+                                       : colour_role::amberSoft),
+                  theme.colour(plugin  ? colour_role::line
+                               : owner ? colour_role::okLine
+                                       : colour_role::amberLine),
+                  theme.colour(plugin  ? colour_role::ink3
+                               : owner ? colour_role::ok
+                                       : colour_role::amber),
+                  badge_font);
         x += chip_width + 4.0;
     }
     // With no badges, an unlinked node says so in plain text if there is room.

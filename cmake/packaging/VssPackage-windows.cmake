@@ -21,7 +21,11 @@
 #     uninstall shortcut
 #   - registers an uninstaller and an Apps & features entry
 #   - removes an earlier version first, so an upgrade replaces the files and
-#     leaves nothing behind
+#     leaves nothing behind. The new installer starts the old uninstaller with
+#     /VSSUPGRADE=1 (nsis-template.cmake); only that switch makes an uninstall keep
+#     the driver, the helper service and the PATH entry for the new installer to
+#     set up again. Any other uninstall removes them. If the person cancels the
+#     upgrade, the installer takes them away itself (driver.nsh)
 #   - offers, on a page with the box not ticked, to add the folder of vss_cli.exe to
 #     the system PATH (bin\edit-path.ps1, which has no limit on the length of the
 #     PATH). A silent install (/S) adds nothing unless /ADDTOPATH=1 is given
@@ -86,6 +90,12 @@ set(CPACK_NSIS_PACKAGE_NAME "Virtual Serial Studio")
 set(CPACK_NSIS_DISPLAY_NAME "Virtual Serial Studio")
 set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64")
 set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
+# CPack's template starts that uninstaller with /S _?=<folder>, which is also how an
+# unattended uninstall is started, so the uninstaller cannot tell the two apart. The
+# template CPack uses is a copy with one line changed (see nsis-template.cmake).
+include("${CMAKE_CURRENT_LIST_DIR}/windows/nsis-template.cmake")
+vss_write_nsis_template("${CMAKE_CURRENT_BINARY_DIR}/nsis-template")
+set(CPACK_MODULE_PATH "${VSS_NSIS_TEMPLATE_DIR}")
 # CPack's own PATH code is off: it keeps the PATH in an NSIS string of at most 1024
 # characters, shows "PATH too long installer unable to modify PATH!" for a longer one
 # and can cut a long PATH short when it takes the folder out. driver.nsh has its own
@@ -115,6 +125,7 @@ file(TO_NATIVE_PATH "${CMAKE_CURRENT_LIST_DIR}/windows/driver.nsh" _vss_driver_n
 string(REPLACE "\\" "\\\\" _vss_driver_nsh "${_vss_driver_nsh}")
 set(CPACK_NSIS_DEFINES
   "!define VSS_REGISTRY_KEY '${CPACK_PACKAGE_INSTALL_REGISTRY_KEY}'
+!define MUI_CUSTOMFUNCTION_ABORT VssOnUserAbort
 !include '${_vss_driver_nsh}'")
 unset(_vss_driver_nsh)
 set(CPACK_NSIS_PAGE_COMPONENTS
@@ -125,11 +136,13 @@ set(CPACK_NSIS_EXTRA_PREINSTALL_COMMANDS
 set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS
   "  Call VssInstallStopStudio
   Call VssInstallDriver
-  Call VssInstallPath")
+  Call VssInstallPath
+  Call VssUpgradeDone")
 set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS
-  "  Call un.VssStopStudio
+  "  Call un.VssReadUpgrade
+  Call un.VssStopStudio
+  Call un.VssStashUndo
   Call un.VssForgetUsers
   Call un.VssRemovePath
   Call un.VssRemoveDriver
-  Delete '$INSTDIR\\\\driver-setup.log'
-  Delete '$INSTDIR\\\\path-setup.log'")
+  Delete '$INSTDIR\\\\driver-setup.log'")

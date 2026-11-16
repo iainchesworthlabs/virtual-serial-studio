@@ -22,6 +22,9 @@ vss_add_fuzz_target(fuzz_plugin_manifest
 vss_add_fuzz_target(fuzz_plugin_message
   SOURCE "${PROJECT_SOURCE_DIR}/libs/vss_plugin/fuzz/fuzz_plugin_message.cpp"
   LIBS vss_plugin)
+vss_add_fuzz_target(fuzz_plugin_parameters
+  SOURCE "${PROJECT_SOURCE_DIR}/libs/vss_plugin/fuzz/fuzz_plugin_parameters.cpp"
+  LIBS vss_plugin)
 vss_add_fuzz_target(fuzz_rule_set
   SOURCE "${PROJECT_SOURCE_DIR}/libs/vss_rules/fuzz/fuzz_rule_set.cpp"
   LIBS vss_rules)
@@ -31,3 +34,6 @@ vss_add_fuzz_target(fuzz_control_message
 vss_add_fuzz_target(fuzz_licence
   SOURCE "${PROJECT_SOURCE_DIR}/libs/vss_license/fuzz/fuzz_licence.cpp"
   LIBS vss_license_test_keys)
+vss_add_fuzz_target(fuzz_update_feed
+  SOURCE "${PROJECT_SOURCE_DIR}/libs/vss_update/fuzz/fuzz_update_feed.cpp"
+  LIBS vss_update)

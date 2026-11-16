@@ -10,23 +10,41 @@ crashes in `regressions/`.
 | `libs/vss_ports/fuzz/fuzz_endpoint_uri.cpp` | An endpoint URI such as `tcp://host:4001` or `serial://COM3?baud=9600` |
 | `libs/vss_agent_proto/fuzz/fuzz_agent_frame.cpp` | The bytes of a connection to the agent: frames, requests, replies and event batches. They must be refused or accepted without a crash, read the same whole or in pieces, and what decodes must encode and decode again to the same value |
 | `libs/vss_plugin/fuzz/fuzz_plugin_manifest.cpp` | The manifest of a plugin (`plugin.json`), and a path inside a plugin. A manifest must be refused or accepted without a crash; an accepted one is inside every limit, reads the same a second time and names only paths that stay inside the plugin. The same bytes are also read as an administrator's policy, as a revocation list and as a trust store: each must be refused with a reason or be inside its limits, and a trust store must read back from its own text to an equal store |
-| `libs/vss_plugin/fuzz/fuzz_plugin_message.cpp` | The bytes of a connection to a plugin, cut into frames by the agent's frame reader, and the same bytes as one header and blob. Every frame is decoded as a message of the plugin API. A frame must be refused with a reason or accepted without a crash; an accepted message is inside every limit, is written again, and the frame made from it reads back as the same message and is written as the same bytes |
+| `libs/vss_plugin/fuzz/fuzz_plugin_message.cpp` | The bytes of a connection to a plugin, cut into frames by the agent's frame reader, and the same bytes as one header and blob. Every frame is decoded as a message of the plugin API. A frame must be refused with a reason or accepted without a crash; an accepted message is inside every limit, is written again, and the frame made from it reads back as the same message and is written as the same bytes. A message of an extension point (`api_ops`) is also read as its own struct: it is refused with a reason or written again, and what is written reads back and is written as the same bytes |
+| `libs/vss_plugin/fuzz/fuzz_plugin_parameters.cpp` | The values of a plugin's settings, as the text of a setup file's plugin binding or of a plugin API message. The text must be refused with a reason or accepted without a crash, inside the limits. Each value read is then checked as a parameter of every type; what passes is written, read and checked again, and must be equal and give the same stable text |
 | `libs/vss_rules/fuzz/fuzz_rule_set.cpp` | A response timing rule set (JSON), then traffic after the first zero byte. The set must be rejected or accepted without a crash; an accepted one is run on the traffic, fed in pieces of 1 to 7 bytes with line and port changes, and nothing it plans may be due before its match (unless timed from the start of the run), no reply may be over the limit, the kept tail must be shorter than the longest pattern, and every byte fed must be counted |
 | `libs/vss_control_proto/fuzz/fuzz_control_message.cpp` | The bytes of a connection to the control gateway: a first frame held to the size a `hello` may have, then requests and replies. They must be refused or accepted without a crash, and what decodes must encode and decode again to the same value |
 | `libs/vss_license/fuzz/fuzz_licence.cpp` | A licence file, which is whatever a person chose to import, and the payloads inside one. The signature keeps a fuzzer away from the payload readers, so the same bytes go to them directly as well. Everything must be refused or accepted without a crash, and what a reader accepts must write back and read again as the same value |
+| `libs/vss_update/fuzz/fuzz_update_feed.cpp` | The payload of an update feed, which is written by someone else and read after its signature verified. It must be refused with a reason or accepted without a crash; an accepted feed is inside every limit, and each version in it writes back and reads again as an equal one |
 
 ## Where it runs
 
 | Run | When | What |
 |---|---|---|
-| Replay in the normal tests | Every build | CTest tests `fuzz_topology`, `fuzz_endpoint_uri`, `fuzz_agent_frame`, `fuzz_plugin_manifest`, `fuzz_plugin_message`, `fuzz_rule_set`, `fuzz_control_message` and `fuzz_licence` (label `fuzz`) run each corpus and regression file once, through the `fuzz_topology_replay`, `fuzz_endpoint_uri_replay`, `fuzz_agent_frame_replay`, `fuzz_plugin_manifest_replay`, `fuzz_plugin_message_replay`, `fuzz_rule_set_replay`, `fuzz_control_message_replay` and `fuzz_licence_replay` programs. They work with any compiler, and run under AddressSanitizer and UBSan in the `AddressSanitizer and UBSan` job |
+| Replay in the normal tests | Every build | CTest tests `fuzz_topology`, `fuzz_endpoint_uri`, `fuzz_agent_frame`, `fuzz_plugin_manifest`, `fuzz_plugin_message`, `fuzz_plugin_parameters`, `fuzz_rule_set`, `fuzz_control_message`, `fuzz_licence` and `fuzz_update_feed` (label `fuzz`) run each corpus and regression file once, through the `fuzz_topology_replay`, `fuzz_endpoint_uri_replay`, `fuzz_agent_frame_replay`, `fuzz_plugin_manifest_replay`, `fuzz_plugin_message_replay`, `fuzz_plugin_parameters_replay`, `fuzz_rule_set_replay`, `fuzz_control_message_replay`, `fuzz_licence_replay` and `fuzz_update_feed_replay` programs. They work with any compiler, and run under AddressSanitizer and UBSan in the `AddressSanitizer and UBSan` job |
 | `Fuzz regression replay` (`fuzz-regress` in `ci.yml`) | Every ready pull request and merge-queue entry | Builds the `linux-fuzz` targets and replays the same files under libFuzzer with `tools/fuzz.py --mode regress`, then runs the unit tests of that script |
 | `Fuzz` in `.github/workflows/fuzz.yml` | Push to `develop`: 60 seconds a target | Replays the files, then fuzzes each target |
-| | Every night: 10 minutes a target | The same; the working corpus is kept between runs in the Actions cache |
+| | Every night: 10 minutes a target, in a budget of 100 minutes for all the targets | The same; the working corpus is kept between runs in the Actions cache |
 | | On request (`workflow_dispatch`) | Either length, chosen in the run form |
 
 A crash fails the run, uploads the input as the `fuzz-crashes` artifact and, at
 night, opens or updates a `nightly-analysis` issue.
+
+**The time.** The targets run one after another in one job, so the job needs time
+for all of them. The run passes `--budget-minutes 100` (`FUZZ_BUDGET_MINUTES` in
+`fuzz.yml`) and the job's `timeout-minutes` is 120, which holds the budget and the
+build. `tools/fuzz.py` gives each target the time of the mode or an equal share of
+the budget, whichever is less. The share is 6000 seconds divided by the number of
+targets, so up to ten targets get their 10 minutes, an eleventh shortens them all to 9
+minutes, and a twenty-first (285 seconds each) is refused. Under 5 minutes a target at
+night (30 seconds on a push) the script stops with status 2 and says so: raise the
+limit, or split the targets across jobs. `tools/test_fuzz.py` checks that the limit
+holds the budget and that every target still gets its 10 minutes, so the eleventh target
+fails the pull request that adds it, until the budget and the limit are raised, and not
+a night some weeks later. A target that does not stop within 3
+minutes of its time is killed and counted as a failure. A run that does run out of time
+is cancelled, not failed; the steps that keep the crash and open the issue run for a
+cancelled run too.
 
 ## Running it yourself
 
@@ -39,7 +57,8 @@ python3 tools/fuzz.py --mode short
 ```
 
 `--mode regress` only replays the files, `--mode short` fuzzes for 60 seconds a
-target, `--mode nightly` for ten minutes, and `--seconds` sets another time.
+target, `--mode nightly` for ten minutes, `--seconds` sets another time and
+`--budget-minutes` shares that many minutes between the targets.
 `--build-dir` (default `build/linux-fuzz`) and `--work-dir` (default
 `.cache/fuzz`) move the two directories. New inputs go to
 `.cache/fuzz/<harness>`, which Git ignores; crash files go to

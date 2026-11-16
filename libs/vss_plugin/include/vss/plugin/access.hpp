@@ -24,6 +24,7 @@
 #pragma once
 
 #include <vss/core/error.hpp>
+#include <vss/machine/access.hpp>
 #include <vss/plugin/policy.hpp>
 #include <vss/plugin/verify.hpp>
 
@@ -35,37 +36,17 @@
 namespace vss::plugin
 {
 
-enum class write_access
-{
-    /// Nobody but an administrator can change, replace or remove it.
-    administrators_only,
-    /// Someone who is not an administrator can.
-    others_too
-};
+/// Who can change a file or a folder.  The check is `vss::machine`'s; the
+/// names are the same here so that the callers of this library do not change.
+using write_access = vss::machine::write_access;
 
-std::string_view to_string(write_access value) noexcept;
+using vss::machine::to_string;
 
-/// Says who can change what `path` names, or put something else in its
-/// place.  The path is resolved first, links included, and then it and
-/// every folder above it are looked at, because whoever can replace a
-/// folder can replace what is in it.
-///
-/// On Linux and macOS it is `administrators_only` when the file or folder
-/// and every folder above it belong to root and neither their group nor
-/// others may write to them.  A group that may write is "others too" even
-/// when it is an administrators' group: its members change the files
-/// without being asked.
-///
-/// On Windows it is `administrators_only` when the file or folder and every
-/// folder above it belong to Administrators, SYSTEM or TrustedInstaller,
-/// and their access lists give nobody else the right to write to, delete or
-/// take over the file or folder itself, or to delete, take over or remove
-/// things from a folder above it.
-///
+/// `vss::machine::who_can_write`, with this library's error codes:
 /// `errc::not_found` when `path` is not there; `errc::io_error` when it or
 /// a folder above it cannot be examined.  `detail`, when given, receives
 /// one line: for `others_too`, which file or folder gave that answer and
-/// why.
+/// why.  See `vss/machine/access.hpp` for the rule.
 result<write_access> who_can_write(const std::filesystem::path& path,
                                    std::string* detail = nullptr);
 

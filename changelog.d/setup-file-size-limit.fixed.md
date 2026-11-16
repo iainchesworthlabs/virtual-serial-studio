@@ -1,0 +1,1 @@
+**A file over 16 MiB is refused when you open it as a setup.** Before, the whole file was read into memory, so a large file picked by mistake could freeze the window or stop Studio and every running port.

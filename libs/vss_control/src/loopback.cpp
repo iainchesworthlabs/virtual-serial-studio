@@ -229,10 +229,11 @@ result<tcp::acceptor> bound(const boost::asio::any_io_executor& executor,
         if (failed)
             return failed;
     }
-    // The port is this listener's alone.  No option that would let another
-    // program bind it too is ever set, and where the system needs to be
-    // told so, it is.
-    platform::make_listener_exclusive(
+    // The port is this listener's alone while it listens.  No option that
+    // would let another program bind it too is ever set, and where the system
+    // needs to be told so, it is; where a restart would otherwise wait for
+    // TIME_WAIT, the option for that is set (see the platform file).
+    platform::claim_listening_port(
         static_cast<std::uintptr_t>(acceptor.native_handle()));
     acceptor.bind(where, failed);
     if (failed)

@@ -38,7 +38,9 @@ result<std::filesystem::path> state_directory();
 ///
 /// Windows: the last component is made with the protected access list
 /// `D:P(A;OICI;FA;;;<user SID>)`; a directory that already exists must be
-/// owned by this user, or the call fails with `errc::permission_denied`.
+/// owned by this user and its access list must let in nobody but this user,
+/// the system and the Administrators group, or the call fails with
+/// `errc::permission_denied`.
 error_code ensure_private_directory(const std::filesystem::path& directory);
 
 /// A file opened for appending that only this user can read.

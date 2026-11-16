@@ -110,6 +110,9 @@ QString licence_text(const QString& spdx)
             "About",
             "GNU Lesser General Public License, version 3, or the GNU "
             "General Public License, version 3.");
+    if (spdx == QLatin1String("GPL-3.0-only"))
+        return QCoreApplication::translate(
+            "About", "GNU General Public License, version 3.");
     if (spdx == QLatin1String("BSL-1.0"))
         return QCoreApplication::translate("About",
                                            "Boost Software License, version 1.0.");
@@ -127,7 +130,8 @@ QString licence_text(const QString& spdx)
 
 QString licence_note(const QString& notice)
 {
-    if (notice == QLatin1String("Qt"))
+    if (notice == QLatin1String("Qt") ||
+        notice == QLatin1String("Qt Canvas Painter"))
         return QCoreApplication::translate(
             "About", "Shipped with Studio as shared libraries.");
     if (notice == QLatin1String("Tracy"))

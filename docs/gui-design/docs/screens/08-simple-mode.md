@@ -53,8 +53,9 @@ Jobs, as tiles (kind tile icon, title, two-line description) in four groups with
 | | **Check this PC is ready** | Find out whether this PC can make ports that other programs can open, and what to do if not. |
 
 "Put several on one line" is disabled with the tooltip "Not available in this build" where `Capabilities::shared_bus`
-is off. "Let other computers use my device" needs `Capabilities::bridge`. Below the tiles: "Open a saved setup…" and
-"Start from an example…" (secondary buttons, the existing Open and templates actions).
+is off. "Let other computers use my device" needs `Capabilities::bridge`, which here stands for a build that can open a
+network port other computers connect to. Below the tiles: "Open a saved setup…" and "Start from an example…" (secondary
+buttons, the existing Open and templates actions).
 
 ## Job form
 
@@ -113,7 +114,9 @@ real port, com0com or an earlier port that Windows remembers. What was there bef
 Studio has chosen another number for you. Choose Apply to try again." The refused number is not offered again in that
 form and the row already holds a free number. Any other refusal reads "Could not set it up. Studio reported: <the
 reason>. Nothing was changed." or, when changing, "Could not change the setup. Studio reported: <the reason>. What was
-there before was put back where Studio could."
+there before was put back where Studio could." When a change closed the old setup first (the network job does, because
+the old and the new setup may want the same device and port) and the old one could not be made again, the second
+sentence reads "The previous setup could not be put back."
 
 ## What each job builds
 
@@ -124,7 +127,7 @@ there before was put back where Studio could."
 | Use my device through a new port | device, one virtual port, split from the device (as Attach) |
 | Share my device | device, N virtual ports, split from the device |
 | Try my device | device alone |
-| Let other computers use my device | `bridge(serial, tcp://0.0.0.0:port)` |
+| Let other computers use my device | the device, opened with the form's settings, and a port listening at `tcp-listen://0.0.0.0:port`, linked two-way. Only a setup of exactly this form is read back as this job: a listener bound to one address, with an allow list, for RFC 2217 or UDP, or a client that connects out was made in Advanced mode and is changed there. Changing it closes both ports and makes them again |
 | Put several on one line | N ports (virtual or device), `bus` |
 | Send several into one | N senders, `join` into the receiver |
 | Let programs take turns | device, N virtual ports, `split` from the device to the programs with `merge_policy::owner`, then `set_owner` to the first program. On a duplex link the owner rule applies to the routes from the targets back to the source, so only the owner's bytes reach the device and the device's replies reach every program (see `08-engine-gaps.md`) |

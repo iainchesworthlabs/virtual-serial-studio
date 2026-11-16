@@ -6,8 +6,12 @@
 
 #include "panes/monitor_cell_delegate.hpp"
 
+#include "theme/scaled_font.hpp"
+#include "theme/theme.hpp"
+
 #include <vss/core/profile.hpp>
 
+#include <QFontMetrics>
 #include <QFontMetricsF>
 #include <QModelIndex>
 #include <QStringView>
@@ -18,6 +22,22 @@
 
 namespace vss::gui
 {
+
+void monitor_cell_style::update(double scale, int padding_pixels)
+{
+    const Theme& theme = Theme::instance();
+    data = scaled_font(theme.font(text_style::data), scale);
+    caption = scaled_font(theme.font(text_style::caption), scale);
+    tag = caption;
+    tag.setWeight(QFont::DemiBold);
+    padding = padding_pixels;
+}
+
+QSize monitor_cell_style::tag_size(const QString& text) const
+{
+    const QFontMetrics metrics(tag);
+    return {metrics.horizontalAdvance(text) + 12, metrics.height() + 2};
+}
 
 MonitorCellDelegate::MonitorCellDelegate(int long_text_column, QObject* parent)
     : QStyledItemDelegate(parent), long_text_column_(long_text_column)
@@ -79,6 +99,10 @@ void MonitorCellDelegate::initStyleOption(QStyleOptionViewItem* option,
                                           const QModelIndex& index) const
 {
     QStyledItemDelegate::initStyleOption(option, index);
+    // The delegate owns the fonts, whatever the model answers for the font
+    // role: the port names in the caption font, the rest in the data font.
+    if (style_ != nullptr)
+        option->font = index.column() == 1 ? style_->caption : style_->data;
     if (index.column() != long_text_column_)
         return;
     if (!measured_ || option->font != font_)

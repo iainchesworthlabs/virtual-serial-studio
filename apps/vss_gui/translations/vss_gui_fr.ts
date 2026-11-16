@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<!-- Translation origin: Written by Claude for the flow usability pass -->
+<!-- Translation origin: Plugin notice strings -->
 <TS version="2.1" language="fr">
     <context>
         <name>About</name>
@@ -27,8 +27,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="170" />
-            <source>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.</source>
-            <translation>Ce programme est un logiciel libre : vous pouvez le redistribuer et/ou le modifier selon les termes de la GNU General Public License publiée par la Free Software Foundation, soit la version 3 de la licence, soit (à votre choix) toute version ultérieure.</translation>
+            <source>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 3 of the License.</source>
+            <translation>Ce programme est un logiciel libre : vous pouvez le redistribuer et/ou le modifier selon les termes de la GNU General Public License publiée par la Free Software Foundation, dans la version 3 de la licence.</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="179" />
@@ -62,8 +62,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="237" />
-            <source>Virtual Serial Studio is free software under the GNU General Public License, version 3 or later. It uses these components:</source>
-            <translation>Virtual Serial Studio est un logiciel libre sous licence GNU General Public License, version 3 ou ultérieure. Il utilise ces composants :</translation>
+            <source>Virtual Serial Studio is free software under the GNU General Public License, version 3. It uses these components:</source>
+            <translation>Virtual Serial Studio est un logiciel libre sous licence GNU General Public License, version 3. Il utilise ces composants :</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="242" />
@@ -74,6 +74,11 @@
             <location filename="../src/support/about_dialog.cpp" line="243" />
             <source>GNU Lesser General Public License, version 3, or the GNU General Public License, version 3.</source>
             <translation>GNU Lesser General Public License, version 3, ou GNU General Public License, version 3.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="243" />
+            <source>GNU General Public License, version 3.</source>
+            <translation>GNU General Public License, version 3.</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="247" />
@@ -323,13 +328,129 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="1" />
-            <source>Version %1. Free software under the GNU General Public License, version 3 or later. Edition: %2.</source>
-            <translation>Version %1. Logiciel libre sous licence GNU General Public License, version 3 ou ultérieure. Édition : %2.</translation>
+            <source>Version %1. Free software under the GNU General Public License, version 3. Edition: %2.</source>
+            <translation>Version %1. Logiciel libre sous licence GNU General Public License, version 3. Édition : %2.</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="1" />
             <source>Create support bundle</source>
             <translation>Créer une archive de support</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="268" />
+            <source>Updates</source>
+            <translation>Mises à jour</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="409" />
+            <source>This version</source>
+            <translation>Cette version</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="413" />
+            <source>Newest version</source>
+            <translation>Version la plus récente</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="417" />
+            <source>Last checked</source>
+            <translation>Dernière vérification</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="431" />
+            <source>Check for updates automatically</source>
+            <translation>Rechercher automatiquement les mises à jour</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="436" />
+            <source>Once a day Studio asks virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>Une fois par jour, Studio demande à virtual-serial-studio.com quelle est la version la plus récente. Rien sur vous ni sur cet ordinateur n'est envoyé.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="455" />
+            <source>Check now</source>
+            <translation>Vérifier maintenant</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="460" />
+            <source>Update...</source>
+            <translation>Mettre à jour...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="32" />
+            <source>copied from the disk image</source>
+            <translation>copiée depuis l'image disque</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="36" />
+            <source>installed for everyone on this computer</source>
+            <translation>installée pour tout le monde sur cet ordinateur</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="38" />
+            <source>unpacked from an archive</source>
+            <translation>décompressée depuis une archive</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="51" />
+            <source>Not checked yet.</source>
+            <translation>Pas encore vérifié.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="53" />
+            <source>Checking...</source>
+            <translation>Vérification...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="56" />
+            <source>This is a developer build. The newest release is %1.</source>
+            <translation>Ceci est un build de développement. La dernière version publiée est %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="60" />
+            <location filename="../src/support/update_text.cpp" line="64" />
+            <source>%1 is the newest version.</source>
+            <translation>%1 est la version la plus récente.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="68" />
+            <source>%1 is available. Download it from virtual-serial-studio.com.</source>
+            <translation>%1 est disponible. Téléchargez-la sur virtual-serial-studio.com.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="72" />
+            <source>%1 is available.</source>
+            <translation>%1 est disponible.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="76" />
+            <source>The update information could not be trusted, so nothing was changed.</source>
+            <translation>Les informations de mise à jour ne sont pas fiables, donc rien n'a été modifié.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="79" />
+            <source>Studio could not reach the update server. Check the connection and try again.</source>
+            <translation>Studio n'a pas pu joindre le serveur de mises à jour. Vérifiez la connexion et réessayez.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="83" />
+            <source>Update checks are turned off by your administrator.</source>
+            <translation>La recherche de mises à jour est désactivée par votre administrateur.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="86" />
+            <source>This build cannot check for updates.</source>
+            <translation>Ce build ne peut pas rechercher les mises à jour.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="100" />
+            <source>%1, %2</source>
+            <translation>%1, %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="107" />
+            <source>Never</source>
+            <translation>Jamais</translation>
         </message>
     </context>
     <context>
@@ -2771,6 +2892,21 @@ Réseaux : %5</translation>
             <source>%1, %2</source>
             <translation>%1, %2</translation>
         </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="1" />
+            <source>Provided by</source>
+            <translation>Fourni par</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>Afficher dans Modules</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="1" />
+            <source>These settings are kept. They apply again when the plugin is available.</source>
+            <translation>Ces réglages sont conservés. Ils s’appliquent de nouveau quand le module est disponible.</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -3300,6 +3436,11 @@ Réseaux : %5</translation>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
             <translation>Impossible de modifier la configuration. Studio a signalé : %1. L'état précédent a été rétabli là où Studio le pouvait.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>Impossible de modifier la configuration. Studio a signalé : %1. La configuration précédente n'a pas pu être rétablie.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />
@@ -4225,6 +4366,16 @@ Réseaux : %5</translation>
             <location filename="../src/panes/monitor_panel.cpp" line="622" />
             <source>JSON Lines (*.jsonl)</source>
             <translation>Lignes JSON (*.jsonl)</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="356" />
+            <source>Traffic table columns</source>
+            <translation>Colonnes du tableau du trafic</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="800" />
+            <source>%1 column is %2 px wide.</source>
+            <translation>La colonne %1 fait %2 px de large.</translation>
         </message>
     </context>
     <context>
@@ -6587,6 +6738,41 @@ Réseaux : %5</translation>
             <location filename="../src/support/settings_dialog.cpp" line="626" />
             <source>Studio could not write the sign-in entry. Nothing was changed.</source>
             <translation>Studio n'a pas pu écrire l'entrée de démarrage. Rien n'a été modifié.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="256" />
+            <source>Updates</source>
+            <translation>Mises à jour</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="263" />
+            <source>Check for updates automatically</source>
+            <translation>Rechercher automatiquement les mises à jour</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="269" />
+            <source>Once a day Studio asks virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>Une fois par jour, Studio demande à virtual-serial-studio.com quelle est la version la plus récente. Rien sur vous ni sur cet ordinateur n'est envoyé.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="277" />
+            <source>Include pre-release versions</source>
+            <translation>Inclure les préversions</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="283" />
+            <source>Offers release candidates as well as finished releases.</source>
+            <translation>Propose les versions candidates en plus des versions finales.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="883" />
+            <source>Set by your administrator.</source>
+            <translation>Défini par votre administrateur.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="885" />
+            <source>This build cannot check for updates.</source>
+            <translation>Ce build ne peut pas rechercher les mises à jour.</translation>
         </message>
     </context>
     <context>
@@ -9420,6 +9606,52 @@ Réseaux : %5</translation>
             <source>Support bundle</source>
             <translation>Archive de support</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2030" />
+            <location filename="../src/shell/shell_window.cpp" line="3148" />
+            <source>Not everything that was running could be put back, so the setup is marked as changed.</source>
+            <translation>Tout ce qui fonctionnait n'a pas pu être remis en place ; la configuration est donc marquée comme modifiée.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2090" />
+            <source>The setup needs a device or network endpoint that is not available on this PC. Check the device, then try again.</source>
+            <translation>La configuration nécessite un appareil ou un point de terminaison réseau qui n'est pas disponible sur ce PC. Vérifiez l'appareil, puis réessayez.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="605" />
+            <source>Check for updates...</source>
+            <translation>Rechercher des mises à jour...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="606" />
+            <source>update version new release download</source>
+            <translation>mise à jour version nouvelle publication télécharger</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3096" />
+            <source>Update checks are turned off by your administrator.</source>
+            <translation>La recherche de mises à jour est désactivée par votre administrateur.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3097" />
+            <source>This build cannot check for updates.</source>
+            <translation>Ce build ne peut pas rechercher les mises à jour.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Plugins...</source>
+            <translation>Modules...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>plugin plugins extension fixture generator trust</source>
+            <translation>module modules plugin plugins extension fixture générateur confiance</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Started again.</source>
+            <translation>Redémarré.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -10997,7 +11229,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/troubleshoot_dialog.cpp" line="1" />
             <source>Still stuck? A support bundle gathers the setup, the log and the environment for whoever helps you. The bytes your ports sent and received are never included.</source>
-            <translation>Toujours bloqué ? Une archive de support rassemble la configuration, le journal et l&apos;environnement pour la personne qui vous aide. Les octets envoyés et reçus par vos ports ne sont jamais inclus.</translation>
+            <translation>Toujours bloqué ? Une archive de support rassemble la configuration, le journal et l'environnement pour la personne qui vous aide. Les octets envoyés et reçus par vos ports ne sont jamais inclus.</translation>
         </message>
     </context>
     <context>
@@ -18087,6 +18319,11 @@ Réseaux : %5</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>Impossible de modifier la configuration. Studio a signalé : %1. La configuration précédente n'a pas pu être rétablie.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio n'a pas pu lire quels numéros COM Windows conserve ; il en choisit donc un libre à la création du port et l'affiche quand le port est prêt.</translation>
         </message>
@@ -19827,6 +20064,16 @@ Réseaux : %5</translation>
             <source>Bundles</source>
             <translation>Lots</translation>
         </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="1" />
+            <source>Plugins</source>
+            <translation>Modules</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>Afficher dans Modules</translation>
+        </message>
     </context>
     <context>
         <name>TopologyView</name>
@@ -20012,7 +20259,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>Pro trial</source>
-            <translation>Pro d&apos;essai</translation>
+            <translation>Pro d'essai</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
@@ -20022,7 +20269,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>%1, ends today</source>
-            <translation>%1, se termine aujourd&apos;hui</translation>
+            <translation>%1, se termine aujourd'hui</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
@@ -20136,12 +20383,12 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.</source>
-            <translation>Un poste correspond à deux ordinateurs : celui sur lequel vous travaillez et un autre que vous contrôlez ou surveillez depuis celui-ci. Le périphérique série peut se trouver sur l&apos;un ou l&apos;autre.</translation>
+            <translation>Un poste correspond à deux ordinateurs : celui sur lequel vous travaillez et un autre que vous contrôlez ou surveillez depuis celui-ci. Le périphérique série peut se trouver sur l'un ou l'autre.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>A licence is renewed by installing a new licence file. Write to %1 and quote your licence number, %2. Studio does not open a web page or send anything itself.</source>
-            <translation>Une licence se renouvelle en installant un nouveau fichier de licence. Écrivez à %1 en indiquant votre numéro de licence, %2. Studio n&apos;ouvre aucune page web et n&apos;envoie rien lui-même.</translation>
+            <translation>Une licence se renouvelle en installant un nouveau fichier de licence. Écrivez à %1 en indiquant votre numéro de licence, %2. Studio n'ouvre aucune page web et n'envoie rien lui-même.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
@@ -20156,7 +20403,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_dialog.cpp" line="1" />
             <source>Copy address</source>
-            <translation>Copier l&apos;adresse</translation>
+            <translation>Copier l'adresse</translation>
         </message>
         <message>
             <location filename="../src/support/licence_dialog.cpp" line="1" />
@@ -20176,7 +20423,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>Ended on %1. Official plugins keep working until %2, then switch off.</source>
-            <translation>Terminée le %1. Les modules officiels continuent de fonctionner jusqu&apos;au %2, puis s&apos;arrêtent.</translation>
+            <translation>Terminée le %1. Les modules officiels continuent de fonctionner jusqu'au %2, puis s'arrêtent.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
@@ -20241,7 +20488,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>No licence is installed. This is the Community edition: free software, complete for capturing, monitoring and sharing serial ports.</source>
-            <translation>Aucune licence n&apos;est installée. C&apos;est l&apos;édition Community : un logiciel libre, complet pour capturer, surveiller et partager des ports série.</translation>
+            <translation>Aucune licence n'est installée. C'est l'édition Community : un logiciel libre, complet pour capturer, surveiller et partager des ports série.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
@@ -20256,7 +20503,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>Official plugins are off. Nothing you made is lost: every port, setup and file still opens and saves.</source>
-            <translation>Les modules officiels sont désactivés. Rien de ce que vous avez créé n&apos;est perdu : chaque port, configuration et fichier s&apos;ouvre et s&apos;enregistre toujours.</translation>
+            <translation>Les modules officiels sont désactivés. Rien de ce que vous avez créé n'est perdu : chaque port, configuration et fichier s'ouvre et s'enregistre toujours.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_dialog.cpp" line="1" />
@@ -20281,7 +20528,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_dialog.cpp" line="1" />
             <source>Shows which edition this is and what your licence includes. Studio checks a licence on this computer and never contacts a server.</source>
-            <translation>Affiche l&apos;édition en cours et ce que comprend votre licence. Studio vérifie une licence sur cet ordinateur et ne contacte jamais de serveur.</translation>
+            <translation>Affiche l'édition en cours et ce que comprend votre licence. Studio vérifie une licence sur cet ordinateur et ne contacte jamais de serveur.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
@@ -20296,7 +20543,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_dialog.cpp" line="1" />
             <source>Studio returns to the Community edition. Your ports, setups and files are unchanged. Keep the licence file so you can import it again.</source>
-            <translation>Studio revient à l&apos;édition Community. Vos ports, configurations et fichiers sont inchangés. Conservez le fichier de licence pour pouvoir l&apos;importer de nouveau.</translation>
+            <translation>Studio revient à l'édition Community. Vos ports, configurations et fichiers sont inchangés. Conservez le fichier de licence pour pouvoir l'importer de nouveau.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_dialog.cpp" line="1" />
@@ -20321,12 +20568,12 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>The date on this computer looks wrong. Official plugins are off until the date is right. If the date is right, create a support bundle and contact support.</source>
-            <translation>La date de cet ordinateur semble incorrecte. Les modules officiels sont désactivés tant que la date n&apos;est pas correcte. Si la date est correcte, créez une archive de support et contactez le support.</translation>
+            <translation>La date de cet ordinateur semble incorrecte. Les modules officiels sont désactivés tant que la date n'est pas correcte. Si la date est correcte, créez une archive de support et contactez le support.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>The installed licence is not valid.</source>
-            <translation>La licence installée n&apos;est pas valide.</translation>
+            <translation>La licence installée n'est pas valide.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_dialog.cpp" line="1" />
@@ -20336,17 +20583,17 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>This file is not a valid Virtual Serial Studio licence. It may be damaged or incomplete. Ask for the file again.</source>
-            <translation>Ce fichier n&apos;est pas une licence Virtual Serial Studio valide. Il est peut-être endommagé ou incomplet. Demandez de nouveau le fichier.</translation>
+            <translation>Ce fichier n'est pas une licence Virtual Serial Studio valide. Il est peut-être endommagé ou incomplet. Demandez de nouveau le fichier.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>This is a 14 day trial of the Pro edition. It ends on %1. Nothing you make during the trial is lost.</source>
-            <translation>Ceci est un essai de 14 jours de l&apos;édition Pro. Il se termine le %1. Rien de ce que vous créez pendant l&apos;essai n&apos;est perdu.</translation>
+            <translation>Ceci est un essai de 14 jours de l'édition Pro. Il se termine le %1. Rien de ce que vous créez pendant l'essai n'est perdu.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>This licence is for other computers. This computer is %1. Ask your administrator for a licence that names it.</source>
-            <translation>Cette licence est destinée à d&apos;autres ordinateurs. Cet ordinateur est %1. Demandez à votre administrateur une licence qui le désigne.</translation>
+            <translation>Cette licence est destinée à d'autres ordinateurs. Cet ordinateur est %1. Demandez à votre administrateur une licence qui le désigne.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
@@ -20366,24 +20613,24 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>Valid until %1.</source>
-            <translation>Valide jusqu&apos;au %1.</translation>
+            <translation>Valide jusqu'au %1.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>Valid until %1. 1 day left.</source>
-            <translation>Valide jusqu&apos;au %1. 1 jour restant.</translation>
+            <translation>Valide jusqu'au %1. 1 jour restant.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>Valid until %1. Ends today.</source>
-            <translation>Valide jusqu&apos;au %1. Se termine aujourd&apos;hui.</translation>
+            <translation>Valide jusqu'au %1. Se termine aujourd'hui.</translation>
         </message>
         <message numerus="yes">
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>Valid until %1. %n days left.</source>
             <translation>
-                <numerusform>Valide jusqu&apos;au %1. %n jour restant.</numerusform>
-                <numerusform>Valide jusqu&apos;au %1. %n jours restants.</numerusform>
+                <numerusform>Valide jusqu'au %1. %n jour restant.</numerusform>
+                <numerusform>Valide jusqu'au %1. %n jours restants.</numerusform>
             </translation>
         </message>
         <message>
@@ -20399,17 +20646,17 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>Your licence does not include this.</source>
-            <translation>Votre licence n&apos;inclut pas cela.</translation>
+            <translation>Votre licence n'inclut pas cela.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>Your licence ended on %1.</source>
-            <translation>Votre licence s&apos;est terminée le %1.</translation>
+            <translation>Votre licence s'est terminée le %1.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>Your licence ended on %1. Official plugins switch off on %2.</source>
-            <translation>Votre licence s&apos;est terminée le %1. Les modules officiels s&apos;arrêtent le %2.</translation>
+            <translation>Votre licence s'est terminée le %1. Les modules officiels s'arrêtent le %2.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
@@ -20419,7 +20666,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>Your licence is for other computers.</source>
-            <translation>Votre licence est destinée à d&apos;autres ordinateurs.</translation>
+            <translation>Votre licence est destinée à d'autres ordinateurs.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
@@ -20430,6 +20677,11 @@ Réseaux : %5</translation>
             <location filename="../src/support/licence_dialog.cpp" line="1" />
             <source>licence number</source>
             <translation>numéro de licence</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Plugins</source>
+            <translation>Modules</translation>
         </message>
     </context>
     <context>
@@ -20447,7 +20699,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_dialog.cpp" line="1" />
             <source>Could not import the licence</source>
-            <translation>Impossible d&apos;importer la licence</translation>
+            <translation>Impossible d'importer la licence</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
@@ -20472,12 +20724,12 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>Licence imported. This is now the %1 edition.</source>
-            <translation>Licence importée. C&apos;est maintenant l&apos;édition %1.</translation>
+            <translation>Licence importée. C'est maintenant l'édition %1.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>Studio could not read %1. Check that the file still exists and that you are allowed to open it.</source>
-            <translation>Studio n&apos;a pas pu lire %1. Vérifiez que le fichier existe toujours et que vous avez le droit de l&apos;ouvrir.</translation>
+            <translation>Studio n'a pas pu lire %1. Vérifiez que le fichier existe toujours et que vous avez le droit de l'ouvrir.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
@@ -20487,7 +20739,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>This licence ended on %1. It was imported, but it does not turn anything on.</source>
-            <translation>Cette licence s&apos;est terminée le %1. Elle a été importée, mais ne met rien en marche.</translation>
+            <translation>Cette licence s'est terminée le %1. Elle a été importée, mais ne met rien en marche.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
@@ -20520,12 +20772,12 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>Your licence ended on %1. Official plugins switch off today.</source>
-            <translation>Votre licence s&apos;est terminée le %1. Les modules officiels s&apos;arrêtent aujourd&apos;hui.</translation>
+            <translation>Votre licence s'est terminée le %1. Les modules officiels s'arrêtent aujourd'hui.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>Your licence ended on %1. Official plugins switch off tomorrow.</source>
-            <translation>Votre licence s&apos;est terminée le %1. Les modules officiels s&apos;arrêtent demain.</translation>
+            <translation>Votre licence s'est terminée le %1. Les modules officiels s'arrêtent demain.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
@@ -20535,14 +20787,14 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>Your licence has ended, so official plugins are off. Studio is now the Community edition. Your ports, setups and files are unchanged.</source>
-            <translation>Votre licence est terminée, donc les modules officiels sont désactivés. Studio est maintenant l&apos;édition Community. Vos ports, configurations et fichiers sont inchangés.</translation>
+            <translation>Votre licence est terminée, donc les modules officiels sont désactivés. Studio est maintenant l'édition Community. Vos ports, configurations et fichiers sont inchangés.</translation>
         </message>
         <message numerus="yes">
             <location filename="../src/support/licence_text.cpp" line="1" />
             <source>Your licence ended on %1. Official plugins switch off in %n days.</source>
             <translation>
-                <numerusform>Votre licence s&apos;est terminée le %1. Les modules officiels s&apos;arrêtent dans %n jour.</numerusform>
-                <numerusform>Votre licence s&apos;est terminée le %1. Les modules officiels s&apos;arrêtent dans %n jours.</numerusform>
+                <numerusform>Votre licence s'est terminée le %1. Les modules officiels s'arrêtent dans %n jour.</numerusform>
+                <numerusform>Votre licence s'est terminée le %1. Les modules officiels s'arrêtent dans %n jours.</numerusform>
             </translation>
         </message>
     </context>
@@ -20556,7 +20808,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
             <source>Could not save the bundle</source>
-            <translation>Impossible d&apos;enregistrer l&apos;archive</translation>
+            <translation>Impossible d'enregistrer l'archive</translation>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
@@ -20571,7 +20823,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
             <source>Gathers what a helper needs to understand your setup. Nothing is sent anywhere. You choose where to save it.</source>
-            <translation>Rassemble ce dont un assistant a besoin pour comprendre votre configuration. Rien n&apos;est envoyé nulle part. Vous choisissez où l&apos;enregistrer.</translation>
+            <translation>Rassemble ce dont un assistant a besoin pour comprendre votre configuration. Rien n'est envoyé nulle part. Vous choisissez où l'enregistrer.</translation>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
@@ -20596,7 +20848,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
             <source>State changes and errors since the setup was opened.</source>
-            <translation>Changements d&apos;état et erreurs depuis l&apos;ouverture de la configuration.</translation>
+            <translation>Changements d'état et erreurs depuis l'ouverture de la configuration.</translation>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
@@ -20616,17 +20868,17 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
             <source>Copy environment only</source>
-            <translation>Copier l&apos;environnement seulement</translation>
+            <translation>Copier l'environnement seulement</translation>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
             <source>Save bundle</source>
-            <translation>Enregistrer l&apos;archive</translation>
+            <translation>Enregistrer l'archive</translation>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
             <source>The bundle has too many files.</source>
-            <translation>L&apos;archive contient trop de fichiers.</translation>
+            <translation>L'archive contient trop de fichiers.</translation>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
@@ -20661,7 +20913,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
             <source>Studio could not write to that folder. Choose another place, such as your Documents folder.</source>
-            <translation>Studio n&apos;a pas pu écrire dans ce dossier. Choisissez un autre emplacement, par exemple votre dossier Documents.</translation>
+            <translation>Studio n'a pas pu écrire dans ce dossier. Choisissez un autre emplacement, par exemple votre dossier Documents.</translation>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
@@ -20676,7 +20928,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
             <source>Creating a support bundle is not available in this build.</source>
-            <translation>La création d&apos;une archive de support n&apos;est pas disponible dans cette version.</translation>
+            <translation>La création d'une archive de support n'est pas disponible dans cette version.</translation>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
@@ -20686,7 +20938,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
             <source>Build, compiler, Qt version, operating system, architecture and edition.</source>
-            <translation>Version, compilateur, version de Qt, système d&apos;exploitation, architecture et édition.</translation>
+            <translation>Version, compilateur, version de Qt, système d'exploitation, architecture et édition.</translation>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
@@ -20695,8 +20947,8 @@ Réseaux : %5</translation>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
-            <source>Whether the Studio driver and com0com are present, their versions, how the driver is signed, the helper service&apos;s state and the results of the setup check.</source>
-            <translation>Si le pilote Studio et com0com sont présents, leurs versions, la façon dont le pilote est signé, l&apos;état du service auxiliaire et les résultats de la vérification de la configuration.</translation>
+            <source>Whether the Studio driver and com0com are present, their versions, how the driver is signed, the helper service's state and the results of the setup check.</source>
+            <translation>Si le pilote Studio et com0com sont présents, leurs versions, la façon dont le pilote est signé, l'état du service auxiliaire et les résultats de la vérification de la configuration.</translation>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
@@ -20725,13 +20977,13 @@ Réseaux : %5</translation>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
-            <source>This computer&apos;s name</source>
+            <source>This computer's name</source>
             <translation>Nom de cet ordinateur</translation>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
             <source>Needed when a licence names computers.</source>
-            <translation>Nécessaire lorsqu&apos;une licence désigne des ordinateurs.</translation>
+            <translation>Nécessaire lorsqu'une licence désigne des ordinateurs.</translation>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
@@ -20741,7 +20993,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
             <source>The bytes your ports sent and received are never included. Passwords, tokens and keys are replaced with [redacted]. The path of your home folder is shortened to ~. The name of this computer and your user name are not included. Serial numbers of devices are not included. The licence file itself is never included.</source>
-            <translation>Les octets envoyés et reçus par vos ports ne sont jamais inclus. Les mots de passe, les jetons et les clés sont remplacés par [redacted]. Le chemin de votre dossier personnel est raccourci en ~. Le nom de cet ordinateur et votre nom d&apos;utilisateur ne sont pas inclus. Les numéros de série des appareils ne sont pas inclus. Le fichier de licence lui-même n&apos;est jamais inclus.</translation>
+            <translation>Les octets envoyés et reçus par vos ports ne sont jamais inclus. Les mots de passe, les jetons et les clés sont remplacés par [redacted]. Le chemin de votre dossier personnel est raccourci en ~. Le nom de cet ordinateur et votre nom d'utilisateur ne sont pas inclus. Les numéros de série des appareils ne sont pas inclus. Le fichier de licence lui-même n'est jamais inclus.</translation>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
@@ -20751,7 +21003,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
             <source>Files in the bundle</source>
-            <translation>Fichiers de l&apos;archive</translation>
+            <translation>Fichiers de l'archive</translation>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
@@ -20771,7 +21023,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
             <source>Save support bundle</source>
-            <translation>Enregistrer l&apos;archive de support</translation>
+            <translation>Enregistrer l'archive de support</translation>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
@@ -20817,17 +21069,17 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Help contents</source>
-            <translation>Sommaire de l&apos;aide</translation>
+            <translation>Sommaire de l'aide</translation>
         </message>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Why is nothing arriving?</source>
-            <translation>Pourquoi rien n&apos;arrive ?</translation>
+            <translation>Pourquoi rien n'arrive ?</translation>
         </message>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Copy address</source>
-            <translation>Copier l&apos;adresse</translation>
+            <translation>Copier l'adresse</translation>
         </message>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
@@ -20862,7 +21114,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Where to get help, and what to send so a helper can understand your setup.</source>
-            <translation>Où obtenir de l&apos;aide, et quoi envoyer pour qu&apos;un assistant comprenne votre configuration.</translation>
+            <translation>Où obtenir de l'aide, et quoi envoyer pour qu'un assistant comprenne votre configuration.</translation>
         </message>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
@@ -20872,32 +21124,32 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Copy documents address</source>
-            <translation>Copier l&apos;adresse des documents</translation>
+            <translation>Copier l'adresse des documents</translation>
         </message>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Copy issues address</source>
-            <translation>Copier l&apos;adresse des problèmes</translation>
+            <translation>Copier l'adresse des problèmes</translation>
         </message>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Studio never sends anything itself. You choose what to share.</source>
-            <translation>Studio n&apos;envoie jamais rien de lui-même. Vous choisissez ce que vous partagez.</translation>
+            <translation>Studio n'envoie jamais rien de lui-même. Vous choisissez ce que vous partagez.</translation>
         </message>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Before you write</source>
-            <translation>Avant d&apos;écrire</translation>
+            <translation>Avant d'écrire</translation>
         </message>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Say what you expected and what happened instead.</source>
-            <translation>Dites ce que vous attendiez et ce qui s&apos;est passé à la place.</translation>
+            <translation>Dites ce que vous attendiez et ce qui s'est passé à la place.</translation>
         </message>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Say which port or program it happened with.</source>
-            <translation>Indiquez avec quel port ou quel programme cela s&apos;est produit.</translation>
+            <translation>Indiquez avec quel port ou quel programme cela s'est produit.</translation>
         </message>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
@@ -20907,7 +21159,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>A support bundle is one zip file with the version, the driver state, your setup, the log and the list of serial ports on this computer. You see everything in it before you save it.</source>
-            <translation>Une archive de support est un fichier zip contenant la version, l&apos;état du pilote, votre configuration, le journal et la liste des ports série de cet ordinateur. Vous voyez tout son contenu avant de l&apos;enregistrer.</translation>
+            <translation>Une archive de support est un fichier zip contenant la version, l'état du pilote, votre configuration, le journal et la liste des ports série de cet ordinateur. Vous voyez tout son contenu avant de l'enregistrer.</translation>
         </message>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
@@ -20922,7 +21174,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Copy the version, edition and operating system</source>
-            <translation>Copier la version, l&apos;édition et le système d&apos;exploitation</translation>
+            <translation>Copier la version, l'édition et le système d'exploitation</translation>
         </message>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
@@ -20937,7 +21189,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Your %1 licence includes support until %2. Write to %3 and quote your licence number, %4.</source>
-            <translation>Votre licence %1 inclut le support jusqu&apos;au %2. Écrivez à %3 en indiquant votre numéro de licence, %4.</translation>
+            <translation>Votre licence %1 inclut le support jusqu'au %2. Écrivez à %3 en indiquant votre numéro de licence, %4.</translation>
         </message>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
@@ -20947,7 +21199,7 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>The Community edition is supported by its users. Search the documents and the issue list first, then open an issue. Support from the developer comes with a Pro or Enterprise licence.</source>
-            <translation>L&apos;édition Community est prise en charge par ses utilisateurs. Cherchez d&apos;abord dans les documents et la liste des problèmes, puis ouvrez un ticket. Le support du développeur est inclus avec une licence Pro ou Enterprise.</translation>
+            <translation>L'édition Community est prise en charge par ses utilisateurs. Cherchez d'abord dans les documents et la liste des problèmes, puis ouvrez un ticket. Le support du développeur est inclus avec une licence Pro ou Enterprise.</translation>
         </message>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
@@ -20957,7 +21209,1761 @@ Réseaux : %5</translation>
         <message>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Support ended with your licence on %1.</source>
-            <translation>Le support s&apos;est terminé avec votre licence le %1.</translation>
+            <translation>Le support s'est terminé avec votre licence le %1.</translation>
+        </message>
+    </context>
+    <context>
+        <name>UpdateNotice</name>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="26" />
+            <location filename="../src/shell/update_notice.cpp" line="76" />
+            <source>Turn on</source>
+            <translation>Activer</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="77" />
+            <source>Details</source>
+            <translation>Détails</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="79" />
+            <source>No thanks</source>
+            <translation>Non merci</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="80" />
+            <source>Later</source>
+            <translation>Plus tard</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="113" />
+            <source>Check for updates automatically? Once a day Studio would ask virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>Rechercher automatiquement les mises à jour ? Une fois par jour, Studio demanderait à virtual-serial-studio.com quelle est la version la plus récente. Rien sur vous ni sur cet ordinateur n'est envoyé.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="122" />
+            <source>Virtual Serial Studio %1 is available.</source>
+            <translation>Virtual Serial Studio %1 est disponible.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="130" />
+            <source>Studio will check for updates once a day.</source>
+            <translation>Studio recherchera les mises à jour une fois par jour.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="132" />
+            <source>Studio will not check for updates. You can change this in Settings.</source>
+            <translation>Studio ne recherchera pas les mises à jour. Vous pouvez modifier cela dans Paramètres.</translation>
+        </message>
+    </context>
+    <context>
+        <name>UpdateChip</name>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="139" />
+            <source>Update available</source>
+            <translation>Mise à jour disponible</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="144" />
+            <source>Update available: version %1. Open the update.</source>
+            <translation>Mise à jour disponible : version %1. Ouvrir la mise à jour.</translation>
+        </message>
+    </context>
+    <context>
+        <name>UpdateDialog</name>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="164" />
+            <source>Update Virtual Serial Studio</source>
+            <translation>Mettre à jour Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="209" />
+            <source>What is new</source>
+            <translation>Nouveautés</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="238" />
+            <source>Release notes</source>
+            <translation>Notes de version</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="273" />
+            <source>Download progress</source>
+            <translation>Progression du téléchargement</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="292" />
+            <source>Restart Studio to use the new version.</source>
+            <translation>Redémarrez Studio pour utiliser la nouvelle version.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="299" />
+            <source>The package could not be installed. Use the command above.</source>
+            <translation>Le paquet n'a pas pu être installé. Utilisez la commande ci-dessus.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="336" />
+            <source>Skip this version</source>
+            <translation>Ignorer cette version</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="342" />
+            <source>Not now</source>
+            <translation>Pas maintenant</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="343" />
+            <source>Cancel</source>
+            <translation>Annuler</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="346" />
+            <source>Show in folder</source>
+            <translation>Afficher dans le dossier</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="349" />
+            <source>Download and install</source>
+            <translation>Télécharger et installer</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="352" />
+            <source>Open the downloads page</source>
+            <translation>Ouvrir la page de téléchargement</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="355" />
+            <source>Install now</source>
+            <translation>Installer maintenant</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="358" />
+            <source>Open the disk image</source>
+            <translation>Ouvrir l'image disque</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="361" />
+            <source>Install</source>
+            <translation>Installer</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="364" />
+            <source>Try again</source>
+            <translation>Réessayer</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="366" />
+            <source>Close</source>
+            <translation>Fermer</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="443" />
+            <source>Could not start the installer</source>
+            <translation>Impossible de démarrer le programme d'installation</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="445" />
+            <source>Studio could not start %1. It is in %2.</source>
+            <translation>Studio n'a pas pu démarrer %1. Il se trouve dans %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="461" />
+            <source>The download was not the file that was published, so it was deleted.</source>
+            <translation>Le téléchargement n'était pas le fichier publié, il a donc été supprimé.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="469" />
+            <source>Studio could not save the download.</source>
+            <translation>Studio n'a pas pu enregistrer le téléchargement.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="474" />
+            <source>Studio could not reach the update server. Check the connection and try again.</source>
+            <translation>Studio n'a pas pu joindre le serveur de mises à jour. Vérifiez la connexion et réessayez.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="480" />
+            <source>Could not download the update</source>
+            <translation>Impossible de télécharger la mise à jour</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="531" />
+            <source>Version %1 is available. You have %2.</source>
+            <translation>La version %1 est disponible. Vous avez %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="545" />
+            <source>Release notes for version %1, opens in your browser</source>
+            <translation>Notes de la version %1, s'ouvrent dans votre navigateur</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="553" />
+            <source>%1, %2</source>
+            <translation>%1, %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="558" />
+            <source>There is no package for this kind of install. Download one from virtual-serial-studio.com.</source>
+            <translation>Il n'existe aucun paquet pour ce type d'installation. Téléchargez-en un sur virtual-serial-studio.com.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/update_dialog.cpp" line="571" />
+            <source>%n port is running. Installing stops it.</source>
+            <translation>
+                <numerusform>%n port est en cours d'exécution. L'installation l'arrête.</numerusform>
+                <numerusform>%n ports sont en cours d'exécution. L'installation les arrête.</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/update_dialog.cpp" line="575" />
+            <source>%n ports are running. Installing stops them.</source>
+            <translation>
+                <numerusform>%n port est en cours d'exécution. L'installation l'arrête.</numerusform>
+                <numerusform>%n ports sont en cours d'exécution. L'installation les arrête.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="600" />
+            <source>Checking the download...</source>
+            <translation>Vérification du téléchargement...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="609" />
+            <source>Downloading %1...</source>
+            <translation>Téléchargement de %1...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="627" />
+            <source>%1 of %2</source>
+            <translation>%1 sur %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="640" />
+            <source>%1 percent</source>
+            <translation>%1 pour cent</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="659" />
+            <source>The update is ready. Studio will close and the installer will start. Windows asks for an administrator.</source>
+            <translation>La mise à jour est prête. Studio va se fermer et le programme d'installation va démarrer. Windows demande un administrateur.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="667" />
+            <source>The update is ready. Quit Studio, then drag Virtual Serial Studio onto Applications in the window that opens.</source>
+            <translation>La mise à jour est prête. Quittez Studio, puis faites glisser Virtual Serial Studio sur Applications dans la fenêtre qui s'ouvre.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="675" />
+            <source>The update is ready. Install it with this command, then start Studio again.</source>
+            <translation>La mise à jour est prête. Installez-la avec cette commande, puis démarrez Studio de nouveau.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="680" />
+            <source>Install command</source>
+            <translation>Commande d'installation</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="696" />
+            <source>The download is in %1. This copy of Studio was unpacked from an archive, so unpack the new one in its place.</source>
+            <translation>Le téléchargement se trouve dans %1. Cet exemplaire de Studio a été décompressé depuis une archive ; décompressez donc le nouveau à sa place.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="821" />
+            <source>Studio will not mention %1 again.</source>
+            <translation>Studio ne mentionnera plus %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="25" />
+            <source>%1 MB</source>
+            <translation>%1 MB</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginDecisionDialog</name>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Switch on %1?</source>
+            <translation>Activer %1 ?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run a plugin from %1?</source>
+            <translation>Exécuter un module de %1 ?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run an unofficial plugin?</source>
+            <translation>Exécuter un module non officiel ?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by Virtual Serial Studio.</source>
+            <translation>Signé par Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1, whose plugins you have approved before. Not verified by Virtual Serial Studio.</source>
+            <translation>Signé par %1, dont vous avez déjà approuvé des modules. Non vérifié par Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1. Not verified by Virtual Serial Studio. Only run it if you know who that is.</source>
+            <translation>Signé par %1. Non vérifié par Virtual Serial Studio. Ne l'exécutez que si vous savez qui c'est.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Unofficial plugin. It can do anything Studio can.</source>
+            <translation>Module non officiel. Il peut faire tout ce que Studio peut faire.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot tell who made it or whether it was changed.</source>
+            <translation>Studio ne peut pas savoir qui l'a créé ni s'il a été modifié.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It is signed with a key that Studio does not have (%1), so the signature could not be checked.</source>
+            <translation>Il est signé avec une clé que Studio n'a pas (%1), donc la signature n'a pas pu être vérifiée.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Switch on</source>
+            <translation>Activer</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run this plugin</source>
+            <translation>Exécuter ce module</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run anyway</source>
+            <translation>Exécuter quand même</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio runs it apart from your files and other programs.</source>
+            <translation>Studio l'exécute à part, séparé de vos fichiers et des autres programmes.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio can only partly keep it apart on this computer: %1.</source>
+            <translation>Studio ne peut l'isoler qu'en partie sur cet ordinateur : %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep it apart on this computer. It runs with your own access to files and the network.</source>
+            <translation>Studio ne peut pas l'isoler sur cet ordinateur. Il s'exécute avec votre propre accès aux fichiers et au réseau.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep it apart on this computer, so it will not run here.</source>
+            <translation>Studio ne peut pas l'isoler sur cet ordinateur, donc il ne s'exécutera pas ici.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Import the author's key...</source>
+            <translation>Importer la clé de l'auteur...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>This is a different version from the one you approved.</source>
+            <translation>Cette version est différente de celle que vous avez approuvée.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>It asks for more than before:</source>
+            <translation>Il demande plus qu'avant :</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Version</source>
+            <translation>Version</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>Empreinte</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>What it adds</source>
+            <translation>Ce qu'il ajoute</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>It asks to:</source>
+            <translation>Il demande à :</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Needed</source>
+            <translation>Requis</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>Annuler</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Decide anyway</source>
+            <translation>Décider quand même</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginInstallDialog</name>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>Annuler</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Add %1?</source>
+            <translation>Ajouter %1 ?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Add a plugin</source>
+            <translation>Ajouter un module</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio copies the folder into your own plugin folder. Nothing runs.</source>
+            <translation>Studio copie le dossier dans votre propre dossier de modules. Rien ne s'exécute.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio cannot add this plugin.</source>
+            <translation>Studio ne peut pas ajouter ce module.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Nothing is wrong with it.</source>
+            <translation>Il n'y a aucun problème.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>To install it for everyone on this computer, an administrator runs this command. Studio never asks for administrator rights.</source>
+            <translation>Pour l'installer pour tous les utilisateurs de cet ordinateur, un administrateur exécute cette commande. Studio ne demande jamais de droits d'administrateur.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Install command</source>
+            <translation>Commande d'installation</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Add plugin</source>
+            <translation>Ajouter le module</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginKeyImportDialog</name>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Approve the key of %1?</source>
+            <translation>Approuver la clé de %1 ?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Plugins signed with this key will be shown as signed by %1. Not verified by Virtual Serial Studio.</source>
+            <translation>Les modules signés avec cette clé seront affichés comme signés par %1. Non vérifié par Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Author</source>
+            <translation>Auteur</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Key id</source>
+            <translation>ID de clé</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>fingerprint</source>
+            <translation>empreinte</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint copied.</source>
+            <translation>Empreinte copiée.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>Empreinte</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>File</source>
+            <translation>Fichier</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Compare the fingerprint with the one the author published, on their website or in a message from them. If they differ, do not approve the key.</source>
+            <translation>Comparez l'empreinte avec celle que l'auteur a publiée, sur son site web ou dans un message de sa part. Si elles diffèrent, n'approuvez pas la clé.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>This key file came with the plugin. Anyone who changed the plugin could have changed this file too, so compare the fingerprint with one from somewhere else.</source>
+            <translation>Ce fichier de clé était fourni avec le module. Quiconque a modifié le module a pu modifier aussi ce fichier, donc comparez l'empreinte avec une autre venant d'ailleurs.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>The fingerprint is the one the author published</source>
+            <translation>L'empreinte est celle que l'auteur a publiée</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>Annuler</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Approve this key</source>
+            <translation>Approuver cette clé</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginNoIsolationDialog</name>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run %1 without isolation?</source>
+            <translation>Exécuter %1 sans isolation ?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>It will run with your own access to your files, the network and other programs.</source>
+            <translation>Il s'exécutera avec votre propre accès à vos fichiers, au réseau et aux autres programmes.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio cannot tell who made it or whether it was changed.</source>
+            <translation>Studio ne peut pas savoir qui l'a créé ni s'il a été modifié.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Version</source>
+            <translation>Version</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>Empreinte</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>This applies to this version of this plugin only. A changed plugin asks again.</source>
+            <translation>Cela ne vaut que pour cette version de ce module. Un module modifié redemande.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>I understand that Studio is not keeping this plugin apart</source>
+            <translation>Je comprends que Studio n'isole pas ce module</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>Annuler</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Run without isolation</source>
+            <translation>Exécuter sans isolation</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginPart</name>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Switch on</source>
+            <translation>Activer</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Review and decide</source>
+            <translation>Examiner et décider</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Licence</source>
+            <translation>Licence</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Start again</source>
+            <translation>Redémarrer</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1, %2</source>
+            <translation>%1, %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>Afficher dans Modules</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1, from the plugin %2 (%3)</source>
+            <translation>%1, du module %2 (%3)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1, from the plugin %2</source>
+            <translation>%1, du module %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Plugin not available</source>
+            <translation>Module indisponible</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1, %2, plugin not available</source>
+            <translation>%1, %2, module indisponible</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>The generator %1 is not running.</source>
+            <translation>Le générateur %1 n’est pas en cours d’exécution.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>The link behaviour %1 is not running, so data on this link is being dropped.</source>
+            <translation>Le comportement de lien %1 n’est pas en cours d’exécution, donc les données de ce lien sont abandonnées.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>The link behaviour %1 is not running, so data on this link passes unchanged.</source>
+            <translation>Le comportement de lien %1 n’est pas en cours d’exécution, donc les données de ce lien passent sans changement.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which is switched off. The port stays open and sends nothing.</source>
+            <translation>Cette fixture provient du module %1, qui est désactivé. Le port reste ouvert et n’envoie rien.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which is waiting for your decision. The port stays open and sends nothing.</source>
+            <translation>Cette fixture provient du module %1, qui attend votre décision. Le port reste ouvert et n’envoie rien.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which your administrator has blocked. The port stays open and sends nothing.</source>
+            <translation>Cette fixture provient du module %1, que votre administrateur a bloqué. Le port reste ouvert et n’envoie rien.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1. %2 The port stays open and sends nothing.</source>
+            <translation>Cette fixture provient du module %1. %2 Le port reste ouvert et n’envoie rien.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>The plugin %1 has stopped. This fixture still sends its fixed replies. Anything the plugin worked out itself has stopped.</source>
+            <translation>Le module %1 s’est arrêté. Cette fixture envoie toujours ses réponses fixes. Tout ce que le module calculait lui-même s’est arrêté.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>The plugin %1 has stopped, so this fixture sends nothing.</source>
+            <translation>Le module %1 s’est arrêté, donc cette fixture n’envoie rien.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which cannot run in this version of Studio. The port stays open and sends nothing.</source>
+            <translation>Cette fixture provient du module %1, qui ne peut pas s’exécuter dans cette version de Studio. Le port reste ouvert et n’envoie rien.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture needs the plugin %1, which is not installed on this computer. The port stays open and sends nothing.</source>
+            <translation>Cette fixture a besoin du module %1, qui n’est pas installé sur cet ordinateur. Le port reste ouvert et n’envoie rien.</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginsDialog</name>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Virtual Serial Studio</source>
+            <translation>Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Official</source>
+            <translation>Officiel</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1</source>
+            <translation>Signé par %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Unsigned</source>
+            <translation>Non signé</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by an author you have not approved</source>
+            <translation>Signé par un auteur que vous n'avez pas approuvé</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>On</source>
+            <translation>Activé</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Starting</source>
+            <translation>Démarrage</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Off</source>
+            <translation>Désactivé</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Needs your decision</source>
+            <translation>Nécessite votre décision</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Blocked</source>
+            <translation>Bloqué</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not isolated</source>
+            <translation>Non isolé</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not used</source>
+            <translation>Non utilisé</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Needs a licence</source>
+            <translation>Nécessite une licence</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Stopped</source>
+            <translation>Arrêté</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not compatible</source>
+            <translation>Non compatible</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Can't be used</source>
+            <translation>Inutilisable</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not installed</source>
+            <translation>Non installé</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1, %2, %3</source>
+            <translation>%1, %2, %3</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1, version %2</source>
+            <translation>%1, version %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not available in this build</source>
+            <translation>Non disponible dans cette version</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>See your ports and links, their state and their counters.</source>
+            <translation>Voir vos ports et vos liaisons, leur état et leurs compteurs.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Read the data that passes through the ports and links you use it on.</source>
+            <translation>Lire les données qui passent par les ports et les liaisons où vous l'utilisez.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Send data from the ports you use it on.</source>
+            <translation>Envoyer des données depuis les ports où vous l'utilisez.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Add, remove and connect ports and links.</source>
+            <translation>Ajouter, supprimer et connecter des ports et des liaisons.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Hold, change or drop data on the links you use it on.</source>
+            <translation>Retenir, modifier ou abandonner des données sur les liaisons où vous l'utilisez.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Cause line errors and disconnections, and set timed replies.</source>
+            <translation>Provoquer des erreurs de ligne et des déconnexions, et définir des réponses temporisées.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>See the list of serial devices on this computer.</source>
+            <translation>Voir la liste des périphériques série de cet ordinateur.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Read files in a folder you choose.</source>
+            <translation>Lire des fichiers dans un dossier que vous choisissez.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Write files in a folder you choose.</source>
+            <translation>Écrire des fichiers dans un dossier que vous choisissez.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>, </source>
+            <translation>, </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Accept connections from programs on this computer, on %1.</source>
+            <translation>Accepter les connexions des programmes de cet ordinateur, sur %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Accept connections on %1.</source>
+            <translation>Accepter les connexions sur %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Connect to %1.</source>
+            <translation>Se connecter à %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Start other programs.</source>
+            <translation>Démarrer d'autres programmes.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Add a section to a support bundle. You see it and choose whether to include it.</source>
+            <translation>Ajouter une section à un lot de support. Vous la voyez et choisissez de l'inclure ou non.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by Virtual Serial Studio.</source>
+            <translation>Signé par Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1. Not verified by Virtual Serial Studio.</source>
+            <translation>Signé par %1. Non vérifié par Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed with a key that Studio does not have (%1), so the signature could not be checked.</source>
+            <translation>Signé avec une clé que Studio n'a pas (%1), donc la signature n'a pas pu être vérifiée.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not signed. Studio cannot tell who made it or whether it was changed.</source>
+            <translation>Non signé. Studio ne peut pas savoir qui l'a créé ni s'il a été modifié.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>None. You allowed this on %1.</source>
+            <translation>Aucune. Vous l'avez autorisé le %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Full</source>
+            <translation>Complète</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Partial: %1</source>
+            <translation>Partiel : %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>None on this computer</source>
+            <translation>Aucun sur cet ordinateur</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Timed by Studio</source>
+            <translation>Minuté par Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>In the path of the data</source>
+            <translation>Sur le trajet des données</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Beside the data</source>
+            <translation>À côté des données</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio carries out this plugin's rules itself, so its timing is exact and it keeps working if the plugin stops.</source>
+            <translation>Studio applique lui-même les règles de ce module, donc son minutage est exact et il continue de fonctionner si le module s'arrête.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Data on a link waits for this plugin, for up to %n microseconds each time.</source>
+            <translation>
+                <numerusform>Les données d'une liaison attendent ce module pendant %n microseconde au plus à chaque fois.</numerusform>
+                <numerusform>Les données d'une liaison attendent ce module pendant %n microsecondes au plus à chaque fois.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin watches and acts, and data never waits for it.</source>
+            <translation>Ce module observe et agit, et les données ne l'attendent jamais.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Everyone on this computer</source>
+            <translation>Tous les utilisateurs de cet ordinateur</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>You only</source>
+            <translation>Vous seul</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Came with Studio</source>
+            <translation>Fourni avec Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Fixture: %1</source>
+            <translation>Fixture : %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Generator: %1</source>
+            <translation>Générateur : %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Link behaviour: %1</source>
+            <translation>Comportement de la liaison : %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Connection: %1</source>
+            <translation>Connexion : %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Uses the %1 on this computer. Those files are not covered by the signature.</source>
+            <translation>Utilise le %1 de cet ordinateur. Ces fichiers ne sont pas couverts par la signature.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Plugin</source>
+            <translation>Module</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Start now</source>
+            <translation>Démarrer maintenant</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Review and decide</source>
+            <translation>Examiner et décider</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Show the copy that is used</source>
+            <translation>Afficher la copie utilisée</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Copy details</source>
+            <translation>Copier les détails</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run without isolation...</source>
+            <translation>Exécuter sans isolation...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Licence</source>
+            <translation>Licence</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Start again</source>
+            <translation>Redémarrer</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Show log</source>
+            <translation>Afficher le journal</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Starting.</source>
+            <translation>Démarrage.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It stopped unexpectedly. Starting again in 1 second (attempt %1 of 5).</source>
+            <translation>Il s'est arrêté de façon inattendue. Nouveau démarrage dans 1 seconde (tentative %1 sur 5).</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It stopped unexpectedly. Starting again in %n seconds (attempt %1 of 5).</source>
+            <translation>
+                <numerusform>Il s'est arrêté de façon inattendue. Nouveau démarrage dans %n seconde (tentative %1 sur 5).</numerusform>
+                <numerusform>Il s'est arrêté de façon inattendue. Nouveau démarrage dans %n secondes (tentative %1 sur 5).</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>You have not decided whether to run this plugin.</source>
+            <translation>Vous n'avez pas décidé si ce module doit s'exécuter.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin changed since you approved it. Review it again before it runs.</source>
+            <translation>Ce module a changé depuis que vous l'avez approuvé. Examinez-le de nouveau avant son exécution.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator allows only official plugins. This one is not official.</source>
+            <translation>Votre administrateur n'autorise que les modules officiels. Celui-ci n'est pas officiel.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator has blocked this plugin.</source>
+            <translation>Votre administrateur a bloqué ce module.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator requires more isolation than this computer can give this plugin.</source>
+            <translation>Votre administrateur exige plus d'isolation que cet ordinateur ne peut en donner à ce module.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep this plugin apart from your files and other programs on this computer, so it will not run. Only your administrator can allow it.</source>
+            <translation>Studio ne peut pas isoler ce module de vos fichiers et des autres programmes de cet ordinateur, donc il ne s'exécutera pas. Seul votre administrateur peut l'autoriser.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep this plugin apart from your files and other programs on this computer, so it will not run.</source>
+            <translation>Studio ne peut pas isoler ce module de vos fichiers et des autres programmes de cet ordinateur, donc il ne s'exécutera pas.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>The copy installed for everyone is used. This copy is newer (version %1), and it is still not used. Ask your administrator to update the copy for everyone.</source>
+            <translation>La copie installée pour tous est utilisée. Cette copie est plus récente (version %1), et elle n'est toujours pas utilisée. Demandez à votre administrateur de mettre à jour la copie pour tous.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>The copy installed for everyone is used. This copy, installed for you only, is not.</source>
+            <translation>La copie installée pour tous est utilisée. Cette copie, installée pour vous seul, ne l'est pas.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another plugin with the same identifier is installed, %1. This one, %2, is not used. They are not the same plugin.</source>
+            <translation>Un autre module avec le même identifiant est installé, %1. Celui-ci, %2, n'est pas utilisé. Ce ne sont pas le même module.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Its identifier is one that only official plugins may use, and it is not signed by Virtual Serial Studio. It will not run.</source>
+            <translation>Son identifiant est de ceux que seuls les modules officiels peuvent utiliser, et il n'est pas signé par Virtual Serial Studio. Il ne s'exécutera pas.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 Its settings are kept, and it runs again when a licence allows it.</source>
+            <translation>%1 Ses réglages sont conservés, et il s'exécute de nouveau quand une licence le permet.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It stopped %n times in 10 minutes, so Studio stopped starting it.</source>
+            <translation>
+                <numerusform>Il s'est arrêté %n fois en 10 minutes, donc Studio a cessé de le démarrer.</numerusform>
+                <numerusform>Il s'est arrêté %n fois en 10 minutes, donc Studio a cessé de le démarrer.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It did not answer, so Studio stopped it.</source>
+            <translation>Il n'a pas répondu, donc Studio l'a arrêté.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It sent more than it is allowed to (%1), so Studio stopped it.</source>
+            <translation>Il a envoyé plus que ce qui est permis (%1), donc Studio l'a arrêté.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin needs a newer version of Studio. This is version %1.</source>
+            <translation>Ce module nécessite une version plus récente de Studio. Voici la version %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin needs something this build does not have: %1.</source>
+            <translation>Ce module nécessite quelque chose que cette version du programme n'a pas : %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin was made for an older version of Studio. Ask its author for a newer one.</source>
+            <translation>Ce module a été conçu pour une version plus ancienne de Studio. Demandez-en une plus récente à son auteur.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Its description file is not valid, so Studio cannot tell what it is.</source>
+            <translation>Son fichier de description n'est pas valide, donc Studio ne peut pas savoir ce que c'est.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Its signature does not match its files. They may have been changed. Get the plugin again from its author.</source>
+            <translation>Sa signature ne correspond pas à ses fichiers. Ils ont peut-être été modifiés. Obtenez de nouveau le module auprès de son auteur.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin was withdrawn by Virtual Serial Studio. It will not run.</source>
+            <translation>Ce module a été retiré par Virtual Serial Studio. Il ne s'exécutera pas.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin expired on %1. Look for a newer version.</source>
+            <translation>Ce module a expiré le %1. Cherchez une version plus récente.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>A setup uses this plugin, and it is not installed on this computer. Its parts of the setup are kept.</source>
+            <translation>Une configuration utilise ce module, et il n'est pas installé sur cet ordinateur. Ses parties de la configuration sont conservées.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>A policy file was found on this computer and could not be trusted, so only official plugins will run.</source>
+            <translation>Un fichier de politique a été trouvé sur cet ordinateur et n'a pas pu être pris en compte de façon fiable, donc seuls les modules officiels s'exécuteront.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator allows only official plugins on this computer.</source>
+            <translation>Votre administrateur n'autorise que les modules officiels sur cet ordinateur.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator installs the plugins on this computer. Plugins in your own plugin folder are not used.</source>
+            <translation>Votre administrateur installe les modules de cet ordinateur. Les modules de votre propre dossier de modules ne sont pas utilisés.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Official plugins need a Pro licence.</source>
+            <translation>Les modules officiels nécessitent une licence Pro.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Plugins</source>
+            <translation>Modules</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Plugins add fixtures, generators, link behaviours and connections to other tools. Each one runs as its own program, apart from Studio.</source>
+            <translation>Les modules ajoutent des fixtures, des générateurs, des comportements de liaison et des connexions à d'autres outils. Chacun s'exécute comme un programme à part, séparé de Studio.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>1 needs attention</source>
+            <translation>1 demande votre attention</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%n need attention</source>
+            <translation>
+                <numerusform>%n demande votre attention</numerusform>
+                <numerusform>%n demandent votre attention</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%n on</source>
+            <translation>
+                <numerusform>%n activé</numerusform>
+                <numerusform>%n activés</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>The plugin says: %1</source>
+            <translation>Le module indique : %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Version</source>
+            <translation>Version</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>Empreinte</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Remove %1?</source>
+            <translation>Supprimer %1 ?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Also delete its saved data</source>
+            <translation>Supprimer aussi ses données enregistrées</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>Annuler</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Remove plugin</source>
+            <translation>Supprimer le module</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Check again</source>
+            <translation>Vérifier à nouveau</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Close</source>
+            <translation>Fermer</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1, %2</source>
+            <translation>%1, %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>What it adds</source>
+            <translation>Ce qu'il ajoute</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Import the author's key...</source>
+            <translation>Importer la clé de l'auteur...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>fingerprint</source>
+            <translation>empreinte</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Fingerprint copied.</source>
+            <translation>Empreinte copiée.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Undo</source>
+            <translation>Annuler</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Show in folder</source>
+            <translation>Afficher dans le dossier</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Copy</source>
+            <translation>Copier</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Details copied.</source>
+            <translation>Détails copiés.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Checked. %n plugins found.</source>
+            <translation>
+                <numerusform>Vérification terminée. %n module trouvé.</numerusform>
+                <numerusform>Vérification terminée. %n modules trouvés.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>That folder is not a plugin. A plugin's folder holds a file named plugin.json.</source>
+            <translation>Ce dossier n'est pas un module. Le dossier d'un module contient un fichier nommé plugin.json.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>%1 is already installed for you. Remove it first to add a different copy.</source>
+            <translation>%1 est déjà installé pour vous. Supprimez-le d'abord pour ajouter une autre copie.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your administrator installs the plugins on this computer.</source>
+            <translation>Votre administrateur installe les modules sur cet ordinateur.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Made by</source>
+            <translation>Créé par</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Signature</source>
+            <translation>Signature</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Signing key</source>
+            <translation>Clé de signature</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio deletes the plugin's folder. Setups that use it keep their parts, which stop working until the plugin is installed again. Its saved data is kept unless you tick the box.</source>
+            <translation>Studio supprime le dossier du module. Les configurations qui l'utilisent gardent leurs éléments, qui ne fonctionnent plus tant que le module n'est pas réinstallé. Ses données enregistrées sont conservées sauf si vous cochez la case.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Filter plugins</source>
+            <translation>Filtrer les modules</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Installed plugins</source>
+            <translation>Modules installés</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>No plugins are installed</source>
+            <translation>Aucun module n'est installé</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Plugins are folders that you or your administrator put in the plugin folder. Studio does not download anything.</source>
+            <translation>Les modules sont des dossiers que vous ou votre administrateur placez dans le dossier des modules. Studio ne télécharge rien.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Open the plugin folder</source>
+            <translation>Ouvrir le dossier des modules</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Add a plugin...</source>
+            <translation>Ajouter un module...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Import a key...</source>
+            <translation>Importer une clé...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Path copied.</source>
+            <translation>Chemin copié.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Plugin details</source>
+            <translation>Détails du module</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Remove plugin...</source>
+            <translation>Supprimer le module...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>To install a plugin for everyone on this computer, an administrator puts its folder in %1.</source>
+            <translation>Pour installer un module pour tous les utilisateurs de cet ordinateur, un administrateur place son dossier dans %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>folder path</source>
+            <translation>chemin du dossier</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>No plugin matches %1.</source>
+            <translation>Aucun module ne correspond à %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Installed by your administrator</source>
+            <translation>Installé par votre administrateur</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Select a plugin to see its details.</source>
+            <translation>Sélectionnez un module pour voir ses détails.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Description</source>
+            <translation>Description</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>A signature shows who made a plugin and that its files are unchanged. It does not show that the plugin is safe.</source>
+            <translation>Une signature indique qui a créé un module et que ses fichiers n'ont pas été modifiés. Elle n'indique pas que le module est sûr.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1, approved on %2</source>
+            <translation>%1, approuvée le %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Remove this key...</source>
+            <translation>Supprimer cette clé...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Expires</source>
+            <translation>Expire</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Included in your licence</source>
+            <translation>Inclus dans votre licence</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Timing</source>
+            <translation>Durées</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Isolation</source>
+            <translation>Isolation</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Installed for</source>
+            <translation>Installé pour</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Folder</source>
+            <translation>Dossier</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>What it may do</source>
+            <translation>Ce qu'il peut faire</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Not allowed</source>
+            <translation>Non autorisé</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Change what it may do...</source>
+            <translation>Modifier ce qu'il peut faire...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Set by your administrator</source>
+            <translation>Défini par votre administrateur</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Used in this setup</source>
+            <translation>Utilisé dans cette configuration</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Not used in this setup.</source>
+            <translation>Non utilisé dans cette configuration.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Show</source>
+            <translation>Afficher</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Recent messages (%1)</source>
+            <translation>Messages récents (%1)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Messages from %1</source>
+            <translation>Messages de %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Copied.</source>
+            <translation>Copié.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>These lines come from the plugin.</source>
+            <translation>Ces lignes viennent du module.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1 started again.</source>
+            <translation>%1 a redémarré.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1 is on.</source>
+            <translation>%1 est activé.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1 is off.</source>
+            <translation>%1 est désactivé.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Remove the key of %1?</source>
+            <translation>Supprimer la clé de %1 ?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Plugins signed with this key stop running and ask again.</source>
+            <translation>Les modules signés avec cette clé cessent de s'exécuter et redemandent l'approbation.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Remove key</source>
+            <translation>Supprimer la clé</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Choose a plugin's folder</source>
+            <translation>Choisir le dossier d'un module</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Choose an author's public key file</source>
+            <translation>Choisir le fichier de clé publique d'un auteur</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Plugin key files (*.vsskey.json)</source>
+            <translation>Fichiers de clé de module (*.vsskey.json)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>That file is not a plugin key file.</source>
+            <translation>Ce fichier n'est pas un fichier de clé de module.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>A key with the id %1 is already approved. An id cannot change its key.</source>
+            <translation>Une clé avec l'id %1 est déjà approuvée. Un id ne peut pas changer sa clé.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>The id %1 belongs to a key that is already on this computer.</source>
+            <translation>L'id %1 appartient à une clé qui est déjà sur cet ordinateur.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Checked. 1 plugin found.</source>
+            <translation>Vérifié. 1 module trouvé.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Added for you only. Review it before it runs.</source>
+            <translation>Ajouté pour vous seul. Examinez-le avant qu'il ne s'exécute.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>The key of %1 is approved.</source>
+            <translation>La clé de %1 est approuvée.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Status</source>
+            <translation>État</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Looking for plugins...</source>
+            <translation>Recherche des modules...</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginToolbox</name>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is starting.</source>
+            <translation>%1 démarre.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 has stopped. Open Plugins to start it again.</source>
+            <translation>%1 s’est arrêté. Ouvrez Modules pour le redémarrer.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1, plugin</source>
+            <translation>%1, module</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Fixture from the plugin %1. %2.</source>
+            <translation>Fixture du module %1. %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1
+From the plugin %2
+%3</source>
+            <translation>%1
+Du module %2
+%3</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginTrafficChip</name>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Recording</source>
+            <translation>Enregistrement</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Reading data</source>
+            <translation>Lecture des données</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%n plugins are reading data. Open Plugins.</source>
+            <translation>
+                <numerusform>%n module lit des données. Ouvrez Modules.</numerusform>
+                <numerusform>%n modules lisent des données. Ouvrez Modules.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is recording data on 1 port. Open Plugins.</source>
+            <translation>%1 enregistre des données sur 1 port. Ouvrez Modules.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is recording data on %n ports. Open Plugins.</source>
+            <translation>
+                <numerusform>%1 enregistre des données sur %n port. Ouvrez Modules.</numerusform>
+                <numerusform>%1 enregistre des données sur %n ports. Ouvrez Modules.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is reading data on 1 port. Open Plugins.</source>
+            <translation>%1 lit des données sur 1 port. Ouvrez Modules.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is reading data on %n ports. Open Plugins.</source>
+            <translation>
+                <numerusform>%1 lit des données sur %n port. Ouvrez Modules.</numerusform>
+                <numerusform>%1 lit des données sur %n ports. Ouvrez Modules.</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginSandbox</name>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>no containment</source>
+            <translation>aucun confinement</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>no file isolation</source>
+            <translation>aucune isolation des fichiers</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>no network isolation</source>
+            <translation>aucune isolation du réseau</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>other programs are not kept out of reach</source>
+            <translation>les autres programmes ne sont pas tenus hors d'atteinte</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>system calls are not limited</source>
+            <translation>les appels système ne sont pas limités</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>the desktop is not kept out of reach</source>
+            <translation>le bureau n'est pas tenu hors d'atteinte</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>no limits on resources</source>
+            <translation>aucune limite de ressources</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginNotice</name>
+        <message>
+            <location filename="../src/shell/plugin_notice.cpp" line="57" />
+            <source>Dismiss</source>
+            <translation>Masquer</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="489" />
+            <source>A new plugin was found: %1. It will not run until you decide.</source>
+            <translation>Un nouveau module a été trouvé : %1. Il ne s'exécutera pas tant que vous n'aurez pas décidé.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="494" />
+            <location filename="../src/support/plugin_parts.cpp" line="512" />
+            <source>Review and decide</source>
+            <translation>Examiner et décider</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="508" />
+            <source>%1 changed since you approved it and has been stopped.</source>
+            <translation>%1 a changé depuis que vous l'avez approuvé et a été arrêté.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="523" />
+            <source>The plugin %1 has stopped. Parts of this setup that use it are not running.</source>
+            <translation>Le module %1 s'est arrêté. Les parties de ce montage qui l'utilisent ne s'exécutent pas.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="529" />
+            <location filename="../src/support/plugin_parts.cpp" line="546" />
+            <source>Plugins</source>
+            <translation>Modules</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="531" />
+            <source>Start again</source>
+            <translation>Redémarrer</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="540" />
+            <source>%1 was withdrawn by Virtual Serial Studio and has been stopped.</source>
+            <translation>%1 a été retiré par Virtual Serial Studio et a été arrêté.</translation>
         </message>
     </context>
 </TS>

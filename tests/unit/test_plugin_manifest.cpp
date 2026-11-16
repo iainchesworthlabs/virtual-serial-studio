@@ -55,8 +55,7 @@ replaced(std::string text, std::string_view from, std::string_view to,
          std::source_location where = std::source_location::current())
 {
     const std::size_t at = text.find(from);
-    if (at == std::string::npos ||
-        text.find(from, at + 1) != std::string::npos)
+    if (at == std::string::npos || text.find(from, at + 1) != std::string::npos)
         fail_at("the text is not there exactly once: " + std::string(from),
                 where);
     text.replace(at, from.size(), to);
@@ -263,8 +262,8 @@ std::string digest_pattern()
 
 std::string full_text()
 {
-    std::string text = replaced(std::string(full_template), "@D1@",
-                                digest_upper_ab());
+    std::string text =
+        replaced(std::string(full_template), "@D1@", digest_upper_ab());
     text = replaced(text, "@D2@", digest_pattern());
     return replaced(text, "@D3@", digest_ab());
 }
@@ -374,9 +373,9 @@ std::string point_text(std::string_view kind, std::string_view timing)
     const std::string text =
         replaced(minimal_text(), "\"kind\": \"fixture\"",
                  "\"kind\": \"" + std::string(kind) + "\"");
-    const std::string member =
-        timing.empty() ? std::string()
-                       : "\"timing\": " + std::string(timing) + ",";
+    const std::string member = timing.empty()
+                                   ? std::string()
+                                   : "\"timing\": " + std::string(timing) + ",";
     return replaced(text, R"j("timing": { "class": "rules" },)j", member);
 }
 
@@ -407,9 +406,9 @@ std::string decoder_text(std::string_view timing)
 
 std::string with_instances(std::string_view count)
 {
-    return replaced(minimal_text(), "\"id\": \"slave\",",
-                    "\"id\": \"slave\", \"max_instances\": " +
-                        std::string(count) + ",");
+    return replaced(
+        minimal_text(), "\"id\": \"slave\",",
+        "\"id\": \"slave\", \"max_instances\": " + std::string(count) + ",");
 }
 
 /// The minimal manifest whose only parameter is `{ "id": "p", "label": "P",
@@ -435,9 +434,9 @@ std::string at_param(std::string_view tail)
 std::string file_json(std::string_view path, std::string_view size,
                       std::string_view digest)
 {
-    return "{ \"path\": \"" + std::string(path) + "\", \"size\": " +
-           std::string(size) + ", \"sha512\": \"" + std::string(digest) +
-           "\" }";
+    return "{ \"path\": \"" + std::string(path) +
+           "\", \"size\": " + std::string(size) + ", \"sha512\": \"" +
+           std::string(digest) + "\" }";
 }
 
 std::string good_file(std::string_view path)
@@ -488,10 +487,10 @@ void expect_error(const std::string& text, plugin_errc code,
         fail_at("the detail is \"" + detail + "\"; wanted " + wanted, where);
 }
 
-void expect_invalid(const std::string& text, std::string_view detail_part,
-                    std::string_view label = {},
-                    std::source_location where =
-                        std::source_location::current())
+void expect_invalid(
+    const std::string& text, std::string_view detail_part,
+    std::string_view label = {},
+    std::source_location where = std::source_location::current())
 {
     expect_error(text, plugin_errc::manifest_invalid, detail_part, label,
                  where);
@@ -499,8 +498,7 @@ void expect_invalid(const std::string& text, std::string_view detail_part,
 
 void expect_layout(const std::string& text, std::string_view detail_part,
                    std::string_view label = {},
-                   std::source_location where =
-                       std::source_location::current())
+                   std::source_location where = std::source_location::current())
 {
     expect_error(text, plugin_errc::layout_invalid, detail_part, label, where);
 }
@@ -619,12 +617,10 @@ TEST_CASE("plugin manifest: what is left out takes its default")
     // A permission that does not say is required.
     REQUIRE(value.permissions[0].required);
 
-    const manifest fixture_without_timing =
-        parse_ok(point_text("fixture", ""));
+    const manifest fixture_without_timing = parse_ok(point_text("fixture", ""));
     REQUIRE(fixture_without_timing.extension_points[0].timing.type ==
             timing_class::async);
-    const manifest adapter_without_timing =
-        parse_ok(point_text("adapter", ""));
+    const manifest adapter_without_timing = parse_ok(point_text("adapter", ""));
     REQUIRE(adapter_without_timing.extension_points[0].timing.type ==
             timing_class::async);
 }
@@ -679,8 +675,7 @@ TEST_CASE("plugin manifest: the full manifest, run and permissions")
     REQUIRE_EQ(edit->reason, "To change bytes on a link.");
     REQUIRE(edit->scope.empty());
 
-    const permission_request* const listen =
-        value.find(permission::net_listen);
+    const permission_request* const listen = value.find(permission::net_listen);
     REQUIRE(listen != nullptr);
     REQUIRE(listen->required);
     REQUIRE(listen->scope == strings({"127.0.0.1:8080", "[::1]:8080"}));
@@ -956,14 +951,14 @@ TEST_CASE("plugin manifest: text after the document")
 TEST_CASE("plugin manifest: nesting deeper than the limit")
 {
     const std::size_t levels = max_manifest_depth + 4;
-    const std::string arrays = "{\"manifest_version\": 1, \"x\": " +
-                               std::string(levels, '[') +
-                               std::string(levels, ']') + "}";
+    const std::string arrays =
+        "{\"manifest_version\": 1, \"x\": " + std::string(levels, '[') +
+        std::string(levels, ']') + "}";
     expect_invalid(arrays, "is not JSON");
 
-    const std::string objects = "{\"manifest_version\": 1, \"x\": " +
-                                repeat("{\"a\": ", levels) + "1" +
-                                std::string(levels, '}') + "}";
+    const std::string objects =
+        "{\"manifest_version\": 1, \"x\": " + repeat("{\"a\": ", levels) + "1" +
+        std::string(levels, '}') + "}";
     expect_invalid(objects, "is not JSON");
 
     expect_invalid(std::string(levels, '[') + std::string(levels, ']'),
@@ -972,9 +967,9 @@ TEST_CASE("plugin manifest: nesting deeper than the limit")
 
 TEST_CASE("plugin manifest: a key given twice")
 {
-    const std::string at_top = replaced(
-        minimal_text(), "\"version\": \"1.2.3\",",
-        "\"version\": \"1.2.3\", \"version\": \"1.2.4\",");
+    const std::string at_top =
+        replaced(minimal_text(), "\"version\": \"1.2.3\",",
+                 "\"version\": \"1.2.3\", \"version\": \"1.2.4\",");
     expect_invalid(at_top, "the key \"version\" is given twice");
 
     const std::string nested =
@@ -982,29 +977,29 @@ TEST_CASE("plugin manifest: a key given twice")
                  "\"kind\": \"fixture\", \"kind\": \"fixture\",");
     expect_invalid(nested, "the key \"kind\" is given twice");
 
-    const std::string in_parameter = replaced(
-        minimal_text(), "\"label\": \"Address\"",
-        "\"label\": \"Address\", \"label\": \"Other\"");
+    const std::string in_parameter =
+        replaced(minimal_text(), "\"label\": \"Address\"",
+                 "\"label\": \"Address\", \"label\": \"Other\"");
     expect_invalid(in_parameter, "the key \"label\" is given twice");
 
-    const std::string in_language_map = replaced(
-        minimal_text(), "\"label\": \"Address\"",
-        "\"label\": { \"en\": \"A\", \"en\": \"B\" }");
+    const std::string in_language_map =
+        replaced(minimal_text(), "\"label\": \"Address\"",
+                 "\"label\": { \"en\": \"A\", \"en\": \"B\" }");
     expect_invalid(in_language_map, "the key \"en\" is given twice");
 }
 
 TEST_CASE("plugin manifest: a key repeated through an escape")
 {
-    const std::string text = replaced(
-        minimal_text(), "\"id\": \"com.example.fixture\",",
-        "\"id\": \"com.example.fixture\", "
-        "\"\\u0069d\": \"com.example.other\",");
+    const std::string text =
+        replaced(minimal_text(), "\"id\": \"com.example.fixture\",",
+                 "\"id\": \"com.example.fixture\", "
+                 "\"\\u0069d\": \"com.example.other\",");
     expect_invalid(text, "the key \"id\" is given twice");
 
-    const std::string spelt_out = replaced(
-        minimal_text(), "\"name\": \"Example fixture\",",
-        "\"name\": \"Example fixture\", "
-        "\"\\u006e\\u0061\\u006de\": \"Other\",");
+    const std::string spelt_out =
+        replaced(minimal_text(), "\"name\": \"Example fixture\",",
+                 "\"name\": \"Example fixture\", "
+                 "\"\\u006e\\u0061\\u006de\": \"Other\",");
     expect_invalid(spelt_out, "the key \"name\" is given twice");
 }
 
@@ -1012,6 +1007,14 @@ TEST_CASE("plugin manifest: an unknown key is refused")
 {
     expect_invalid(with_top("\"bogus\": 1"), "unknown key \"bogus\"");
     expect_invalid(with_top("\"bogus\": 1"), "manifest:");
+
+    // A manifest cannot say of itself that it is official, or who signed
+    // it: there is no such key.
+    expect_invalid(with_top("\"official\": true"), "unknown key \"official\"");
+    expect_invalid(with_top("\"trust\": \"official\""),
+                   "unknown key \"trust\"");
+    expect_invalid(with_top("\"signed_by\": \"plugins-2026\""),
+                   "unknown key \"signed_by\"");
 
     expect_invalid(with_run(R"j("executable": "bin/fixture", "bogus": true,
                              "platforms": ["linux-x64"])j"),
@@ -1028,9 +1031,9 @@ TEST_CASE("plugin manifest: an unknown key is refused")
                             "\"class\": \"rules\", \"bogus\": 1"),
                    at_point(".timing: unknown key \"bogus\""));
 
-    expect_invalid(with_permission(
-                       R"j({ "name": "faults", "why": "because" })j"),
-                   "permissions[1]: unknown key \"why\"");
+    expect_invalid(
+        with_permission(R"j({ "name": "faults", "why": "because" })j"),
+        "permissions[1]: unknown key \"why\"");
 }
 
 TEST_CASE("plugin manifest: manifest_version")
@@ -1040,16 +1043,16 @@ TEST_CASE("plugin manifest: manifest_version")
                    "manifest_version: is required");
     expect_invalid(replaced(minimal_text(), head, "\"manifest_version\": 0"),
                    "manifest_version: must be from 1 to");
-    expect_invalid(replaced(minimal_text(), head,
-                            "\"manifest_version\": \"1\""),
-                   "manifest_version: must be a whole number");
+    expect_invalid(
+        replaced(minimal_text(), head, "\"manifest_version\": \"1\""),
+        "manifest_version: must be a whole number");
     expect_invalid(replaced(minimal_text(), head, "\"manifest_version\": -1"),
                    "manifest_version: must be a whole number");
     expect_invalid(replaced(minimal_text(), head, "\"manifest_version\": 1.0"),
                    "manifest_version: must be a whole number");
-    expect_invalid(replaced(minimal_text(), head,
-                            "\"manifest_version\": 4294967296"),
-                   "manifest_version: must be from 1 to");
+    expect_invalid(
+        replaced(minimal_text(), head, "\"manifest_version\": 4294967296"),
+        "manifest_version: must be from 1 to");
     expect_invalid(replaced(minimal_text(), head, "\"manifest_version\": null"),
                    "manifest_version:");
 }
@@ -1061,10 +1064,9 @@ TEST_CASE("plugin manifest: a newer manifest_version is unsupported")
                  plugin_errc::manifest_unsupported_version,
                  "manifest_version: this version reads format 1 and the "
                  "manifest is format 2");
-    expect_error(replaced(minimal_text(), head,
-                          "\"manifest_version\": 4294967295"),
-                 plugin_errc::manifest_unsupported_version,
-                 "format 4294967295");
+    expect_error(
+        replaced(minimal_text(), head, "\"manifest_version\": 4294967295"),
+        plugin_errc::manifest_unsupported_version, "format 4294967295");
 
     // A newer format may have keys this reader does not know.  The answer is
     // still that it needs a newer version.
@@ -1081,14 +1083,14 @@ TEST_CASE("plugin manifest: a newer manifest_version is unsupported")
 
 TEST_CASE("plugin manifest: good plugin ids")
 {
-    const std::vector<std::string> good = {
-        "com.example.fixture",
-        "a.b",
-        "com.example.my-plugin",
-        "x1.y2-z3",
-        "9.9",
-        "com.example.a-b.c",
-        std::string(max_id_length - 2, 'a') + ".b"};
+    const std::vector<std::string> good = {"com.example.fixture",
+                                           "a.b",
+                                           "com.example.my-plugin",
+                                           "x1.y2-z3",
+                                           "9.9",
+                                           "com.example.a-b.c",
+                                           std::string(max_id_length - 2, 'a') +
+                                               ".b"};
     for (const std::string& id : good)
     {
         const manifest value =
@@ -1099,26 +1101,26 @@ TEST_CASE("plugin manifest: good plugin ids")
 
 TEST_CASE("plugin manifest: bad plugin ids")
 {
-    const std::vector<std::string> bad = {
-        "plugin",
-        "Com.example.plugin",
-        "com.Example.plugin",
-        ".com.example",
-        "com.example.",
-        "-com.example",
-        "com.example-",
-        "com..example",
-        "com.-example",
-        "com.example-.x",
-        "com.example--x",
-        "a.",
-        ".a",
-        "ab",
-        "",
-        "com_example.x",
-        "com.exa mple",
-        "com.example.caf\\u00e9",
-        std::string(max_id_length, 'a') + ".b"};
+    const std::vector<std::string> bad = {"plugin",
+                                          "Com.example.plugin",
+                                          "com.Example.plugin",
+                                          ".com.example",
+                                          "com.example.",
+                                          "-com.example",
+                                          "com.example-",
+                                          "com..example",
+                                          "com.-example",
+                                          "com.example-.x",
+                                          "com.example--x",
+                                          "a.",
+                                          ".a",
+                                          "ab",
+                                          "",
+                                          "com_example.x",
+                                          "com.exa mple",
+                                          "com.example.caf\\u00e9",
+                                          std::string(max_id_length, 'a') +
+                                              ".b"};
     for (const std::string& id : bad)
     {
         expect_invalid(with_string("id", "com.example.fixture", id),
@@ -1131,55 +1133,68 @@ TEST_CASE("plugin manifest: bad plugin ids")
 
 TEST_CASE("plugin manifest: good versions")
 {
-    const std::vector<std::string> good = {
-        "1.2.3",
-        "0.0.1",
-        "1.0.0-rc.1",
-        "10.20.30",
-        "999999.999999.999999",
-        "1.2.3-alpha-1",
-        "1.2.3-0",
-        "1.2.3-" + std::string(32, 'a')};
+    const std::vector<std::string> good = {"1.2.3",
+                                           "0.0.1",
+                                           "1.0.0-rc.1",
+                                           "10.20.30",
+                                           "999999.999999.999999",
+                                           "1.2.3-alpha-1",
+                                           "1.2.3-0",
+                                           "1.2.3-" + std::string(32, 'a')};
     for (const std::string& text : good)
     {
-        const manifest value =
-            parse_ok(with_string("version", "1.2.3", text));
+        const manifest value = parse_ok(with_string("version", "1.2.3", text));
         REQUIRE_EQ(to_string(value.version), text);
     }
 
-    const manifest release = parse_ok(with_string("version", "1.2.3",
-                                                  "4.5.6-beta.2"));
+    const manifest release =
+        parse_ok(with_string("version", "1.2.3", "4.5.6-beta.2"));
     const plugin_version expected{4, 5, 6, "beta.2"};
     REQUIRE(release.version == expected);
 }
 
 TEST_CASE("plugin manifest: bad versions")
 {
-    const std::vector<std::string> bad = {
-        "1.2",         "1.2.3.4",     "01.2.3",       "1.02.3",
-        "1.2.03",      "1.2.3-",      "v1.2.3",       "1.2.3+build",
-        "1.2.3-rc.1+b", "1000000.0.0", "",             "1..3",
-        "1.2.x",       "-1.2.3",      " 1.2.3",       "1.2.3 ",
-        "1.2.3-a..b",  "1.2.3-.a",    "1.2.3-a.",     "1.2.3-rc_1",
-        "1.2.3-" + std::string(33, 'a'), "1.2.3-caf\\u00e9"};
+    const std::vector<std::string> bad = {"1.2",
+                                          "1.2.3.4",
+                                          "01.2.3",
+                                          "1.02.3",
+                                          "1.2.03",
+                                          "1.2.3-",
+                                          "v1.2.3",
+                                          "1.2.3+build",
+                                          "1.2.3-rc.1+b",
+                                          "1000000.0.0",
+                                          "",
+                                          "1..3",
+                                          "1.2.x",
+                                          "-1.2.3",
+                                          " 1.2.3",
+                                          "1.2.3 ",
+                                          "1.2.3-a..b",
+                                          "1.2.3-.a",
+                                          "1.2.3-a.",
+                                          "1.2.3-rc_1",
+                                          "1.2.3-" + std::string(33, 'a'),
+                                          "1.2.3-caf\\u00e9"};
     for (const std::string& text : bad)
     {
         expect_invalid(with_string("version", "1.2.3", text),
                        "version: must be a version such as", text);
     }
-    expect_invalid(replaced(minimal_text(), "\"version\": \"1.2.3\"",
-                            "\"version\": 123"),
-                   "version: must be a string");
+    expect_invalid(
+        replaced(minimal_text(), "\"version\": \"1.2.3\"", "\"version\": 123"),
+        "version: must be a string");
 }
 
 TEST_CASE("plugin manifest: names with characters that mislead are refused")
 {
     const std::vector<std::string> refused = {
-        "bell\\u0007",  "nul\\u0000",   "tab\\t",       "newline\\n",
-        "del\\u007f",   "next\\u0085",  "arabic\\u061c", "lrm\\u200e",
-        "rlm\\u200f",   "lre\\u202a",   "rle\\u202b",   "pdf\\u202c",
-        "lro\\u202d",   "rlo\\u202e",   "lri\\u2066",   "rli\\u2067",
-        "fsi\\u2068",   "pdi\\u2069",   "line\\u2028",  "para\\u2029",
+        "bell\\u0007", "nul\\u0000",  "tab\\t",        "newline\\n",
+        "del\\u007f",  "next\\u0085", "arabic\\u061c", "lrm\\u200e",
+        "rlm\\u200f",  "lre\\u202a",  "rle\\u202b",    "pdf\\u202c",
+        "lro\\u202d",  "rlo\\u202e",  "lri\\u2066",    "rli\\u2067",
+        "fsi\\u2068",  "pdi\\u2069",  "line\\u2028",   "para\\u2029",
         "bom\\ufeff"};
     for (const std::string& name : refused)
     {
@@ -1205,12 +1220,12 @@ TEST_CASE("plugin manifest: names that are empty, padded or too long")
                    "name: must be a string");
 
     // The limit is in bytes: fifty letters of two bytes fit, fifty-one do not.
-    const manifest fits = parse_ok(
-        with_string("name", "Example fixture", repeat("\\u00fc", 50)));
+    const manifest fits =
+        parse_ok(with_string("name", "Example fixture", repeat("\\u00fc", 50)));
     REQUIRE_EQ(fits.name.size(), max_name_length);
-    expect_invalid(with_string("name", "Example fixture",
-                               repeat("\\u00fc", 51)),
-                   "name: is longer than 100 bytes");
+    expect_invalid(
+        with_string("name", "Example fixture", repeat("\\u00fc", 51)),
+        "name: is longer than 100 bytes");
 }
 
 TEST_CASE("plugin manifest: names with ordinary text are accepted")
@@ -1219,14 +1234,16 @@ TEST_CASE("plugin manifest: names with ordinary text are accepted")
     REQUIRE_EQ(parse_ok(with_string("name", "Example fixture", exact)).name,
                exact);
 
-    const std::string umlauts = "Pr\xc3\xbc" "fger\xc3\xa4" "t";
+    const std::string umlauts = "Pr\xc3\xbc"
+                                "fger\xc3\xa4"
+                                "t";
     const manifest escaped = parse_ok(
         with_string("name", "Example fixture", "Pr\\u00fcfger\\u00e4t"));
     REQUIRE_EQ(escaped.name, umlauts);
 
     // The same name as raw UTF-8.
-    const manifest raw = parse_ok(with_string("name", "Example fixture",
-                                              umlauts));
+    const manifest raw =
+        parse_ok(with_string("name", "Example fixture", umlauts));
     REQUIRE_EQ(raw.name, umlauts);
 
     // A letter outside the basic plane, written as a surrogate pair.
@@ -1242,8 +1259,8 @@ TEST_CASE("plugin manifest: names with ordinary text are accepted")
 
 TEST_CASE("plugin manifest: description, license and author")
 {
-    const manifest value = parse_ok(
-        with_top(R"j("description": "Reads things.", "license": "MIT",
+    const manifest value =
+        parse_ok(with_top(R"j("description": "Reads things.", "license": "MIT",
                  "author": { "name": "Someone" })j"));
     REQUIRE_EQ(value.description, "Reads things.");
     REQUIRE_EQ(value.license, "MIT");
@@ -1274,11 +1291,14 @@ TEST_CASE("plugin manifest: the author's address")
         R"j("author": { "name": "A", "url": "https://example.com/a?b=c" })j"));
     REQUIRE_EQ(value.author.url, "https://example.com/a?b=c");
 
-    const std::vector<std::string> bad = {
-        "http://example.com", "https://", "example.com",
-        "https://exa mple.com", "ftp://example.com",
-        "https://example.com/" + std::string(max_url_length, 'a'),
-        "https://caf\\u00e9.example"};
+    const std::vector<std::string> bad = {"http://example.com",
+                                          "https://",
+                                          "example.com",
+                                          "https://exa mple.com",
+                                          "ftp://example.com",
+                                          "https://example.com/" +
+                                              std::string(max_url_length, 'a'),
+                                          "https://caf\\u00e9.example"};
     for (const std::string& url : bad)
     {
         expect_invalid(with_top("\"author\": { \"name\": \"A\", \"url\": \"" +
@@ -1300,8 +1320,8 @@ TEST_CASE("plugin manifest: dates")
     REQUIRE(!released.not_after.has_value());
 
     const std::vector<std::string> bad = {
-        "2027/12/31", "27-12-31",  "2027-1-31", "2027-02-30", "2027-02-29",
-        "2027-13-01", "2027-00-10", "2027-12-32", "2027-12-00", "1999-12-31",
+        "2027/12/31", "27-12-31",   "2027-1-31",  "2027-02-30",  "2027-02-29",
+        "2027-13-01", "2027-00-10", "2027-12-32", "2027-12-00",  "1999-12-31",
         "0000-01-01", "abcd-ef-gh", "",           "2027-12-31 ", "2027-12-3a",
         "20271231",   "2027-12-311"};
     for (const std::string& text : bad)
@@ -1333,16 +1353,17 @@ TEST_CASE("plugin manifest: requires and requires.api are needed")
                    "requires.api.max: is required");
     expect_invalid(replaced(minimal_text(), api_members, "\"max\": \"1.x\""),
                    "requires.api.min: is required");
-    expect_invalid(replaced(minimal_text(), api_members, "\"min\": \"1.0\", "
+    expect_invalid(replaced(minimal_text(), api_members,
+                            "\"min\": \"1.0\", "
                             "\"max\": \"1.x\", \"extra\": 1"),
                    "requires.api: unknown key \"extra\"");
 }
 
 TEST_CASE("plugin manifest: api minimum that is not a version")
 {
-    const std::vector<std::string> bad = {
-        "1", "1.0.0", "1.x", "a.b", "01.0", "65536.0", "1.65536",
-        "",  "-1.0",  "1.-1", "1.", ".1"};
+    const std::vector<std::string> bad = {"1",    "1.0.0",   "1.x",     "a.b",
+                                          "01.0", "65536.0", "1.65536", "",
+                                          "-1.0", "1.-1",    "1.",      ".1"};
     for (const std::string& text : bad)
     {
         expect_invalid(with_api(text, "1.x"),
@@ -1355,8 +1376,8 @@ TEST_CASE("plugin manifest: api minimum that is not a version")
 
 TEST_CASE("plugin manifest: api maximum that is not a version")
 {
-    const std::vector<std::string> bad = {
-        "1", "x.x", "1.y", "1.4.0", "1.X", "", ".x", "1.", "65536.x"};
+    const std::vector<std::string> bad = {"1", "x.x", "1.y", "1.4.0",  "1.X",
+                                          "",  ".x",  "1.",  "65536.x"};
     for (const std::string& text : bad)
     {
         expect_invalid(with_api("1.0", text),
@@ -1469,9 +1490,12 @@ TEST_CASE("plugin manifest: the executable is needed")
 TEST_CASE("plugin manifest: executable paths that are accepted")
 {
     const std::vector<std::string> good = {
-        "bin/fixture", "a",          "a/b/c.d",    ".hidden/run",
-        "con1",        "COM10",      "lpt",        "console.exe",
-        "x y/z",       "nulx.txt",   "aux2",       "a..b",
+        "bin/fixture",  "a",
+        "a/b/c.d",      ".hidden/run",
+        "con1",         "COM10",
+        "lpt",          "console.exe",
+        "x y/z",        "nulx.txt",
+        "aux2",         "a..b",
         "Run-Me_1.exe", std::string(max_path_length, 'a')};
     for (const std::string& path : good)
     {
@@ -1485,15 +1509,42 @@ TEST_CASE("plugin manifest: executable paths that are refused")
     // Each is the text of a JSON string, so "a\\\\b" is a path with one
     // backslash.
     const std::vector<std::string> refused = {
-        "../x",       "/abs",       "a\\\\b",      "C:/x",
-        "a//b",       "a/./b",      "NUL",         "nul.txt",
-        "a/com1.dll", "trailing.",  "x ",          "",
-        "a/..",       "./x",        "sub/",        "bin/con",
-        "aux.tar.gz", "LPT9",       "a/ b",        "a*b",
-        "a?b",        "a<b",        "a>b",         "a|b",
-        "a\\u0022b",  "caf\\u00e9", "a\\u0001b",   "nul .txt",
-        "CONIN$",     "con.",       "..",          ".",
-        "Prn",        "COM0",       "a/CONOUT$.x", "/",
+        "../x",
+        "/abs",
+        "a\\\\b",
+        "C:/x",
+        "a//b",
+        "a/./b",
+        "NUL",
+        "nul.txt",
+        "a/com1.dll",
+        "trailing.",
+        "x ",
+        "",
+        "a/..",
+        "./x",
+        "sub/",
+        "bin/con",
+        "aux.tar.gz",
+        "LPT9",
+        "a/ b",
+        "a*b",
+        "a?b",
+        "a<b",
+        "a>b",
+        "a|b",
+        "a\\u0022b",
+        "caf\\u00e9",
+        "a\\u0001b",
+        "nul .txt",
+        "CONIN$",
+        "con.",
+        "..",
+        ".",
+        "Prn",
+        "COM0",
+        "a/CONOUT$.x",
+        "/",
         std::string(max_path_length + 1, 'a')};
     for (const std::string& path : refused)
     {
@@ -1508,7 +1559,8 @@ TEST_CASE("plugin manifest: arguments")
           "platforms": ["linux-x64"])j"));
     REQUIRE(value.run.args == strings({"-v", "--port=5"}));
 
-    const auto with_args = [](const std::string& args) {
+    const auto with_args = [](const std::string& args)
+    {
         return with_run("\"executable\": \"bin/fixture\", \"args\": " + args +
                         ", \"platforms\": [\"linux-x64\"]");
     };
@@ -1516,13 +1568,13 @@ TEST_CASE("plugin manifest: arguments")
     expect_invalid(with_args(name_list("a", 33)),
                    "run.args: has more than 32 items");
     expect_invalid(with_args("[\"\"]"), "run.args[0]: must not be empty");
-    expect_invalid(with_args("[\"" + std::string(max_argument_length + 1, 'a') +
-                             "\"]"),
-                   "run.args[0]: is longer than 256 bytes");
-    REQUIRE(parse_manifest(with_args("[\"" +
-                                     std::string(max_argument_length, 'a') +
-                                     "\"]"))
-                .has_value());
+    expect_invalid(
+        with_args("[\"" + std::string(max_argument_length + 1, 'a') + "\"]"),
+        "run.args[0]: is longer than 256 bytes");
+    REQUIRE(
+        parse_manifest(
+            with_args("[\"" + std::string(max_argument_length, 'a') + "\"]"))
+            .has_value());
     expect_invalid(with_args("[\"ok\", \"bad\\u0001\"]"),
                    "run.args[1]: has a control character");
     expect_invalid(with_args("[5]"), "run.args[0]: must be a string");
@@ -1555,24 +1607,25 @@ TEST_CASE("plugin manifest: the scope of a permission")
                    "permissions[1].scope: is required");
     expect_invalid(with_permission(R"j({ "name": "net.outbound" })j"),
                    "permissions[1].scope: is required");
-    expect_invalid(with_permission(
-                       R"j({ "name": "net.listen", "scope": [] })j"),
-                   "permissions[1].scope: must not be empty");
-    expect_invalid(with_permission(
-                       R"j({ "name": "net.listen", "scope": ["a b"] })j"),
-                   "permissions[1].scope[0]: \"a b\" is not an address");
-    expect_invalid(with_permission(
-                       R"j({ "name": "net.listen", "scope": [""] })j"),
-                   "permissions[1].scope[0]: \"\" is not an address");
-    expect_invalid(with_permission(
-                       R"j({ "name": "net.listen", "scope": ["x", "x"] })j"),
-                   "permissions[1].scope[1]: \"x\" is given twice");
-    expect_invalid(with_permission(
-                       R"j({ "name": "net.listen", "scope": "x" })j"),
-                   "permissions[1].scope: must be a list");
+    expect_invalid(
+        with_permission(R"j({ "name": "net.listen", "scope": [] })j"),
+        "permissions[1].scope: must not be empty");
+    expect_invalid(
+        with_permission(R"j({ "name": "net.listen", "scope": ["a b"] })j"),
+        "permissions[1].scope[0]: \"a b\" is not an address");
+    expect_invalid(
+        with_permission(R"j({ "name": "net.listen", "scope": [""] })j"),
+        "permissions[1].scope[0]: \"\" is not an address");
+    expect_invalid(
+        with_permission(R"j({ "name": "net.listen", "scope": ["x", "x"] })j"),
+        "permissions[1].scope[1]: \"x\" is given twice");
+    expect_invalid(
+        with_permission(R"j({ "name": "net.listen", "scope": "x" })j"),
+        "permissions[1].scope: must be a list");
     const std::string long_address(max_scope_length + 1, 'a');
     expect_invalid(with_permission("{ \"name\": \"net.listen\", "
-                                   "\"scope\": [\"" + long_address + "\"] }"),
+                                   "\"scope\": [\"" +
+                                   long_address + "\"] }"),
                    "is not an address");
     expect_invalid(with_permission("{ \"name\": \"net.listen\", \"scope\": " +
                                    name_list("h", 17) + " }"),
@@ -1589,19 +1642,19 @@ TEST_CASE("plugin manifest: the scope of a permission")
 
 TEST_CASE("plugin manifest: required and reason of a permission")
 {
-    expect_invalid(replaced(minimal_text(), "\"required\": false",
-                            "\"required\": \"no\""),
-                   "permissions[1].required: must be true or false");
-    expect_invalid(replaced(minimal_text(), "\"required\": false",
-                            "\"required\": 0"),
-                   "permissions[1].required: must be true or false");
-    expect_invalid(replaced(minimal_text(), "\"Needs to see its port.\"",
-                            "\"" + std::string(max_reason_length + 1, 'a') +
-                                "\""),
-                   "permissions[0].reason: is longer than 200 bytes");
-    expect_invalid(replaced(minimal_text(), "\"Needs to see its port.\"",
-                            "\"\""),
-                   "permissions[0].reason: must not be empty");
+    expect_invalid(
+        replaced(minimal_text(), "\"required\": false", "\"required\": \"no\""),
+        "permissions[1].required: must be true or false");
+    expect_invalid(
+        replaced(minimal_text(), "\"required\": false", "\"required\": 0"),
+        "permissions[1].required: must be true or false");
+    expect_invalid(
+        replaced(minimal_text(), "\"Needs to see its port.\"",
+                 "\"" + std::string(max_reason_length + 1, 'a') + "\""),
+        "permissions[0].reason: is longer than 200 bytes");
+    expect_invalid(
+        replaced(minimal_text(), "\"Needs to see its port.\"", "\"\""),
+        "permissions[0].reason: must not be empty");
     expect_invalid(replaced(minimal_text(), "\"Needs to see its port.\"",
                             "\"Bad\\u202etext\""),
                    "permissions[0].reason: has a control character");
@@ -1618,10 +1671,9 @@ TEST_CASE("plugin manifest: every permission is known by its name")
     for (const permission name :
          {permission::traffic_tap, permission::ports_write,
           permission::topology_modify, permission::modifier_inline,
-          permission::faults, permission::serial_devices,
-          permission::fs_read, permission::fs_write,
-          permission::data_private, permission::process_spawn,
-          permission::bundle_section})
+          permission::faults, permission::serial_devices, permission::fs_read,
+          permission::fs_write, permission::data_private,
+          permission::process_spawn, permission::bundle_section})
     {
         const std::string member =
             "{ \"name\": \"" + std::string(to_string(name)) + "\" }";
@@ -1663,8 +1715,8 @@ TEST_CASE("plugin manifest: extension point ids")
                                 "\"id\": \"" + id + "\""),
                        at_point(".id: "), id);
     }
-    const std::vector<std::string> good = {
-        "a", "x-1_2", "slave", std::string(64, 'a')};
+    const std::vector<std::string> good = {"a", "x-1_2", "slave",
+                                           std::string(64, 'a')};
     for (const std::string& id : good)
     {
         const manifest value = parse_ok(replaced(
@@ -1715,19 +1767,19 @@ TEST_CASE("plugin manifest: which timing classes a kind may have")
     expect_invalid(point_text("modifier", R"j({ "class": "rules" })j"),
                    at_point(".timing.class: \"rules\" is not allowed for "
                             "the kind modifier"));
-    expect_invalid(point_text("generator",
-                              R"j({ "class": "inline", "budget_us": 100 })j"),
-                   at_point(".timing.class: \"inline\" is not allowed for "
-                            "the kind generator"));
-    expect_invalid(point_text("fixture",
-                              R"j({ "class": "inline", "budget_us": 100 })j"),
-                   at_point(".timing.class: \"inline\" is not allowed for "
-                            "the kind fixture"));
+    expect_invalid(
+        point_text("generator", R"j({ "class": "inline", "budget_us": 100 })j"),
+        at_point(".timing.class: \"inline\" is not allowed for "
+                 "the kind generator"));
+    expect_invalid(
+        point_text("fixture", R"j({ "class": "inline", "budget_us": 100 })j"),
+        at_point(".timing.class: \"inline\" is not allowed for "
+                 "the kind fixture"));
     expect_invalid(point_text("adapter", R"j({ "class": "rules" })j"),
                    at_point(".timing.class: \"rules\" is not allowed for"));
-    expect_invalid(point_text("adapter",
-                              R"j({ "class": "inline", "budget_us": 100 })j"),
-                   at_point(".timing.class: \"inline\" is not allowed for"));
+    expect_invalid(
+        point_text("adapter", R"j({ "class": "inline", "budget_us": 100 })j"),
+        at_point(".timing.class: \"inline\" is not allowed for"));
 
     // What is allowed.
     const std::string rules = R"j({ "class": "rules" })j";
@@ -1738,8 +1790,8 @@ TEST_CASE("plugin manifest: which timing classes a kind may have")
     REQUIRE(parse_manifest(point_text("fixture", async)).has_value());
     REQUIRE(parse_manifest(point_text("adapter", async)).has_value());
     REQUIRE(parse_manifest(point_text("modifier", async)).has_value());
-    REQUIRE(parse_manifest(inline_text(
-                               R"j({ "class": "inline", "budget_us": 100 })j"))
+    REQUIRE(parse_manifest(
+                inline_text(R"j({ "class": "inline", "budget_us": 100 })j"))
                 .has_value());
 }
 
@@ -1788,19 +1840,19 @@ TEST_CASE("plugin manifest: the budget of an inline extension point")
                        budget);
     }
 
-    const manifest lowest = parse_ok(inline_text(
-        R"j({ "class": "inline", "budget_us": 50 })j"));
+    const manifest lowest =
+        parse_ok(inline_text(R"j({ "class": "inline", "budget_us": 50 })j"));
     REQUIRE_EQ(lowest.extension_points[0].timing.budget_us, min_budget_us);
     REQUIRE(lowest.extension_points[0].timing.type == timing_class::in_line);
-    const manifest highest = parse_ok(inline_text(
-        R"j({ "class": "inline", "budget_us": 1000000 })j"));
+    const manifest highest = parse_ok(
+        inline_text(R"j({ "class": "inline", "budget_us": 1000000 })j"));
     REQUIRE_EQ(highest.extension_points[0].timing.budget_us, max_budget_us);
 }
 
 TEST_CASE("plugin manifest: what happens when the budget passes")
 {
-    const manifest implicit_open = parse_ok(inline_text(
-        R"j({ "class": "inline", "budget_us": 100 })j"));
+    const manifest implicit_open =
+        parse_ok(inline_text(R"j({ "class": "inline", "budget_us": 100 })j"));
     REQUIRE(implicit_open.extension_points[0].timing.on_timeout ==
             timeout_action::fail_open);
 
@@ -1825,9 +1877,9 @@ TEST_CASE("plugin manifest: what happens when the budget passes")
 TEST_CASE("plugin manifest: inline needs the permission modifier.inline")
 {
     const std::string timing = R"j({ "class": "inline", "budget_us": 100 })j";
-    const std::string wanted = at_point(
-        ".timing.class: needs the permission \"modifier.inline\", as "
-        "required");
+    const std::string wanted =
+        at_point(".timing.class: needs the permission \"modifier.inline\", as "
+                 "required");
 
     // Not asked for at all.
     expect_invalid(point_text("modifier", timing), wanted);
@@ -1856,8 +1908,7 @@ TEST_CASE("plugin manifest: a decoder is async and needs traffic.tap")
 
     const manifest explicit_async =
         parse_ok(decoder_text(R"j({ "class": "async" })j"));
-    REQUIRE(explicit_async.extension_points[0].kind ==
-            extension_kind::decoder);
+    REQUIRE(explicit_async.extension_points[0].kind == extension_kind::decoder);
     REQUIRE(explicit_async.extension_points[0].timing.type ==
             timing_class::async);
 
@@ -1872,8 +1923,8 @@ TEST_CASE("plugin manifest: a decoder is async and needs traffic.tap")
 
     // The tap is required: not asked for, asked for as optional, or another
     // permission in its place.
-    const std::string wanted = at_point(
-        ".kind: needs the permission \"traffic.tap\", as required");
+    const std::string wanted =
+        at_point(".kind: needs the permission \"traffic.tap\", as required");
     expect_invalid(point_text("decoder", ""), wanted);
     expect_invalid(replaced(point_text("decoder", ""), faults_json,
                             R"j({ "name": "traffic.tap",
@@ -1910,9 +1961,9 @@ TEST_CASE("plugin manifest: the number of instances")
 
 TEST_CASE("plugin manifest: description of an extension point")
 {
-    const manifest value = parse_ok(replaced(
-        minimal_text(), "\"name\": \"Slave\",",
-        R"j("name": "Slave", "description": { "en": "A slave.",
+    const manifest value = parse_ok(
+        replaced(minimal_text(), "\"name\": \"Slave\",",
+                 R"j("name": "Slave", "description": { "en": "A slave.",
                                               "de": "Ein Knecht." },)j"));
     const extension_point& point = value.extension_points[0];
     REQUIRE_EQ(point.description.best("de"), "Ein Knecht.");
@@ -1941,9 +1992,9 @@ TEST_CASE("plugin manifest: parameter type, id and label")
                    at_param(".label: is required"));
     expect_invalid(fixture_text(R"j({ "label": "P", "type": "bool" })j"),
                    at_param(".id: is required"));
-    expect_invalid(fixture_text(
-                       R"j({ "id": "P", "label": "P", "type": "bool" })j"),
-                   at_param(".id: \"P\" is not an id"));
+    expect_invalid(
+        fixture_text(R"j({ "id": "P", "label": "P", "type": "bool" })j"),
+        at_param(".id: \"P\" is not an id"));
     expect_invalid(fixture_text("5"), at_param(": must be an object"));
     expect_invalid(fixture_text(
                        R"j({ "id": "p", "label": "P", "type": "bool" },
@@ -1956,8 +2007,8 @@ TEST_CASE("plugin manifest: parameter type, id and label")
 
 TEST_CASE("plugin manifest: labels and help in several languages")
 {
-    const std::vector<std::string> good = {
-        "en", "de", "en-AU", "zh-Hant", "es-419", "fil"};
+    const std::vector<std::string> good = {"en",      "de",     "en-AU",
+                                           "zh-Hant", "es-419", "fil"};
     for (const std::string& tag : good)
     {
         const manifest value = parse_ok(fixture_text(
@@ -1972,19 +2023,18 @@ TEST_CASE("plugin manifest: labels and help in several languages")
         "e", "english", "en_AU", "e1", "en-", "en--AU", "EN us", "", "-en"};
     for (const std::string& tag : bad)
     {
-        expect_invalid(fixture_text(
-                           "{ \"id\": \"p\", \"type\": \"bool\", \"label\": "
-                           "{ \"" + tag + "\": \"x\" } }"),
-                       at_param(".label: \"" + tag +
-                                "\" is not a language tag"),
-                       tag);
+        expect_invalid(
+            fixture_text("{ \"id\": \"p\", \"type\": \"bool\", \"label\": "
+                         "{ \"" +
+                         tag + "\": \"x\" } }"),
+            at_param(".label: \"" + tag + "\" is not a language tag"), tag);
     }
-    expect_invalid(fixture_text(
-                       R"j({ "id": "p", "type": "bool", "label": {} })j"),
-                   at_param(".label: must not be empty"));
-    expect_invalid(fixture_text(
-                       R"j({ "id": "p", "type": "bool", "label": 5 })j"),
-                   at_param(".label: must be a string, or an object"));
+    expect_invalid(
+        fixture_text(R"j({ "id": "p", "type": "bool", "label": {} })j"),
+        at_param(".label: must not be empty"));
+    expect_invalid(
+        fixture_text(R"j({ "id": "p", "type": "bool", "label": 5 })j"),
+        at_param(".label: must be a string, or an object"));
     expect_invalid(fixture_text(
                        R"j({ "id": "p", "type": "bool",
                            "label": { "en": 5 } })j"),
@@ -1993,8 +2043,7 @@ TEST_CASE("plugin manifest: labels and help in several languages")
                               std::string(max_help_length + 1, 'a') + "\""),
                    at_param(".help: is longer than 500 bytes"));
     REQUIRE(parse_manifest(param_text("\"type\": \"bool\", \"help\": \"" +
-                                      std::string(max_help_length, 'a') +
-                                      "\""))
+                                      std::string(max_help_length, 'a') + "\""))
                 .has_value());
 }
 
@@ -2041,15 +2090,15 @@ TEST_CASE("plugin manifest: integer parameters")
                    at_param(".min: is too large"));
     expect_invalid(param_text(head + "\"max\": 18446744073709551615"),
                    at_param(".max: must be a whole number"));
-    expect_invalid(param_text(head + "\"unit\": \"" + std::string(17, 'u') +
-                              "\""),
-                   at_param(".unit: is longer than 16 bytes"));
+    expect_invalid(
+        param_text(head + "\"unit\": \"" + std::string(17, 'u') + "\""),
+        at_param(".unit: is longer than 16 bytes"));
     expect_invalid(param_text(head + "\"max_length\": 5"),
                    at_param(": unknown key \"max_length\""));
 
     // The bounds are inclusive, and the extremes are held exactly.
-    const manifest edge = parse_ok(
-        param_text(head + "\"min\": 5, \"max\": 5, \"default\": 5"));
+    const manifest edge =
+        parse_ok(param_text(head + "\"min\": 5, \"max\": 5, \"default\": 5"));
     const parameter& same = edge.extension_points[0].parameters[0];
     REQUIRE_EQ(std::get<std::int64_t>(same.min), 5);
     REQUIRE_EQ(std::get<std::int64_t>(same.default_value), 5);
@@ -2082,9 +2131,9 @@ TEST_CASE("plugin manifest: number parameters")
                    at_param(": unknown key \"max_length\""));
 
     // A whole number is a number, and is held as a double.
-    const manifest value = parse_ok(
-        param_text(head + "\"min\": 0, \"max\": 10, \"default\": 2, "
-                          "\"step\": 1, \"unit\": \"V\""));
+    const manifest value =
+        parse_ok(param_text(head + "\"min\": 0, \"max\": 10, \"default\": 2, "
+                                   "\"step\": 1, \"unit\": \"V\""));
     const parameter& item = value.extension_points[0].parameters[0];
     REQUIRE_NEAR(std::get<double>(item.default_value), 2.0, 1e-12);
     REQUIRE_NEAR(std::get<double>(item.min), 0.0, 1e-12);
@@ -2157,9 +2206,9 @@ TEST_CASE("plugin manifest: string parameters")
     expect_invalid(param_text(head + "\"max_length\": 3, \"default\": "
                                      "\"abcd\""),
                    at_param(".default: is longer than 3 bytes"));
-    expect_invalid(param_text(head + "\"default\": \"" +
-                              std::string(257, 'a') + "\""),
-                   at_param(".default: is longer than 256 bytes"));
+    expect_invalid(
+        param_text(head + "\"default\": \"" + std::string(257, 'a') + "\""),
+        at_param(".default: is longer than 256 bytes"));
     expect_invalid(param_text(head + "\"max_length\": 0"),
                    at_param(".max_length: must be from 1 to 4096"));
     expect_invalid(param_text(head + "\"max_length\": 4097"),
@@ -2176,8 +2225,8 @@ TEST_CASE("plugin manifest: string parameters")
     const manifest longest = parse_ok(
         param_text(head + "\"max_length\": 4096, \"default\": \"abc\""));
     REQUIRE_EQ(longest.extension_points[0].parameters[0].max_length, 4096);
-    const manifest exact = parse_ok(
-        param_text(head + "\"max_length\": 3, \"default\": \"abc\""));
+    const manifest exact =
+        parse_ok(param_text(head + "\"max_length\": 3, \"default\": \"abc\""));
     REQUIRE_EQ(std::get<std::string>(
                    exact.extension_points[0].parameters[0].default_value),
                "abc");
@@ -2186,9 +2235,9 @@ TEST_CASE("plugin manifest: string parameters")
 TEST_CASE("plugin manifest: bytes parameters")
 {
     const std::string head = "\"type\": \"bytes\", ";
-    const std::vector<std::string> bad = {
-        "023", "zz", "02  31", "02 ", " 02", "0x02", "02-31", "2", "02 3",
-        "02 31 0"};
+    const std::vector<std::string> bad = {"023",  "zz",     "02  31", "02 ",
+                                          " 02",  "0x02",   "02-31",  "2",
+                                          "02 3", "02 31 0"};
     for (const std::string& text : bad)
     {
         std::string member = head;
@@ -2206,7 +2255,8 @@ TEST_CASE("plugin manifest: bytes parameters")
     expect_invalid(param_text(head + "\"max_length\": 0"),
                    at_param(".max_length: must be from 1 to 4096"));
 
-    const auto bytes_of = [&](const std::string& text) {
+    const auto bytes_of = [&](const std::string& text)
+    {
         const manifest value =
             parse_ok(param_text(head + "\"default\": \"" + text + "\""));
         return std::get<std::string>(
@@ -2228,10 +2278,20 @@ TEST_CASE("plugin manifest: bytes parameters")
 TEST_CASE("plugin manifest: duration parameters")
 {
     const std::string head = "\"type\": \"duration\", ";
-    const std::vector<std::string> bad = {
-        "5m", "5", "ms", "-5ms", "1.5s", "5 ms", "5MS", "", "5h", "86401s",
-        "86400001ms", "86400000001us", "86400000000001ns",
-        "1000000000000000000000s"};
+    const std::vector<std::string> bad = {"5m",
+                                          "5",
+                                          "ms",
+                                          "-5ms",
+                                          "1.5s",
+                                          "5 ms",
+                                          "5MS",
+                                          "",
+                                          "5h",
+                                          "86401s",
+                                          "86400001ms",
+                                          "86400000001us",
+                                          "86400000000001ns",
+                                          "1000000000000000000000s"};
     for (const std::string& text : bad)
     {
         std::string member = head;
@@ -2253,7 +2313,8 @@ TEST_CASE("plugin manifest: duration parameters")
     expect_invalid(param_text(head + "\"unit\": \"ms\""),
                    at_param(": unknown key \"unit\""));
 
-    const auto nanoseconds = [&](const std::string& text) {
+    const auto nanoseconds = [&](const std::string& text)
+    {
         const manifest value =
             parse_ok(param_text(head + "\"default\": \"" + text + "\""));
         return std::get<std::int64_t>(
@@ -2280,9 +2341,9 @@ TEST_CASE("plugin manifest: path parameters")
     REQUIRE(item.access == path_access::read);
     REQUIRE(!item.must_exist);
 
-    const manifest named = parse_ok(param_text(
-        head + "\"kind\": \"file\", \"access\": \"read\", "
-               "\"must_exist\": false"));
+    const manifest named =
+        parse_ok(param_text(head + "\"kind\": \"file\", \"access\": \"read\", "
+                                   "\"must_exist\": false"));
     REQUIRE(named.extension_points[0].parameters[0].kind == path_kind::file);
 
     expect_invalid(param_text(head + "\"kind\": \"folder\""),
@@ -2327,8 +2388,8 @@ TEST_CASE("plugin manifest: port, link and secret parameters")
 
 TEST_CASE("plugin manifest: a plugin that only adds a bundle section")
 {
-    const manifest value = parse_ok(
-        sections_text(R"j({ "id": "state", "title": "State" })j"));
+    const manifest value =
+        parse_ok(sections_text(R"j({ "id": "state", "title": "State" })j"));
     REQUIRE(value.extension_points.empty());
     REQUIRE_EQ(value.bundle_sections.size(), 1);
     const bundle_section& section = value.bundle_sections[0];
@@ -2348,9 +2409,9 @@ TEST_CASE("plugin manifest: bundle sections need their permission")
                    "\"bundle.section\"");
 
     // With the permission, in any form, it is read.
-    const manifest value = parse_ok(replaced(
-        with_top(section), faults_json,
-        R"j({ "name": "bundle.section", "required": false })j"));
+    const manifest value = parse_ok(
+        replaced(with_top(section), faults_json,
+                 R"j({ "name": "bundle.section", "required": false })j"));
     REQUIRE_EQ(value.bundle_sections.size(), 1);
     REQUIRE_EQ(value.extension_points.size(), 1);
 }
@@ -2366,13 +2427,13 @@ TEST_CASE("plugin manifest: bundle section ids, titles and limits")
                    "contributes.bundle_sections[0].id: is required");
     expect_invalid(sections_text(R"j({ "id": "S", "title": "A" })j"),
                    "contributes.bundle_sections[0].id: \"S\" is not an id");
-    expect_invalid(sections_text(
-                       R"j({ "id": "s", "title": "A", "sensitive": 1 })j"),
-                   "contributes.bundle_sections[0].sensitive: must be true or "
-                   "false");
-    expect_invalid(sections_text(
-                       R"j({ "id": "s", "title": "A", "extra": 1 })j"),
-                   "contributes.bundle_sections[0]: unknown key \"extra\"");
+    expect_invalid(
+        sections_text(R"j({ "id": "s", "title": "A", "sensitive": 1 })j"),
+        "contributes.bundle_sections[0].sensitive: must be true or "
+        "false");
+    expect_invalid(
+        sections_text(R"j({ "id": "s", "title": "A", "extra": 1 })j"),
+        "contributes.bundle_sections[0]: unknown key \"extra\"");
     expect_invalid(sections_text(repeat("{}, ", 8) + "{}"),
                    "contributes.bundle_sections: has more than 8 items");
     expect_invalid(bare_text(", \"contributes\": { \"parts\": [] }"),
@@ -2411,32 +2472,31 @@ TEST_CASE("plugin manifest: a plugin that lists its files")
     REQUIRE_EQ(several.files.size(), 3);
 
     // Capitals in the digest are read.
-    const manifest upper = parse_ok(with_files(
-        file_json("bin/fixture", "10", digest_upper_ab())));
+    const manifest upper =
+        parse_ok(with_files(file_json("bin/fixture", "10", digest_upper_ab())));
     REQUIRE(all_bytes_are(upper.files[0].sha512, 0xab));
 
     // The largest size, and the smallest.
-    REQUIRE(parse_manifest(with_files(file_json("bin/fixture", "4294967296",
-                                                digest_ab())))
+    REQUIRE(parse_manifest(
+                with_files(file_json("bin/fixture", "4294967296", digest_ab())))
                 .has_value());
-    REQUIRE(parse_manifest(with_files(file_json("bin/fixture", "0",
-                                                digest_ab())))
-                .has_value());
+    REQUIRE(
+        parse_manifest(with_files(file_json("bin/fixture", "0", digest_ab())))
+            .has_value());
 }
 
 TEST_CASE("plugin manifest: a digest that is not 128 hexadecimal digits")
 {
-    const std::vector<std::string> bad = {
-        "",
-        "ab",
-        repeat("a", 127),
-        repeat("a", 129),
-        repeat("ab", 128),
-        repeat("a", 127) + "g",
-        repeat("a", 127) + "G",
-        repeat("a", 127) + " ",
-        repeat("a", 127) + "-",
-        "0x" + repeat("a", 126)};
+    const std::vector<std::string> bad = {"",
+                                          "ab",
+                                          repeat("a", 127),
+                                          repeat("a", 129),
+                                          repeat("ab", 128),
+                                          repeat("a", 127) + "g",
+                                          repeat("a", 127) + "G",
+                                          repeat("a", 127) + " ",
+                                          repeat("a", 127) + "-",
+                                          "0x" + repeat("a", 126)};
     for (const std::string& digest : bad)
     {
         expect_invalid(with_files(file_json("bin/fixture", "10", digest)),
@@ -2455,21 +2515,20 @@ TEST_CASE("plugin manifest: the parts of a file entry")
     expect_invalid(with_files("{ \"path\": \"bin/fixture\", \"sha512\": \"" +
                               digest_ab() + "\" }"),
                    "files[0].size: is required");
-    expect_invalid(with_files("{ \"size\": 1, \"sha512\": \"" + digest_ab() +
-                              "\" }"),
-                   "files[0].path: is required");
-    expect_invalid(with_files(file_json("bin/fixture", "4294967297",
-                                        digest_ab())),
-                   "files[0].size: must be from 0 to 4294967296");
+    expect_invalid(
+        with_files("{ \"size\": 1, \"sha512\": \"" + digest_ab() + "\" }"),
+        "files[0].path: is required");
+    expect_invalid(
+        with_files(file_json("bin/fixture", "4294967297", digest_ab())),
+        "files[0].size: must be from 0 to 4294967296");
     expect_invalid(with_files(file_json("bin/fixture", "-1", digest_ab())),
                    "files[0].size: must be a whole number that is not "
                    "negative");
-    expect_invalid(with_files(file_json("bin/fixture", "\"10\"",
-                                        digest_ab())),
+    expect_invalid(with_files(file_json("bin/fixture", "\"10\"", digest_ab())),
                    "files[0].size: must be a whole number");
     expect_invalid(with_files("{ \"path\": \"bin/fixture\", \"size\": 1, "
-                              "\"sha512\": \"" + digest_ab() +
-                              "\", \"mode\": 7 }"),
+                              "\"sha512\": \"" +
+                              digest_ab() + "\", \"mode\": 7 }"),
                    "files[0]: unknown key \"mode\"");
     expect_invalid(with_top("\"files\": []"), "files: must not be empty");
     expect_invalid(with_top("\"files\": 5"), "files: must be a list");
@@ -2479,9 +2538,9 @@ TEST_CASE("plugin manifest: the parts of a file entry")
 
 TEST_CASE("plugin manifest: a file listed twice")
 {
-    expect_layout(with_files(good_file("bin/fixture") + ", " +
-                             good_file("bin/fixture")),
-                  "files[0].path: \"bin/fixture\" is listed twice");
+    expect_layout(
+        with_files(good_file("bin/fixture") + ", " + good_file("bin/fixture")),
+        "files[0].path: \"bin/fixture\" is listed twice");
     expect_layout(with_files(good_file("bin/fixture") + ", " +
                              good_file("lib/a") + ", " + good_file("lib/a")),
                   "is listed twice");
@@ -2489,9 +2548,9 @@ TEST_CASE("plugin manifest: a file listed twice")
 
 TEST_CASE("plugin manifest: two files that differ only in case")
 {
-    expect_layout(with_files(good_file("bin/fixture") + ", " +
-                             good_file("BIN/Fixture")),
-                  "differs from another path only in case");
+    expect_layout(
+        with_files(good_file("bin/fixture") + ", " + good_file("BIN/Fixture")),
+        "differs from another path only in case");
     expect_layout(with_files(good_file("bin/fixture") + ", " +
                              good_file("lib/Data") + ", " +
                              good_file("lib/data")),
@@ -2512,23 +2571,22 @@ TEST_CASE("plugin manifest: a file inside another file")
                   "is inside a path that is listed as a file");
 
     // A folder is not a file: these are fine.
-    REQUIRE(parse_manifest(with_files(good_file("bin/fixture") + ", " +
-                                      good_file("a/b") + ", " +
-                                      good_file("a/c")))
-                .has_value());
+    REQUIRE(
+        parse_manifest(with_files(good_file("bin/fixture") + ", " +
+                                  good_file("a/b") + ", " + good_file("a/c")))
+            .has_value());
 }
 
 TEST_CASE("plugin manifest: the manifest and its signature are not listed")
 {
-    for (const char* const path :
-         {"plugin.json", "PLUGIN.JSON", "Plugin.Json", "plugin.sig",
-          "PLUGIN.sig"})
+    for (const char* const path : {"plugin.json", "PLUGIN.JSON", "Plugin.Json",
+                                   "plugin.sig", "PLUGIN.sig"})
     {
-        expect_layout(with_files(good_file("bin/fixture") + ", " +
-                                 good_file(path)),
-                      "files[1].path: the manifest and its signature are not "
-                      "listed",
-                      path);
+        expect_layout(
+            with_files(good_file("bin/fixture") + ", " + good_file(path)),
+            "files[1].path: the manifest and its signature are not "
+            "listed",
+            path);
     }
 
     // In a folder they are ordinary names.
@@ -2549,14 +2607,14 @@ TEST_CASE("plugin manifest: the executable must be a listed file")
 
 TEST_CASE("plugin manifest: a listed path that breaks the layout rules")
 {
-    const std::vector<std::string> bad = {
-        "../x", "/abs", "a\\\\b", "C:/x", "a//b", "con.txt", "a/nul",
-        "trailing.", ""};
+    const std::vector<std::string> bad = {"../x",  "/abs",      "a\\\\b",
+                                          "C:/x",  "a//b",      "con.txt",
+                                          "a/nul", "trailing.", ""};
     for (const std::string& path : bad)
     {
-        expect_layout(with_files(good_file("bin/fixture") + ", " +
-                                 good_file(path)),
-                      "files[1].path", path);
+        expect_layout(
+            with_files(good_file("bin/fixture") + ", " + good_file(path)),
+            "files[1].path", path);
     }
     expect_invalid(with_files("{ \"path\": 5, \"size\": 1, \"sha512\": \"" +
                               digest_ab() + "\" }"),
@@ -2568,12 +2626,16 @@ TEST_CASE("plugin manifest: a listed path that breaks the layout rules")
 TEST_CASE("plugin manifest: relative paths that are accepted")
 {
     const std::vector<std::string> good = {
-        "a",           "bin/fixture", "a/b/c.d",    "a b/c",
-        ".hidden",     "a..b",        "con1",       "COM10",
-        "lpt",         "nul1.txt",    "x.nul",      "console",
-        "aux2",        "a-b_c~1",     "A/B/C",      "1/2/3",
-        "a.b.c",       "a/.hidden/b", "Run (1).exe",
-        std::string(max_path_length, 'a')};
+        "a",           "bin/fixture",
+        "a/b/c.d",     "a b/c",
+        ".hidden",     "a..b",
+        "con1",        "COM10",
+        "lpt",         "nul1.txt",
+        "x.nul",       "console",
+        "aux2",        "a-b_c~1",
+        "A/B/C",       "1/2/3",
+        "a.b.c",       "a/.hidden/b",
+        "Run (1).exe", std::string(max_path_length, 'a')};
     for (const std::string& path : good)
     {
         const auto problem = check_relative_path(path);
@@ -2585,17 +2647,58 @@ TEST_CASE("plugin manifest: relative paths that are accepted")
 TEST_CASE("plugin manifest: relative paths that are refused")
 {
     const std::vector<std::string> refused = {
-        "",          "/",          "/abs",       "//",        "a//b",
-        "a/",        "/a",         ".",          "..",        "./x",
-        "../x",      "a/./b",      "a/..",       "a/../b",    "a\\b",
-        "a:b",       "C:/x",       "a*b",        "a?b",       "a\"b",
-        "a<b",       "a>b",        "a|b",        "caf\xc3\xa9", "a\tb",
-        "a\x7f",     std::string("a\0b", 3),     " a",        "a ",
-        "a/ b",      "a /b",       "a./b",       "trailing.", "a/b.",
-        "CON",       "con",        "Prn",        "AUX",       "NUL",
-        "COM1",      "lpt9",       "com0",       "CONIN$",    "CONOUT$.txt",
-        "a/nul",     "a/NUL.tar.gz", "nul.txt",  "nul .txt",  "aux.tar.gz",
-        "bin/con",   "con.d/x",    "COM9.dll",
+        "",
+        "/",
+        "/abs",
+        "//",
+        "a//b",
+        "a/",
+        "/a",
+        ".",
+        "..",
+        "./x",
+        "../x",
+        "a/./b",
+        "a/..",
+        "a/../b",
+        "a\\b",
+        "a:b",
+        "C:/x",
+        "a*b",
+        "a?b",
+        "a\"b",
+        "a<b",
+        "a>b",
+        "a|b",
+        "caf\xc3\xa9",
+        "a\tb",
+        "a\x7f",
+        std::string("a\0b", 3),
+        " a",
+        "a ",
+        "a/ b",
+        "a /b",
+        "a./b",
+        "trailing.",
+        "a/b.",
+        "CON",
+        "con",
+        "Prn",
+        "AUX",
+        "NUL",
+        "COM1",
+        "lpt9",
+        "com0",
+        "CONIN$",
+        "CONOUT$.txt",
+        "a/nul",
+        "a/NUL.tar.gz",
+        "nul.txt",
+        "nul .txt",
+        "aux.tar.gz",
+        "bin/con",
+        "con.d/x",
+        "COM9.dll",
         std::string(max_path_length + 1, 'a')};
     for (const std::string& path : refused)
     {
@@ -2608,7 +2711,8 @@ TEST_CASE("plugin manifest: relative paths that are refused")
 
 TEST_CASE("plugin manifest: what is wrong with a refused path")
 {
-    const auto said = [](std::string_view path) {
+    const auto said = [](std::string_view path)
+    {
         const auto problem = check_relative_path(path);
         REQUIRE(problem.has_value());
         return *problem;
@@ -2794,8 +2898,7 @@ TEST_CASE("plugin manifest: plugin_errc has names and messages")
     REQUIRE_EQ(to_string(plugin_errc::manifest_unsupported_version),
                "manifest_unsupported_version");
     REQUIRE_EQ(to_string(plugin_errc::layout_invalid), "layout_invalid");
-    REQUIRE_EQ(to_string(plugin_errc::signature_invalid),
-               "signature_invalid");
+    REQUIRE_EQ(to_string(plugin_errc::signature_invalid), "signature_invalid");
     REQUIRE_EQ(to_string(plugin_errc::quarantined), "quarantined");
     REQUIRE_EQ(to_string(plugin_errc::reserved_id), "reserved_id");
 

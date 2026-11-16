@@ -23,6 +23,12 @@ Inputs, relative to the repository root:
     generated colour tokens instead.
 ``website/data/release.json``
     The latest release, as written by ``--refresh-release``.
+``website/data/update-feed.json``
+    The update feed of the newest release that has one, as written by
+    ``--refresh-release``.  It is optional.  The build copies it unchanged to
+    ``updates/v1/feed.json``, where Studio reads it (docs/updates.md, section
+    4.1).  The builder neither parses nor signs it; ``tools/site_check.py``
+    checks its signature.
 
 Placeholders have the form ``{{key}}`` with lower-case letters and underscores.
 Values that come from data are HTML-escaped; ``content``, ``nav`` and
@@ -36,7 +42,9 @@ Usage
     python tools/site_build.py --refresh-release  # fetch the latest release first
 
 ``--refresh-release`` is the only option that uses the network.  It sends a
-single request to the GitHub API and rewrites ``website/data/release.json``.
+single request to the GitHub API, rewrites ``website/data/release.json`` and,
+when a release has an ``update-feed.json`` asset, downloads that one file
+into ``website/data/update-feed.json``.
 """
 
 from __future__ import annotations
@@ -76,6 +84,14 @@ MONTHS = (
 
 API_USER_AGENT = "virtual-serial-studio-site-build"
 API_TIMEOUT_SECONDS = 30
+API_PAGE_SIZE = 100
+
+# The update feed: the name of the release asset, the stored copy (relative to
+# website/) and the address Studio reads it from (relative to the site root).
+FEED_ASSET = "update-feed.json"
+FEED_DATA = Path("data") / FEED_ASSET
+FEED_OUTPUT = "updates/v1/feed.json"
+MAX_FEED_BYTES = 64 * 1024
 
 
 class BuildError(Exception):
@@ -585,6 +601,11 @@ def generate(root: Path, source: Path) -> SiteOutput:
     inputs = [config_path, template_path, source / "data" / "release.json", *page_paths]
     files: dict[str, bytes] = {}
 
+    feed_path = source / FEED_DATA
+    if feed_path.is_file():
+        inputs.append(feed_path)
+        add_output(files, FEED_OUTPUT, feed_path.read_bytes(), str(FEED_DATA))
+
     downloads = render_downloads(release, config.rules)
     for page in pages:
         text = render_page(page, template, config, release, downloads)
@@ -658,7 +679,8 @@ def build_site(root: Path, out: Path, source: Path | None = None) -> int:
 
 
 def fetch_releases(repo: str) -> object:
-    """Fetches the newest release from the GitHub API and returns the decoded JSON."""
+    """Fetches the newest releases (one page, newest first) from the GitHub API and
+    returns the decoded JSON."""
     headers = {
         "Accept": "application/vnd.github+json",
         "User-Agent": API_USER_AGENT,
@@ -667,7 +689,8 @@ def fetch_releases(repo: str) -> object:
     if token:
         headers["Authorization"] = f"Bearer {token}"
     request = urllib.request.Request(
-        f"https://api.github.com/repos/{repo}/releases?per_page=1", headers=headers
+        f"https://api.github.com/repos/{repo}/releases?per_page={API_PAGE_SIZE}",
+        headers=headers,
     )
     with urllib.request.urlopen(request, timeout=API_TIMEOUT_SECONDS) as response:
         return json.loads(response.read().decode("utf-8"))
@@ -714,24 +737,99 @@ def convert_release(entries: object, repo: str) -> dict[str, object]:
     }
 
 
+def download_feed(url: str) -> bytes:
+    """Downloads the update feed from the address of a release asset."""
+    request = urllib.request.Request(url, headers={"User-Agent": API_USER_AGENT})
+    with urllib.request.urlopen(request, timeout=API_TIMEOUT_SECONDS) as response:
+        return bytes(response.read(MAX_FEED_BYTES + 1))
+
+
+def newest_feed(entries: object, repo: str) -> tuple[str, str] | None:
+    """The tag and the download address of the update feed of the release with
+    the greatest version that has one (a final release or a pre-release; not a
+    draft), or None.  Every address must be one of this repository's releases."""
+    # The feed tool's rules decide what a version is and which is greater.  It
+    # is imported here because it imports this module for its own use.
+    import update_feed
+
+    prefix = f"https://github.com/{repo}/releases/"
+    if not isinstance(entries, list):
+        return None
+    best: tuple[str, str, str] | None = None
+    for raw in entries:
+        if not isinstance(raw, dict) or raw.get("draft") is True:
+            continue
+        tag = raw.get("tag_name")
+        assets = raw.get("assets")
+        if not isinstance(tag, str) or not isinstance(assets, list):
+            continue
+        version = tag.removeprefix("v")
+        if not update_feed.is_version(version):
+            continue
+        for asset in assets:
+            if not isinstance(asset, dict) or asset.get("name") != FEED_ASSET:
+                continue
+            url = asset.get("browser_download_url")
+            if not isinstance(url, str) or not url.startswith(prefix):
+                raise BuildError(
+                    f"the {FEED_ASSET} of {tag} has the download URL '{url}', which does "
+                    f"not start with {prefix}"
+                )
+            if best is None or update_feed.compare_versions(version, best[0]) > 0:
+                best = (version, tag, url)
+    return None if best is None else (best[1], best[2])
+
+
+def fetch_feed(
+    repo: str,
+    response: object,
+    fetch_asset: Callable[[str], bytes],
+    log: Callable[[str], None],
+) -> bytes | None:
+    """Downloads the update feed of the newest release that has one, as it is.
+    With no such release the answer is None."""
+    found = newest_feed(response, repo)
+    if found is None:
+        log(f"no release has {FEED_ASSET}, so the stored feed is left as it is")
+        return None
+    tag, url = found
+    try:
+        data = fetch_asset(url)
+    except (OSError, ValueError) as error:
+        raise BuildError(f"could not download {FEED_ASSET} of {tag}: {error}") from None
+    if not data or len(data) > MAX_FEED_BYTES:
+        raise BuildError(f"the {FEED_ASSET} of {tag} is empty or over {MAX_FEED_BYTES} bytes")
+    log(f"{FEED_ASSET} of {tag} is the update feed")
+    return data
+
+
 def refresh_release(
     root: Path,
     source: Path | None = None,
     fetch: Callable[[str], object] | None = None,
+    fetch_asset: Callable[[str], bytes] | None = None,
+    log: Callable[[str], None] | None = None,
 ) -> Path:
-    """Rewrites ``data/release.json`` from the GitHub API and returns its path."""
+    """Rewrites ``data/release.json`` from the GitHub API and returns its path.
+    It also stores the update feed of the newest release that has one in
+    ``data/update-feed.json``; both are written only when everything was read."""
     source = (source if source is not None else root / "website").resolve()
     repo = load_config(source).repo
     fetch = fetch if fetch is not None else fetch_releases
+    fetch_asset = fetch_asset if fetch_asset is not None else download_feed
+    note = log if log is not None else (lambda message: None)
     try:
         response = fetch(repo)
     except (OSError, ValueError) as error:
         raise BuildError(f"could not fetch the latest release of {repo}: {error}") from None
     data = convert_release(response, repo)
+    feed = fetch_feed(repo, response, fetch_asset, note)
 
     path = source / "data" / "release.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes((json.dumps(data, indent=1) + "\n").encode("utf-8"))
+    if feed is not None:
+        (source / FEED_DATA).write_bytes(feed)
     return path
 
 
@@ -761,12 +859,14 @@ def main(argv: list[str] | None = None) -> int:
     out = Path(args.out).resolve() if args.out else root / DEFAULT_OUT
     try:
         if args.refresh_release:
-            refresh_release(root)
+            refresh_release(root, log=lambda message: print(f"site_build: {message}"))
         count = build_site(root, out)
     except BuildError as error:
         print(f"site_build: {error}", file=sys.stderr)
         return 1
     print(f"site_build: wrote {count} pages to {out}")
+    if not (root / "website" / FEED_DATA).is_file():
+        print(f"site_build: there is no update feed, so the site has no {FEED_OUTPUT}")
     return 0
 
 

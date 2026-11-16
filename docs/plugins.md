@@ -23,17 +23,21 @@ what discovery finds.
 | The administrator's policy file | `policy.cpp` | `vss_cli plugin list` reads it and says where it is and whether it can be used. Nothing applies it |
 | The official key list, the plugin signature and the revocation list signature | `signature.cpp`, `official_roots.cpp`, `revocations.cpp` | The tests and a fuzz target |
 | The trust store (`trust.json`) | `trust_store.cpp` | The tests and a fuzz target |
-| `verify`: whether a plugin may run | `verify.cpp` | Tests only |
+| `verify`: whether a plugin may run | `verify.cpp` | `inspect_plugin`, and so `vss_cli plugin list` and `verify` |
+| Looking at a plugin folder, installing and removing a plugin | `install.cpp` | `vss_cli plugin verify`, `install` and `remove` |
 | The licence question for an official plugin | `licence.cpp` | Tests only |
 | The messages `hello`, `hello_ack`, `ping`, `pong`, `status`, `log`, `shutdown`, `bye`, `ok` and `error` | `protocol.cpp` | The tests and a fuzz target |
+| The messages of the extension points (instances and parameters, generators, fixtures and rules, modifiers, adapters, capture, bundle sections, decoders and triggers) | `api_*.cpp`, listed in [the API reference](plugin-api-reference.md) | The tests and a fuzz target |
 | The session with one plugin: who speaks first, the time limits, the size limits | `session.cpp` | Tests only |
 | The restart and quarantine rules | `lifecycle.cpp` | Tests only |
 
-`params.changed`, `instance.create` and `instance.stop` of section 7.3 are not built: the codec passes them through as
-an unknown op.
+The messages of the extension points (sections 7.3 to 7.8, 19 and 20) are typed in `api_*.hpp`, and each can be read
+from and written to an `api_message`. Nothing sends or receives them yet: the host that does is not built.
 
-`vss_cli plugin list` never checks a signature. It does not run `verify` or the licence question and it does not apply
-the policy. Everything else in this design (the supervisor, the launcher and the sandbox, the instance types, the
+`vss_cli plugin list` and `vss_cli plugin verify` check the signature, run `verify` and, for an official plugin that names
+an edition, the licence question, as far as a command line can: it reads the policy file, the official key list built
+into the library and the date of the computer, and it has no licence, no revocation list and no engine capabilities.
+`vss_cli plugin install` and `remove` put a plugin on the computer and take it off. Everything else in this design (the supervisor, the launcher and the sandbox, the instance types, the
 modifiers, the decoders, the Plugins page and the trust dialog) is not built.
 
 ## 1. Scope and what is already decided
@@ -49,7 +53,9 @@ Decided in `editions.md`, and taken as given here:
 - Three **trust levels**: official (signed by the owner), third-party signed, and unsigned with a warning. An
   administrator can allow only official plugins. Trust decisions are tied to the file's hash. Each release carries a
   revocation list and plugins carry an expiry date.
-- **No network from the GUI, no telemetry.** Timing that must be exact stays in the engine.
+- **No network for plugins, no telemetry.** Studio's only connection of its own is the update check
+  ([Online updates](updates.md)); a plugin gets no network from Studio, and the framework has no update client of its
+  own. Timing that must be exact stays in the engine.
 - The signing key and the signing job are the owner's. This page designs the verifier and the file formats. It does
   not create, hold or name any key.
 
@@ -83,7 +89,9 @@ Non-goals for the first version:
 
 - In-process plugins with a C ABI or WASM. Not in the first version (decision 12). They stay possible later, and
   need a licence position from the owner first.
-- A plugin store, an update client or any network access. A plugin is installed by putting a directory in place.
+- A plugin store, an update client of the framework's own, or network access for the framework. A plugin is installed
+  by putting a directory in place. The update check of Studio ([Online updates](updates.md), section 8) can offer a
+  newer version of an official plugin that is already installed; the framework has no network code for it.
 - Plugins that draw their own windows. A plugin has parameters and a status line, nothing else, in Studio.
 - Hot code loading. A plugin changes by stopping and starting.
 
@@ -165,8 +173,8 @@ Search roots, in this order, the first to hold an id wins and a second is report
 | Root | Holds | Writable by |
 |---|---|---|
 | `<install>/studio-plugins/` | Official plugins that come with Studio or with a Pro install. It is not `<install>/plugins/`: the Linux package keeps Qt's own plug-ins there | Administrator |
-| Machine plugin directory (`%ProgramData%\VirtualSerialStudio\plugins`, `/usr/local/share/virtual-serial-studio/plugins`, `/Library/Application Support/VirtualSerialStudio/plugins`) | Plugins an administrator installs for everyone | Administrator |
-| Per-user plugin directory (`%LOCALAPPDATA%\VirtualSerialStudio\plugins`, `$XDG_DATA_HOME/virtual-serial-studio/plugins`, `~/Library/Application Support/VirtualSerialStudio/plugins`) | Plugins the user installs | The user |
+| Machine plugin directory (`%ProgramData%\Virtual Serial Studio\plugins`, `/usr/local/share/virtual-serial-studio/plugins`, `/Library/Application Support/Virtual Serial Studio/plugins`) | Plugins an administrator installs for everyone | Administrator |
+| Per-user plugin directory (`%LOCALAPPDATA%\Virtual Serial Studio\plugins`, `$XDG_DATA_HOME/virtual-serial-studio/plugins`, `~/Library/Application Support/Virtual Serial Studio/plugins`) | Plugins the user installs | The user |
 
 Rules:
 
@@ -176,6 +184,8 @@ Rules:
   owned by the user or by an administrator, with no write access for others (Windows: the ACL is read, and an entry
   that grants write to `Everyone` or `Users` on a machine or install root rejects the plugin).
 - At most 64 plugins, and a manifest of at most 256 KiB. More is `rejected: too_many` or `manifest_too_large`.
+- An entry of a root whose name starts with a dot is skipped, whatever it is. `vss_cli plugin install` works in
+  `<root>/.vss-work/`, and a folder there, finished or half made, is never a plugin.
 
 **Scope.** A plugin has a scope, from the root it was found in. The host's view of a plugin carries it and the
 Plugins page shows it (`screens/10-plugins.md`).
@@ -190,7 +200,7 @@ Plugins page shows it (`screens/10-plugins.md`).
 
 - **Studio never raises its own rights.** From the window a user adds a plugin for themselves: Studio copies the
   folder into the per-user root. A plugin for everyone is put in the machine root by an administrator, by hand,
-  with an installer or with `vss_cli plugin install --machine` from an administrator's prompt. The window shows
+  with an installer or with `vss_cli plugin install --for-everyone` from an administrator's prompt. The window shows
   the path to use.
 - **An administrator can turn the per-user root off** (`user_plugins: false` in the policy, section 8.6). It is
   then not searched, and the page says so.
@@ -263,6 +273,29 @@ its own rights" above is about plugins; the driver set-up keeps the prompt it ha
 **Left for the installers' own work, not this design:** adding `vss_agent` and `vss_plugin_launcher` to the
 four packages and their signing lists (`docs/agent.md`, step 9), and creating the machine plugin directory with
 the right owner in the installer for everyone, so that it never has to be made by a program a user runs.
+
+**Installing from a command line.** `vss_cli plugin install <folder>` copies a plugin folder into a plugin root, and
+`vss_cli plugin remove <id>` removes one (`libs/vss_plugin/include/vss/plugin/install.hpp`). Installing never runs
+anything from the plugin. It looks at the source with the checks of 5.3 and refuses a source whose manifest or layout is
+wrong, whose files are not the ones the manifest lists, whose signature does not hold, whose id only official plugins may
+use, or that was revoked; a plugin without a signature needs `--allow-unsigned`. An expired plugin, one that this computer
+cannot isolate and one the licence does not cover are installed, with what is wrong reported, because those depend on
+the computer and change. The folder is measured, then each file is copied from one open handle with its digest taken as it is
+copied, and must be the file that was measured; the bytes of `plugin.json` and `plugin.sig` that were parsed and
+checked must be the measured ones, so the files copied are the files judged. A file keeps its owner's read and execute
+bits, is never writable by the group or others, and the program the manifest runs is executable for its owner. The copy
+is made in `<root>/.vss-work/<unique>/`, measured again, and must have the hash of the first look, before it is renamed
+to `<root>/<plugin id>` in one step; on a replace the old folder is moved into the same work folder, and a work folder
+that cannot be removed is an error that names it. Discovery skips every entry of a root whose name starts with a dot,
+so the work folder, and what a cut-off install leaves in it, is never a plugin; the next install clears it. A source
+signed with a key nobody approved is treated like an unsigned one and needs `--allow-unsigned`. The plugin id becomes a folder name only when the manifest reader accepted it and it
+does not begin with the name of a Windows device (`con`, `nul`, `com1`, and so on), on every system. A copy is not
+flushed to disk before the rename, because the standard library has no portable way to do it, so a power loss can leave
+a folder whose files are shorter than they were; the next look at it finds the files wrong. The machine root is written only when only an
+administrator can change it, and it is never made by a command that cannot: when it is not there, the nearest folder
+above it that is must pass the same test. A plugin installed for everyone may not run confined until a later step gives
+the confined plugin read access to it. The package is taken as a folder: Studio has no zip reader, and the user unzips a plugin
+with the system's own tool.
 
 ### 5.3 Verify
 
@@ -490,19 +523,29 @@ in this build". Nothing pretends to carry out a rule it cannot.
   (`libs/vss_agent_proto`) is an internal matter that changes without notice, and a plugin never speaks it. The
   plugin API borrows its framing (below) and nothing else.
 
+Every message of the extension points is listed, with its direction, its fields and their limits, in
+[the plugin API reference](plugin-api-reference.md). The headers `libs/vss_plugin/include/vss/plugin/api_*.hpp` are the
+definition in code, and where the reference and this section differ the reference follows the code.
+
 ### 7.1 Transport and framing
 
-- **A private channel for each plugin**, made by the host before the plugin starts and inherited by the plugin: an
-  anonymous pair of pipes (Windows, inherited by an explicit handle list, so nothing else is inherited) or a
-  `socketpair` (elsewhere, with close-on-exec set on every other descriptor). There is **no name** to guess, no
-  listening socket and no way for another process to connect. The plugin is told the handle number in its
-  environment variable `VSS_PLUGIN_CHANNEL`.
+- **A private channel for each plugin**, made by the host before the plugin starts and inherited by the plugin: a
+  pipe (Windows, inherited by an explicit handle list, so nothing else is inherited) or a `socketpair` (elsewhere,
+  with every other descriptor closed in the child before the program runs). There is no listening socket and no
+  way for another process to connect. The plugin is told the handle number in its environment variable
+  `VSS_PLUGIN_CHANNEL`.
+- **The Windows pipe has a name for a moment, and the name is no way in.** Only a named pipe can be read without a
+  thread for each plugin (overlapped I/O), so the host makes one with a name of 128 random bits, as the first and
+  only instance, for this user only and no remote client, and opens the one client end itself at once, before
+  the plugin exists. If anything else had opened it first, the host's own open fails and the plugin is not
+  started. Once both ends are open nothing else can connect.
 - **Framing is the agent's** (`libs/vss_agent_proto`): `u32 size`, `u32 header size`, a JSON header, a blob, with
   a frame of at most 1 MiB. The same frame reader is reused. Bytes of traffic travel in the blob, never in JSON.
   The plugin API has limits of its own on the header: at most 64 KiB, JSON depth 8, a text of at most 1024
   bytes and a list of at most 256 entries in the messages of section 7.3. A header is small because the bytes
   are in the blob, and the limit bounds the work one message can ask of the host.
-- A plugin's standard input is closed. Its standard output and error are read by the host and kept as log lines
+- A plugin's standard input is at its end from the start (the null device). Its standard output and error are one
+  pipe, read by the host and kept as log lines
   (section 7.3), at most 64 KiB per second, truncated, never trusted as markup.
 - No shell, no environment other than the minimum (`VSS_PLUGIN_CHANNEL`, `VSS_PLUGIN_DATA`, `VSS_PLUGIN_ID`, a
   sanitised `PATH`, `HOME` set to the data directory, and `LANG`).
@@ -557,7 +600,7 @@ A generator produces bytes onto a port.
 
 | Message | From | Content |
 |---|---|---|
-| `generator.start` | host | `instance`, `port` (an endpoint id), `params` |
+| `generator.start` | host | `instance`, `place` (the hub's name for the port), `params` |
 | `generator.write` | plugin | `instance`, blob. Needs credit |
 | `generator.credit` | host | `instance`, `bytes`: how many more bytes the plugin may send |
 | `generator.pattern` | plugin | `instance`, a *declared pattern*: `{"bytes": hex, "repeat": n or 0, "period_us": n, "burst": n, "jitter": ...}`. The engine generates it (T0) |
@@ -565,8 +608,8 @@ A generator produces bytes onto a port.
 | `generator.done` | plugin | `instance`, a reason |
 
 **Flow control by credit.** The host grants at most 64 KiB of credit to start and tops up as the engine takes bytes,
-so a plugin can never get ahead of the port by more than that, and a plugin that writes without credit is refused with
-`busy` (the first time) and killed as `misbehaving` (when it keeps going). A generator is a source of async traffic. When it must be periodic and exact, it uses
+so a plugin can never get ahead of the port by more than that. A write without credit is dropped and counted, because a
+`generator.write` is a notification and has no id to answer, and a plugin that keeps going is killed as `misbehaving`. A generator is a source of async traffic. When it must be periodic and exact, it uses
 `generator.pattern`, which the engine runs.
 
 ### 7.5 Fixture types (T0 plus T2)
@@ -576,14 +619,14 @@ to an instance. The plugin sees what the other side writes and decides how to an
 
 | Message | From | Content |
 |---|---|---|
-| `fixture.create` | host | `instance`, `endpoint`, `params` |
+| `fixture.create` | host | `instance`, `place` (the hub's name for the port), `params` |
 | `fixture.data` | host | `instance`, `ts_ns`, blob: bytes that arrived at the fixture. Coalesced: up to 8 KiB or 1 ms of arrivals in one frame |
 | `fixture.line` | host | `instance`, `ts_ns`, the new state of DTR, RTS (for a fixture these are the lines the program set) |
 | `fixture.reply` | plugin | `instance`, blob, `after_us` (optional): bytes to write to the fixture. With `after_us`, the **engine** holds the bytes and writes them at the time (a one-off rule), so the delay is exact, not a delay of the plugin's |
 | `fixture.line.set` | plugin | `instance`, DTR, RTS, `after_us` |
-| `fixture.fault` | plugin | `instance`, a `fault_kind` |
+| `fixture.fault` | plugin | `instance`, a `fault` (`parity`, `framing`, `overrun`, `break`, `hang_up` or `disconnect`) |
 | `rules.set` | plugin | `instance`, a rule set (section 6.3). It replaces the instance's set atomically. The reply says whether it was accepted, with the position of the first error otherwise |
-| `rules.event` | host | `instance`, `ts_ns`, `rule`, `action`: a rule fired |
+| `rules.event` | host | `instance`, `ts_ns`, `rule` (its name), `action` (the kind of the action, as `docs/response-timing.md` names it): a rule fired |
 
 Most fixtures send one `rules.set` when created and again when a parameter changes. The device behaviour (what a
 "Model 2000 multimeter" answers to `*IDN?`) is a rule set the plugin builds from its parameters. The plugin process
@@ -641,7 +684,7 @@ So the modifier slice comes after the slice of `docs/response-timing.md` that ad
 
 | Message | From | Content |
 |---|---|---|
-| `modifier.create` | host | `instance`, `link`, `direction` (`a_to_b`, `b_to_a` or both as two instances), `params`, `budget_us`, `max_batch_bytes`, `max_batch_us`, `on_timeout` |
+| `modifier.create` | host | `instance`, `place` (the hub's name for the link), `direction` (`a_to_b`, `b_to_a` or both as two instances), `params`, `budget_us`, `max_batch_bytes`, `max_batch_us`, `on_timeout` |
 | `modifier.batch` | host | `instance`, `seq`, `ts_ns` of the first chunk, `chunks`: list of `{offset, length, ts_ns}`; the bytes as one blob |
 | `modifier.result` | plugin | `seq`, `actions`: one for each chunk, in order, and a blob for what replaced them |
 | `modifier.stop` | host | |
@@ -695,6 +738,7 @@ harness, a language binding's server, a monitoring source) and translates betwee
 |---|---|---|
 | `agent.call` | plugin | `op` and its arguments, as in the agent protocol (section 5 of `agent.md`). Only the operations in the plugin's granted set are allowed |
 | `agent.subscribe` | plugin | The agent's event stream, filtered by the grant (counters only, or taps) |
+| `agent.event` | host | One event of a subscription: `subscription` (the `id` of the `agent.subscribe`), `kind`, `place`, `t_ns`, and in the blob the bytes of the event when the subscription asked for data |
 | `adapter.state` | plugin | `listening` and the **exact address** it listens on, if any, and the protocol name. Shown on the page |
 
 Rules for the proxy:
@@ -712,6 +756,46 @@ Rules for the proxy:
   that endpoint (tokens, administrator control) is the remote-control work, which owns the rules for what an adapter
   must do before it accepts a connection. **This page requires only that the address be declared, granted, shown and
   never wider than the grant.**
+
+**The control relay.** The remote control and monitoring plugin uses the control gateway (`remote-control.md`) through
+the host, and never holds a token or opens a connection. A confined plugin cannot reach this computer's loopback
+addresses on Windows; a TCP port is open to every local user, while the gateway's local endpoint (a named pipe or a Unix
+socket) is the user's alone; and a token the plugin never sees cannot leak from it. The host keeps one `control_relay`
+for the plugin (`libs/vss_plugin_host`, `control_relay.hpp`):
+
+| Message | From | Content |
+|---|---|---|
+| `control.session.request` | plugin | `scopes`, `peer` (untrusted text, at most 64 bytes) and `reason` (at most 256 bytes). The answer is `ok` with `session`, the `scopes` granted and `expires`, or an error: `permission_denied` or `plugin_unavailable` |
+| `control.frame` | both ways | `session`, and in the frame's header one header of the gateway's protocol, unchanged, with its bytes in the blob |
+| `control.session.close` | plugin | `session` |
+| `control.session.closed` | host | `session`, a `code` and a plain `reason`. The code is `revoked` (the gateway said `unauthenticated` before the token's time was up), `expired` (the token's time has passed), `gateway_closed` (the connection ended for any other reason), `refused_frame` (the host closed the session because of a frame it refused) or `host_stopped` (the host closed it, as `control.session.close` or because the plugin stopped) |
+
+- A request names scope names the control API has, never `admin`, and a plugin has at most four sessions and one request
+  open at a time. Nothing is made until the user approves the exact scopes that will be asked of the gateway, shown with
+  the plugin's name and the cleaned `peer` text. The id, name, `peer` and `reason` come from the plugin and its manifest,
+  so they are cleaned (no control, invisible or direction characters, odd spaces made ordinary) and cut to 64 bytes, and
+  the prompt shows the `reason` set apart as the plugin's own words.
+- The gateway keeps 256 token records, and a revoked one stays for the rest of its life and a week more, so a plugin must
+  not be able to use them up. While the host holds a session for the same `peer` and the same scopes a second request is
+  refused (`busy`); at most eight tokens are made for a plugin in 24 hours, and a request over that is refused before
+  anyone is asked. After the user refuses, further requests are refused without asking for a minute, then twice as long
+  after each refusal up to 15 minutes, until the user approves.
+- On approval the host connects to the gateway's administration endpoint as the user and makes a token for these scopes
+  on the local endpoint only, with a life of 24 hours unless set otherwise and a label `plugin:<id> <peer>`. It connects
+  to the gateway's local endpoint, says `hello` with that token and opens the session only when the gateway answers as
+  that token. The token is held in the host's memory only, is wiped once `hello` is written, and appears in no message to
+  the plugin, no error text and no log line.
+- **The one rule that matters:** a plugin's frames only ever travel on a connection whose `hello` carried the plugin's
+  own token. A `hello` without a token is the user's, with the local role, so the relay never sends a plugin's frame on a
+  connection it did not make that way, and a frame of the plugin that asks for `hello` is refused and its session closed.
+- Each session has a token of its own. When the session ends (the plugin closes it, the gateway closes it or the token is
+  revoked or ends, the plugin stops or fails) the host closes the connection and revokes the token on the administration
+  endpoint, within a time limit, so a plugin that has gone leaves no usable token behind.
+- A frame for a session number the host does not know is dropped without a word. When a session ends the plugin is told
+  why, with a `code` and a `reason`; it never holds the token.
+- If no gateway runs the plugin is told `plugin_unavailable` and nothing is tried again. A plugin that reads slowly
+  makes the host stop reading that connection, so the gateway's own back-pressure applies, and a plugin whose frames the
+  gateway does not take as fast as they come loses the session.
 
 ### 7.8 Parameters and state
 
@@ -785,8 +869,8 @@ may carry a list:
 - A reader that does not know the plugin keeps every entry and writes it back as it was read.
 
 This is a change to the schema and to `vss_config`'s reader and writer. `vss_core` is not touched. The key is
-optional and the file's `version` stays 1: the reader has always passed over keys it does not know, so an older
-Studio opens a setup that has the list, and leaves the list out when it saves. The alternative that was not
+optional and the file's `version` stays 1. The reader refuses a key it does not know, so a Studio built before
+this list does not open a setup that has it. The alternative that was not
 taken is a file beside the setup (`<name>.plugins.json`), which needs no schema change but is lost when a
 person sends only the setup. The running setup that the agent keeps (`running-setup.json`) holds the same list.
 
@@ -908,7 +992,7 @@ flush, rename).
 
 ### 8.5 Revocation, expiry and the clock
 
-There is no network, so:
+The framework has no network code of its own, so:
 
 - **The revocation list** is a signed file, `revocations.json`, shipped inside each release (and importable by the
   user from a file: Plugins > Import revocations). It holds a `serial` (increasing integer), `issued_at`, and lists of
@@ -920,10 +1004,10 @@ There is no network, so:
   the list being applied.
 - **Expiry.** The manifest has `not_after` (a date; official plugins get a bounded lifetime, and the owner's signing job
   chooses it). **How long is not settled.** The owner's first thought was 28 days. This page recommends against
-  a period that short: an expired official plugin does not run and has no "Run anyway", and there is no network,
-  so every official plugin, the ones that come with Studio included, would stop 28 days after it was signed
-  until the person fetched and installed a new copy by hand, every month, and a computer that is kept offline
-  would lose them for good. The recommendation is that `not_after` runs to the signing key's `valid_to` (two
+  a period that short: an expired official plugin does not run and has no "Run anyway", and the framework fetches
+  nothing itself, so every official plugin, the ones that come with Studio included, would stop 28 days after it
+  was signed until a new copy was installed, every month, and a computer that is kept offline would lose them for
+  good. The recommendation is that `not_after` runs to the signing key's `valid_to` (two
   years in the example of section 8.9), that a plugin signed with a mistake is stopped by the revocation list,
   and that anything meant to lapse monthly is the licence's period (`docs/licensing.md`), which has a grace
   period and a renewal path built for it. An expired plugin is `rejected: expired`. There is a grace choice: the page offers "Run anyway for this
@@ -940,8 +1024,8 @@ There is no network, so:
 
 ### 8.6 Administrator policy
 
-A policy file `policy.json` in the machine configuration directory (`%ProgramData%\VirtualSerialStudio\`,
-`/etc/virtual-serial-studio/`, `/Library/Application Support/VirtualSerialStudio/`):
+A policy file `policy.json` in the machine configuration directory (`%ProgramData%\Virtual Serial Studio\`,
+`/etc/virtual-serial-studio/`, `/Library/Application Support/Virtual Serial Studio/`):
 
 ```json
 {
@@ -955,7 +1039,8 @@ A policy file `policy.json` in the machine configuration directory (`%ProgramDat
   "allow_no_sandbox": false,        // may a user override the minimum for one plugin (section 9.2)
   "user_plugins": true,             // is the per-user plugin directory searched (section 5.2)
   "on_timeout": null,               // "fail_open" | "fail_closed" | null (do not force)
-  "permissions_denied": ["net.outbound"]
+  "permissions_denied": ["net.outbound"],
+  "update_check": true              // may Studio check for updates (default true; false turns it off)
 }
 ```
 
@@ -971,6 +1056,15 @@ A policy file `policy.json` in the machine configuration directory (`%ProgramDat
   controls their own computer approves a key in their own trust store (section 8.4). Neither looks in the
   operating system's certificate store, which trusts every public web authority and would let in far more than
   is meant.
+- **`update_check`** is a boolean, `true` when the key is left out. `false` turns off the update check of Studio
+  ([Online updates](updates.md)): no check on the timer and no check by hand, and the menu item and the button are
+  disabled with "Update checks are turned off by your administrator." It is not a plugin rule, and it does not turn
+  the check on: the user's own setting still decides whether the timer check runs (it is off until the user turns it
+  on).
+- **The update check does not fail closed.** A policy file that fails the ownership test above, or does not parse,
+  is treated as `official_only` for plugins. The update check ignores such a file and follows the user's setting,
+  because the worst an attacker gains by forcing a check is one request for a public file
+  ([Online updates](updates.md), section 6.3).
 - A policy narrows what the user can do. It never grants beyond what the user decides. A user cannot widen it from
   Studio, and the page says "Set by your administrator" with the reason.
 
@@ -1078,10 +1172,12 @@ So there are two secrets, and neither is ever on a computer that runs Studio or 
   and then checks the plugin's signature with that key.
 - **The newest list wins.** The verifier keeps the list with the highest `serial` it has seen, in the ledger of
   section 8.4, so an old list cannot be put back to bring a revoked key to life.
-- **How a new list reaches a computer.** There is no network, so the design has three routes: inside a Studio
-  release, beside a plugin (a plugin folder may hold a newer `official-keys.json`), or as a file an administrator or
-  a user imports. **None is built.** A key list beside a plugin would today be refused as `unlisted_file`, for a plugin
-  that lists its files, and nothing reads a key list from there or imports one outside the tests.
+- **How a new list reaches a computer.** The framework has no network code, so the design has three routes: inside a
+  Studio release, beside a plugin (a plugin folder may hold a newer `official-keys.json`), or as a file an
+  administrator or a user imports. Delivering a list over the update feed is left out of the first version
+  ([Online updates](updates.md), section 10). **None is built.** A key list beside a plugin would today be refused
+  as `unlisted_file`, for a plugin that lists its files, and nothing reads a key list from there or imports one
+  outside the tests.
 - **Replacing a signing key:** add its line, sign a list with the next serial. **Revoking one:** move its id to
   `revoked`, sign a list with the next serial. **A lost root:** a new root needs a new Studio release, which is why
   a next root is compiled in beside the current one.
@@ -1202,7 +1298,7 @@ name and, for some, a scope.
 | `data.private` | Read and write its own data directory | Always granted |
 | `bundle.section` | Add a section to a support bundle | The user sees the section, its preview and its tick box in Studio's own dialog (section 19) |
 | `net.listen` | Listen on a declared address and port | Loopback unless stated; shown |
-| `net.outbound` | Connect to declared hosts | Shown. Not granted by default. Absent for the GUI regardless: the GUI itself has no network access, and the policy can deny |
+| `net.outbound` | Connect to declared hosts | Shown. Not granted by default. A plugin never uses Studio's own connection, which is the update check only, and the policy can deny |
 | `process.spawn` | Start child programs | Child processes are inside the same sandbox and job |
 | `clipboard`, `ui` | **Never**. There is no such permission: a plugin has no window |
 
@@ -1222,6 +1318,33 @@ what was **not** applied. Studio shows that, never the level asked for.
 | System calls | AppContainer plus the job restrictions; `ProcessSystemCallDisablePolicy` (Win32k) | **seccomp-bpf** deny-list of dangerous calls (`ptrace`, `mount`, `bpf`, `keyctl`, `kexec_*`, `perf_event_open`, `userfaultfd`), allow the rest | The profile |
 | Other processes | AppContainer cannot open processes outside; the job has no access to others | A PID namespace where available; otherwise `ptrace` is denied by seccomp, and `/proc` is not readable beyond itself | The profile denies `process-info*` and `signal` to others |
 | What does **not** work | Python or Java runtimes outside the AppContainer-readable area (the host adds an ACE where the user installs one, and says so); a drive under a user profile may not be readable by the container | Distributions with user namespaces disabled (some hardened ones) lose the network and mount isolation; the level is `partial`; kernels before 5.13 lose Landlock | `sandbox_init` is deprecated (but works and is what the system's own tools use); an unsigned binary on Apple Silicon must still be signed ad hoc by the author |
+
+**How the level is worked out.** The launcher reports each part it applied: containment, file system, network,
+other processes, system calls, user interface and limits. The level follows from the parts by one rule on every
+system. `full`: all of them. `partial`: the file system is closed to the plugin and it cannot escape the host's
+kill, and one or more of the others is missing. `none`: anything less. Limits on memory or on the number of
+processes alone are not a sandbox, because a plugin that can read the user's files is not kept apart. A start
+names the least level it will take; when this computer cannot apply that much, nothing is started
+(`sandbox_insufficient`).
+
+**What is built** (`libs/vss_plugin_host`, used by tests only so far):
+
+- **Windows: all parts, level `full`.** A job object (kill on close, a memory limit, a limit on the number of
+  processes, a cap on processor time, no desktop, clipboard or window handles) and an AppContainer made for the
+  plugin, whose name is a hash of the plugin's id. Windows starts a process in a container only when the
+  container is registered for the user, so the first start of a plugin registers it (it appears under
+  `%LOCALAPPDATA%\Packages`), and removing the plugin should remove it. The plugin's directory gets a read
+  entry for the container and the data directory a change entry; a plugin installed for everyone needs that
+  entry set when it is installed, because a user cannot change the access list of a machine folder. The
+  window system's calls are switched off for the process, so **a plugin on Windows cannot load `user32` or
+  `gdi32`**. Windows insists on `LOCALAPPDATA`, `APPDATA`, `USERPROFILE`, `TEMP` and `TMP` in the environment of
+  a container process; the host sets them to the plugin's data directory. The project is built against the
+  Windows 7 interface, so the container functions are looked up when needed; on a Windows without them the
+  level is `none`. Windows has no limit on open files for a job. A plugin granted `net.listen` cannot be
+  reached from this computer itself until Windows is told to allow it (a loopback exemption, which needs an
+  administrator).
+- **Linux and macOS: nothing yet, level `none`.** The process group ends with the host's kill, but a child
+  that makes a session of its own leaves it, so not even containment is claimed.
 
 The sandbox is **defence in depth, not the trust boundary**. The boundary is the three trust levels and the user's
 decision. The unofficial warning in `editions.md` ("It can do anything Studio can") stays as written because the
@@ -1350,6 +1473,8 @@ These follow `AGENTS.md` and `architecture.md`, and apply to every line of the h
 9. **Clocks are injected.** The supervisor and the trust code take a clock object, so tests step time and nothing
    sleeps.
 
+Rules 2 and 3 are implemented in `libs/vss_plugin_host/include/vss/plugin/host/traffic_tap.hpp`: one tap for each plugin, with a sink that holds a `shared_ptr` to the queue, a `closed` flag, drops that are counted, and a notification posted to an executor the host gives, never run on a hub strand.
+
 ## 12. Reason codes
 
 A plugin's state always carries one of these, as `vss::plugin_errc` (an `error_category` named `vss.plugin`),
@@ -1477,7 +1602,7 @@ reputation of the owner's signing key; the truth of what Studio tells the user.
 | Supply-chain attacker | Replaces an official plugin's files in a download, or compromises a plugin author's key |
 | Malware under the user's account | Writes into the user's plugin directory or trust store |
 | Other local users | Cannot reach the agent (`agent.md` section 3), but may be able to write to a world-writable plugin location |
-| Network attacker | Not present on the GUI path; present only for adapters that listen |
+| Network attacker | Present on the update check ([Online updates](updates.md), section 11) and for adapters that listen; not on any other path of the GUI |
 | Hostile device or program on a port | Sends adversarial bytes, which reach plugins as traffic |
 | A user who is tricked | Clicks through a prompt |
 
@@ -1511,7 +1636,7 @@ own trust ledger or system clock (the clock is a deterrent).
 | T10 | A manifest uses path tricks (`..`, drive letters, links, device names, case folding, alternate streams) | The layout rules in 5.3; paths normalised and checked; links not followed | |
 | T11 | A manifest string or a log line is used for injection into the GUI (markup, format strings, control characters, bidi override to spoof a name) | All plugin text is plain text, length-limited, with control and bidi characters removed or shown escaped; never a format string; the signer's name comes from the key record, not the plugin | A long name that looks like another: the id and the hash are always shown |
 | T12 | A confusing trust prompt leads the user to approve | One decision per hash, permissions in plain sentences, an increase in permissions called out, **no "trust everything"**, no default-enabled button on unofficial plugins, the warning wording as in `editions.md` | A determined click-through is the user's choice |
-| T13 | A revoked key or plugin keeps working | A signed revocation list with a rising serial, applied at once; an expiry on every official plugin; rotation | Without a network a user who never updates Studio never gets a new list. Expiry bounds that, and the page says when the last list was installed |
+| T13 | A revoked key or plugin keeps working | A signed revocation list with a rising serial, applied at once; an expiry on every official plugin; rotation | A list travels only inside a release, so a user who never updates Studio never gets a new list. Expiry bounds that, and the page says when the last list was installed |
 | T14 | The revocation list is rolled back or forged | Signed by an official key under its own purpose; only a higher serial accepted; the highest serial stored | A user who deletes their ledger |
 | T15 | The clock is set back to revive an expired plugin | High-water mark | A deterrent only, said so |
 | T16 | A compromised or hostile plugin directory (world-writable machine root) | Ownership and ACL checks; a machine root that fails is not searched, reported | |
@@ -1722,7 +1847,7 @@ The plugin decides **what** to record and replay. The engine and the agent do th
 | Know the ports, links and their state | `agent.call` (`list`, `snapshot`) | Proxy call | `ports.read` | Section 7.7, written for adapters only. **Change:** the read operations of the proxy are open to every plugin kind that holds the permission |
 | Follow events with times: opens, closes, line changes, faults, rule firings, counters | `agent.subscribe` without `data` | Proxy call | `ports.read` | The same change. Read-only: this plugin never holds `topology.modify` while recording |
 | A live view of the bytes while recording, so the user sees that it works | `agent.subscribe` with `data` (a tap; it may drop, and says how much) | Proxy call | `traffic.tap` | Section 7.7 |
-| **A complete recording** of chosen ports and links | `capture.start {places, limit_bytes, limit_seconds, ring}`, `capture.stop`, `capture.status`; the agent writes the file | **New** engine-side operation | `traffic.tap` | **New.** Decision 14. `ring` keeps only the last N minutes, so a user can leave it on and pack what just happened |
+| **A complete recording** of chosen ports and links | `capture.start {places, name, limit_bytes, limit_seconds, ring}`, `capture.stop`, `capture.status`, answered with the recording's path and size; the agent writes the file | **New** engine-side operation | `traffic.tap` | **New.** Decision 14. `ring` keeps only the last N minutes, so a user can leave it on and pack what just happened |
 | The setup, the driver and engine state, the real serial ports | None: they are the support bundle's own sections | | | The plugin does not need `serial.devices` |
 | Add its sections to the bundle, with a preview | `contributes.bundle_sections` in the manifest; `bundle.prepare {section, settings}` from the host, answered with a list of files in the data directory | **New** contribution | `bundle.section` | **New.** Decision 15. Section 19.5 |
 | Redaction choices | The section's declared parameters, drawn by Studio's form in the bundle dialog | Parameters | none | Section 7.8, reused |
@@ -1789,7 +1914,7 @@ project already has.
 
 ```
 traffic/recording.json     the index
-traffic/<n>.jsonl          one file for each recorded place: JSON Lines, a capture format vss::capture already writes
+traffic/<n>.jsonl          one file for each recorded place: JSON Lines, the line format below
 notes/notes.txt            UTF-8 text
 ```
 
@@ -1828,6 +1953,64 @@ notes/notes.txt            UTF-8 text
   `dropped` says how many bytes the recording lost, which should be zero.
 - **Sizes.** A recording stops at its limit and says so. Defaults: 64 MiB or 10 minutes; ring mode keeps the last
   10 minutes. The maximum is the section limit above.
+
+**The index in detail.** The host's writer and reader (`vss/plugin/host/recording.hpp`) take section 19.6 as follows,
+and a reader refuses an index that does not fit it:
+
+- The members are written in the order of the example, with no spaces and a line feed at the end. A reader ignores a
+  member it does not know and refuses a key that is given twice in one object. The index is at most 1 MiB.
+- `origin_utc` is exactly `YYYY-MM-DDThh:mm:ssZ`, a time that exists, in the years 1970 to 9999. `time_unit` is `"ns"`.
+  `duration_ns`, `seed`, `dropped` and every other whole number are 0 to 2^53 - 1, the largest whole number every JSON
+  reader keeps exactly. No line has a `t_ns` above `duration_ns`.
+- `places` holds 1 to 15 places, so that the index and the places are within the 16 files of a section. `file` is a
+  plain file name in the recording's folder, by the path rules of the manifest (section 5.3): no separator, no `..`, no
+  reserved device name, no name that ends in a dot or a space. It is not the index and is not listed twice, however the
+  letters are cased. `kind` is `port` or `link`. `name` is 1 to 256 bytes of plain text and is different for every
+  place. `settings` is at most 256 bytes of plain text. `bytes` is the sum of `bytes` over the file's `data` lines, not
+  the size of the file. `sha256` is the SHA-256 of the file's bytes as they are on disk, as 64 lower-case hex digits.
+- Each of `rule_sets` is `{"generation": <whole number>, "text": "<plain text>"}`. Its text may hold line feeds,
+  carriage returns and tabs.
+- Each of `redactions` is `{"place": <the name of a place>, "from_ns": ..., "to_ns": ..., "how": "blanked"}`, with
+  `from_ns` not above `to_ns` and `to_ns` not above `duration_ns`. `"blanked"` is the one way there is.
+- `dropped` is the sum of `bytes` over the `dropped` lines of all the places.
+- `made_by.plugin` is a plugin id and `made_by.version` a version, as in a manifest.
+- The folder holds the index and the place files the index lists, and nothing else. A link of any kind (a symbolic link,
+  a junction, a file with a second name), a subfolder and an unlisted file are refused.
+
+**The place file.** Each place file is UTF-8 JSON Lines: one JSON object on each line, each line ended by one line feed
+(never a carriage return, the last line too), no blank line and no byte-order mark. A line is at most 16,384 bytes, not
+counting its line feed. Every line has `t_ns`, whole nanoseconds since `origin_utc` (0 to 2^53 - 1), and `kind`, which
+says what else it holds. Lines are in non-decreasing `t_ns`.
+
+| `kind` | Members after `t_ns` and `kind`, in this order | Meaning |
+|---|---|---|
+| `data` | `direction`: `"R"` or `"W"`. `bytes`: 1 to 4096. `hex`: exactly 2 x `bytes` lower-case hex digits, no spaces, no prefix | `R` is bytes the place received, bytes that came in from whatever is attached to it. `W` is bytes written to the place, bytes the hub sent out to what is attached. They are the engine's `rx` and `tx` and the `R` and `W` of the capture of `vss_studio`. A chunk of more than 4096 bytes is several lines with the same `t_ns` |
+| `line` | `lines`: an object with exactly the six members `dtr`, `rts`, `cts`, `dsr`, `dcd` and `ri`, each `true` or `false`. `changed`: a list of 1 to 6 of those names, none twice | The state of the six control lines after a change, and which of them changed. The break signal is not recorded |
+| `fault` | `fault`: 1 to 64 bytes of plain text | A fault on the place, such as `overrun` or `parity` |
+| `dropped` | `bytes`: 1 or more | How many bytes of traffic were lost at this point |
+
+An example, one line of each kind:
+
+```
+{"t_ns":1000,"kind":"data","direction":"R","bytes":2,"hex":"4869"}
+{"t_ns":2000,"kind":"line","lines":{"dtr":true,"rts":true,"cts":false,"dsr":false,"dcd":false,"ri":false},"changed":["dtr","rts"]}
+{"t_ns":3000,"kind":"fault","fault":"parity"}
+{"t_ns":4000,"kind":"dropped","bytes":16}
+```
+
+A writer writes the members in the order above with no spaces, so the same events always give the same bytes. A reader
+accepts any order and white space, ignores a member it does not know, and refuses a `kind` it does not know, a line over
+16,384 bytes, a line that is not an object, a key given twice in one line, a `t_ns` lower than the line before, a `t_ns`
+that is not a whole number, a line with no final line feed, a carriage return, a blank line and a byte-order mark. It
+reads a place file one line at a time, never the whole file.
+
+**Limits and a ring.** A writer given `limit_bytes` stops when the `bytes` of all the `data` lines together reach it:
+the chunk that reaches it is cut at the limit, and nothing more is written. A writer given `limit_seconds` writes a line
+at exactly that time and stops at the first line after it. A recording that stopped at a limit says so to the program
+that made it; the format has no member for it. In ring mode the writer keeps one file for each minute of each place and
+removes the oldest when a newer one starts, so about the last N minutes are kept. When the recording ends the minutes
+that are left are joined, in order, into the one place file, and its SHA-256 is that of the joined file. A ring has no
+`limit_bytes` or `limit_seconds`.
 
 A replay never trusts a bundle. It is a file from someone else: the index and every line are parsed with limits,
 paths inside the zip follow the layout rules of section 5.3, and the reader has a fuzz harness (section 16).
@@ -1956,7 +2139,7 @@ order the engine saw them:
 | `data` | `place`, `direction`, `offset` (the count of bytes at that place and direction before this chunk), `t_ns`, `end_ns` (on a half-duplex bus: when the last byte left the wire), the bytes. One engine chunk is one item; chunks are never joined |
 | `line` | `place`, `t_ns`, the lines and which changed |
 | `line_error` | `place`, `t_ns`, the kind |
-| `bus_fault` | `link`, the sender, `t_ns`, the `bus_fault` value, the `offset` and length of the sender's chunk |
+| `bus_fault` | `place` (the link), the sender, `t_ns`, the `bus_fault` value, `event` (its id, which a trigger's `cause` names), the `offset` and length of the sender's chunk |
 | `rule` | A rule fired at the place: its event as `docs/response-timing.md` defines it |
 | `time` | `t_ns`: the engine's time now |
 | `lost` | `place`, `direction`, `from_offset`, `bytes`, `from_ns`, `to_ns`: the decoder was too slow and this much was not sent |
@@ -2068,8 +2251,8 @@ binary protocols. For them a plugin contributes a **decoder**, a fifth kind of e
 | Message | From | Content |
 |---|---|---|
 | `decoder.create` | host | `instance`, the places and their settings (rate, format, whether a bus), `params` |
-| `decoder.data` | host | `seq` and a list of the items of section 20.4, with the bytes as one blob |
-| `decoder.ack` | plugin | `seq` |
+| `decoder.data` | host | `instance`, `seq` and a list of the items of section 20.4, with the bytes as one blob |
+| `decoder.ack` | plugin | `instance`, `seq` |
 | `decoder.frame` | plugin | `place`, `direction`, `offset`, `length`, `t_start_ns`, `t_end_ns`, a message name, a summary of at most 200 characters, and up to 64 fields as `{name, offset, length, value}`. Optional, rate limited, and dropped first when the plugin is over its limits |
 | `trigger.publish` | plugin | Section 20.7 |
 | `decoder.stop` | host | |
@@ -2104,7 +2287,7 @@ A trigger is one record. The format is public and versioned with the plugin API.
   "field": { "name": "check", "offset": 7, "length": 2 },
   "expected": "3A91", "actual": "3A90",
   "covers": [1, 6],
-  "cause": { "bus_fault": "overlap", "event": 9912 },
+  "cause": { "fault": "overlap", "event": 9912 },
   "request": { "offset": 48205, "length": 8, "t_end_ns": 18201000000 },
   "text": "Check value is 3A90, expected 3A91.",
   "from": { "plugin": "com.virtualserialstudio.protocol", "instance": 3 }

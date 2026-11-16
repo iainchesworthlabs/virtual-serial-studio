@@ -861,7 +861,8 @@ The design allows "a specific address" on the Listen on combo. Enumerating
 local interfaces would add `Qt6::Network`, which is not an approved dependency
 for this GUI. The combo offers all interfaces, this PC only, and a specific
 address field instead; Advanced address editing accepts the full URI. This
-covers the same values without a new module.
+covers the same values without a new module. `Qt6::Network` has since been
+linked for other reasons: see "Qt Network is linked" at the end of this file.
 
 ### Small widget extensions
 
@@ -1045,11 +1046,12 @@ runs. CTest uses the default (no captures) so CI does not write artifacts.
 ### RFC 2217 server
 
 `rfc2217-listen://host:port` is an access server. The listen transport accepts
-any number of TCP clients as before; for each one a `vss::rfc2217::session`
-speaks Telnet and negotiates the COM-PORT option (RFC 2217). The session holds
-no socket, so its protocol is tested on its own. Payload bytes pass through
-with 0xFF doubled in both directions, and each client has a write queue,
-because the protocol replies and the payload share one socket.
+up to 32 TCP clients at once (see `listen_limits`); for each one a
+`vss::rfc2217::session` speaks Telnet and negotiates the COM-PORT option (RFC
+2217). The session holds no socket, so its protocol is tested on its own.
+Payload bytes pass through with 0xFF doubled in both directions, and each client
+has a write queue, because the protocol replies and the payload share one
+socket.
 
 What the client asks for is accepted and reported, as a serial port would, but
 changes no real device: baud rate, data bits, parity, stop bits and flow control
@@ -1216,3 +1218,21 @@ existing token rule) and one sentence, "Setting up. Windows installs each new
 port, which can take up to a minute." Cancel, Back and the fields are
 disabled meanwhile, and the dialogs and the main window refuse to close until
 the worker has reported. The strings are new and not in the specs.
+
+## Qt Network is linked
+
+An entry under WP6 says `Qt6::Network` is not an approved dependency for this
+GUI. That no longer holds. `vss_gui_shell` already links it, for the
+single-instance socket (`QLocalServer` and `QLocalSocket` in
+`shell/single_instance.cpp`), which is a connection between two copies of Studio
+on one computer and not a network connection. The check for updates
+(`docs/updates.md`) is its second use, and the first that reaches another
+computer: one HTTPS request for the signed update feed, and the download of an
+update the user agreed to. Only `updates/network_transport.*` includes
+`QNetworkAccessManager`, so the rest of the GUI cannot make a request. The rule
+this changes is in `AGENTS.md`: Studio makes no network connection of its own
+except to check for updates and to download an update the user agreed to, and it
+sends nothing about the user, the computer or how Studio is used. The package
+must carry a TLS backend for `Qt6::Network` (`docs/updates.md`, section 7.4).
+The listen-address entry under WP6 stands, because the listen address still
+needs no interface list.

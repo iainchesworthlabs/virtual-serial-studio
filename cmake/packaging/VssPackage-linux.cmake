@@ -143,7 +143,14 @@ set(CPACK_RPM_PACKAGE_VERSION "${PROJECT_VERSION}")
 # Debian
 # ---------------------------------------------------------------------------
 
-set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
+# The file name has no tilde: GitHub turns a "~" in the name of a release asset into a ".", so the
+# SHA512SUMS that the publish job writes before the upload would name a file the release does not
+# hold. The Version field inside the package keeps the tilde, which is what sorts 0.1.0~rc.1 before
+# 0.1.0, so the name is the Version with each "~" written as ".". A final release has no "~" and
+# gets the name DEB-DEFAULT gave it.
+string(REPLACE "~" "." _vss_deb_file_version "${CPACK_DEBIAN_PACKAGE_VERSION}")
+set(CPACK_DEBIAN_FILE_NAME
+  "${CPACK_PACKAGE_NAME}_${_vss_deb_file_version}-${CPACK_DEBIAN_PACKAGE_RELEASE}_${_vss_deb_arch}.deb")
 set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "${_vss_deb_arch}")
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${CPACK_PACKAGE_CONTACT}")
 set(CPACK_DEBIAN_PACKAGE_SECTION "electronics")
@@ -158,6 +165,12 @@ set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "${PROJECT_HOMEPAGE_URL}")
 # release job.
 #   glibc      2.42: the floor of the check-glibc-floor step in release.yml
 #   libstdc++  16:   the programs are built with GCC 16 and use its library
+#   OpenSSL    3:    Qt's TLS plug-in (plugins/tls/libqopensslbackend.so) loads
+#                    libssl.so.3 when it is first used and is not linked to
+#                    it, so neither readelf nor ldd shows it. The check for
+#                    updates needs it (docs/updates.md, section 7.4), and
+#                    `vss_gui --check-tls` in check_linux_packages.sh fails
+#                    without it.
 set(VSS_DEB_DEPENDS
   "libc6 (>= 2.42)"
   "libstdc++6 (>= 16)"
@@ -172,6 +185,7 @@ set(VSS_DEB_DEPENDS
   "libglx0"
   "libgssapi-krb5-2"
   "libopengl0"
+  "libssl3t64 | libssl3"
   "libx11-6"
   "libx11-xcb1"
   "libxcb-cursor0"
@@ -221,7 +235,7 @@ set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "/opt")
 # with whatever its package for that library is called. They are the same
 # libraries as the Debian list above.
 set(CPACK_RPM_PACKAGE_REQUIRES
-  "libbrotlidec.so.1()(64bit), libdbus-1.so.3()(64bit), libEGL.so.1()(64bit), libfontconfig.so.1()(64bit), libfreetype.so.6()(64bit), libGL.so.1()(64bit), libglib-2.0.so.0()(64bit), libgthread-2.0.so.0()(64bit), libgssapi_krb5.so.2()(64bit), libOpenGL.so.0()(64bit), libX11.so.6()(64bit), libX11-xcb.so.1()(64bit), libxcb-cursor.so.0()(64bit), libxcb-glx.so.0()(64bit), libxcb-icccm.so.4()(64bit), libxcb-image.so.0()(64bit), libxcb-keysyms.so.1()(64bit), libxcb-randr.so.0()(64bit), libxcb-render-util.so.0()(64bit), libxcb-render.so.0()(64bit), libxcb-shape.so.0()(64bit), libxcb-shm.so.0()(64bit), libxcb-sync.so.1()(64bit), libxcb-util.so.1()(64bit), libxcb-xfixes.so.0()(64bit), libxcb-xkb.so.1()(64bit), libxcb.so.1()(64bit), libxkbcommon-x11.so.0()(64bit), libxkbcommon.so.0()(64bit), libz.so.1()(64bit), libzstd.so.1()(64bit)")
+  "libbrotlidec.so.1()(64bit), libdbus-1.so.3()(64bit), libEGL.so.1()(64bit), libfontconfig.so.1()(64bit), libfreetype.so.6()(64bit), libGL.so.1()(64bit), libglib-2.0.so.0()(64bit), libgthread-2.0.so.0()(64bit), libgssapi_krb5.so.2()(64bit), libOpenGL.so.0()(64bit), libssl.so.3()(64bit), libcrypto.so.3()(64bit), libX11.so.6()(64bit), libX11-xcb.so.1()(64bit), libxcb-cursor.so.0()(64bit), libxcb-glx.so.0()(64bit), libxcb-icccm.so.4()(64bit), libxcb-image.so.0()(64bit), libxcb-keysyms.so.1()(64bit), libxcb-randr.so.0()(64bit), libxcb-render-util.so.0()(64bit), libxcb-render.so.0()(64bit), libxcb-shape.so.0()(64bit), libxcb-shm.so.0()(64bit), libxcb-sync.so.1()(64bit), libxcb-util.so.1()(64bit), libxcb-xfixes.so.0()(64bit), libxcb-xkb.so.1()(64bit), libxcb.so.1()(64bit), libxkbcommon-x11.so.0()(64bit), libxkbcommon.so.0()(64bit), libz.so.1()(64bit), libzstd.so.1()(64bit)")
 
 # Two more things need saying to rpmbuild:
 #   - the package must not offer the Qt and ICU libraries in

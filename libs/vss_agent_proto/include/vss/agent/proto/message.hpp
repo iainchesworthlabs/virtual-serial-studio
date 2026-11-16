@@ -90,6 +90,27 @@ struct connect_request
                            const connect_request&) = default;
 };
 
+/// Takes away the link with this id.  The ports stay.
+struct disconnect_request
+{
+    link_id link = 0;
+
+    friend bool operator==(const disconnect_request&,
+                           const disconnect_request&) = default;
+};
+
+/// Gives a port a new name.  The name is as long as the name of a
+/// `create_port_request` may be, and the engine refuses an empty one and one
+/// that another port has.
+struct rename_port_request
+{
+    endpoint_id endpoint = 0;
+    std::string name;
+
+    friend bool operator==(const rename_port_request&,
+                           const rename_port_request&) = default;
+};
+
 /// Writes bytes to a port, as the Send pane does.  The bytes are the frame's
 /// blob.
 struct write_request
@@ -124,7 +145,8 @@ struct shutdown_request
 using request_body =
     std::variant<hello_request, list_request, create_port_request,
                  remove_port_request, connect_request, write_request,
-                 subscribe_request, shutdown_request>;
+                 subscribe_request, shutdown_request, disconnect_request,
+                 rename_port_request>;
 
 struct request
 {

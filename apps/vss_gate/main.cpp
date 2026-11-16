@@ -15,12 +15,15 @@
 #include <vss/agent/local_stream.hpp>
 #include <vss/agent/proto/error.hpp>
 #include <vss/control/gateway.hpp>
+#include <vss/control/licence_watch.hpp>
 #include <vss/control/proto/policy.hpp>
+#include <vss/license/store.hpp>
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/signal_set.hpp>
 
 #include <charconv>
+#include <chrono>
 #include <csignal>
 #include <cstdint>
 #include <cstdio>
@@ -38,6 +41,10 @@ constexpr int exit_ok = 0;
 constexpr int exit_failed = 1;
 constexpr int exit_usage = 2;
 constexpr int exit_already_running = 3;
+
+/// How often the licence folders are read again.  A licence that is
+/// imported or removed, or that ends, shows in `status` within this.
+constexpr std::chrono::seconds licence_reading_period{60};
 
 /// The port that `--loopback-port=` names: all digits, 1 to 65535.  Nothing
 /// for anything else.
@@ -81,6 +88,9 @@ void print_usage()
         "      connection there needs a token made for it (`vss_cli control\n"
         "      token create --transport=loopback`).  A port that is taken is\n"
         "      an error.\n"
+        "      The licence folders of this computer are read as it starts\n"
+        "      and once a minute after that, for the edition that `vss_cli\n"
+        "      control status` shows.  No command needs a licence.\n"
         "\n"
         "  vss_gate --version\n"
         "\n"
@@ -224,6 +234,13 @@ try
                    stderr);
         return exit_usage;
     }
+
+    // The licence is read here and once a minute on a thread of the
+    // watch; a `status` reply is given what was last found and waits for
+    // no file.  The watch is made before the gateway and outlives it.
+    const auto licence = vss::control::watch_licence_folders(
+        vss::license::default_store_options(), licence_reading_period);
+    options.licence = [&licence] { return licence->latest(); };
 
     vss::control::gateway gateway(options);
 

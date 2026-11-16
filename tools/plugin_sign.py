@@ -1038,25 +1038,51 @@ def current_user_sid() -> str:
     return sid
 
 
+# SYSTEM, Administrators and OWNER RIGHTS, by their well-known SIDs.
+WINDOWS_OWN_ENTRIES = ("S-1-5-18", "S-1-5-32-544", "S-1-3-4")
+
+
 def restrict_to_current_user(path: str) -> None:
     """Windows: removes every inherited and every other permission on a file
-    and gives the current user full control."""
+    and gives the current user full control. Refuses when the file ends with
+    anything but that one entry."""
     sid = current_user_sid()
     icacls = windows_program("icacls")
-    try:
-        done = subprocess.run(
-            # An absolute path, so that icacls never reads it as an option.
-            [icacls, os.path.abspath(path), "/inheritance:r", "/grant:r", "*%s:F" % sid],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=OPENSSL_TIMEOUT,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        raise Refusal("could not run icacls to restrict the key file") from None
-    if done.returncode != 0:
-        raise Refusal("icacls could not restrict the key file to the current user")
+    # An absolute path, so that icacls never reads it as an option.
+    target = os.path.abspath(path)
+
+    def run_icacls(*options: str) -> bytes:
+        try:
+            done = subprocess.run(
+                [icacls, target] + list(options),
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=OPENSSL_TIMEOUT,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            raise Refusal("could not run icacls to restrict the key file") from None
+        if done.returncode != 0:
+            raise Refusal("icacls could not restrict the key file to the current user")
+        return done.stdout
+
+    # /inheritance:r removes only inherited entries and /grant:r replaces only
+    # the entries of the user it names, so an entry given to the file itself
+    # for someone else would stay. Some versions of Python give a new file
+    # such entries for SYSTEM, Administrators and the owner; they are removed
+    # by name in the same call, so the file is never open to more than it was.
+    options = ["/inheritance:r", "/grant:r", "*%s:F" % sid]
+    for other in WINDOWS_OWN_ENTRIES:
+        if other != sid:
+            options += ["/remove:g", "*" + other]
+    run_icacls(*options)
+    # Read back, because an entry for anyone else may have been on the file.
+    # The names in the listing depend on the language of Windows; the number
+    # of entries does not. Anything but one entry is refused, and the caller
+    # removes the file.
+    if run_icacls().count(b":(") != 1:
+        raise Refusal("the key file could not be restricted to the current user alone")
 
 
 def protect_key_file(path: str) -> None:

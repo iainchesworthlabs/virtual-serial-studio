@@ -6,15 +6,21 @@
 
 .DESCRIPTION
   A pull request never signs, so the installer it builds holds unsigned driver files, and setup-driver.ps1 refuses
-  them before it asks Windows anything. A signed run (SIGN_WINDOWS=test) takes a different path: the files carry a
-  signature, so setup-driver.ps1 goes on to pnputil. That path once hung a release dry run for an hour while the
-  pull request runs passed.
+  them at the signature check, before it asks Windows anything. A signed run (SIGN_WINDOWS=test) gets past that check,
+  because the files carry a signature (the hosted runner has test signing on). That once led setup-driver.ps1 to
+  pnputil, which hung a release dry run for an hour while the pull request runs passed. setup-driver.ps1 now checks
+  the signer of the catalog first and ends with exit 6 (not trusted) when it is not Microsoft's hardware publisher
+  or in Trusted Publishers, so this rehearsal does not reach pnputil.
 
   This script copies the staged tree, signs the driver files in the copy with a throwaway certificate that nothing
   trusts (so they are signed, and by a publisher Windows does not know, exactly as the owner's test certificate
   looks to a hosted runner), builds a second installer from that copy and runs tools/ci/check-windows-installer.ps1
   on it: install, upgrade, uninstall. The result must be the same as for a real test-signed package: Studio
-  installed, the driver refused as not trusted, nothing left after the uninstall, and no hang.
+  installed, the driver refused as not trusted, nothing left after the uninstall, and no hang. It checks that the
+  refusal for an untrusted signer happens before pnputil and that the installer and uninstaller cope with it; if
+  the refusal were removed, pnputil would be called and the step would hang or end in another driver state. On a
+  runner with test signing off the files are refused at the signature check, as in a pull request run, and the
+  rehearsal then adds nothing.
 
   The installer is not published and the certificate never leaves the runner.
 
@@ -69,5 +75,5 @@ if (-not (Test-Path -LiteralPath $installer)) { throw 'cpack did not make the re
 
 if ($SummaryFile) {
   Add-Content -LiteralPath $SummaryFile -Encoding utf8 -Value @('', '### Windows installer, signed path', '',
-    'The driver files were signed with a throwaway certificate that nothing trusts and the installer was installed, upgraded and uninstalled on this runner: the same path a test-signed release takes, which a pull request run otherwise never takes.')
+    'The driver files were signed with a throwaway certificate that nothing trusts and the installer was installed, upgraded and uninstalled on this runner. setup-driver.ps1 refused the driver as not trusted before it called pnputil, which is what a test-signed release does on a runner that does not trust its certificate, and a pull request run otherwise never gets that far.')
 }

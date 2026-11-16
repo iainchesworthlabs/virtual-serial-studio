@@ -507,7 +507,7 @@ bool TopologyJsonEditor::apply()
     work_.start(
         [this, failure, document = validation_.document]
         {
-            const auto result = backend_.apply(document, true);
+            const auto result = backend_.replace(document);
             if (!result)
                 *failure = result.error();
         },

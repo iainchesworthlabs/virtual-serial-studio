@@ -20,6 +20,8 @@
 namespace vss::control
 {
 
+struct audit_verdict;
+
 /// One named value of an audit record.  There is no constructor from a secret
 /// and there never may be one: a token, a key or the bytes of traffic are not
 /// audit data (docs/remote-control.md, section 11).
@@ -105,6 +107,11 @@ public:
 
     /// The file that is being written.
     std::filesystem::path current_file() const;
+
+    /// Checks the chain of this log's own files, as `verify_audit_log` does
+    /// for a directory.  No record is written meanwhile, so a line that is
+    /// half written is never read.
+    result<audit_verdict> verify();
 
 private:
     class impl;

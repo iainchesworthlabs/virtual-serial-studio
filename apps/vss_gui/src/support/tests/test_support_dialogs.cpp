@@ -499,9 +499,9 @@ TEST_CASE("support bundle dialog: for every file the preview equals the bytes "
 
     struct scenario
     {
-        const char* name;
+        const char* name = nullptr;
         std::function<void()> prepare;
-        const char* ids;
+        const char* ids = nullptr;
     };
     const scenario scenarios[] = {
         {"defaults", [] {},
@@ -1228,7 +1228,7 @@ TEST_CASE("support page: About shows the edition in its second sentence")
             if (label->text().startsWith(QStringLiteral("Version ")) &&
                 label->text().endsWith(QStringLiteral(
                     "Free software under the GNU General Public License, "
-                    "version 3 or later. Edition: Community.")))
+                    "version 3. Edition: Community.")))
                 found = true;
         }
         REQUIRE(found);

@@ -8,7 +8,9 @@ name: Docs
 # docs path is caught on the trunk. A push to main, which the release workflow
 # makes when it moves main to a release, builds the site again and publishes it
 # to GitHub Pages, under docs/, with the website (website/, built by
-# tools/site_build.py) at the root. The repository's Pages build type must be
+# tools/site_build.py) at the root. A run started by hand on develop publishes
+# too, so that the site can go up before the first release reaches main; a push
+# to develop never publishes. The repository's Pages build type must be
 # "GitHub Actions".
 
 on:
@@ -24,6 +26,9 @@ on:
       - "website/**"
       - "tools/site_build.py"
       - "tools/site_check.py"
+      - "tools/update_feed.py"
+      - "tools/plugin_sign.py"
+      - "libs/vss_update/src/trusted_keys_release.cpp"
       - "tools/test_site_build.py"
       - "tools/test_site_check.py"
       - "apps/vss_gui/src/theme/resources/tokens.json"
@@ -32,7 +37,9 @@ on:
   push:
     branches: [develop, main]
   # Run by hand on main to publish again, for example after a release has been
-  # published, so that the downloads page lists its files.
+  # published, so that the downloads page lists its files. Run by hand on
+  # develop to publish what develop holds. A run by hand on any other branch
+  # only checks.
   workflow_dispatch:
 
 permissions: {}
@@ -86,7 +93,9 @@ jobs:
   # read here, at build time: a visitor's browser never asks GitHub for it.
   publish:
     name: Build site for Pages
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.ref == 'refs/heads/main' ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/develop')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -121,7 +130,9 @@ jobs:
   deploy:
     name: Deploy site
     needs: publish
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.ref == 'refs/heads/main' ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/develop')
     permissions:
       pages: write
       id-token: write
