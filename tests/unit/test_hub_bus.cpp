@@ -218,6 +218,26 @@ TEST_CASE("bus: a bus cannot be made over a route that already loops")
     REQUIRE(fixture.hub->bus({fixture.id(0), fixture.id(3)}));
 }
 
+TEST_CASE("bus: a port that has a two-way link or a split can join a bus")
+{
+    bus_fixture fixture(6);
+
+    // A two-way link is a pair of routes, so the way back to the same port
+    // is not a loop through the bus.
+    REQUIRE(fixture.hub->connect(fixture.id(0), fixture.id(1)));
+    REQUIRE(fixture.hub->split(fixture.id(2), {fixture.id(3), fixture.id(4)}));
+    REQUIRE(fixture.hub->bus({fixture.id(0), fixture.id(3), fixture.id(5)}));
+
+    // A second port joined to a member of the first bus is still refused.
+    REQUIRE_EQ(fixture.hub->bus({fixture.id(1), fixture.id(5)}),
+               make_error_code(errc::already_exists));
+    // Two ports of one two-way link are one wire already.
+    bus_fixture second(3);
+    REQUIRE(second.hub->connect(second.id(0), second.id(1)));
+    REQUIRE_EQ(second.hub->bus({second.id(0), second.id(1)}),
+               make_error_code(errc::cycle_detected));
+}
+
 TEST_CASE("bus: two buses chained one way do not close a ring")
 {
     bus_fixture fixture(4);
@@ -293,7 +313,8 @@ TEST_CASE("bus: modem lines are never carried")
     asked.emulate_modem_lines = true;
     const auto bus = hub->bus({first->id(), second->id(), third->id()}, asked);
     REQUIRE(bus);
-    REQUIRE(!vss_test::require_value(hub->find_link(*bus)).options.emulate_modem_lines);
+    REQUIRE(!vss_test::require_value(hub->find_link(*bus))
+                 .options.emulate_modem_lines);
 
     // Raising a line on one member does not move an input on another.
     const control_lines before = second->lines();

@@ -405,6 +405,27 @@ public:
                                                  int listeners) = 0;
     virtual vss::result<vss::link_id> bridge(const QString& from_uri,
                                              const QString& to_uri) = 0;
+    /// Puts a network port (a server, or a client of another computer) beside
+    /// the port `existing` and links the two, two-way, as
+    /// `vss::studio::attach_network` does.  With 0 for `existing` a Studio port
+    /// is made for it first.  Nothing is left behind on a failure.  With
+    /// `keep_trying` (capability `network_waiting`) a client whose remote end
+    /// refuses is made anyway and connects when the remote end answers.
+    virtual vss::result<network_attach_view>
+    attach_network(vss::endpoint_id existing, const QString& name,
+                   const QString& uri, bool keep_trying) = 0;
+    /// Changes the address of a network port, keeping its id, name and links
+    /// (capability `network_edit`).  `unsupported` without the capability.
+    virtual vss::result<void> set_network_address(vss::endpoint_id id,
+                                                  const QString& uri,
+                                                  bool keep_trying) = 0;
+    /// Says whether a listening address is free: `address_in_use` (the
+    /// system's value) when another port of this setup listens on the same
+    /// port number and an overlapping address, or, with `probe`, when another
+    /// program holds it.  `ignore` is the port being edited.
+    virtual vss::result<void> check_listen_free(const QString& uri,
+                                                vss::endpoint_id ignore,
+                                                bool probe) const = 0;
     /// Creates one more com0com null-modem pair, prompting for elevation on
     /// Windows.  Returns `errc::unsupported` where the platform has no driver.
     virtual vss::result<void> create_com0com_pair() = 0;

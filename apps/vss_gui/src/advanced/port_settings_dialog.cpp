@@ -7,6 +7,7 @@
 #include "advanced/port_settings_dialog.hpp"
 
 #include "advanced/chrome.hpp"
+#include "backend/canvas_edit.hpp"
 #include "theme/theme.hpp"
 #include "widgets/common.hpp"
 #include "widgets/controls.hpp"
@@ -14,6 +15,7 @@
 
 #include <vss/core/profile.hpp>
 
+#include <QCheckBox>
 #include <QColor>
 #include <QComboBox>
 #include <QGridLayout>
@@ -125,6 +127,13 @@ PortSettingsDialog::~PortSettingsDialog()
 {
     if (worker_.joinable())
         worker_.join();
+}
+
+QVector<vss::endpoint_id> PortSettingsDialog::set_members() const
+{
+    if (ports_.size() != 1)
+        return {};
+    return connected_set(backend_, ports_.first());
 }
 
 void PortSettingsDialog::build()
@@ -273,6 +282,28 @@ void PortSettingsDialog::build()
     summary_->setFont(Theme::instance().font(text_style::data));
     set_ink2(summary_);
     layout->addWidget(summary_);
+
+    // The ports linked to this one run at the same speed, so the settings can
+    // go to all of them at once.  It starts on when they agree now, so the set
+    // stays one line, and off when they differ, so nothing is changed that
+    // was not asked for.
+    if (ports_.size() == 1 && kind_ != settings_kind::network)
+    {
+        const QVector<vss::endpoint_id> others = set_members();
+        if (!others.isEmpty())
+        {
+            whole_set_ = new QCheckBox(
+                tr("Use these settings for the %n port(s) linked to this one",
+                   nullptr, static_cast<int>(others.size())),
+                this);
+            whole_set_->setObjectName(QStringLiteral("portSettingsWholeSet"));
+            whole_set_->setAccessibleName(whole_set_->text());
+            QVector<vss::endpoint_id> all = others;
+            all.append(ports_.first());
+            whole_set_->setChecked(same_line_format(backend_, all));
+            layout->addWidget(whole_set_);
+        }
+    }
 
     // Only kinds of port that must be restarted to take new settings carry
     // the warning about bytes in flight.
@@ -446,10 +477,22 @@ void PortSettingsDialog::apply()
     apply_->setEnabled(false);
     error_->hide();
 
+    // The linked ports are listed in the undo step too.
+    QVector<vss::endpoint_id> targets = ports_;
+    if (whole_set_ != nullptr && whole_set_->isChecked())
+    {
+        for (const vss::endpoint_id id : set_members())
+        {
+            targets.append(id);
+            if (const auto view = backend_.port(id))
+                before_.append({view->name, view->serial});
+        }
+    }
+
     // The worker calls the backend only and posts the outcome back; the
     // destructor joins it before the dialog goes.
     worker_ = std::thread(
-        [this, value, ports = ports_]
+        [this, value, ports = targets]
         {
             vss::error_code error;
             for (const vss::endpoint_id id : ports)

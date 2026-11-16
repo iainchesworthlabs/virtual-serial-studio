@@ -36,6 +36,8 @@
 #include <vss/core/profile.hpp>
 #include <vss/ports/permissions.hpp>
 
+#include <boost/system/errc.hpp>
+
 #include <algorithm>
 
 namespace vss::gui
@@ -86,12 +88,26 @@ QString listen_host(QComboBox* combo, QLineEdit* custom)
     return custom == nullptr ? QString() : custom->text().trimmed();
 }
 
+constexpr const char* port_token = "port:";
+constexpr const char* new_port_token = "new:";
+
+/// A refusal by the other computer, as opposed to an address that cannot be
+/// used or a setup that is wrong.
+bool looks_like_refused(const vss::error_code& error)
+{
+    return error != vss::errc::invalid_uri &&
+           error != vss::errc::invalid_argument &&
+           error != vss::errc::not_found &&
+           error != boost::system::errc::address_in_use;
+}
+
 bool looks_like_address_in_use(const vss::error_code& error)
 {
     if (error == vss::errc::device_busy)
         return true;
     const QString message = QString::fromStdString(error.message()).toLower();
-    return message.contains(QStringLiteral("in use")) ||
+    return error == boost::system::errc::address_in_use ||
+           message.contains(QStringLiteral("in use")) ||
            message.contains(QStringLiteral("already in use")) ||
            error.value() == 10048 || error.value() == 98;
 }
@@ -152,9 +168,12 @@ void NetworkEndpointDialog::build()
     // Which real serial device to share.
     device_combo_ = new QComboBox(body);
     device_combo_->setObjectName(QStringLiteral("networkDeviceCombo"));
-    device_row_ =
-        new FormRow(tr("Device to share"), device_combo_,
-                    tr("A real serial device plugged into this PC."), body);
+    device_row_ = new FormRow(
+        tr("Port to share"), device_combo_,
+        tr("A network port is one end of a link. The other end is a port that "
+           "programs open, so choose a port that is in Studio, a real device, "
+           "or let Studio make a new port."),
+        body);
     layout->addWidget(device_row_);
 
     // Transport choice. The ids 0, 1 and 2 are cast straight to
@@ -384,6 +403,19 @@ void NetworkEndpointDialog::build()
     footer_layout->addWidget(primary_);
     outer->addWidget(footer);
 
+    anyway_ = make_dialog_action_button(tr("Create anyway and keep trying"),
+                                        "quiet", body);
+    anyway_->setObjectName(QStringLiteral("networkCreateAnyway"));
+    anyway_->setAccessibleName(tr("Create anyway and keep trying"));
+    anyway_->setToolTip(
+        tr("Makes the port now. It waits, and connects when the other "
+           "computer answers."));
+    anyway_->hide();
+    layout->insertWidget(layout->indexOf(error_) + 1, anyway_, 0,
+                         Qt::AlignLeft);
+    connect(anyway_, &QPushButton::clicked, this,
+            [this] { static_cast<void>(submit_anyway()); });
+
     // Wire up the controls. Each edit clears any old error and refreshes the
     // result sentence and the address blocks.
     connect(transport_control_, &SegmentedControl::current_changed, this,
@@ -508,36 +540,56 @@ void NetworkEndpointDialog::reload_devices()
     device_combo_->clear();
     device_path_.clear();
 
-    QString preferred;
-    if (preselected_ != 0)
+    // The ports that are in Studio come first.  A network port is linked to
+    // one of them as it is: its device is never opened a second time.
+    const std::vector<port_view> ports = backend_.ports();
+    QStringList held;
+    bool chosen = false;
+    for (const port_view& port : ports)
     {
-        if (const auto port = backend_.port(preselected_))
-            preferred = port->path;
+        // A port that is itself a network port is not something to serve.
+        if (port.kind == vss::endpoint_kind::tcp ||
+            port.kind == vss::endpoint_kind::udp ||
+            port.kind == vss::endpoint_kind::rfc2217)
+            continue;
+        held << port.path.toLower();
+        device_combo_->addItem(
+            tr("%1, %2 (in Studio)").arg(port.name, port.path),
+            QString::fromLatin1(port_token) + QString::number(port.id));
+        if (preselected_ == port.id)
+        {
+            device_combo_->setCurrentIndex(device_combo_->count() - 1);
+            device_path_ = device_combo_->currentData().toString();
+            chosen = true;
+        }
     }
-    preselected_ = 0;
+    device_combo_->addItem(tr("A new port in Studio"),
+                           QString::fromLatin1(new_port_token));
 
     for (const device_view& device : devices_)
     {
-        if (device.com0com)
+        if (device.com0com || held.contains(device.path.toLower()))
             continue;
-        const QString label = device_label(device);
-        device_combo_->addItem(label, device.path);
-        if (!preferred.isEmpty() &&
-            device.path.compare(preferred, Qt::CaseInsensitive) == 0)
+        device_combo_->addItem(device_label(device), device.path);
+    }
+    preselected_ = 0;
+    if (!chosen && device_combo_->count() > 0)
+    {
+        // Without a choice made for it, the first real device, as before,
+        // else the first port in Studio, else a new port.
+        int index = 0;
+        for (int row = 0; row < device_combo_->count(); ++row)
         {
-            device_combo_->setCurrentIndex(device_combo_->count() - 1);
-            device_path_ = device.path;
+            const QString token = device_combo_->itemData(row).toString();
+            if (!token.startsWith(QString::fromLatin1(port_token)) &&
+                token != QString::fromLatin1(new_port_token))
+            {
+                index = row;
+                break;
+            }
         }
-    }
-    if (device_path_.isEmpty() && device_combo_->count() > 0)
-    {
-        device_combo_->setCurrentIndex(0);
-        device_path_ = device_combo_->itemData(0).toString();
-    }
-    if (device_combo_->count() == 0)
-    {
-        device_row_->set_error(
-            tr("No serial device is available. Plug one in, then try again."));
+        device_combo_->setCurrentIndex(index);
+        device_path_ = device_combo_->itemData(index).toString();
     }
     update_result();
     update_address_blocks();
@@ -665,8 +717,16 @@ void NetworkEndpointDialog::update_result()
     VSS_PROFILE_ZONE("gui.dialogs.network_endpoint.update_result");
     if (result_ == nullptr)
         return;
-    const QString device =
-        device_path_.isEmpty() ? tr("the device") : device_path_;
+    QString device = device_path_.isEmpty() ? tr("the device") : device_path_;
+    if (selected_port() != 0)
+    {
+        const auto port = backend_.port(selected_port());
+        device = port ? port->name : tr("the port");
+    }
+    else if (new_port_selected())
+    {
+        device = tr("a new port in Studio");
+    }
     const QString host = server_selected()
                              ? listen_host(listen_combo_, listen_custom_)
                              : address_edit_->text().trimmed();
@@ -723,9 +783,71 @@ QString NetworkEndpointDialog::uri() const
     return effective_uri();
 }
 
+vss::endpoint_id NetworkEndpointDialog::selected_port() const
+{
+    const QString token = QString::fromLatin1(port_token);
+    if (!device_path_.startsWith(token))
+        return 0;
+    return device_path_.mid(token.size()).toULongLong();
+}
+
+bool NetworkEndpointDialog::new_port_selected() const
+{
+    return device_path_ == QString::fromLatin1(new_port_token);
+}
+
+bool NetworkEndpointDialog::select_port(vss::endpoint_id id)
+{
+    return set_device_path(QString::fromLatin1(port_token) +
+                           QString::number(id));
+}
+
+bool NetworkEndpointDialog::edit_port(vss::endpoint_id id)
+{
+    const auto port = backend_.port(id);
+    if (!port)
+        return false;
+    QString text;
+    for (const auto& entry : backend_.snapshot().ports)
+    {
+        if (QString::fromStdString(entry.name) == port->name)
+            text = QString::fromStdString(entry.uri);
+    }
+    const auto parsed = parse_network_uri(text);
+    if (!parsed)
+        return false;
+
+    editing_ = id;
+    setWindowTitle(tr("Network port settings"));
+    device_row_->hide();
+    anyway_->setText(tr("Apply anyway and keep trying"));
+    anyway_->setAccessibleName(tr("Apply anyway and keep trying"));
+    primary_->setText(tr("Apply"));
+    primary_->setAccessibleName(tr("Apply"));
+    test_->hide();
+    set_transport(parsed->transport);
+    set_role(parsed->role);
+    if (parsed->role == network_role::server)
+        set_listen_address(parsed->host);
+    else
+        set_server_address(parsed->host);
+    set_port(parsed->port);
+    // The rest of the address, such as an allow list, is kept: the address
+    // is shown to be edited as it is when it has more than the fields hold.
+    if (text.contains(QLatin1Char('?')))
+        set_address_override(text);
+    update_role_ui();
+    return true;
+}
+
+bool NetworkEndpointDialog::select_new_port()
+{
+    return set_device_path(QString::fromLatin1(new_port_token));
+}
+
 QString NetworkEndpointDialog::source_uri() const
 {
-    if (device_path_.isEmpty())
+    if (device_path_.isEmpty() || selected_port() != 0 || new_port_selected())
         return {};
     if (device_path_.contains(QStringLiteral("://")))
         return device_path_;
@@ -734,6 +856,8 @@ QString NetworkEndpointDialog::source_uri() const
 
 QString NetworkEndpointDialog::command() const
 {
+    if (source_uri().isEmpty())
+        return {};
     return QStringLiteral("vss_cli bridge %1 %2")
         .arg(source_uri(), effective_uri());
 }
@@ -777,7 +901,7 @@ bool NetworkEndpointDialog::error_visible() const
 
 bool NetworkEndpointDialog::validate(QString& error) const
 {
-    if (device_path_.isEmpty())
+    if (editing_ == 0 && device_path_.isEmpty())
     {
         error = tr("Choose a device to share.");
         return false;
@@ -820,6 +944,16 @@ bool NetworkEndpointDialog::validate(QString& error) const
 
 bool NetworkEndpointDialog::submit()
 {
+    return create(false);
+}
+
+bool NetworkEndpointDialog::submit_anyway()
+{
+    return create(true);
+}
+
+bool NetworkEndpointDialog::create(bool keep_trying)
+{
     clear_error();
     if (!backend_.caps().bridge)
     {
@@ -843,16 +977,19 @@ bool NetworkEndpointDialog::submit()
     const QString source = source_uri();
     const QString target = effective_uri();
     const int port_number = network_port_from_uri(target);
-    const auto linked = backend_.bridge(source, target);
-    if (!linked)
+
+    // Two ports cannot listen on one address.  This is said before anything
+    // is made, in one sentence, and covers another program as well.
+    if (const auto free = backend_.check_listen_free(target, editing_, true);
+        !free)
     {
-        last_error_ = error_text(linked.error());
-        if (looks_like_address_in_use(linked.error()))
+        last_error_ = error_text(free.error());
+        if (backend_.check_listen_free(target, editing_, false))
         {
             error_->show_error(
                 tr("Could not start the bridge"),
-                tr("Port %1 is already in use. Choose another port, or stop "
-                   "the program using it.")
+                tr("Port %1 is in use by another program. Choose another "
+                   "port, or stop that program.")
                     .arg(port_number),
                 last_error_);
         }
@@ -860,18 +997,94 @@ bool NetworkEndpointDialog::submit()
         {
             error_->show_error(
                 tr("Could not start the bridge"),
-                tr("The address may be in use, or the other computer refused "
-                   "the connection. Check the address and try again."),
+                tr("Port %1 is already used by another port in this setup. "
+                   "Choose another port.")
+                    .arg(port_number),
                 last_error_);
         }
         return false;
     }
 
-    result_link_ = *linked;
+    if (editing_ != 0)
+    {
+        const auto changed = backend_.set_network_address(
+            editing_, target, keep_trying && backend_.caps().network_waiting);
+        if (!changed)
+            return show_create_error(changed.error(), port_number);
+        result_port_ = port_number;
+        Q_EMIT bridge_started();
+        QDialog::accept();
+        return true;
+    }
+
+    std::optional<vss::link_id> link;
+    if (source.isEmpty())
+    {
+        // A port that is in Studio, or a new one: the network port is made
+        // and linked to it, and nothing is left behind if that fails.
+        QString name = QStringLiteral("network");
+        if (const auto served = backend_.port(selected_port()))
+            name = served->name + QStringLiteral("-network");
+        const auto made = backend_.attach_network(
+            selected_port(), name, target,
+            keep_trying && backend_.caps().network_waiting);
+        if (made)
+            link = made->link;
+        else
+            return show_create_error(made.error(), port_number);
+    }
+    else
+    {
+        const auto linked = backend_.bridge(source, target);
+        if (linked)
+            link = *linked;
+        else
+            return show_create_error(linked.error(), port_number);
+    }
+
+    result_link_ = link;
     result_port_ = port_number;
     Q_EMIT bridge_started();
     QDialog::accept();
     return true;
+}
+
+bool NetworkEndpointDialog::show_create_error(const vss::error_code& error,
+                                              int port_number)
+{
+    last_error_ = error_text(error);
+    if (looks_like_address_in_use(error))
+    {
+        error_->show_error(
+            tr("Could not start the bridge"),
+            tr("Port %1 is already in use. Choose another port, or stop the "
+               "program using it.")
+                .arg(port_number),
+            last_error_);
+        return false;
+    }
+    // A real device that Studio does not hold yet is opened with the address
+    // by one engine call that has no waiting form, so only a port in Studio
+    // (or a new one) can be made to wait.
+    if (!server_selected() && backend_.caps().network_waiting &&
+        (editing_ != 0 || source_uri().isEmpty()) &&
+        looks_like_refused(error))
+    {
+        error_->show_error(
+            tr("Could not connect"),
+            tr("The other computer did not answer or refused the connection. "
+               "You can create the port anyway. It waits, and connects when "
+               "the other computer answers."),
+            last_error_);
+        anyway_->show();
+        return false;
+    }
+    error_->show_error(
+        tr("Could not start the bridge"),
+        tr("The address may be in use, or the other computer refused the "
+           "connection. Check the address and try again."),
+        last_error_);
+    return false;
 }
 
 void NetworkEndpointDialog::clear_error()
@@ -883,6 +1096,8 @@ void NetworkEndpointDialog::clear_error()
         port_row_->clear_error();
     if (device_row_ != nullptr)
         device_row_->clear_error();
+    if (anyway_ != nullptr)
+        anyway_->hide();
     if (override_edit_ != nullptr)
     {
         override_edit_->setProperty("invalid", false);
@@ -906,6 +1121,8 @@ bool NetworkEndpointDialog::set_device_path(const QString& path)
         {
             device_combo_->setCurrentIndex(index);
             device_path_ = path;
+            update_result();
+            update_address_blocks();
             return true;
         }
     }

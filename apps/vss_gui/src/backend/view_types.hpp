@@ -309,6 +309,20 @@ struct share_view
     vss::link_id link = 0;
 };
 
+/// The result of `StudioBackend::attach_network`.
+struct network_attach_view
+{
+    /// The network port.
+    vss::endpoint_id port = 0;
+    /// The two-way link between it and the port it serves.
+    vss::link_id link = 0;
+    /// The remote end refused, and the port waits and tries again.
+    bool waiting = false;
+    /// A Studio port made for the network port to link to, or 0 when the
+    /// user chose a port that was there already.
+    vss::endpoint_id created = 0;
+};
+
 /// One-line rendering of an engine error, used by dialogs and the status bar.
 QString error_text(const vss::error_code& error);
 

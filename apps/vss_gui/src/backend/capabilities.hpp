@@ -104,6 +104,15 @@ struct capabilities
     /// (`vss_ports`' listen transport), so only a backend without one leaves
     /// this off.
     bool network_server = false;
+    /// Change a network port after it was made: server or client, the
+    /// address, the bind port and the allow list, with the links kept
+    /// (`vss::studio::set_address`).  A backend without it shows the address
+    /// as text with "Not available in this build".
+    bool network_edit = false;
+    /// Make a network client when the remote end refuses, and keep trying
+    /// (`vss::studio::attach_waiting`).  A backend without it never offers
+    /// "Create anyway and keep trying".
+    bool network_waiting = false;
     /// A shared multi-drop bus link: every member hears every other and none
     /// hears itself (`vss::hub::bus`).  The engine backend provides it.  A
     /// backend without it keeps the star (a split with a join tap): the

@@ -1,0 +1,1 @@
+**A network port can be changed after it is made.** Settings on a TCP, UDP or RFC 2217 port changes server or client, the address, the bind port and the allow list. The port keeps its name and its links.

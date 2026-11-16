@@ -1,0 +1,1 @@
+**Drawing a line from a port offers the network and the bus.** Dropping a line on empty canvas offers "Share over the network" and "Connect to a server", the port menu has them and "Make a bus with...", and a line to a port that is on a bus offers "Add to the bus".

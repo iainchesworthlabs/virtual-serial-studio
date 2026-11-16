@@ -6,10 +6,10 @@
 
 #include "topology/topology_view.hpp"
 
-#include "theme/focus_ring_style.hpp"
-#include "theme/icon_provider.hpp"
 #include "rendering/gpu_canvas.hpp"
 #include "rendering/render_state.hpp"
+#include "theme/focus_ring_style.hpp"
+#include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
 #include "topology/link_curve.hpp"
 #include "topology/link_item.hpp"
@@ -78,12 +78,10 @@ protected:
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
         painter.setBrush(Qt::NoBrush);
-        painter.setPen(
-            QPen(Theme::instance().colour(colour_role::focus), 2.0));
+        painter.setPen(QPen(Theme::instance().colour(colour_role::focus), 2.0));
         painter.drawRoundedRect(QRectF(rect()).adjusted(2, 2, -2, -2), 4, 4);
     }
 };
-
 
 /// The central column is about this wide at the 960 by 640 minimum window,
 /// where the design asks for the compact 120 by 48 nodes.
@@ -188,8 +186,8 @@ TopologyView::TopologyView(QWidget* parent) : QGraphicsView(parent)
     auto* zoom_layout = new QHBoxLayout(zoom_bar_);
     zoom_layout->setContentsMargins(2, 2, 2, 2);
     zoom_layout->setSpacing(0);
-    const auto make_zoom_button = [this, zoom_layout](const QString& name,
-                                                       const QString& tip)
+    const auto make_zoom_button =
+        [this, zoom_layout](const QString& name, const QString& tip)
     {
         auto* button = new ZoomButton(zoom_bar_);
         button->setObjectName(name);
@@ -1509,8 +1507,8 @@ void TopologyView::mousePressEvent(QMouseEvent* event)
                 band_origin_ = point;
                 if (band_ == nullptr)
                 {
-                    band_ = std::make_unique<QRubberBand>(QRubberBand::Rectangle,
-                                                          viewport());
+                    band_ = std::make_unique<QRubberBand>(
+                        QRubberBand::Rectangle, viewport());
                     band_->setObjectName(QStringLiteral("topologyRubberBand"));
                 }
                 band_->setGeometry(QRect(point, QSize()));
@@ -2382,8 +2380,8 @@ QStringList TopologyView::node_badges(vss::endpoint_id id) const
 void TopologyView::set_plugin_parts(
     const QHash<vss::endpoint_id, vss::gui::part_description>& parts)
 {
-    const auto look = [](const QHash<vss::endpoint_id,
-                                     vss::gui::part_description>& all)
+    const auto look =
+        [](const QHash<vss::endpoint_id, vss::gui::part_description>& all)
     {
         QHash<vss::endpoint_id, QString> out;
         for (auto each = all.begin(); each != all.end(); ++each)
@@ -2805,6 +2803,47 @@ void TopologyView::open_wire_menu(vss::endpoint_id to,
             first = action;
         }
     }
+    // A bus is made from the two, or the port joins the bus the other is on.
+    if (caps_.shared_bus)
+    {
+        menu->addSeparator();
+        const auto bus_of = [this](vss::endpoint_id id) -> vss::link_id
+        {
+            for (const link_view& link : links_)
+            {
+                if (link.shape == link_shape::bus && link.sources.contains(id))
+                    return link.id;
+            }
+            return 0;
+        };
+        const vss::link_id to_bus = bus_of(to);
+        const vss::link_id from_bus = bus_of(from);
+        if (to_bus != 0 && from_bus == 0)
+        {
+            menu->addAction(tr("Add %1 to the bus with %2")
+                                .arg(names_.value(from), names_.value(to)),
+                            this, [this, from, to_bus]
+                            { Q_EMIT bus_extend_requested(from, to_bus); });
+        }
+        else if (from_bus != 0 && to_bus == 0)
+        {
+            menu->addAction(tr("Add %1 to the bus with %2")
+                                .arg(names_.value(to), names_.value(from)),
+                            this, [this, to, from_bus]
+                            { Q_EMIT bus_extend_requested(to, from_bus); });
+        }
+        else if (from_bus == 0 && to_bus == 0)
+        {
+            menu->addAction(tr("Shared bus for %1 and %2")
+                                .arg(names_.value(from), names_.value(to)),
+                            this,
+                            [this, from, to]
+                            {
+                                Q_EMIT link_selected_requested(
+                                    {from, to}, to, canvas_item::bus);
+                            });
+        }
+    }
     menu->setActiveAction(first);
     connect(menu, &QMenu::aboutToHide, this, [this] { cancel_wire(); });
     menu->popup(viewport()->mapToGlobal(viewport_position));
@@ -2837,6 +2876,19 @@ void TopologyView::open_wire_new_menu(const QPoint& viewport_position)
                 { Q_EMIT wire_new_requested(from, kind, wire, scene_point); });
         }
     }
+    if (caps_.bridge)
+    {
+        menu->addSeparator();
+        QAction* server = menu->addAction(
+            tr("Share %1 over the network...").arg(names_.value(from)), this,
+            [this, from] { Q_EMIT network_requested(from, true); });
+        server->setEnabled(caps_.network_server);
+        if (!caps_.network_server)
+            server->setToolTip(tr("Not available in this build"));
+        menu->addAction(tr("Connect %1 to a server...").arg(names_.value(from)),
+                        this, [this, from]
+                        { Q_EMIT network_requested(from, false); });
+    }
     connect(menu, &QMenu::aboutToHide, this,
             [this]
             {
@@ -2855,7 +2907,8 @@ void TopologyView::populate_node_menu(QMenu* menu, vss::endpoint_id id)
                      [id](const port_view& view) { return view.id == id; });
     const bool network =
         port != ports_.end() && (port->kind == vss::endpoint_kind::tcp ||
-                                 port->kind == vss::endpoint_kind::udp);
+                                 port->kind == vss::endpoint_kind::udp ||
+                                 port->kind == vss::endpoint_kind::rfc2217);
     const bool copyable = port != ports_.end() && can_duplicate(*port);
 
     const auto shortcut = [](QAction* action, const QKeySequence& keys)
@@ -2872,10 +2925,10 @@ void TopologyView::populate_node_menu(QMenu* menu, vss::endpoint_id id)
         shortcut(menu->addAction(tr("Settings..."), this, [this, id]
                                  { Q_EMIT settings_requested({id}); }),
                  QKeySequence(Qt::ALT | Qt::Key_Return));
-    if (network)
+    if (network && !caps_.network_edit)
     {
         settings->setEnabled(false);
-        settings->setToolTip(tr("A network port has no line settings."));
+        settings->setToolTip(tr("Not available in this build"));
     }
     if (caps_.rename_port)
     {
@@ -2896,6 +2949,26 @@ void TopologyView::populate_node_menu(QMenu* menu, vss::endpoint_id id)
     shortcut(menu->addAction(topology_text::connect_from_here_action(), this,
                              [this, id] { begin_wire(id); }),
              QKeySequence(Qt::CTRL | Qt::Key_L));
+    if (!network)
+    {
+        if (caps_.bridge)
+        {
+            QAction* server = menu->addAction(
+                tr("Share over the network..."), this,
+                [this, id] { Q_EMIT network_requested(id, true); });
+            server->setEnabled(caps_.network_server);
+            if (!caps_.network_server)
+                server->setToolTip(tr("Not available in this build"));
+            menu->addAction(tr("Connect to a server..."), this, [this, id]
+                            { Q_EMIT network_requested(id, false); });
+        }
+        QAction* bus =
+            menu->addAction(tr("Make a bus with..."), this,
+                            [this, id] { Q_EMIT bus_with_requested(id); });
+        bus->setEnabled(caps_.shared_bus);
+        if (!caps_.shared_bus)
+            bus->setToolTip(tr("Not available in this build"));
+    }
     add_port_menu_actions(menu, this,
                           menu_state_ ? menu_state_(id) : port_menu_state{},
                           [this, id](port_menu_action action)
