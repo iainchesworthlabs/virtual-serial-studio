@@ -12,7 +12,9 @@ owner has decided that `vss_agent` and `vss_gate` will be in the installers and 
 
 - **Built:** the local endpoint (L1) and loopback TCP (L2); tokens, scopes and ceilings; the audit log; the
   read-only monitor (`events.subscribe`, `traffic.subscribe`); `ports.create`, `ports.remove`, `ports.rename`,
-  `links.connect`, `links.disconnect`, `ports.send`, `expect.bytes`, runs and the JUnit report; and the Python client.
+  `links.connect`, `links.disconnect`, `ports.send`, `expect.bytes`, runs and the JUnit report; reading one port
+  and the links; `sessions.list` and `sessions.kick`; `audit.verify`; the edition in `status`; and the Python
+  client. All of it is in the Community edition and none of it asks for a licence.
 - **Not built:** TLS and the remote case (L3), so one computer cannot yet control another; the OAuth 2.0 and OpenID
   Connect interface; recording; triggers; the C ABI and the other language bindings; Studio's side (the status chip and
   the sessions list); `idempotency_key`; and every operation and scope that the table in [section
@@ -28,8 +30,9 @@ describes it.
 
 ## The problem
 
-Studio has a control endpoint. A test harness drives Studio through it, and the same API is what lets one other
-computer control or watch a running Studio. That turns a program that had no listener into one that accepts
+Studio has a control endpoint. A test harness on the same computer drives Studio through it, in every edition.
+The same API is what the Pro plugin carries to one other computer, so that it can control or watch a running
+Studio. That turns a program that had no listener into one that accepts
 commands, and the commands can create ports, write bytes to real devices and change what a test rig does.
 
 **Which edition has what.** The owner has decided:
@@ -870,23 +873,28 @@ Level 1 with no connections appears as *local only*, so a person can always tell
 
 ## 13. Implementation slices
 
-After the owner's review. Each slice is reviewable alone, green alone and tested in the project's own framework
-(`vss_unit_tests`, `vss_system_tests`, the fuzz harness).
+Each slice is reviewable alone, green alone and tested in the project's own framework (`vss_unit_tests`,
+`vss_system_tests`, the fuzz harness). The last column says where each stands; the sections after the table say
+what each built and what its tests prove.
 
-| Slice | What | Depends on |
-|---|---|---|
-| 1 | `libs/vss_control_proto` (messages, limits, errors, the policy types) and `vss_gate` with the **local endpoint with peer credentials** (L1) and the administration endpoint, the agent client, the audit log, `authorise` with the operation registry and three operations (`status`, `ports.list`, `endpoint.stop`); `vss_cli control status` and `stop`; the tests of section 15 for these. `vss_gate` is started by hand, as `vss_agent` is, until the agent starts on demand (agent.md PR 6). The preface belongs to slice 4 (L2) and `secret_string` to slice 2, where each is first used | agent.md PR 1 |
-| 2 | **Tokens and scopes**: the store, generation, hashing, verification, constant-time compare, rate limiting, revocation, expiry; scopes and ceilings; `vss_cli control token`; token-leak canary tests; the full operation table | slice 1 |
-| 3 | **Read-only monitor**: `events.subscribe`, `traffic.subscribe` with `monitor.data`, the per-session read-only agent connection, the status chip and sessions list in the GUI (a design change in the GUI, to be reviewed on its own), live view | slice 2; agent.md PR 5 and decision 10 for `read_only` |
-| 4 | L2 and the control scopes (`control.*`), `expect.bytes`, runs and the JUnit report; the trigger operations of section 9, once the plugin framework and the agent carry triggers | slice 3 |
-| 5 | L3: TLS, certificates, pinning, pairing bundle, rotation | decision 1 (TLS library) |
-| 6 | Recording and fetch | agent.md PR 5 |
-| 7 | The level 3 authenticator interface, the policy table, and the first OIDC plugin | slice 4, plugin framework |
-| 8 | Adapters (Python first, C ABI) | slices 2 to 4 |
+| Slice | What | Depends on | Stands |
+|---|---|---|---|
+| 1 | `libs/vss_control_proto` (messages, limits, errors, the policy types) and `vss_gate` with the **local endpoint with peer credentials** (L1) and the administration endpoint, the agent client, the audit log, `authorise` with the operation registry and three operations (`status`, `ports.list`, `endpoint.stop`); `vss_cli control status` and `stop`; the tests of section 15 for these | agent.md PR 1 | Built. `vss_gate` is still started by hand, as `vss_agent` is (agent.md PR 6) |
+| 2 | **Tokens and scopes**: the store, generation, hashing, verification, constant-time compare, rate limiting, revocation, expiry; scopes and ceilings; `vss_cli control token`; token-leak canary tests; the full operation table | slice 1 | Built |
+| 3 | **Read-only monitor**: `events.subscribe`, `traffic.subscribe` with `monitor.data`, the per-session read-only agent connection, the status chip and sessions list in the GUI, live view | slice 2; agent.md PR 5 and decision 10 for `read_only` | Built, but for Studio's side: the chip and the sessions list are specified in `docs/gui-design/docs/screens/13-remote-control.md` and not coded. `sessions.list` and `sessions.kick` are built, with `vss_cli control sessions` and `kick` |
+| 4 | L2 and the control scopes (`control.*`), `expect.bytes`, runs and the JUnit report; the trigger operations of section 9, once the plugin framework and the agent carry triggers | slice 3 | Built: loopback TCP, `ports.create`, `ports.remove`, `ports.rename`, `links.connect`, `links.disconnect`, `ports.send`, `expect.bytes`, runs and the JUnit report. Not built: the trigger operations, and the other `control.*` operations that [What is not built](#what-is-not-built) lists |
+| 5 | L3: TLS, certificates, pinning, pairing bundle, rotation | decision 1 (TLS library) | Not built, and not in this repository: it belongs to the Pro plugin |
+| 6 | Recording and fetch | agent.md PR 5 | Not built |
+| 7 | The level 3 authenticator interface, the policy table, and the first OIDC plugin | slice 4, plugin framework | Not built, and not in this repository: it belongs to the Pro plugin |
+| 8 | Adapters (Python first, C ABI) | slices 2 to 4 | The Python client is built and is in the Community edition. The C ABI and the bindings on it are Pro and not built |
 
-Slices 1 to 3 are what is requested after review. Slice 3's GUI part is the large one. Simple, well-specified work
-(the audit log writer, the rate limiter, the frame tests, CLI plumbing) can be delegated to a smaller model; the protocol, the
-policy check, the token code and the peer-credential code are not delegated.
+Built since, outside the slices as first drawn: the reading operations (`ports.get`, `links.list`, `links.get`,
+`ping`, `session.close`), `audit.verify` with the reading back of a Windows access list, and the edition and the
+state of the licence in `status`, which `vss_gate` reads from the licence folders. Each has its section below.
+
+Slices 1 to 4 and the Python client are everything the Community edition has of this design: the control endpoint
+on this computer. What is left on this side is Studio's part of slice 3, recording, triggers, the operations
+still marked "Not built", and putting `vss_agent` and `vss_gate` in the installers.
 
 ### What slice 1 built
 
