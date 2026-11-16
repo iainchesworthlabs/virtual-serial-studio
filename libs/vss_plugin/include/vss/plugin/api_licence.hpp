@@ -29,7 +29,7 @@ namespace vss::plugin
 
 /// The largest licence file the host sends, in bytes.  Studio reads no larger
 /// file either (docs/licensing.md, "Where Studio finds a licence").
-inline constexpr std::size_t max_licence_file = 64 * 1024;
+inline constexpr std::size_t max_licence_file = std::size_t{64} * 1024;
 
 /// The longest licence number a report may name, in bytes.
 inline constexpr std::size_t max_licence_id = 64;
