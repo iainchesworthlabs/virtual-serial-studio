@@ -23,7 +23,7 @@
 //   than a licence may be, the answer says there is none.
 // - A report changes nothing the host does.  It is kept for the screen.
 // - The program that offers this names the engine capability
-//   `licence.file` (`licence_file_capability`) in the capabilities it
+//   `licence_file` (`licence_file_capability`) in the capabilities it
 //   gives the service, so that a plugin can tell.
 //
 // The host does not tell a plugin that the licence changed.  A plugin asks
