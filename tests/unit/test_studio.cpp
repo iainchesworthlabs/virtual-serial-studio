@@ -1919,6 +1919,7 @@ TEST_CASE("studio: a network port changes its kind and address and keeps "
           "its links")
 {
     const std::string port_47851 = free_port_text();
+    const std::string closed_port = free_port_text();
     const std::string port_47852 = free_port_text();
     const std::string port_47853 = free_port_text();
     const std::string port_47854 = free_port_text();
@@ -1943,9 +1944,9 @@ TEST_CASE("studio: a network port changes its kind and address and keeps "
         boost::system::errc::make_error_code(
             boost::system::errc::address_in_use));
     // Server to client, and back.
-    // Nothing listens on port 1: refused, and the old listener is back.
-    REQUIRE(!app.set_address(made->port, "tcp://127.0.0.1:1", false));
-    REQUIRE(app.set_address(made->port, "tcp://127.0.0.1:1", true));
+    // Nothing listens on this port: refused, and the old listener is back.
+    REQUIRE(!app.set_address(made->port, "tcp://127.0.0.1:" + closed_port, false));
+    REQUIRE(app.set_address(made->port, "tcp://127.0.0.1:" + closed_port, true));
     REQUIRE(
         app.set_address(made->port, "tcp-listen://127.0.0.1:" + port_47853));
 
