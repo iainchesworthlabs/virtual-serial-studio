@@ -114,8 +114,8 @@ public:
         if (with_approver)
         {
             approve = [this](const control_approval_request& ask,
-                             std::function<void(bool)> done)
-            { asked(ask, std::move(done)); };
+                             const std::function<void(bool)>& done)
+            { asked(ask, done); };
         }
         handler_ =
             make_control_point(context, std::move(approve), std::move(options));
@@ -502,7 +502,7 @@ std::uint64_t now_ms()
 
 /// Asks for a session and gives its number; the owner says yes.
 std::uint64_t open_session(point_rig& rig, std::uint64_t id,
-                           std::vector<std::string> scopes,
+                           const std::vector<std::string>& scopes,
                            std::string peer = "lab computer")
 {
     REQUIRE(rig.offer(session_request(id, scopes, std::move(peer))));
