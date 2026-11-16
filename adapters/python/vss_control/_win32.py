@@ -9,7 +9,7 @@ import time; `load()` builds the table on first use, on Windows only.
 from __future__ import annotations
 
 import ctypes
-from ctypes import wintypes
+import ctypes.wintypes
 
 GENERIC_READ = 0x80000000
 GENERIC_WRITE = 0x40000000
@@ -35,7 +35,7 @@ WAIT_OBJECT_0 = 0
 WAIT_TIMEOUT = 258
 
 INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
-DWORD = wintypes.DWORD
+DWORD = ctypes.wintypes.DWORD
 
 # What a read says when the other end has gone: the end of the stream.
 END_OF_STREAM = (
@@ -50,8 +50,8 @@ class OVERLAPPED(ctypes.Structure):
     _fields_ = [
         ("Internal", ctypes.c_size_t),
         ("InternalHigh", ctypes.c_size_t),
-        ("Offset", wintypes.DWORD),
-        ("OffsetHigh", wintypes.DWORD),
+        ("Offset", ctypes.wintypes.DWORD),
+        ("OffsetHigh", ctypes.wintypes.DWORD),
         ("hEvent", ctypes.c_void_p),
     ]
 
@@ -73,8 +73,8 @@ class _Api:
         kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
         advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
         handle = ctypes.c_void_p
-        dword = wintypes.DWORD
-        boolean = wintypes.BOOL
+        dword = ctypes.wintypes.DWORD
+        boolean = ctypes.wintypes.BOOL
         pointer = ctypes.c_void_p
         overlapped = ctypes.POINTER(OVERLAPPED)
 
@@ -88,7 +88,7 @@ class _Api:
             kernel32,
             "CreateFileW",
             handle,
-            wintypes.LPCWSTR,
+            ctypes.wintypes.LPCWSTR,
             dword,
             dword,
             pointer,
@@ -96,7 +96,7 @@ class _Api:
             dword,
             handle,
         )
-        bind(kernel32, "CreateEventW", handle, pointer, boolean, boolean, wintypes.LPCWSTR)
+        bind(kernel32, "CreateEventW", handle, pointer, boolean, boolean, ctypes.wintypes.LPCWSTR)
         bind(kernel32, "ResetEvent", boolean, handle)
         bind(kernel32, "CloseHandle", boolean, handle)
         bind(kernel32, "ReadFile", boolean, handle, pointer, dword, ctypes.POINTER(dword), overlapped)
@@ -104,8 +104,8 @@ class _Api:
         bind(kernel32, "GetOverlappedResult", boolean, handle, overlapped, ctypes.POINTER(dword), boolean)
         bind(kernel32, "CancelIoEx", boolean, handle, overlapped)
         bind(kernel32, "WaitForSingleObject", dword, handle, dword)
-        bind(kernel32, "WaitNamedPipeW", boolean, wintypes.LPCWSTR, dword)
-        bind(kernel32, "GetNamedPipeServerProcessId", boolean, handle, ctypes.POINTER(wintypes.ULONG))
+        bind(kernel32, "WaitNamedPipeW", boolean, ctypes.wintypes.LPCWSTR, dword)
+        bind(kernel32, "GetNamedPipeServerProcessId", boolean, handle, ctypes.POINTER(ctypes.wintypes.ULONG))
         bind(kernel32, "OpenProcess", handle, dword, boolean, dword)
         bind(kernel32, "GetCurrentProcess", handle)
         bind(kernel32, "LocalFree", pointer, pointer)
@@ -145,7 +145,7 @@ def process_user(process):
     if not api.OpenProcessToken(process, TOKEN_QUERY, ctypes.byref(token)):
         raise win_error(last_error())
     try:
-        size = wintypes.DWORD(0)
+        size = ctypes.wintypes.DWORD(0)
         # The first call only says how large the answer is.
         api.GetTokenInformation(token, TOKEN_USER_CLASS, None, 0, ctypes.byref(size))
         if size.value == 0:
@@ -164,7 +164,7 @@ def pipe_server_user(pipe):
     """The UserSid of the process that serves the pipe handle `pipe`, which
     this process opened."""
     api = load()
-    process_id = wintypes.ULONG(0)
+    process_id = ctypes.wintypes.ULONG(0)
     if not api.GetNamedPipeServerProcessId(pipe, ctypes.byref(process_id)):
         raise win_error(last_error())
     process = api.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, process_id.value)

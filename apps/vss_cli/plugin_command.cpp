@@ -79,22 +79,24 @@ struct list_options
 bool parse_list(const std::vector<std::string>& arguments,
                 list_options& options)
 {
-    for (std::size_t index = 2; index < arguments.size(); ++index)
+    std::size_t index = 2;
+    while (index < arguments.size())
     {
         const std::string& argument = arguments[index];
+        ++index;
         if (argument == "--json")
         {
             options.json = true;
         }
         else if (argument == "--root")
         {
-            if (index + 1 >= arguments.size() || arguments[index + 1].empty())
+            if (index >= arguments.size() || arguments[index].empty())
             {
                 std::fputs("plugin list: --root needs a folder\n", stderr);
                 return false;
             }
-            ++index;
             options.roots.emplace_back(arguments[index]);
+            ++index;
         }
         else if (argument.rfind("--root=", 0) == 0)
         {

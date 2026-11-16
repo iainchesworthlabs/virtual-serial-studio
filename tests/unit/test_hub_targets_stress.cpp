@@ -207,10 +207,10 @@ void churn(const link_options& options, int messages)
     for (const mock_endpoint* port : {&comes, &goes})
     {
         const auto heard = by_sender(port->written());
-        for (const auto& [sender, numbers] : heard)
+        for (const auto& entry : heard)
         {
-            REQUIRE_EQ(sender, 'S');
-            const bool rising = strictly_rising(numbers);
+            REQUIRE_EQ(entry.first, 'S');
+            const bool rising = strictly_rising(entry.second);
             REQUIRE(rising);
         }
     }
@@ -219,10 +219,10 @@ void churn(const link_options& options, int messages)
     // is whoever owned the link at the time; without it, a target that was
     // never removed got every reply through.
     const auto replies = by_sender(source.written());
-    for (const auto& [sender, numbers] : replies)
+    for (const auto& entry : replies)
     {
-        REQUIRE(sender != 'S');
-        const bool rising = strictly_rising(numbers);
+        REQUIRE(entry.first != 'S');
+        const bool rising = strictly_rising(entry.second);
         REQUIRE(rising);
     }
     if (!owned)

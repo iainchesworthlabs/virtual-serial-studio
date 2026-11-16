@@ -21,8 +21,8 @@ import threading
 import time
 import traceback
 import unittest
+import unittest.mock
 import xml.etree.ElementTree as ElementTree
-from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
 
@@ -161,6 +161,7 @@ class Rig:
                     raise
                 continue
             return gate
+        raise AssertionError("the gateway was not started")
 
     def stop(self):
         for program in reversed(self.programs):
@@ -208,6 +209,7 @@ class RigCase(unittest.TestCase):
             with self.rig.connect() as client:
                 client.remove_port(port)
         except ControlError:
+            # The port may be gone already, which is what cleanup wants.
             pass
 
     def linked_pair(self, client):
@@ -627,6 +629,7 @@ class ControlRoleTests(RigCase):
             with self.rig.connect() as client:
                 client.end_run()
         except ControlError:
+            # The run may have ended already.
             pass
 
     def test_a_wrong_token_is_unauthenticated_and_is_not_in_the_error(self):
@@ -654,12 +657,12 @@ class ControlRoleTests(RigCase):
 
     def test_a_server_that_runs_as_another_user_is_refused_before_anything_is_sent(self):
         if os.name == "nt":
-            refuse = mock.patch.object(_peer, "_same_user", return_value=False)
+            refuse = unittest.mock.patch.object(_peer, "_same_user", return_value=False)
         else:
-            refuse = mock.patch.object(_peer, "unix_peer_uid", return_value=os.geteuid() + 1)
+            refuse = unittest.mock.patch.object(_peer, "unix_peer_uid", return_value=os.geteuid() + 1)
         with refuse:
             # If the client got as far as saying hello, this would fail.
-            with mock.patch.object(Client, "_greet", side_effect=AssertionError("hello sent")):
+            with unittest.mock.patch.object(Client, "_greet", side_effect=AssertionError("hello sent")):
                 with self.assertRaises(TransportError) as caught:
                     Client.connect(instance=self.rig.instance)
         self.assertEqual(caught.exception.code, "not_same_user")
@@ -830,7 +833,7 @@ class LoopbackTests(TokenMaker, RigCase):
 
     def test_without_a_token_nothing_is_connected(self):
         for options in ({}, {"token": None}):
-            with mock.patch.object(socket, "socket", side_effect=AssertionError("connected")):
+            with unittest.mock.patch.object(socket, "socket", side_effect=AssertionError("connected")):
                 with self.assertRaises(ValueError):
                     Client.connect(loopback_port=self.rig.loopback_port, **options)
 

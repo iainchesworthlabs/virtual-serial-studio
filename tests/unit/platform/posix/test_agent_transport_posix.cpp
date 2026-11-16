@@ -282,6 +282,10 @@ public:
 
     bool made() const noexcept { return !base_.empty(); }
 
+    /// The directory this test made, which the transport's own directory is
+    /// made in.
+    const std::string& path() const noexcept { return base_; }
+
 private:
     std::optional<std::string> runtime_;
     std::optional<std::string> tmpdir_;
@@ -361,11 +365,20 @@ TEST_CASE("agent transport: the socket file goes with the listener")
 
 TEST_CASE("agent transport: a file in the way of the socket is replaced")
 {
+    const scoped_runtime_base base;
+    REQUIRE(base.made());
     const scoped_instance instance;
     boost::asio::io_context io;
     const auto address = agent::local_address(instance.name());
     REQUIRE(address);
-    const std::filesystem::path socket(*address);
+
+    // The stale file is made under the directory this test made, not under
+    // a path taken from the environment.
+    const std::filesystem::path listed(*address);
+    const std::filesystem::path socket = std::filesystem::path(base.path()) /
+                                         listed.parent_path().filename() /
+                                         listed.filename();
+    REQUIRE(socket == listed);
 
     // A first listener makes the directory; its socket goes with it.
     {
