@@ -2014,11 +2014,12 @@ TEST_CASE("plugin service: what a plugin reports of the licence is in the "
             const service_plugin* const plugin = find(latest, official_id);
             return plugin != nullptr && plugin->licence_report.has_value();
         });
-    const service_plugin& entry = entry_of(*reported, official_id);
-    REQUIRE(entry.licence_report.value().reason ==
-            vss::license::reason::expired);
-    REQUIRE_EQ(entry.licence_report.value().licence_id,
-               std::string("VSS-2026-000042"));
+    const std::optional<vss::plugin::host::plugin_licence_report> said =
+        entry_of(*reported, official_id).licence_report;
+    if (!said.has_value())
+        throw vss_test::failure("the report is not in the snapshot");
+    REQUIRE(said->reason == vss::license::reason::expired);
+    REQUIRE_EQ(said->licence_id, std::string("VSS-2026-000042"));
 
     // A plugin that is off has said nothing in a run.
     service.set_enabled(std::string(official_id), false);
