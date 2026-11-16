@@ -10,6 +10,7 @@
 
 #include <vss/machine/folders.hpp>
 #include <vss/plugin/api_licence.hpp>
+#include <vss/plugin/host/bundle_point.hpp>
 #include <vss/plugin/host/sandbox.hpp>
 #include <vss/plugin/install.hpp>
 #include <vss/plugin/locations.hpp>
@@ -593,6 +594,9 @@ ServicePluginBackend::make_handlers(const host::extension_context& context)
         };
         handlers.push_back(host::make_generator_point(context, std::move(owner)));
     }
+    // A section of the support bundle: the handler is here so that a plugin's
+    // answer is taken, but the support bundle dialog does not ask for one yet.
+    handlers.push_back(host::make_bundle_point(context, slow_.get_executor()));
     // The licence file, as it was read on the slow thread: a copy of bytes
     // held here, never a read on the service's strand.
     handlers.push_back(host::make_licence_point(
