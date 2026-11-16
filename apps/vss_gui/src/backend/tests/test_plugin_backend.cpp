@@ -10,6 +10,7 @@
 // test_service_backend.cpp.
 //
 
+#include "backend/engine_studio_backend.hpp"
 #include "backend/fake_plugin_backend.hpp"
 #include "backend/fake_studio_backend.hpp"
 #include "backend/plugin_mapping.hpp"
@@ -17,6 +18,7 @@
 
 #include <vss/license/sign.hpp>
 #include <vss/plugin/trust_store.hpp>
+#include <vss/studio/studio.hpp>
 
 #include "test_framework.hpp"
 
@@ -247,4 +249,27 @@ TEST_CASE("plugin places: ports by name, links by the names of their ends")
     REQUIRE(links > 0);
     // A name nobody has is not there.
     REQUIRE(table->find(std::string("no such place")) == table->end());
+}
+
+TEST_CASE("plugin places: the ports a plugin may write to are the hub's own "
+          "endpoints, by name")
+{
+    vss::studio_options options;
+    vss::studio studio(options);
+    EngineStudioBackend backend(studio);
+    const auto first = backend.create_virtual_port(
+        QStringLiteral("Alpha"), vss::virtual_port_kind::loopback, false);
+    const auto second = backend.create_virtual_port(
+        QStringLiteral("Beta"), vss::virtual_port_kind::loopback, false);
+    REQUIRE(first.has_value());
+    REQUIRE(second.has_value());
+    const auto table = make_plugin_endpoint_table(backend, studio.engine());
+    REQUIRE(table != nullptr);
+    REQUIRE_EQ(table->size(), std::size_t{2});
+    const auto alpha = table->find(std::string("Alpha"));
+    REQUIRE(alpha != table->end());
+    REQUIRE(alpha->second == studio.engine().find_endpoint(*first));
+    REQUIRE(table->find(std::string("Beta"))->second ==
+            studio.engine().find_endpoint(*second));
+    REQUIRE(table->find(std::string("Gamma")) == table->end());
 }

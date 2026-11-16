@@ -314,7 +314,26 @@ Context `PluginsDialog`. A section headed "What it runs", between the permission
 - A refused instance shows Studio's sentence under its row (muted): "The plugin does not offer this." (the description has no such point), "The plugin allows no more of these.", "The plugin did not answer." or "The plugin turned it down."; and when the plugin gave a reason of its own, "The plugin says: “<reason>”" as plain text.
 - While the plugin still has older settings than the ones set, the muted line "Sending the new settings".
 - A quiet button "Add..." opens a menu with one entry for each extension point of the plugin. An entry is disabled when the plugin allows no more of that point (tooltip "The plugin allows no more of these.") and when the point has a setting with no default, which Studio cannot ask for yet (tooltip "This needs settings that Studio cannot ask for yet."). Adding makes the instance with the next free number and the default settings, and calls the service with the whole new list. The button is disabled for a plugin that cannot be used, needs a newer Studio, is blocked or is not used.
-- Forms for an instance's settings are not part of this release: `Settings forms`, below, are the design.
+- A point with a setting that has no default (a port or a link to name, or plain text) asks for it first, in the dialog "Add <point name>" below. A point with another kind of setting that has no default (a number, a path, a secret) cannot be added from the page yet: its entry in the menu is disabled with the tooltip "This needs settings that Studio cannot ask for yet.". Forms for changing an instance's settings afterwards are not part of this release: `Settings forms`, below, are the design.
+
+### Support bundle sections
+A plugin that declares sections for the support bundle is answered when it sends `bundle.result`, so that nothing is refused as an unknown message. The support bundle dialog does not ask a plugin for a section in this release: nothing is added to a bundle from a plugin, and no row for one is shown.
+
+### What it found (decoders)
+Context `PluginsDialog`. Under the row of each running instance of a decoder, a section headed "What it found": a plain table of the newest frames and triggers the decoder handed Studio, newest first, at most 300 rows. Columns: "Time" (seconds on the hub's clock, for example "12.345 s"), "Place", "Direction" ("Received" or "Sent"), "What" (a frame's summary; a trigger's text) and "Kind" (a frame: its message name; a trigger: "Framing", "Unknown type", "Unknown value", "Check", "Length", "Timeout", "Sequence", "Contention", "Line error", "Decoder lost", or for a custom one the plugin's own code). The table is read only, has the accessible name "What <point name> found", and is reachable by keyboard.
+
+Every text in a row is the plugin's own: plain text, never rich text, with control characters and direction marks removed. A muted line under the heading says "These words come from the plugin." With nothing yet: "Nothing found yet." When the store has dropped or refused anything, a muted line: "Left out: <n> dropped to stay within the limits, <n> refused, <n> over the rate limit." (only the counts that are not zero). When more than 300 rows are held: "Showing the newest 300 of <n>."
+
+The table is refreshed about four times a second while it is on the screen, from the instance's store (which the decoder fills; the page never touches the plugin's threads). The store keeps what it holds for as long as the plugin is installed. A trigger has a kind and no severity in the plugin API, so the table shows none.
+
+The places a decoder reads come from its settings: a setting named `places` (a list of names, or one name), `place` or `port`. There is no binding in the setup file yet.
+
+### Add <point name> (width 520)
+Context `PluginInstanceDialog`. Opens from an entry of the "Add..." menu whose extension point has settings to ask for. Modal. Title "Add <point name>". Sub "<plugin name> needs these settings first."
+
+One row for each setting that has no default and is text: the plugin's label (plain text), then the field, then the plugin's help text as a muted line. A setting named `port`, `place` or `places` is an editable combo box of the names of the ports and links in the setup, with nothing chosen at first; any other is a line of text. The label is the field's accessible name and the help its accessible description. A muted line under the rows: "These words come from the plugin."
+
+Buttons: Cancel, "Add" (primary). "Add" is disabled until every field has text. Nothing is made if the person cancels. Studio checks what was given against the plugin's description (type, length, plain text); a value it refuses makes no instance.
 
 Acceptance: every row and button is reachable by keyboard in the order of the page; the state words are text, never colour alone; the section reads as a list.
 

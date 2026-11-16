@@ -15,7 +15,9 @@
 
 #include "backend/plugin_view.hpp"
 
+#include <QMap>
 #include <QObject>
+#include <QStringList>
 
 #include <atomic>
 
@@ -69,8 +71,21 @@ public:
 
     /// Asks the plugin for one more instance of the extension point with
     /// this id, with its default settings. Kept for the next start.
-    virtual void add_instance(const QString& plugin_id,
-                              const QString& point_id) = 0;
+    virtual void add_instance(const QString& plugin_id, const QString& point_id,
+                              const QMap<QString, QString>& values) = 0;
+    /// What a decoder instance has found so far, newest first, or nothing
+    /// when there is no such instance. Cheap: it reads a window the store
+    /// publishes, never the plugin's threads. On the GUI thread.
+    virtual plugin_found_ptr found(const QString& plugin_id,
+                                   quint64 instance) const
+    {
+        static_cast<void>(plugin_id);
+        static_cast<void>(instance);
+        return nullptr;
+    }
+    /// The names of the ports and links of the setup, for a setting that
+    /// names one. On the GUI thread.
+    virtual QStringList place_names() const { return {}; }
     /// Takes the instance with this number away.
     virtual void remove_instance(const QString& plugin_id, quint64 number) = 0;
     /// The user's answer to a `secret_requested`: `seen` when the code was on

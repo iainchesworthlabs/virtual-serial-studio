@@ -24,6 +24,9 @@
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/host/capture_point.hpp>
 #include <vss/plugin/host/control_point.hpp>
+#include <vss/plugin/host/decode_store.hpp>
+#include <vss/plugin/host/decoder_point.hpp>
+#include <vss/plugin/host/generator_point.hpp>
 #include <vss/plugin/host/licence_point.hpp>
 #include <vss/plugin/host/secret_point.hpp>
 #include <vss/plugin/host/service.hpp>
@@ -90,6 +93,11 @@ struct licence_file_ref
 using plugin_place_table =
     std::map<std::string, vss::plugin::host::capture_place, std::less<>>;
 
+/// The ports a plugin may write to, by the name it uses for them. Immutable
+/// once published.
+using plugin_endpoint_table =
+    std::map<std::string, std::shared_ptr<vss::endpoint>, std::less<>>;
+
 /// The licence file in use in what the backend knows of the licence, or
 /// nothing for the Community edition.
 std::optional<licence_file_ref> licence_file_in_use(const licence_view& view);
@@ -136,8 +144,11 @@ public:
     void add_plugin(const QString& folder) override;
     void remove_plugin(const QString& plugin_id, const QString& hash,
                        bool delete_saved_data) override;
-    void add_instance(const QString& plugin_id,
-                      const QString& point_id) override;
+    void add_instance(const QString& plugin_id, const QString& point_id,
+                      const QMap<QString, QString>& values) override;
+    QStringList place_names() const override;
+    plugin_found_ptr found(const QString& plugin_id,
+                           quint64 instance) const override;
     void remove_instance(const QString& plugin_id, quint64 number) override;
     void answer_secret(quint64 id, bool seen) override;
     void answer_control(quint64 id, bool allowed) override;
@@ -146,6 +157,8 @@ public:
     /// whenever the ports or links change; the service reads the table it
     /// last got, never a GUI object.
     void set_places(std::shared_ptr<const plugin_place_table> places);
+    /// Publishes the ports a plugin may write to, the same way.
+    void set_writable_ports(std::shared_ptr<const plugin_endpoint_table> ports);
 
 private:
     void after_change();
@@ -160,6 +173,12 @@ private:
                      std::function<void(bool)> done);
     void answer_all_prompts_no();
     void load_instances();
+    std::optional<vss::plugin::host::capture_place>
+    find_place(std::string_view name) const;
+    std::shared_ptr<vss::plugin::host::decode_store>
+    store_for(const std::string& plugin_id, std::uint64_t instance, bool make);
+    void forget_stores(const std::string& plugin_id,
+                       std::optional<std::uint64_t> instance);
     void restart_waiting_plugins();
     void save_instances() const;
     vss::plugin::inspect_context context_now() const;
@@ -188,6 +207,7 @@ private:
     /// Plugins switched off to be removed once they have stopped.
     std::vector<pending_removal> removals_;
     std::shared_ptr<const plugin_place_table> places_;
+    std::shared_ptr<const plugin_endpoint_table> writable_;
     /// The answers owed for the dialogs asked for and not yet answered.
     std::map<quint64, std::function<void(bool)>> secret_done_;
     std::map<quint64, std::function<void(bool)>> control_done_;
@@ -200,6 +220,10 @@ private:
         std::vector<vss::plugin::host::instance_spec> list;
     };
     std::map<std::string, kept_instances> instances_;
+    /// What each decoder instance found, kept while the plugin is installed.
+    std::map<std::pair<std::string, std::uint64_t>,
+             std::shared_ptr<vss::plugin::host::decode_store>>
+        stores_;
     /// The bytes of the licence file in use, read on the slow thread; empty
     /// for none. Swapped whole, so the service's strand copies a snapshot.
     std::shared_ptr<const vss::byte_buffer> licence_bytes_;

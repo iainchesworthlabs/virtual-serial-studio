@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<!-- Translation origin: Plugin dialogs for rc.6 -->
+<!-- Translation origin: Decoder table and instance settings -->
 <TS version="2.1" language="ja">
     <context>
         <name>About</name>
@@ -451,6 +451,16 @@
             <location filename="../src/support/update_text.cpp" line="107" />
             <source>Never</source>
             <translation>なし</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="285" />
+            <source>Copy this into a bug report. It answers "what is this running on?"</source>
+            <translation>バグ報告に貼り付けてください。「何の上で動いているか」がわかります。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="324" />
+            <source>No fonts are bundled. Studio uses your system's UI font.</source>
+            <translation>フォントは同梱されていません。StudioはシステムのUIフォントを使用します。</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="285" />
@@ -1189,6 +1199,11 @@
             <source>Attaching</source>
             <translation>接続中</translation>
         </message>
+        <message>
+            <location filename="../src/flows/attach_dialog.cpp" line="388" />
+            <source>Most devices use these settings. If you see garbled text, check the device's manual.</source>
+            <translation>ほとんどのデバイスはこの設定を使います。文字化けする場合は、デバイスのマニュアルを確認してください。</translation>
+        </message>
     </context>
     <context>
         <name>Benchmark</name>
@@ -1758,6 +1773,11 @@
             <location filename="../src/shell/command_palette.cpp" line="372" />
             <source>ADVANCED</source>
             <translation>高度</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/command_palette.cpp" line="315" />
+            <source>Nothing in %1 matches "%2".</source>
+            <translation>%1に「%2」に一致するものはありません。</translation>
         </message>
         <message>
             <location filename="../src/shell/command_palette.cpp" line="315" />
@@ -2756,6 +2776,11 @@ Networks: %5</source>
             <source>See every action's shortcut in one list.</source>
             <translation>すべての操作のショートカットを一覧で確認します。</translation>
         </message>
+        <message>
+            <location filename="../src/support/help_contents_dialog.cpp" line="99" />
+            <source>See every action's shortcut in one list.</source>
+            <translation>すべての操作のショートカットを一覧で確認します。</translation>
+        </message>
     </context>
     <context>
         <name>HelpContentsDialog</name>
@@ -2973,6 +2998,17 @@ Networks: %5</source>
             <location filename="../src/panes/inspector_panel.cpp" line="553" />
             <source>Bytes received and sent in total. The status bar shows the current rate.</source>
             <translation>受信と送信の合計バイト数です。現在の速度はステータスバーに表示されます。</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="334" />
+            <location filename="../src/panes/inspector_panel.cpp" line="571" />
+            <source>&lt;a href="troubleshoot"&gt;Why is nothing arriving?&lt;/a&gt;</source>
+            <translation>&lt;a href="troubleshoot"&gt;なぜ何も届かないのですか?&lt;/a&gt;</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="409" />
+            <source>&lt;a href="faults"&gt;Open line matrix and faults&lt;/a&gt;</source>
+            <translation>&lt;a href="faults"&gt;ライン配線と障害を開く&lt;/a&gt;</translation>
         </message>
     </context>
     <context>
@@ -3573,6 +3609,31 @@ Networks: %5</source>
             <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
             <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 1 分かかることがあります。</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="608" />
+            <source>I'll type to it from this window</source>
+            <translation>このウィンドウから入力します</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="664" />
+            <source>Other computers connect to this PC's address on this port. 4001 is common for serial over the network.</source>
+            <translation>ほかのコンピューターは、このPCのアドレスのこのポートに接続します。シリアル通信をネットワーク経由で行う場合は、4001 がよく使われます。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="688" />
+            <source>Check the device's manual. A wrong rate usually shows as garbled text.</source>
+            <translation>デバイスのマニュアルで確認してください。速度が違うと、通常は文字化けします。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="787" />
+            <source>Lists the data sent in each direction on the setup's page. It does not change the data. You can turn it on later.</source>
+            <translation>セットアップのページに、各方向に送られたデータを一覧表示します。データは変更されません。あとからオンにすることもできます。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1517" />
+            <source>Enter the device's network address.</source>
+            <translation>デバイスのネットワークアドレスを入力してください。</translation>
+        </message>
     </context>
     <context>
         <name>JobGrid</name>
@@ -3832,6 +3893,11 @@ Networks: %5</source>
             <location filename="../src/shell/launcher.cpp" line="344" />
             <source>Set up Virtual Serial Studio</source>
             <translation>Virtual Serial Studio をセットアップ</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/launcher.cpp" line="283" />
+            <source>&lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds addresses, fault injection and port ownership to this window. Nothing you have built changes.</source>
+            <translation>&lt;a href="advanced"&gt;高度モード&lt;/a&gt;では、このウィンドウにアドレス、障害の注入、ポートの所有権が追加されます。作成済みの内容は変わりません。</translation>
         </message>
         <message>
             <location filename="../src/shell/launcher.cpp" line="283" />
@@ -5396,6 +5462,21 @@ Networks: %5</source>
             <source>From macOS 15, an app needs your permission to find and connect to devices on the local network. Studio cannot check the answer. If you chose Don't Allow and other computers cannot connect, open System Settings, Privacy &amp; Security, Local Network, and turn Virtual Serial Studio on.</source>
             <translation>macOS 15 以降では、ローカルネットワーク上のデバイスを探して接続するために、アプリにユーザーの許可が必要です。Studio は回答を確認できません。「許可しない」を選び、他のコンピューターから接続できない場合は、システム設定の「プライバシーとセキュリティ」→「ローカルネットワーク」を開き、Virtual Serial Studio をオンにしてください。</translation>
         </message>
+        <message>
+            <location filename="../src/support/permission_dialog.cpp" line="144" />
+            <source>The profile may refuse serial devices, pseudo terminals or Studio's link folder. If a program is refused, add the lines below to the local override of the profile and reload it. Studio never edits a profile.</source>
+            <translation>プロファイルがシリアルデバイス、疑似端末、または Studio のリンク用フォルダーを拒否することがあります。プログラムが拒否される場合は、下の行をプロファイルのローカル上書きに追加して再読み込みしてください。Studio がプロファイルを編集することはありません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/permission_dialog.cpp" line="218" />
+            <source>With the firewall on, macOS asks whether the program may accept incoming connections, once for each program. Choose Allow. If you chose Don't Allow, open System Settings, Network, Firewall, Options, and set the program to Allow incoming connections, or run the commands below in a terminal. Studio never changes the firewall.</source>
+            <translation>ファイアウォールがオンの場合、macOS はプログラムごとに 1 回、受信接続を受け付けてよいかを尋ねます。「許可」を選んでください。「許可しない」を選んだ場合は、システム設定の「ネットワーク」→「ファイアウォール」→「オプション」を開き、そのプログラムを「外部からの接続を許可」に設定するか、下のコマンドをターミナルで実行してください。Studio がファイアウォールを変更することはありません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/permission_dialog.cpp" line="277" />
+            <source>From macOS 15, an app needs your permission to find and connect to devices on the local network. Studio cannot check the answer. If you chose Don't Allow and other computers cannot connect, open System Settings, Privacy &amp; Security, Local Network, and turn Virtual Serial Studio on.</source>
+            <translation>macOS 15 以降では、ローカルネットワーク上のデバイスを探して接続するために、アプリにユーザーの許可が必要です。Studio は回答を確認できません。「許可しない」を選び、他のコンピューターから接続できない場合は、システム設定の「プライバシーとセキュリティ」→「ローカルネットワーク」を開き、Virtual Serial Studio をオンにしてください。</translation>
+        </message>
     </context>
     <context>
         <name>PickCard</name>
@@ -5742,6 +5823,17 @@ Networks: %5</source>
             <location filename="../src/flows/port_ready_dialog.cpp" line="407" />
             <source>Auto</source>
             <translation>自動</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/port_ready_dialog.cpp" line="91" />
+            <source>The port "%1" was created. Only Studio can open it.</source>
+            <translation>ポート「%1」を作成しました。開けるのは Studio だけです。</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/port_ready_dialog.cpp" line="98" />
+            <location filename="../src/flows/port_ready_dialog.cpp" line="105" />
+            <source>The port "%1" was created. Other programs can open it.</source>
+            <translation>ポート「%1」を作成しました。他のプログラムから開けます。</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="91" />
@@ -6934,6 +7026,11 @@ Networks: %5</source>
             <source>Open your operating system's display or accessibility settings yourself.</source>
             <translation>オペレーティングシステムのディスプレイまたはアクセシビリティの設定を、ご自身で開いてください。</translation>
         </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="491" />
+            <source>Open your operating system's display or accessibility settings yourself.</source>
+            <translation>オペレーティングシステムのディスプレイまたはアクセシビリティの設定を、ご自身で開いてください。</translation>
+        </message>
     </context>
     <context>
         <name>SetupCheck</name>
@@ -7617,6 +7714,21 @@ Networks: %5</source>
             <source>Your account is not an administrator, so Windows will ask for an administrator's password.</source>
             <translation>お使いのアカウントは管理者ではないので、Windows が管理者のパスワードを求めます。</translation>
         </message>
+        <message>
+            <location filename="../src/support/permission_rows.cpp" line="327" />
+            <source>If you chose Don't Allow</source>
+            <translation>「許可しない」を選んだ場合</translation>
+        </message>
+        <message>
+            <location filename="../src/support/permission_rows.cpp" line="366" />
+            <source>macOS 15 and later asks once whether apps may connect to devices on your local network. It cannot be checked from here; if you chose Don't Allow, turn it on again.</source>
+            <translation>macOS 15 以降では、アプリがローカルネットワーク上のデバイスに接続してよいかを macOS が 1 回だけ尋ねます。ここからは確認できません。「許可しない」を選んだ場合は、オンに戻してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/permission_rows.cpp" line="461" />
+            <source>Your account is not an administrator, so Windows will ask for an administrator's password.</source>
+            <translation>お使いのアカウントは管理者ではないので、Windows が管理者のパスワードを求めます。</translation>
+        </message>
     </context>
     <context>
         <name>SetupCheckDialog</name>
@@ -7939,6 +8051,11 @@ Networks: %5</source>
             <location filename="../src/simple/setup_page.cpp" line="703" />
             <source>Could not send to %1. %2</source>
             <translation>%1 に送信できませんでした。%2</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_page.cpp" line="485" />
+            <source>No program has opened %1 yet. In %2, choose exactly %1. This changes as soon as one does. &lt;a href="help"&gt;Nothing arriving?&lt;/a&gt;</source>
+            <translation>まだ %1 を開いたプログラムはありません。%2 で、%1 とまったく同じ名前を選んでください。開かれると、この表示はすぐに変わります。&lt;a href="help"&gt;何も届きませんか?&lt;/a&gt;</translation>
         </message>
         <message>
             <location filename="../src/simple/setup_page.cpp" line="485" />
@@ -8501,6 +8618,21 @@ Networks: %5</source>
             <location filename="../src/dialogs/share_wizard.cpp" line="1627" />
             <source>The Waiting labels change to Program connected as each program opens their port.</source>
             <translation>各プログラムがポートを開くと、「待機中」の表示が「プログラム接続済み」に変わります。</translation>
+        </message>
+        <message>
+            <location filename="../src/dialogs/share_wizard.cpp" line="557" />
+            <source>You can add another program after sharing, and remove any program's port later with Remove port.</source>
+            <translation>共有したあとでプログラムを追加できます。各プログラムのポートは、あとから「ポートを削除」で削除できます。</translation>
+        </message>
+        <message>
+            <location filename="../src/dialogs/share_wizard.cpp" line="1005" />
+            <source>Each program gets its own port. Studio copies the device's data to all of them.</source>
+            <translation>各プログラムに専用のポートが割り当てられます。Studioはデバイスのデータをそのすべてにコピーします。</translation>
+        </message>
+        <message>
+            <location filename="../src/dialogs/share_wizard.cpp" line="1479" />
+            <source>Remove a program's port first if you need a different one.</source>
+            <translation>別の数が必要な場合は、先にプログラムのポートを削除してください。</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="557" />
@@ -9859,6 +9991,11 @@ Networks: %5</source>
             <source>Don't save</source>
             <translation>保存しない</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3551" />
+            <source>Don't save</source>
+            <translation>保存しない</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -11180,6 +11317,137 @@ Networks: %5</source>
             <source>Line %1: no port is called "%2"</source>
             <translation>%1行目: "%2" という名前のポートはありません</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="332" />
+            <source>This build cannot run a bus as a half-duplex line. Remove "half_duplex" from the link.</source>
+            <translation>このビルドではバスを半二重回線として動かせません。リンクから "half_duplex" を削除してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="343" />
+            <source>Remove "half_duplex", or make the link a bus.</source>
+            <translation>"half_duplex" を削除するか、リンクをバスにしてください。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="352" />
+            <source>"half_duplex" must be an object</source>
+            <translation>"half_duplex" はオブジェクトである必要があります</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="385" />
+            <source>Set "bit_rate" to a whole number in that range.</source>
+            <translation>"bit_rate" をその範囲の整数にしてください。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="397" />
+            <source>Set "turnaround_ms" to a whole number in that range.</source>
+            <translation>"turnaround_ms" をその範囲の整数にしてください。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="412" />
+            <source>"collisions" must be report or garble</source>
+            <translation>"collisions" は report か garble にしてください</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="423" />
+            <source>"rts_gating" must be true or false</source>
+            <translation>"rts_gating" は true か false にしてください</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="666" />
+            <source>The document needs "version": 1</source>
+            <translation>ドキュメントには "version": 1 が必要です</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="699" />
+            <source>"ports" must be a list</source>
+            <translation>"ports" はリストである必要があります</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="784" />
+            <source>Line %1: the name "%2" is used twice</source>
+            <translation>%1行目: 名前 "%2" が重複しています</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="789" />
+            <source>The name "%1" is used twice</source>
+            <translation>名前 "%1" が重複しています</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="828" />
+            <source>Line %1: unknown port kind "%2"</source>
+            <translation>%1行目: 不明なポートの種類 "%2"</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="832" />
+            <source>Unknown port kind "%1"</source>
+            <translation>不明なポートの種類 "%1"</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="872" />
+            <source>Line %1: unknown virtual kind "%2"</source>
+            <translation>%1行目: 不明な仮想の種類 "%2"</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="877" />
+            <source>Unknown virtual kind "%1"</source>
+            <translation>不明な仮想の種類 "%1"</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="909" />
+            <source>Line %1: port "%2" has no address</source>
+            <translation>%1行目: ポート "%2" にアドレスがありません</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="914" />
+            <source>Port "%1" has no address</source>
+            <translation>ポート "%1" にアドレスがありません</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="943" />
+            <source>"links" must be a list</source>
+            <translation>"links" はリストである必要があります</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="1019" />
+            <source>Line %1: unknown link mode "%2"</source>
+            <translation>%1行目: 不明なリンクモード "%2"</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="1023" />
+            <source>Unknown link mode "%1"</source>
+            <translation>不明なリンクモード "%1"</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="1032" />
+            <source>Did you mean "%1"? The line is highlighted and nothing was applied.</source>
+            <translation>"%1" のことですか? 該当行が強調表示され、何も適用されていません。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="1140" />
+            <source>List the ports of the bus in "members". Nothing was applied.</source>
+            <translation>バスのポートを "members" に列挙してください。何も適用されていません。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="1157" />
+            <location filename="../src/advanced/json_validation.cpp" line="1338" />
+            <source>No port is called "%1"</source>
+            <translation>"%1" という名前のポートはありません</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="1287" />
+            <source>Line %1: "%2" has the wrong number of ports</source>
+            <translation>%1行目: "%2" のポート数が正しくありません</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="1292" />
+            <source>"%1" has the wrong number of ports</source>
+            <translation>"%1" のポート数が正しくありません</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="1333" />
+            <source>Line %1: no port is called "%2"</source>
+            <translation>%1行目: "%2" という名前のポートはありません</translation>
+        </message>
     </context>
     <context>
         <name>TopologyJsonEditor</name>
@@ -11310,6 +11578,11 @@ Networks: %5</source>
             <location filename="../src/advanced/json_editor.cpp" line="503" />
             <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
             <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 1 分かかることがあります。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_editor.cpp" line="674" />
+            <source>Use "%1"</source>
+            <translation>「%1」を使用</translation>
         </message>
         <message>
             <location filename="../src/advanced/json_editor.cpp" line="674" />
@@ -11583,6 +11856,11 @@ Networks: %5</source>
             <location filename="../src/support/troubleshoot_dialog.cpp" line="1" />
             <source>Still stuck? A support bundle gathers the setup, the log and the environment for whoever helps you. The bytes your ports sent and received are never included.</source>
             <translation>解決しませんか? サポートバンドルには、ヘルプを依頼する相手に必要なセットアップ、ログ、環境情報がまとめられます。ポートが送受信したバイトは含まれません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/troubleshoot.cpp" line="308" />
+            <source>%1 has not sent anything in the last minute. Check the cable and the device's power.</source>
+            <translation>%1は直近1分間に何も送信していません。ケーブルとデバイスの電源を確認してください。</translation>
         </message>
         <message>
             <location filename="../src/support/troubleshoot.cpp" line="308" />
@@ -18966,6 +19244,11 @@ Networks: %5</source>
             <source>Several programs send to one device, but only one at a time, so their bytes never mix. You choose which. All of them get the device's replies.</source>
             <translation>複数のプログラムが1つのデバイスに送信しますが、同時に送信できるのは1つだけなので、バイトが混ざることはありません。どれにするかはあなたが選びます。デバイスからの応答はすべてのプログラムに届きます。</translation>
         </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="435" />
+            <source>Several programs send to one device, but only one at a time, so their bytes never mix. You choose which. All of them get the device's replies.</source>
+            <translation>複数のプログラムが1つのデバイスに送信しますが、同時に送信できるのは1つだけなので、バイトが混ざることはありません。どれにするかはあなたが選びます。デバイスからの応答はすべてのプログラムに届きます。</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::simple::SetupPage</name>
@@ -19604,6 +19887,11 @@ Networks: %5</source>
             <location filename="../src/support/driver_setup_dialog.cpp" line="273" />
             <source>Setup finished, but this PC still cannot make ports: %1. Copy the details if you ask for help.</source>
             <translation>セットアップは完了しましたが、この PC ではまだポートを作成できません: %1。助けを求める場合は詳細をコピーしてください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="302" />
+            <source>Windows could not install the driver, and nothing else was changed. Copy the details, or run the command shown in a terminal opened as administrator to see Windows' own message.</source>
+            <translation>Windows がドライバーをインストールできず、他は何も変更していません。詳細をコピーするか、管理者として開いたターミナルで表示されたコマンドを実行して、Windows 自身のメッセージを確認してください。</translation>
         </message>
         <message>
             <location filename="../src/support/elevated_step.cpp" line="302" />
@@ -20426,6 +20714,11 @@ Networks: %5</source>
             <location filename="../src/topology/toolbox.cpp" line="1" />
             <source>Show in Plugins</source>
             <translation>プラグインで表示</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="153" />
+            <source>A passive copy of one port's traffic</source>
+            <translation>1つのポートのトラフィックの受動的なコピー</translation>
         </message>
         <message>
             <location filename="../src/topology/toolbox.cpp" line="153" />
@@ -21419,6 +21712,16 @@ Networks: %5</source>
             <source>This computer's name</source>
             <translation>このコンピューターの名前</translation>
         </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="398" />
+            <source>Whether the Studio driver and com0com are present, their versions, how the driver is signed, the helper service's state and the results of the setup check.</source>
+            <translation>Studioドライバーとcom0comがあるかどうか、それぞれのバージョン、ドライバーの署名方法、ヘルパーサービスの状態、セットアップチェックの結果です。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="460" />
+            <source>This computer's name</source>
+            <translation>このコンピューターの名前</translation>
+        </message>
     </context>
     <context>
         <name>SupportDialog</name>
@@ -21993,6 +22296,11 @@ Networks: %5</source>
             <location filename="../src/support/plugin_dialogs.cpp" line="193" />
             <source>You allowed an earlier version of this plugin. Look at what changed before you allow this one.</source>
             <translation>このプラグインの以前のバージョンを許可しています。このバージョンを許可する前に、変更点を確認してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="176" />
+            <source>Import the author's key...</source>
+            <translation>作者のキーをインポート...</translation>
         </message>
     </context>
     <context>
@@ -23313,6 +23621,162 @@ Networks: %5</source>
             <source>Choose an author's public key file</source>
             <translation>作成者の公開キーファイルを選択</translation>
         </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="730" />
+            <source>Framing</source>
+            <translation>フレーミング</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="734" />
+            <source>Unknown type</source>
+            <translation>不明な種類</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="738" />
+            <source>Unknown value</source>
+            <translation>不明な値</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="741" />
+            <source>Check</source>
+            <translation>チェック</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="744" />
+            <source>Length</source>
+            <translation>長さ</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="747" />
+            <source>Timeout</source>
+            <translation>タイムアウト</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="751" />
+            <source>Sequence</source>
+            <translation>順序</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="755" />
+            <source>Contention</source>
+            <translation>競合</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="759" />
+            <source>Line error</source>
+            <translation>回線エラー</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="763" />
+            <source>Decoder lost</source>
+            <translation>デコーダーを見失った</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="632" />
+            <location filename="../src/support/plugins_dialog.cpp" line="2021" />
+            <source>That folder is not a plugin. A plugin's folder holds a file named plugin.json.</source>
+            <translation>そのフォルダーはプラグインではありません。プラグインのフォルダーには plugin.json という名前のファイルがあります。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="777" />
+            <source>Studio deletes the plugin's folder. Setups that use it keep their parts, which stop working until the plugin is installed again. Its saved data is kept unless you tick the box.</source>
+            <translation>Studio はプラグインのフォルダーを削除します。このプラグインを使うセットアップは各パーツを保持しますが、プラグインを再インストールするまで動作しません。保存されたデータは、チェックボックスをオンにしない限り残ります。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="158" />
+            <source>Can't be used</source>
+            <translation>使用できません</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="396" />
+            <source>Studio carries out this plugin's rules itself, so its timing is exact and it keeps working if the plugin stops.</source>
+            <translation>Studio がこのプラグインのルールを自分で実行するため、タイミングは正確で、プラグインが停止しても動作し続けます。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="912" />
+            <source>%1 s</source>
+            <translation>%1 秒</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="916" />
+            <source>Received</source>
+            <translation>受信</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="918" />
+            <source>Sent</source>
+            <translation>送信</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="929" />
+            <source>Left out: %1 dropped to stay within the limits, %2 refused, %3 over the rate limit.</source>
+            <translation>除外: 上限内に収めるため %1 件を破棄、%2 件を拒否、%3 件がレート制限超過。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="939" />
+            <source>Showing the newest %1 of %2.</source>
+            <translation>最新の %1 件を表示しています（全 %2 件）。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1185" />
+            <source>Import the author's key...</source>
+            <translation>作者のキーをインポート...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1525" />
+            <source>What it found</source>
+            <translation>検出内容</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1530" />
+            <source>These words come from the plugin.</source>
+            <translation>これらの言葉はプラグインから出力されたものです。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1537" />
+            <source>Nothing found yet.</source>
+            <translation>まだ何も検出されていません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1549" />
+            <source>Time</source>
+            <translation>時刻</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1550" />
+            <source>Place</source>
+            <translation>場所</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1551" />
+            <source>Direction</source>
+            <translation>方向</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1552" />
+            <source>What</source>
+            <translation>内容</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1553" />
+            <source>Kind</source>
+            <translation>種類</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1562" />
+            <source>What %1 found</source>
+            <translation>%1 の検出内容</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1852" />
+            <source>Choose a plugin's folder</source>
+            <translation>プラグインのフォルダーを選択</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1889" />
+            <source>Choose an author's public key file</source>
+            <translation>作成者の公開キーファイルを選択</translation>
+        </message>
     </context>
     <context>
         <name>PluginToolbox</name>
@@ -23584,6 +24048,16 @@ From the plugin %2
             <source>Allow</source>
             <translation>許可</translation>
         </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1219" />
+            <source>%1 asks to use this computer's ports for another computer.</source>
+            <translation>%1 が、別のコンピューターのためにこのコンピューターのポートを使うことを要求しています。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1244" />
+            <source>The plugin's own words</source>
+            <translation>プラグイン自身の言葉</translation>
+        </message>
     </context>
     <context>
         <name>PluginSecretDialog</name>
@@ -23647,6 +24121,34 @@ From the plugin %2
             <location filename="../src/support/plugin_dialogs.cpp" line="1026" />
             <source>This code is no longer good. Ask the plugin for a new one.</source>
             <translation>このコードは無効になりました。プラグインに新しいコードを求めてください。</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginInstanceDialog</name>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="823" />
+            <source>Add %1</source>
+            <translation>%1を追加</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="825" />
+            <source>%1 needs these settings first.</source>
+            <translation>%1 には、先に次の設定が必要です。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="867" />
+            <source>These words come from the plugin.</source>
+            <translation>これらの言葉はプラグインから出力されたものです。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="875" />
+            <source>Cancel</source>
+            <translation>キャンセル</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="878" />
+            <source>Add</source>
+            <translation>追加</translation>
         </message>
     </context>
 </TS>

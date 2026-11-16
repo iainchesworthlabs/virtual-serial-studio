@@ -118,6 +118,18 @@ enum class plugin_addition_kind
     connection
 };
 
+/// A setting Studio asks for when it makes an instance: it has no default,
+/// and it is text, so one field takes it.
+struct plugin_parameter_ask
+{
+    QString id;
+    /// The plugin's label and help. Untrusted.
+    QString label;
+    QString help;
+    /// It names a port or a link of the setup (`port`, `place`, `places`).
+    bool place_name = false;
+};
+
 struct plugin_addition
 {
     plugin_addition_kind kind = plugin_addition_kind::fixture;
@@ -128,8 +140,10 @@ struct plugin_addition
     QString description;
     /// How many instances of it the plugin allows.
     int max_instances = 1;
-    /// It has a setting with no default, which Studio cannot ask for yet, so
-    /// Studio cannot make an instance of it.
+    /// Settings with no default that Studio asks for in a small dialog.
+    std::vector<plugin_parameter_ask> asks;
+    /// It has another setting with no default, which Studio cannot ask for
+    /// yet, so Studio cannot make an instance of it.
     bool needs_settings = false;
 };
 
@@ -160,7 +174,38 @@ struct plugin_instance_view
     QString reason;
     /// The plugin has older settings than the ones set.
     bool settings_pending = false;
+    /// An instance of a decoder: what it found can be shown.
+    bool decoder = false;
 };
+
+/// What a decoder found, as one row of the page's table.
+struct plugin_found_row
+{
+    /// Seconds on the hub's clock, in nanoseconds.
+    quint64 time_ns = 0;
+    QString place;
+    bool received = true;
+    /// A frame's summary, or a trigger's text. The plugin's words.
+    QString what;
+    /// A frame's message name, or a trigger's kind; the plugin's own code for
+    /// a custom trigger. Studio's name for the kinds it knows.
+    QString kind;
+    bool trigger = false;
+};
+
+/// What the store of one decoder instance holds, newest row first. Immutable.
+struct plugin_found
+{
+    std::vector<plugin_found_row> rows;
+    /// How many rows the store holds in all, when more than `rows`.
+    quint64 held = 0;
+    quint64 dropped = 0;
+    quint64 refused = 0;
+    quint64 over_budget = 0;
+    /// Changes whenever the store does, so that a page can tell.
+    quint64 revision = 0;
+};
+using plugin_found_ptr = std::shared_ptr<const plugin_found>;
 
 /// One permission a plugin declares, by its name in the manifest
 /// (`ports.read`, `net.listen`, ...).

@@ -53,7 +53,8 @@ void write_file(const fs::path& path, const std::string& text)
 /// a build with the address sanitiser of MSVC needs beside it, and a
 /// `plugin.json` that lists them, as the system tests lay one out.
 fs::path make_plugin(const fs::path& root, const std::string& more_args = {},
-                     const std::string& more_permissions = {})
+                     const std::string& more_permissions = {},
+                     const std::string& point_extra = {})
 {
     const fs::path program = fs::absolute(fs::path(VSS_TEST_PLUGIN_PROGRAM));
     const fs::path directory = root / kPluginId;
@@ -84,7 +85,8 @@ fs::path make_plugin(const fs::path& root, const std::string& more_args = {},
                 "\"required\": true, \"reason\": \"To read the ports.\" }" +
                 more_permissions + " ],\n";
     manifest += "  \"extension_points\": [ { \"kind\": \"generator\", "
-                "\"id\": \"pulse\", \"name\": \"Pulse\" } ],\n";
+                "\"id\": \"pulse\", \"name\": \"Pulse\"" +
+                point_extra + " } ],\n";
     manifest += "  \"files\": [";
     for (const fs::path& copy : copies)
     {
@@ -442,7 +444,7 @@ TEST_CASE(
                        view->state == plugin_state::available;
             },
             60000));
-        backend.add_instance(id, QStringLiteral("pulse"));
+        backend.add_instance(id, QStringLiteral("pulse"), {});
         REQUIRE(vss_test::wait_until(
             [&]
             {
@@ -456,7 +458,7 @@ TEST_CASE(
         REQUIRE_EQ(made.point_id, QStringLiteral("pulse"));
         REQUIRE_EQ(made.point_name, QStringLiteral("Pulse"));
         // A point the plugin does not declare is not made either.
-        backend.add_instance(id, QStringLiteral("nothing"));
+        backend.add_instance(id, QStringLiteral("nothing"), {});
         backend.shut_down();
     }
     REQUIRE(fs::exists(root / "settings" / "instances.json"));
@@ -665,4 +667,50 @@ TEST_CASE("service backend: what a plugin reports of its licence check reaches "
     const plugin_view* view = find_view(backend.snapshot(), id);
     REQUIRE(view->licence_report_reason == vss::license::reason::expired);
     backend.shut_down();
+}
+
+TEST_CASE(
+    "service backend: an instance of a point with a required port is made "
+    "only when the port is given")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path plugins = root / "plugins";
+    make_plugin(plugins, {}, {},
+                R"(, "parameters": [ { "id": "port", "type": "port", )"
+                R"("label": "Port" } ])");
+    const QString id = QString::fromLatin1(kPluginId);
+    service_plugin_options options = options_for(root, plugins);
+    options.instances_file = root / "settings" / "instances.json";
+    ServicePluginBackend backend(std::move(options));
+    run_the_plugin(backend, id);
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* view = find_view(backend.snapshot(), id);
+            return view != nullptr && view->state == plugin_state::available &&
+                   !view->adds.empty();
+        },
+        60000));
+    // The page is told what to ask for.
+    const plugin_view view = *find_view(backend.snapshot(), id);
+    REQUIRE_EQ(view.adds.front().asks.size(), std::size_t{1});
+    REQUIRE_EQ(view.adds.front().asks.front().id, QStringLiteral("port"));
+    REQUIRE(view.adds.front().asks.front().place_name);
+    REQUIRE(!view.adds.front().needs_settings);
+
+    // Without the port nothing is made; with it, one is.
+    backend.add_instance(id, QStringLiteral("pulse"), {});
+    backend.add_instance(id, QStringLiteral("pulse"),
+                         {{QStringLiteral("port"), QStringLiteral("Alpha")}});
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* now = find_view(backend.snapshot(), id);
+            return now != nullptr && now->instances.size() == 1;
+        },
+        60000));
+    backend.shut_down();
+    const std::string kept = read_file(root / "settings" / "instances.json");
+    REQUIRE(kept.find("Alpha") != std::string::npos);
 }

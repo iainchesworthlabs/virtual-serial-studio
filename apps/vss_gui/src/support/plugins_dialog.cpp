@@ -27,6 +27,7 @@
 #include <QFrame>
 #include <QGuiApplication>
 #include <QHBoxLayout>
+#include <QHeaderView>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
@@ -37,6 +38,7 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QTableWidget>
 #include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -202,6 +204,13 @@ PluginsDialog::PluginsDialog(PluginBackend& backend, QWidget* parent)
 {
     build();
     refresh_all();
+    // What a decoder found is read from its store about four times a second
+    // while the page is open.
+    found_timer_ = new QTimer(this);
+    found_timer_->setInterval(250);
+    connect(found_timer_, &QTimer::timeout, this,
+            &PluginsDialog::refresh_found);
+    found_timer_->start();
     connect(&backend_, &PluginBackend::snapshot_changed, this,
             &PluginsDialog::on_snapshot_changed);
     connect(&backend_, &PluginBackend::request_finished, this,
@@ -874,6 +883,90 @@ QString PluginsDialog::detail_signature(const plugin_view& plugin,
     return parts.join(QLatin1Char('\x1e'));
 }
 
+void PluginsDialog::refresh_found()
+{
+    for (found_view& each : found_views_)
+    {
+        if (each.table.isNull() ||
+            !each.table->isVisibleTo(this) && !each.empty->isVisibleTo(this))
+            continue;
+        const plugin_found_ptr found =
+            backend_.found(each.plugin_id, each.number);
+        if (!found || found->revision == each.revision)
+            continue;
+        each.revision = found->revision;
+        const bool any = !found->rows.empty();
+        each.empty->setVisible(!any);
+        each.table->setVisible(any);
+        each.table->setUpdatesEnabled(false);
+        each.table->setRowCount(static_cast<int>(found->rows.size()));
+        int row = 0;
+        for (const plugin_found_row& line : found->rows)
+        {
+            const auto cell = [&each, row](int column, const QString& text)
+            {
+                auto* item = new QTableWidgetItem(plain_text(text));
+                item->setFlags(item->flags() & ~Qt::ItemIsEditable);
+                each.table->setItem(row, column, item);
+            };
+            cell(0,
+                 QCoreApplication::translate("PluginsDialog", "%1 s")
+                     .arg(static_cast<double>(line.time_ns) / 1e9, 0, 'f', 3));
+            cell(1, line.place);
+            cell(2,
+                 line.received
+                     ? QCoreApplication::translate("PluginsDialog", "Received")
+                     : QCoreApplication::translate("PluginsDialog", "Sent"));
+            cell(3, line.what);
+            cell(4, line.kind);
+            ++row;
+        }
+        each.table->setUpdatesEnabled(true);
+        // What the store left out, and what is not shown.
+        QStringList parts;
+        if (found->dropped != 0 || found->refused != 0 ||
+            found->over_budget != 0)
+        {
+            parts << QCoreApplication::translate(
+                         "PluginsDialog",
+                         "Left out: %1 dropped to stay within the limits, %2 "
+                         "refused, %3 over the rate limit.")
+                         .arg(found->dropped)
+                         .arg(found->refused)
+                         .arg(found->over_budget);
+        }
+        if (found->held > found->rows.size())
+        {
+            parts << QCoreApplication::translate("PluginsDialog",
+                                                 "Showing the newest %1 of %2.")
+                         .arg(found->rows.size())
+                         .arg(found->held);
+        }
+        each.counts->setText(parts.join(QLatin1Char(' ')));
+        each.counts->setVisible(!parts.isEmpty());
+    }
+}
+
+void PluginsDialog::add_instance_of(const plugin_view& plugin,
+                                    const plugin_addition& point)
+{
+    // A point with nothing to ask for is made at once. One with settings to
+    // ask for asks first, and nothing is made if the person cancels.
+    if (point.asks.empty())
+    {
+        backend_.add_instance(plugin.id, point.type_id, {});
+        return;
+    }
+    auto* ask =
+        new PluginInstanceDialog(plugin, point, backend_.place_names(), this);
+    connect(ask, &QDialog::finished, ask, &QObject::deleteLater);
+    const QString plugin_id = plugin.id;
+    const QString point_id = point.type_id;
+    connect(ask, &QDialog::accepted, this, [this, ask, plugin_id, point_id]
+            { backend_.add_instance(plugin_id, point_id, ask->values()); });
+    ask->open();
+}
+
 void PluginsDialog::refresh_detail()
 {
     const plugin_view* plugin = selected();
@@ -927,6 +1020,7 @@ void PluginsDialog::refresh_detail()
         detail_->layout() != nullptr)
         return;
     shown_detail_signature_ = signature;
+    found_views_.clear();
 
     const bool had_focus = detail_ != nullptr &&
                            detail_->isAncestorOf(QApplication::focusWidget());
@@ -1423,6 +1517,55 @@ void PluginsDialog::refresh_detail()
                     root, text_style::caption));
             }
             layout->addLayout(row_box);
+            if (instance.decoder)
+            {
+                // What the decoder found: a plain table that the timer
+                // fills from the instance's store.
+                auto* found_heading =
+                    make_plain_label(QCoreApplication::translate(
+                                         "PluginsDialog", "What it found"),
+                                     root, text_style::body);
+                layout->addWidget(found_heading);
+                layout->addWidget(make_muted_label(
+                    QCoreApplication::translate(
+                        "PluginsDialog", "These words come from the plugin."),
+                    root, text_style::caption));
+                found_view made;
+                made.plugin_id = view.id;
+                made.number = instance.number;
+                made.empty =
+                    make_muted_label(QCoreApplication::translate(
+                                         "PluginsDialog", "Nothing found yet."),
+                                     root);
+                made.empty->setObjectName(QStringLiteral("pluginFoundEmpty"));
+                layout->addWidget(made.empty);
+                made.counts = make_muted_label({}, root, text_style::caption);
+                made.counts->setObjectName(QStringLiteral("pluginFoundCounts"));
+                made.counts->setVisible(false);
+                layout->addWidget(made.counts);
+                made.table = new QTableWidget(0, 5, root);
+                made.table->setObjectName(QStringLiteral("pluginFoundTable"));
+                made.table->setHorizontalHeaderLabels(
+                    {QCoreApplication::translate("PluginsDialog", "Time"),
+                     QCoreApplication::translate("PluginsDialog", "Place"),
+                     QCoreApplication::translate("PluginsDialog", "Direction"),
+                     QCoreApplication::translate("PluginsDialog", "What"),
+                     QCoreApplication::translate("PluginsDialog", "Kind")});
+                made.table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+                made.table->setSelectionBehavior(QAbstractItemView::SelectRows);
+                made.table->setSelectionMode(
+                    QAbstractItemView::SingleSelection);
+                made.table->verticalHeader()->setVisible(false);
+                made.table->horizontalHeader()->setStretchLastSection(true);
+                made.table->setMinimumHeight(160);
+                made.table->setVisible(false);
+                made.table->setAccessibleName(
+                    QCoreApplication::translate("PluginsDialog",
+                                                "What %1 found")
+                        .arg(plain_text(instance.point_name)));
+                layout->addWidget(made.table);
+                found_views_.push_back(std::move(made));
+            }
         }
         // What can still be added: the points that have room, and can be
         // started without settings Studio cannot ask for yet.
@@ -1451,11 +1594,9 @@ void PluginsDialog::refresh_detail()
                     "PluginsDialog", "The plugin allows no more of these."));
             if (room && !point.needs_settings)
                 ++offered;
-            const QString plugin_id = view.id;
-            const QString point_id = point.type_id;
             connect(entry, &QAction::triggered, this,
-                    [this, plugin_id, point_id]
-                    { backend_.add_instance(plugin_id, point_id); });
+                    [this, plugin_copy = view, point_copy = point]
+                    { add_instance_of(plugin_copy, point_copy); });
         }
         add_instance->setMenu(menu);
         const bool usable = view.state != plugin_state::cannot_be_used &&

@@ -10,6 +10,7 @@
 
 #include <vss/machine/folders.hpp>
 #include <vss/plugin/api_licence.hpp>
+#include <vss/plugin/host/bundle_point.hpp>
 #include <vss/plugin/host/sandbox.hpp>
 #include <vss/plugin/install.hpp>
 #include <vss/plugin/locations.hpp>
@@ -323,12 +324,92 @@ void ServicePluginBackend::save_instances() const
     static_cast<void>(file.commit());
 }
 
+std::optional<host::capture_place>
+ServicePluginBackend::find_place(std::string_view name) const
+{
+    std::shared_ptr<const plugin_place_table> table;
+    {
+        const std::scoped_lock lock(mutex_);
+        table = places_;
+    }
+    if (!table)
+        return std::nullopt;
+    const auto found = table->find(name);
+    if (found == table->end())
+        return std::nullopt;
+    return found->second;
+}
+
+std::shared_ptr<host::decode_store>
+ServicePluginBackend::store_for(const std::string& plugin_id,
+                                std::uint64_t instance, bool make)
+{
+    const std::scoped_lock lock(mutex_);
+    const auto key = std::make_pair(plugin_id, instance);
+    const auto found = stores_.find(key);
+    if (found != stores_.end())
+        return found->second;
+    if (!make)
+        return nullptr;
+    auto store = std::make_shared<host::decode_store>();
+    stores_.emplace(key, store);
+    return store;
+}
+
+void ServicePluginBackend::forget_stores(const std::string& plugin_id,
+                                         std::optional<std::uint64_t> instance)
+{
+    const std::scoped_lock lock(mutex_);
+    for (auto each = stores_.begin(); each != stores_.end();)
+    {
+        if (each->first.first == plugin_id &&
+            (!instance.has_value() || each->first.second == *instance))
+            each = stores_.erase(each);
+        else
+            ++each;
+    }
+}
+
+plugin_found_ptr ServicePluginBackend::found(const QString& plugin_id,
+                                             quint64 instance) const
+{
+    std::shared_ptr<host::decode_store> store;
+    {
+        const std::scoped_lock lock(mutex_);
+        const auto each =
+            stores_.find(std::make_pair(plugin_id.toStdString(), instance));
+        if (each == stores_.end())
+            return nullptr;
+        store = each->second;
+    }
+    // The store's own windows: nothing here waits on the plugin or its
+    // strand.
+    return map_decode_snapshot(*store->snapshot());
+}
+
+QStringList ServicePluginBackend::place_names() const
+{
+    std::shared_ptr<const plugin_place_table> table;
+    {
+        const std::scoped_lock lock(mutex_);
+        table = places_;
+    }
+    QStringList names;
+    if (table)
+    {
+        for (const auto& each : *table)
+            names << QString::fromStdString(each.first);
+    }
+    return names;
+}
+
 void ServicePluginBackend::add_instance(const QString& plugin_id,
-                                        const QString& point_id)
+                                        const QString& point_id,
+                                        const QMap<QString, QString>& values)
 {
     boost::asio::post(
         slow_,
-        [this, plugin_id, point_id]
+        [this, plugin_id, point_id, values]
         {
             const auto now = service_->snapshot();
             const std::string id = plugin_id.toStdString();
@@ -359,10 +440,19 @@ void ServicePluginBackend::add_instance(const QString& plugin_id,
                               { return spec.type == point->id; });
             if (static_cast<std::uint64_t>(have) >= point->max_instances)
                 return;
-            // The settings a plugin starts with are its defaults. A point
-            // with a setting that has none cannot be made yet.
-            const plug::validation checked = plug::validate(
-                point->parameters, std::span<const plug::raw_parameter>{});
+            // The settings a plugin starts with are its defaults and what the
+            // person gave, checked against the description. A point with a
+            // setting that has no default and was not given cannot be made.
+            std::vector<plug::raw_parameter> given;
+            for (auto each = values.begin(); each != values.end(); ++each)
+            {
+                plug::raw_parameter raw;
+                raw.id = each.key().toStdString();
+                raw.value = each.value().toStdString();
+                given.push_back(std::move(raw));
+            }
+            const plug::validation checked =
+                plug::validate(point->parameters, given);
             if (!checked.ok())
                 return;
             host::instance_spec spec;
@@ -391,9 +481,17 @@ void ServicePluginBackend::remove_instance(const QString& plugin_id,
                               found->second.list,
                               [number](const host::instance_spec& spec)
                               { return spec.instance == number; });
+                          forget_stores(id, number);
                           save_instances();
                           service_->set_instances(id, found->second.list);
                       });
+}
+
+void ServicePluginBackend::set_writable_ports(
+    std::shared_ptr<const plugin_endpoint_table> ports)
+{
+    const std::scoped_lock lock(mutex_);
+    writable_ = std::move(ports);
 }
 
 void ServicePluginBackend::set_places(
@@ -411,21 +509,96 @@ ServicePluginBackend::make_handlers(const host::extension_context& context)
     {
         handlers.push_back(host::make_capture_point(
             context, *options_.hub,
-            [this](std::string_view name) -> std::optional<host::capture_place>
+            [this](std::string_view name) { return find_place(name); }));
+        // Decoding: the places an instance reads come from its settings, and
+        // what it finds goes to a store of its own that the page reads.
+        handlers.push_back(host::make_decoder_point(
+            context, *options_.hub,
+            [this](std::string_view name) { return find_place(name); },
+            [this, id = context.plugin_id, instances = context.instances](
+                std::uint64_t number) -> std::optional<host::decoder_target>
             {
-                std::shared_ptr<const plugin_place_table> table;
+                if (!instances)
+                    return std::nullopt;
+                const auto view = instances->find(number);
+                if (!view.has_value())
+                    return std::nullopt;
+                const QJsonObject settings =
+                    QJsonDocument::fromJson(
+                        QByteArray::fromStdString(view->spec.params))
+                        .object();
+                host::decoder_target target;
+                const auto add = [&target](const QString& name)
                 {
-                    const std::scoped_lock lock(mutex_);
-                    table = places_;
+                    const std::string text = name.trimmed().toStdString();
+                    if (!text.empty() &&
+                        std::find(target.places.begin(), target.places.end(),
+                                  text) == target.places.end())
+                        target.places.push_back(text);
+                };
+                const QStringList keys{QStringLiteral("places"),
+                                       QStringLiteral("place"),
+                                       QStringLiteral("port")};
+                for (const QString& key : keys)
+                {
+                    const QJsonValue value = settings.value(key);
+                    if (value.isString())
+                        add(value.toString());
+                    else if (value.isArray())
+                    {
+                        for (const QJsonValue item : value.toArray())
+                            add(item.toString());
+                    }
                 }
-                if (!table)
+                if (target.places.empty() || target.places.size() > 64)
                     return std::nullopt;
-                const auto found = table->find(name);
-                if (found == table->end())
-                    return std::nullopt;
-                return found->second;
+                target.store = store_for(id, number, true);
+                return target;
             }));
     }
+    if (options_.hub != nullptr)
+    {
+        // Replay into a port: the ports come from a table published from the
+        // GUI thread, and the timing an instance declared from the manifest
+        // of the plugin as the service holds it.
+        host::generator_owner owner;
+        owner.find_port =
+            [this](std::string_view name) -> std::shared_ptr<vss::endpoint>
+        {
+            std::shared_ptr<const plugin_endpoint_table> table;
+            {
+                const std::scoped_lock lock(mutex_);
+                table = writable_;
+            }
+            if (!table)
+                return nullptr;
+            const auto found = table->find(name);
+            return found == table->end() ? nullptr : found->second;
+        };
+        owner.timing_of = [this, id = context.plugin_id](std::string_view point)
+        {
+            const auto now = service_->snapshot();
+            for (const host::service_plugin& each : now->plugins)
+            {
+                if (each.id != id || !each.declared.has_value())
+                    continue;
+                for (const plug::extension_point& declared :
+                     each.declared->extension_points)
+                {
+                    if (declared.id == point)
+                        return declared.timing.type == plug::timing_class::rules
+                                   ? host::feed_timing::rules
+                                   : host::feed_timing::async;
+                }
+            }
+            return host::feed_timing::async;
+        };
+        handlers.push_back(
+            host::make_generator_point(context, std::move(owner)));
+    }
+    // A section of the support bundle: the handler is here so that a plugin's
+    // answer is taken, but the support bundle dialog does not ask for one yet.
+    handlers.push_back(host::make_bundle_point(context, slow_.get_executor()));
     // The licence file, as it was read on the slow thread: a copy of bytes
     // held here, never a read on the service's strand.
     handlers.push_back(host::make_licence_point(
@@ -1231,6 +1404,7 @@ void ServicePluginBackend::process_removals()
                 continue;
             }
         }
+        forget_stores(each.id, std::nullopt);
         // The plugin's data folder is named by its id. It goes once the
         // plugin has gone from the list.
         const bool plain_name =
