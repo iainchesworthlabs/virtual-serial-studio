@@ -190,8 +190,10 @@ struct rig
           instances(std::make_shared<plugin_instances>(
               declared_points(),
               [this](api_message message,
-                     plugin_instances::answer_handler handler)
-              { creates.push_back({std::move(message), std::move(handler)}); }))
+                     plugin_instances::answer_handler on_answer)
+              {
+                  creates.push_back({std::move(message), std::move(on_answer)});
+              }))
     {
         extension_context context;
         context.plugin_id = "com.example.generator";
@@ -206,9 +208,9 @@ struct rig
         { notified.push_back(std::move(message)); };
         context.link.request =
             [this](api_message message,
-                   vss::plugin::host::plugin_link::answer_handler handler,
+                   vss::plugin::host::plugin_link::answer_handler on_answer,
                    std::chrono::milliseconds)
-        { requests.push_back(asked{std::move(message), std::move(handler)}); };
+        { requests.push_back(asked{std::move(message), std::move(on_answer)}); };
 
         generator_owner owner;
         owner.find_port = [this](std::string_view name)
@@ -577,7 +579,8 @@ TEST_CASE("generator point: done writes what is held and ends")
     test.start_all();
     test.handler->take(message_of(write_of(first_instance, 65536, 0x31)));
     test.handler->take(message_of(write_of(first_instance, 10, 0x32)));
-    test.handler->take(message_of(generator_done_message{first_instance, "end"}));
+    test.handler->take(
+        message_of(generator_done_message{first_instance, "end"}));
     // After done nothing more is taken.
     test.handler->take(message_of(write_of(first_instance, 10, 0x33)));
     REQUIRE_EQ(test.handler->counts().writes_dropped + test.handler->counts()

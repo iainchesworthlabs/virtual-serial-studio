@@ -320,7 +320,8 @@ private:
         options.window_batches = 65536;
         options.max_batch_bytes = max_generator_write;
         const std::uint64_t generation = ++generations_;
-        auto made = std::make_unique<generator_run>(spec.instance, generation, options,
+        auto made = std::make_unique<generator_run>(spec.instance, generation,
+                                                    options,
                                           std::move(target), context_.executor);
         made->writer.on_done = [alive = alive_, this, number = spec.instance,
                                 generation, executor = context_.executor](
