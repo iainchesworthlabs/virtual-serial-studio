@@ -642,3 +642,28 @@ TEST_CASE("service backend: the licence is the same one until it changes")
         30000));
     backend.shut_down();
 }
+
+TEST_CASE("service backend: what a plugin reports of its licence check reaches "
+          "the page")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path plugins = root / "plugins";
+    make_plugin(plugins,
+                R"(, "--notify-header={\"op\":\"licence.report\",)"
+                R"(\"reason\":\"expired\"}")");
+    ServicePluginBackend backend(options_for(root, plugins));
+    const QString id = QString::fromLatin1(kPluginId);
+    run_the_plugin(backend, id);
+    const bool reported = vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* view = find_view(backend.snapshot(), id);
+            return view != nullptr && view->has_licence_report;
+        },
+        60000);
+    REQUIRE(reported);
+    const plugin_view* view = find_view(backend.snapshot(), id);
+    REQUIRE(view->licence_report_reason == vss::license::reason::expired);
+    backend.shut_down();
+}
