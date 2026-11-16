@@ -1,0 +1,1 @@
+The plugin host answers `control.session.request`, `control.frame` and `control.session.close`: a plugin gets a session with the control gateway only after the owner allows it, and never holds a token. `docs/plugin-api-reference.md` lists these messages and `secret.show`.

@@ -177,6 +177,10 @@ struct capture_result_message
     std::string recording;
     /// The bytes of that file so far, 0 to `max_api_number`.
     std::uint64_t size = 0;
+    /// True when the recording ended because it could not be written, such
+    /// as a full disk: what it holds may be incomplete.  Left out when
+    /// false.
+    bool failed = false;
 
     friend bool operator==(const capture_result_message&,
                            const capture_result_message&) = default;

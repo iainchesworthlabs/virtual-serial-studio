@@ -24,8 +24,7 @@
 //
 // A request may carry a sandbox profile (sandbox.hpp).  Windows applies
 // all of it (a job object and an AppContainer).  Linux and macOS apply
-// nothing of it yet and report the level `none`.  Nothing in Studio starts
-// a plugin.
+// nothing of it yet and report the level `none`.
 //
 // The process is the head of a group of its own (a job object on Windows; a
 // session and process group elsewhere), so that `kill` ends what it started

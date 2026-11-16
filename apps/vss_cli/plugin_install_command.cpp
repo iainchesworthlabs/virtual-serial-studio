@@ -353,7 +353,6 @@ int command_plugin_verify(const std::vector<std::string>& arguments)
         std::string text = verify_text(found, computer.context, verdict);
         for (const std::string& note : computer.notes)
             text += "Note: " + sup::plain(note) + "\n";
-        text += "This build does not run plugins.\n";
         print(text);
     }
     return verdict.acceptable ? exit_ok : exit_refused;
@@ -404,7 +403,6 @@ int command_plugin_install(const std::vector<std::string>& arguments)
         text += "Warning: " + sup::plain(report.warning) + "\n";
     for (const std::string& note : computer.notes)
         text += "Note: " + sup::plain(note) + "\n";
-    text += "This build does not run plugins.\n";
     print(text);
     return exit_ok;
 }

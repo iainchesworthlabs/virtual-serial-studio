@@ -1,0 +1,1 @@
+`capture.result` says when a recording ended because it could not be written (`failed`), gives the size on disk while the recording runs, and bytes the host could not keep are counted against the place they were lost at.
