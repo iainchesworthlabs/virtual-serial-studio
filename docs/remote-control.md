@@ -45,7 +45,10 @@ commands, and the commands can create ports, write bytes to real devices and cha
 
 **What a seat covers.** One Pro licence is one seat, and a seat is two computers: the one you work at and one other
 that you control or monitor from it, in either direction. Remote control and monitoring between those two is part
-of the seat; the far computer needs no licence of its own. Enterprise has the same plugins as Pro and no feature of
+of the seat. Both computers hold the licence file, because each one runs the remote plugin and the plugin host
+starts an official plugin only where a licence covers it. Nothing counts installations: a seat is two computers by
+the terms of the licence, and the owner trusts the customer to keep to them (decided 16 November 2026). Enterprise
+has the same plugins as Pro and no feature of
 its own. What an Enterprise licence covers, how long it runs and the price are negotiated with each customer
 ([licensing](licensing.md), decisions 11 and 13).
 

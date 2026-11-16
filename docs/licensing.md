@@ -709,3 +709,34 @@ The owner settled three more points on 14 November 2026:
     licence with no seat count, and "<n> seats" otherwise. It is the name of the
     label, not a description of Enterprise: what an Enterprise licence covers,
     how long it runs and its price are still negotiated with each customer.
+
+The owner settled the gaps found in the licence review on 16 November 2026:
+
+14. **Both computers hold the file.** A seat is two computers and each one
+    installs the licence file, because each one runs the remote plugin and the
+    plugin host starts an official plugin only where a licence covers it.
+15. **Plugins check the licence themselves.** Rule 1 of "What a licence check
+    can and cannot do" stands. The host reads the licence and, when it starts
+    an official plugin, hands the plugin the licence file. The plugin verifies
+    the signature, the dates and its own feature with a reader of its own, so
+    it never takes the host's word. A third-party plugin may do the same to
+    protect itself. Two checks of one licence are fine when each is quick. Not
+    built yet.
+16. **A patched Studio is accepted.** Studio is GPL, so someone can build a copy
+    that skips the host's check. That is the limit of a deterrent and the
+    design accepts it. The check in the plugin is a second, separate check, and
+    nothing is added to stop a changed Studio.
+17. **Pairing compares licence ids.** When the two remote plugins connect, each
+    sends the id of the licence it verified, and a pair with different ids is
+    refused with one plain sentence. This needs no server and counts nothing.
+    Not built yet.
+18. **Trust the customer.** There is no hardware fingerprint, no MAC address and
+    no count of installations. A customer who bought a licence is trusted to
+    keep to the terms. A check is meant to tell an honest customer where they
+    stand, never to get in the way of one.
+19. **No revocation through the update feed.** Licences end with their term, and
+    a customer can always block the feed, so the feed does not carry a
+    revocation list. The built-in list and a list imported from a file stay as
+    they are.
+20. **Keys.** The owner keeps a second copy of the private keys offline, with a
+    written recovery step.
