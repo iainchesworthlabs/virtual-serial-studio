@@ -27,6 +27,7 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QClipboard>
+#include <QComboBox>
 #include <QDir>
 #include <QFrame>
 #include <QGuiApplication>
@@ -35,13 +36,12 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QLocale>
-#include <QComboBox>
 #include <QMenu>
-#include <QTableWidget>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QTableWidget>
 #include <QTimer>
 
 #include <functional>
@@ -2054,7 +2054,8 @@ TEST_CASE("plugins page: a point with settings to ask for asks first")
     note.label = QStringLiteral("A note");
     point.asks = {port, note};
     fixture env({plugin});
-    env.backend.set_place_names({QStringLiteral("Alpha"), QStringLiteral("Beta")});
+    env.backend.set_place_names(
+        {QStringLiteral("Alpha"), QStringLiteral("Beta")});
     PluginsDialog dialog(env.backend);
     dialog.show();
     settle();
@@ -2093,7 +2094,8 @@ TEST_CASE("plugins page: a point with settings to ask for asks first")
     ask->add_button()->click();
     settle();
     REQUIRE_EQ(env.backend.requests().size(), std::size_t{1});
-    REQUIRE(env.backend.requests()[0].kind == plugin_request_kind::add_instance);
+    REQUIRE(env.backend.requests()[0].kind ==
+            plugin_request_kind::add_instance);
     REQUIRE_EQ(env.backend.requests()[0].values.value(QStringLiteral("port")),
                QStringLiteral("Alpha"));
     REQUIRE_EQ(env.backend.requests()[0].values.value(QStringLiteral("note")),
@@ -2213,9 +2215,9 @@ TEST_CASE("plugins page: what the plugin said of its licence, and licence.read")
     REQUIRE(!is_amber_permission(QStringLiteral("licence.read")));
 }
 
-
-TEST_CASE("plugins page: what a decoder found is a plain table that follows the "
-          "store")
+TEST_CASE(
+    "plugins page: what a decoder found is a plain table that follows the "
+    "store")
 {
     plugin_view plugin = plugin_with_points();
     plugin_instance_view decoder;
@@ -2233,7 +2235,8 @@ TEST_CASE("plugins page: what a decoder found is a plain table that follows the 
     settle();
     QWidget* detail = dialog.detail();
     // Nothing yet.
-    auto* empty = detail->findChild<QLabel*>(QStringLiteral("pluginFoundEmpty"));
+    auto* empty =
+        detail->findChild<QLabel*>(QStringLiteral("pluginFoundEmpty"));
     REQUIRE(empty != nullptr);
     REQUIRE_EQ(empty->text(), QStringLiteral("Nothing found yet."));
 
@@ -2284,5 +2287,6 @@ TEST_CASE("plugins page: what a decoder found is a plain table that follows the 
     REQUIRE(counts->isVisibleTo(detail));
     REQUIRE(counts->text().contains(QStringLiteral("2 dropped")));
     REQUIRE(counts->text().contains(QStringLiteral("1 refused")));
-    REQUIRE(counts->text().contains(QStringLiteral("Showing the newest 2 of 5.")));
+    REQUIRE(
+        counts->text().contains(QStringLiteral("Showing the newest 2 of 5.")));
 }

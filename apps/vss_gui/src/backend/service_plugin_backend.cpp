@@ -403,9 +403,9 @@ QStringList ServicePluginBackend::place_names() const
     return names;
 }
 
-void ServicePluginBackend::add_instance(
-    const QString& plugin_id, const QString& point_id,
-    const QMap<QString, QString>& values)
+void ServicePluginBackend::add_instance(const QString& plugin_id,
+                                        const QString& point_id,
+                                        const QMap<QString, QString>& values)
 {
     boost::asio::post(
         slow_,
@@ -592,7 +592,8 @@ ServicePluginBackend::make_handlers(const host::extension_context& context)
             }
             return host::feed_timing::async;
         };
-        handlers.push_back(host::make_generator_point(context, std::move(owner)));
+        handlers.push_back(
+            host::make_generator_point(context, std::move(owner)));
     }
     // A section of the support bundle: the handler is here so that a plugin's
     // answer is taken, but the support bundle dialog does not ask for one yet.

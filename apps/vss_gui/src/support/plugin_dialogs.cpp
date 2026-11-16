@@ -15,8 +15,8 @@
 #include "widgets/notes.hpp"
 
 #include <QCheckBox>
-#include <QComboBox>
 #include <QClipboard>
+#include <QComboBox>
 #include <QCoreApplication>
 #include <QFontMetrics>
 #include <QFormLayout>
@@ -864,9 +864,8 @@ PluginInstanceDialog::PluginInstanceDialog(const plugin_view& plugin,
     }
     body->addLayout(form);
     body->addWidget(make_muted_label(
-        QCoreApplication::translate(
-            "PluginInstanceDialog",
-            "These words come from the plugin."),
+        QCoreApplication::translate("PluginInstanceDialog",
+                                    "These words come from the plugin."),
         this));
     body->addStretch(1);
 
@@ -875,8 +874,9 @@ PluginInstanceDialog::PluginInstanceDialog(const plugin_view& plugin,
         QCoreApplication::translate("PluginInstanceDialog", "Cancel"), nullptr,
         QStringLiteral("instanceCancel"));
     add_ = footer_button(
-        parts.footer, QCoreApplication::translate("PluginInstanceDialog", "Add"),
-        "primary", QStringLiteral("instanceAdd"));
+        parts.footer,
+        QCoreApplication::translate("PluginInstanceDialog", "Add"), "primary",
+        QStringLiteral("instanceAdd"));
     connect(cancel_, &QPushButton::clicked, this, &QDialog::reject);
     connect(add_, &QPushButton::clicked, this, &QDialog::accept);
     add_->setEnabled(false);

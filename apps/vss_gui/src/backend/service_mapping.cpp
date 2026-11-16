@@ -196,8 +196,8 @@ void fill_from_manifest(plugin_view& view, const plug::manifest& declared)
             plugin_parameter_ask ask;
             ask.id = from_std(setting.id);
             const std::string_view label = setting.label.best("");
-            ask.label = from_std(label.empty() ? setting.id
-                                               : std::string(label));
+            ask.label =
+                from_std(label.empty() ? setting.id : std::string(label));
             ask.help = from_std(std::string(setting.help.best("")));
             ask.place_name = setting.id == "port" || setting.id == "place" ||
                              setting.id == "places";
@@ -747,8 +747,7 @@ plugin_found_ptr map_decode_snapshot(const host::decode_snapshot& window)
             row.kind = QCoreApplication::translate("PluginsDialog", "Timeout");
             break;
         case host::decode_trigger_kind::sequence:
-            row.kind =
-                QCoreApplication::translate("PluginsDialog", "Sequence");
+            row.kind = QCoreApplication::translate("PluginsDialog", "Sequence");
             break;
         case host::decode_trigger_kind::contention:
             row.kind =

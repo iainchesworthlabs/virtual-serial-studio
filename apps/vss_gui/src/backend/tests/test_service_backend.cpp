@@ -669,8 +669,9 @@ TEST_CASE("service backend: what a plugin reports of its licence check reaches "
     backend.shut_down();
 }
 
-TEST_CASE("service backend: an instance of a point with a required port is made "
-          "only when the port is given")
+TEST_CASE(
+    "service backend: an instance of a point with a required port is made "
+    "only when the port is given")
 {
     QTemporaryDir dir;
     const fs::path root = fs::path(dir.path().toStdWString());

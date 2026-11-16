@@ -20,8 +20,8 @@
 #include <QList>
 #include <QMap>
 #include <QPair>
-#include <QStringList>
 #include <QString>
+#include <QStringList>
 
 #include <vector>
 

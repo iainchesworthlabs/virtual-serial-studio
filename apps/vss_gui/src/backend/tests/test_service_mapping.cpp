@@ -495,7 +495,6 @@ TEST_CASE("service mapping: what a plugin said of its licence check")
     REQUIRE(one(plugin).licence_report_reason == vss::license::reason::ok);
 }
 
-
 TEST_CASE("service mapping: what a decoder found, newest first, with counts")
 {
     host::decode_store store;

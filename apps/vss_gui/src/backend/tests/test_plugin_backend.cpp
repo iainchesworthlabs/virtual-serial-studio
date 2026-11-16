@@ -10,8 +10,8 @@
 // test_service_backend.cpp.
 //
 
-#include "backend/fake_plugin_backend.hpp"
 #include "backend/engine_studio_backend.hpp"
+#include "backend/fake_plugin_backend.hpp"
 #include "backend/fake_studio_backend.hpp"
 #include "backend/plugin_mapping.hpp"
 #include "backend/plugin_places.hpp"

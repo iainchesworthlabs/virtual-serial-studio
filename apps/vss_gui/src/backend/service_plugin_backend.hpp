@@ -176,8 +176,7 @@ private:
     std::optional<vss::plugin::host::capture_place>
     find_place(std::string_view name) const;
     std::shared_ptr<vss::plugin::host::decode_store>
-    store_for(const std::string& plugin_id, std::uint64_t instance,
-              bool make);
+    store_for(const std::string& plugin_id, std::uint64_t instance, bool make);
     void forget_stores(const std::string& plugin_id,
                        std::optional<std::uint64_t> instance);
     void restart_waiting_plugins();
