@@ -491,11 +491,11 @@ private:
                         const auto self = weak.lock();
                         if (!self)
                             return;
-                        const auto found = self->running_.find(id);
-                        if (found == self->running_.end() ||
-                            found->second.licence_report == said)
+                        const auto reporting = self->running_.find(id);
+                        if (reporting == self->running_.end() ||
+                            reporting->second.licence_report == said)
                             return;
-                        found->second.licence_report = std::move(said);
+                        reporting->second.licence_report = std::move(said);
                         self->publish_soon();
                     };
                     context.data_directory = data_directory;
