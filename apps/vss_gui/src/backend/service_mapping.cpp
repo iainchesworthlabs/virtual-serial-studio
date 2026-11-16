@@ -178,12 +178,31 @@ void fill_from_manifest(plugin_view& view, const plug::manifest& declared)
             from_std(best.empty() ? point.id : std::string(best));
         addition.type_id = from_std(point.id);
         addition.max_instances = static_cast<int>(point.max_instances);
-        // Studio has no form for settings yet, so a point whose settings have
-        // no default cannot be started.
-        addition.needs_settings =
-            !plug::validate(point.parameters,
-                            std::span<const plug::raw_parameter>{})
-                 .ok();
+        // A setting with no default must be given. Studio asks for the ones
+        // that are text in a small dialog; a point with another kind of
+        // setting that has no default cannot be started yet.
+        for (const plug::parameter& setting : point.parameters)
+        {
+            if (!std::holds_alternative<std::monostate>(setting.default_value))
+                continue;
+            const bool text = setting.type == plug::parameter_type::string ||
+                              setting.type == plug::parameter_type::port ||
+                              setting.type == plug::parameter_type::link;
+            if (!text)
+            {
+                addition.needs_settings = true;
+                continue;
+            }
+            plugin_parameter_ask ask;
+            ask.id = from_std(setting.id);
+            const std::string_view label = setting.label.best("");
+            ask.label = from_std(label.empty() ? setting.id
+                                               : std::string(label));
+            ask.help = from_std(std::string(setting.help.best("")));
+            ask.place_name = setting.id == "port" || setting.id == "place" ||
+                             setting.id == "places";
+            addition.asks.push_back(std::move(ask));
+        }
         addition.description =
             from_std(std::string(point.description.best("")));
         view.adds.push_back(addition);

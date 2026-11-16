@@ -35,6 +35,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QLocale>
+#include <QComboBox>
 #include <QMenu>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -2035,6 +2036,87 @@ TEST_CASE("plugins page: what it runs lists the instances and adds and removes")
     REQUIRE(env.backend.requests()[0].kind ==
             plugin_request_kind::add_instance);
     REQUIRE_EQ(env.backend.requests()[0].path, QStringLiteral("pulse"));
+    REQUIRE(env.backend.requests()[0].values.isEmpty());
+}
+
+TEST_CASE("plugins page: a point with settings to ask for asks first")
+{
+    plugin_view plugin = plugin_with_points();
+    plugin_addition& point = plugin.adds.front();
+    plugin_parameter_ask port;
+    port.id = QStringLiteral("port");
+    port.label = QStringLiteral("Port to write to");
+    port.help = QStringLiteral("A port in your setup.");
+    port.place_name = true;
+    plugin_parameter_ask note;
+    note.id = QStringLiteral("note");
+    note.label = QStringLiteral("A note");
+    point.asks = {port, note};
+    fixture env({plugin});
+    env.backend.set_place_names({QStringLiteral("Alpha"), QStringLiteral("Beta")});
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    dialog.select(plugin.id);
+    settle();
+    auto* add = dialog.detail()->findChild<QPushButton*>(
+        QStringLiteral("pluginInstanceAdd"));
+    REQUIRE(add != nullptr);
+    env.backend.clear_requests();
+    add->menu()->actions()[0]->trigger();
+    settle();
+    // Nothing is made yet: the dialog asks first.
+    REQUIRE(env.backend.requests().empty());
+    PluginInstanceDialog* ask = nullptr;
+    for (QWidget* each : QApplication::topLevelWidgets())
+    {
+        if (auto* found = qobject_cast<PluginInstanceDialog*>(each);
+            found != nullptr && found->isVisible())
+            ask = found;
+    }
+    REQUIRE(ask != nullptr);
+    REQUIRE_EQ(ask->windowTitle(), QStringLiteral("Add Pulse"));
+    REQUIRE(!ask->add_button()->isEnabled());
+    auto* ports = qobject_cast<QComboBox*>(ask->field(QStringLiteral("port")));
+    auto* text = qobject_cast<QLineEdit*>(ask->field(QStringLiteral("note")));
+    REQUIRE(ports != nullptr);
+    REQUIRE(text != nullptr);
+    REQUIRE_EQ(ports->count(), 2);
+    REQUIRE_EQ(ports->accessibleName(), QStringLiteral("Port to write to"));
+    REQUIRE_EQ(ports->accessibleDescription(),
+               QStringLiteral("A port in your setup."));
+    ports->setCurrentText(QStringLiteral("Alpha"));
+    REQUIRE(!ask->add_button()->isEnabled());
+    text->setText(QStringLiteral("  hello  "));
+    REQUIRE(ask->add_button()->isEnabled());
+    ask->add_button()->click();
+    settle();
+    REQUIRE_EQ(env.backend.requests().size(), std::size_t{1});
+    REQUIRE(env.backend.requests()[0].kind == plugin_request_kind::add_instance);
+    REQUIRE_EQ(env.backend.requests()[0].values.value(QStringLiteral("port")),
+               QStringLiteral("Alpha"));
+    REQUIRE_EQ(env.backend.requests()[0].values.value(QStringLiteral("note")),
+               QStringLiteral("hello"));
+
+    // Cancel makes nothing. The page was rebuilt when the instance was made.
+    env.backend.clear_requests();
+    settle();
+    add = dialog.detail()->findChild<QPushButton*>(
+        QStringLiteral("pluginInstanceAdd"));
+    REQUIRE(add != nullptr);
+    add->menu()->actions()[0]->trigger();
+    settle();
+    PluginInstanceDialog* again = nullptr;
+    for (QWidget* each : QApplication::topLevelWidgets())
+    {
+        if (auto* found = qobject_cast<PluginInstanceDialog*>(each);
+            found != nullptr && found->isVisible())
+            again = found;
+    }
+    REQUIRE(again != nullptr);
+    again->cancel_button()->click();
+    settle();
+    REQUIRE(env.backend.requests().empty());
 }
 
 TEST_CASE("plugins page: a plugin that is not running keeps its instances")

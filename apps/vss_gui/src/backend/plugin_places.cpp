@@ -69,4 +69,16 @@ make_plugin_place_table(const StudioBackend& backend)
     return table;
 }
 
+std::shared_ptr<const plugin_endpoint_table>
+make_plugin_endpoint_table(const StudioBackend& backend, const vss::hub& source)
+{
+    auto table = std::make_shared<plugin_endpoint_table>();
+    for (const port_view& port : backend.ports())
+    {
+        if (auto endpoint = source.find_endpoint(port.id))
+            table->emplace(port.name.toStdString(), std::move(endpoint));
+    }
+    return table;
+}
+
 } // namespace vss::gui

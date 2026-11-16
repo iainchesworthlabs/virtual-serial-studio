@@ -874,6 +874,27 @@ QString PluginsDialog::detail_signature(const plugin_view& plugin,
     return parts.join(QLatin1Char('\x1e'));
 }
 
+void PluginsDialog::add_instance_of(const plugin_view& plugin,
+                                     const plugin_addition& point)
+{
+    // A point with nothing to ask for is made at once. One with settings to
+    // ask for asks first, and nothing is made if the person cancels.
+    if (point.asks.empty())
+    {
+        backend_.add_instance(plugin.id, point.type_id, {});
+        return;
+    }
+    auto* ask = new PluginInstanceDialog(plugin, point, backend_.place_names(),
+                                         this);
+    connect(ask, &QDialog::finished, ask, &QObject::deleteLater);
+    const QString plugin_id = plugin.id;
+    const QString point_id = point.type_id;
+    connect(ask, &QDialog::accepted, this,
+            [this, ask, plugin_id, point_id]
+            { backend_.add_instance(plugin_id, point_id, ask->values()); });
+    ask->open();
+}
+
 void PluginsDialog::refresh_detail()
 {
     const plugin_view* plugin = selected();
@@ -1451,11 +1472,11 @@ void PluginsDialog::refresh_detail()
                     "PluginsDialog", "The plugin allows no more of these."));
             if (room && !point.needs_settings)
                 ++offered;
-            const QString plugin_id = view.id;
-            const QString point_id = point.type_id;
+            const plugin_view plugin_copy = view;
+            const plugin_addition point_copy = point;
             connect(entry, &QAction::triggered, this,
-                    [this, plugin_id, point_id]
-                    { backend_.add_instance(plugin_id, point_id); });
+                    [this, plugin_copy, point_copy]
+                    { add_instance_of(plugin_copy, point_copy); });
         }
         add_instance->setMenu(menu);
         const bool usable = view.state != plugin_state::cannot_be_used &&

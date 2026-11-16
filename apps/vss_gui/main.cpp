@@ -374,13 +374,15 @@ try
             auto* places_timer = new QTimer(host);
             places_timer->setSingleShot(true);
             places_timer->setInterval(100);
-            QObject::connect(
-                places_timer, &QTimer::timeout, host,
-                [&backend, host]
-                {
-                    host->set_places(
-                        vss::gui::make_plugin_place_table(backend));
-                });
+            vss::hub* const hub = &studio->engine();
+            const auto publish_places = [&backend, host, hub]
+            {
+                host->set_places(vss::gui::make_plugin_place_table(backend));
+                host->set_writable_ports(
+                    vss::gui::make_plugin_endpoint_table(backend, *hub));
+            };
+            QObject::connect(places_timer, &QTimer::timeout, host,
+                             publish_places);
             for (auto signal : {&vss::gui::StudioBackend::ports_changed,
                                 &vss::gui::StudioBackend::links_changed})
             {
@@ -389,7 +391,7 @@ try
             }
             QObject::connect(&backend, &vss::gui::StudioBackend::lines_changed,
                              places_timer, qOverload<>(&QTimer::start));
-            host->set_places(vss::gui::make_plugin_place_table(backend));
+            publish_places();
             const auto tell_plugins_of_licence = [&backend, host]
             {
                 const vss::gui::licence_view now = backend.licence();

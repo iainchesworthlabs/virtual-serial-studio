@@ -36,6 +36,8 @@ struct fake_plugin_request
     QString fingerprint;
     /// An instance number.
     quint64 number = 0;
+    /// The settings an instance was asked with.
+    QMap<QString, QString> values;
 };
 
 class FakePluginBackend final : public PluginBackend
@@ -61,8 +63,10 @@ public:
     void add_plugin(const QString& folder) override;
     void remove_plugin(const QString& plugin_id, const QString& hash,
                        bool delete_saved_data) override;
-    void add_instance(const QString& plugin_id,
-                      const QString& point_id) override;
+    void add_instance(const QString& plugin_id, const QString& point_id,
+                      const QMap<QString, QString>& values) override;
+    QStringList place_names() const override { return place_names_; }
+    void set_place_names(QStringList names) { place_names_ = std::move(names); }
     void remove_instance(const QString& plugin_id, quint64 number) override;
     void answer_secret(quint64 id, bool seen) override;
     void answer_control(quint64 id, bool allowed) override;
@@ -117,6 +121,7 @@ private:
 
     std::shared_ptr<plugin_snapshot> snapshot_;
     std::vector<fake_plugin_request> requests_;
+    QStringList place_names_;
     std::vector<std::pair<quint64, bool>> secret_answers_;
     std::vector<std::pair<quint64, bool>> control_answers_;
     QHash<QString, plugin_key_file_view> key_files_;

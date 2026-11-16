@@ -323,12 +323,29 @@ void ServicePluginBackend::save_instances() const
     static_cast<void>(file.commit());
 }
 
-void ServicePluginBackend::add_instance(const QString& plugin_id,
-                                        const QString& point_id)
+QStringList ServicePluginBackend::place_names() const
+{
+    std::shared_ptr<const plugin_place_table> table;
+    {
+        const std::scoped_lock lock(mutex_);
+        table = places_;
+    }
+    QStringList names;
+    if (table)
+    {
+        for (const auto& each : *table)
+            names << QString::fromStdString(each.first);
+    }
+    return names;
+}
+
+void ServicePluginBackend::add_instance(
+    const QString& plugin_id, const QString& point_id,
+    const QMap<QString, QString>& values)
 {
     boost::asio::post(
         slow_,
-        [this, plugin_id, point_id]
+        [this, plugin_id, point_id, values]
         {
             const auto now = service_->snapshot();
             const std::string id = plugin_id.toStdString();
@@ -359,10 +376,19 @@ void ServicePluginBackend::add_instance(const QString& plugin_id,
                               { return spec.type == point->id; });
             if (static_cast<std::uint64_t>(have) >= point->max_instances)
                 return;
-            // The settings a plugin starts with are its defaults. A point
-            // with a setting that has none cannot be made yet.
-            const plug::validation checked = plug::validate(
-                point->parameters, std::span<const plug::raw_parameter>{});
+            // The settings a plugin starts with are its defaults and what the
+            // person gave, checked against the description. A point with a
+            // setting that has no default and was not given cannot be made.
+            std::vector<plug::raw_parameter> given;
+            for (auto each = values.begin(); each != values.end(); ++each)
+            {
+                plug::raw_parameter raw;
+                raw.id = each.key().toStdString();
+                raw.value = each.value().toStdString();
+                given.push_back(std::move(raw));
+            }
+            const plug::validation checked =
+                plug::validate(point->parameters, given);
             if (!checked.ok())
                 return;
             host::instance_spec spec;
@@ -396,6 +422,13 @@ void ServicePluginBackend::remove_instance(const QString& plugin_id,
                       });
 }
 
+void ServicePluginBackend::set_writable_ports(
+    std::shared_ptr<const plugin_endpoint_table> ports)
+{
+    const std::scoped_lock lock(mutex_);
+    writable_ = std::move(ports);
+}
+
 void ServicePluginBackend::set_places(
     std::shared_ptr<const plugin_place_table> places)
 {
@@ -425,6 +458,45 @@ ServicePluginBackend::make_handlers(const host::extension_context& context)
                     return std::nullopt;
                 return found->second;
             }));
+    }
+    if (options_.hub != nullptr)
+    {
+        // Replay into a port: the ports come from a table published from the
+        // GUI thread, and the timing an instance declared from the manifest
+        // of the plugin as the service holds it.
+        host::generator_owner owner;
+        owner.find_port =
+            [this](std::string_view name) -> std::shared_ptr<vss::endpoint>
+        {
+            std::shared_ptr<const plugin_endpoint_table> table;
+            {
+                const std::scoped_lock lock(mutex_);
+                table = writable_;
+            }
+            if (!table)
+                return nullptr;
+            const auto found = table->find(name);
+            return found == table->end() ? nullptr : found->second;
+        };
+        owner.timing_of = [this, id = context.plugin_id](std::string_view point)
+        {
+            const auto now = service_->snapshot();
+            for (const host::service_plugin& each : now->plugins)
+            {
+                if (each.id != id || !each.declared.has_value())
+                    continue;
+                for (const plug::extension_point& declared :
+                     each.declared->extension_points)
+                {
+                    if (declared.id == point)
+                        return declared.timing.type == plug::timing_class::rules
+                                   ? host::feed_timing::rules
+                                   : host::feed_timing::async;
+                }
+            }
+            return host::feed_timing::async;
+        };
+        handlers.push_back(host::make_generator_point(context, std::move(owner)));
     }
     // The licence file, as it was read on the slow thread: a copy of bytes
     // held here, never a read on the service's strand.

@@ -15,6 +15,7 @@
 #include "widgets/notes.hpp"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QClipboard>
 #include <QCoreApplication>
 #include <QFontMetrics>
@@ -23,6 +24,7 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
@@ -805,6 +807,121 @@ void PluginRemoveDialog::remove()
 {
     backend_.remove_plugin(plugin_.id, plugin_.hash, delete_data_->isChecked());
     accept();
+}
+
+// -- Settings for a new instance ---------------------------------------------
+
+PluginInstanceDialog::PluginInstanceDialog(const plugin_view& plugin,
+                                           const plugin_addition& point,
+                                           const QStringList& place_names,
+                                           QWidget* parent)
+    : QDialog(parent)
+{
+    setObjectName(QStringLiteral("pluginInstanceDialog"));
+    frame parts = build_frame(
+        this,
+        QCoreApplication::translate("PluginInstanceDialog", "Add %1")
+            .arg(plain_text(point.type_name)),
+        QCoreApplication::translate("PluginInstanceDialog",
+                                    "%1 needs these settings first.")
+            .arg(plain_text(plugin.name)),
+        520);
+    QVBoxLayout* body = parts.body;
+    QFormLayout* form = make_form(this);
+    for (const plugin_parameter_ask& ask : point.asks)
+    {
+        QWidget* field = nullptr;
+        if (ask.place_name)
+        {
+            auto* box = new QComboBox(this);
+            box->setEditable(true);
+            box->addItems(place_names);
+            box->setCurrentIndex(-1);
+            box->setInsertPolicy(QComboBox::NoInsert);
+            connect(box, &QComboBox::currentTextChanged, this,
+                    [this] { update_add(); });
+            field = box;
+        }
+        else
+        {
+            auto* edit = new QLineEdit(this);
+            connect(edit, &QLineEdit::textChanged, this,
+                    [this] { update_add(); });
+            field = edit;
+        }
+        field->setObjectName(QStringLiteral("instanceField"));
+        field->setProperty("settingId", ask.id);
+        field->setAccessibleName(plain_text(ask.label));
+        if (!ask.help.isEmpty())
+            field->setAccessibleDescription(plain_text(ask.help));
+        fields_.append({ask.id, field});
+        auto* name = make_plain_label(ask.label, this, text_style::body, true);
+        form->addRow(name, field);
+        if (!ask.help.isEmpty())
+            form->addRow(
+                QString(),
+                make_muted_label(ask.help, this, text_style::caption, true));
+    }
+    body->addLayout(form);
+    body->addWidget(make_muted_label(
+        QCoreApplication::translate(
+            "PluginInstanceDialog",
+            "These words come from the plugin."),
+        this));
+    body->addStretch(1);
+
+    cancel_ = footer_button(
+        parts.footer,
+        QCoreApplication::translate("PluginInstanceDialog", "Cancel"), nullptr,
+        QStringLiteral("instanceCancel"));
+    add_ = footer_button(
+        parts.footer, QCoreApplication::translate("PluginInstanceDialog", "Add"),
+        "primary", QStringLiteral("instanceAdd"));
+    connect(cancel_, &QPushButton::clicked, this, &QDialog::reject);
+    connect(add_, &QPushButton::clicked, this, &QDialog::accept);
+    add_->setEnabled(false);
+    if (!fields_.isEmpty())
+        setTabOrder(fields_.last().second, cancel_);
+    setTabOrder(cancel_, add_);
+    if (!fields_.isEmpty())
+        fields_.first().second->setFocus(Qt::OtherFocusReason);
+}
+
+QMap<QString, QString> PluginInstanceDialog::values() const
+{
+    QMap<QString, QString> out;
+    for (const auto& each : fields_)
+    {
+        QString text;
+        if (const auto* box = qobject_cast<QComboBox*>(each.second))
+            text = box->currentText();
+        else if (const auto* line = qobject_cast<QLineEdit*>(each.second))
+            text = line->text();
+        out.insert(each.first, text.trimmed());
+    }
+    return out;
+}
+
+QWidget* PluginInstanceDialog::field(const QString& id) const
+{
+    for (const auto& each : fields_)
+    {
+        if (each.first == id)
+            return each.second;
+    }
+    return nullptr;
+}
+
+void PluginInstanceDialog::update_add()
+{
+    // The fields are made before the button is.
+    if (add_ == nullptr)
+        return;
+    bool all = true;
+    const QMap<QString, QString> given = values();
+    for (auto it = given.begin(); it != given.end(); ++it)
+        all = all && !it.value().isEmpty();
+    add_->setEnabled(all);
 }
 
 // -- A plugin shows a code ----------------------------------------------------

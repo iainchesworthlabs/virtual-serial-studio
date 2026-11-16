@@ -17,11 +17,16 @@
 #include "support/plugin_text.hpp"
 
 #include <QDialog>
+#include <QList>
+#include <QMap>
+#include <QPair>
+#include <QStringList>
 #include <QString>
 
 #include <vector>
 
 class QCheckBox;
+class QComboBox;
 class QLabel;
 class QPlainTextEdit;
 class QShowEvent;
@@ -298,6 +303,34 @@ private:
 /// The sentence for one scope of the remote control, and whether it lets the
 /// other side see or send data (drawn amber).
 QString control_scope_sentence(const QString& scope, bool* amber = nullptr);
+
+/// "Add <point name>?" (width 520): asks for the settings a new instance
+/// needs and cannot do without. A setting that names a port or a link is a
+/// list of the names in the setup; the others are a line of text.
+class PluginInstanceDialog final : public QDialog
+{
+    Q_OBJECT
+
+public:
+    PluginInstanceDialog(const plugin_view& plugin,
+                         const plugin_addition& point,
+                         const QStringList& place_names,
+                         QWidget* parent = nullptr);
+
+    QPushButton* cancel_button() const noexcept { return cancel_; }
+    QPushButton* add_button() const noexcept { return add_; }
+    /// What was given, by the setting's id.
+    QMap<QString, QString> values() const;
+    /// The field of a setting, a combo box or a line of text.
+    QWidget* field(const QString& id) const;
+
+private:
+    void update_add();
+
+    QList<QPair<QString, QWidget*>> fields_;
+    QPushButton* cancel_ = nullptr;
+    QPushButton* add_ = nullptr;
+};
 
 /// The plugin in the current snapshot with this id and folder, or null. A
 /// dialog uses it to see that the version it was opened for is still there.

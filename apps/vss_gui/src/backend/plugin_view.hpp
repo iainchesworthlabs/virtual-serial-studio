@@ -118,6 +118,18 @@ enum class plugin_addition_kind
     connection
 };
 
+/// A setting Studio asks for when it makes an instance: it has no default,
+/// and it is text, so one field takes it.
+struct plugin_parameter_ask
+{
+    QString id;
+    /// The plugin's label and help. Untrusted.
+    QString label;
+    QString help;
+    /// It names a port or a link of the setup (`port`, `place`, `places`).
+    bool place_name = false;
+};
+
 struct plugin_addition
 {
     plugin_addition_kind kind = plugin_addition_kind::fixture;
@@ -128,8 +140,10 @@ struct plugin_addition
     QString description;
     /// How many instances of it the plugin allows.
     int max_instances = 1;
-    /// It has a setting with no default, which Studio cannot ask for yet, so
-    /// Studio cannot make an instance of it.
+    /// Settings with no default that Studio asks for in a small dialog.
+    std::vector<plugin_parameter_ask> asks;
+    /// It has another setting with no default, which Studio cannot ask for
+    /// yet, so Studio cannot make an instance of it.
     bool needs_settings = false;
 };
 

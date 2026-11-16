@@ -154,6 +154,9 @@ private:
     QString announced_state_key_;
     std::vector<QString> before_add_;
     bool waiting_for_add_ = false;
+    void add_instance_of(const plugin_view& plugin,
+                         const plugin_addition& point);
+
     bool rebuilding_ = false;
     quint64 pending_key_request_ = 0;
     quint64 pending_inspection_ = 0;

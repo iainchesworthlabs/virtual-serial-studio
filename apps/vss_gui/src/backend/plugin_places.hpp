@@ -12,6 +12,8 @@
 #include "backend/service_plugin_backend.hpp"
 #include "backend/studio_backend.hpp"
 
+#include <vss/core/hub.hpp>
+
 #include <memory>
 
 namespace vss::gui
@@ -19,5 +21,11 @@ namespace vss::gui
 
 std::shared_ptr<const plugin_place_table>
 make_plugin_place_table(const StudioBackend& backend);
+
+/// The ports of the setup, as the endpoints of `source`, by name: what a
+/// plugin that replays data writes to.
+std::shared_ptr<const plugin_endpoint_table>
+make_plugin_endpoint_table(const StudioBackend& backend,
+                           const vss::hub& source);
 
 } // namespace vss::gui

@@ -312,12 +312,14 @@ void FakePluginBackend::remove_plugin(const QString& plugin_id,
 }
 
 void FakePluginBackend::add_instance(const QString& plugin_id,
-                                     const QString& point_id)
+                                     const QString& point_id,
+                                     const QMap<QString, QString>& values)
 {
     fake_plugin_request seen;
     seen.kind = plugin_request_kind::add_instance;
     seen.plugin_id = plugin_id;
     seen.path = point_id;
+    seen.values = values;
     record(seen);
     auto next = std::make_shared<plugin_snapshot>(*snapshot_);
     for (plugin_view& plugin : next->plugins)

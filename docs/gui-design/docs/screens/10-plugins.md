@@ -314,7 +314,14 @@ Context `PluginsDialog`. A section headed "What it runs", between the permission
 - A refused instance shows Studio's sentence under its row (muted): "The plugin does not offer this." (the description has no such point), "The plugin allows no more of these.", "The plugin did not answer." or "The plugin turned it down."; and when the plugin gave a reason of its own, "The plugin says: “<reason>”" as plain text.
 - While the plugin still has older settings than the ones set, the muted line "Sending the new settings".
 - A quiet button "Add..." opens a menu with one entry for each extension point of the plugin. An entry is disabled when the plugin allows no more of that point (tooltip "The plugin allows no more of these.") and when the point has a setting with no default, which Studio cannot ask for yet (tooltip "This needs settings that Studio cannot ask for yet."). Adding makes the instance with the next free number and the default settings, and calls the service with the whole new list. The button is disabled for a plugin that cannot be used, needs a newer Studio, is blocked or is not used.
-- Forms for an instance's settings are not part of this release: `Settings forms`, below, are the design.
+- A point with a setting that has no default (a port or a link to name, or plain text) asks for it first, in the dialog "Add <point name>" below. A point with another kind of setting that has no default (a number, a path, a secret) cannot be added from the page yet: its entry in the menu is disabled with the tooltip "This needs settings that Studio cannot ask for yet.". Forms for changing an instance's settings afterwards are not part of this release: `Settings forms`, below, are the design.
+
+### Add <point name> (width 520)
+Context `PluginInstanceDialog`. Opens from an entry of the "Add..." menu whose extension point has settings to ask for. Modal. Title "Add <point name>". Sub "<plugin name> needs these settings first."
+
+One row for each setting that has no default and is text: the plugin's label (plain text), then the field, then the plugin's help text as a muted line. A setting named `port`, `place` or `places` is an editable combo box of the names of the ports and links in the setup, with nothing chosen at first; any other is a line of text. The label is the field's accessible name and the help its accessible description. A muted line under the rows: "These words come from the plugin."
+
+Buttons: Cancel, "Add" (primary). "Add" is disabled until every field has text. Nothing is made if the person cancels. Studio checks what was given against the plugin's description (type, length, plain text); a value it refuses makes no instance.
 
 Acceptance: every row and button is reachable by keyboard in the order of the page; the state words are text, never colour alone; the section reads as a list.
 
