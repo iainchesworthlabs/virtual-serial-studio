@@ -408,7 +408,8 @@ constexpr std::array permission_names{
     std::pair{"net.listen"sv, permission::net_listen},
     std::pair{"net.outbound"sv, permission::net_outbound},
     std::pair{"process.spawn"sv, permission::process_spawn},
-    std::pair{"bundle.section"sv, permission::bundle_section}};
+    std::pair{"bundle.section"sv, permission::bundle_section},
+    std::pair{"licence.read"sv, permission::licence_read}};
 
 constexpr std::array parameter_type_names{
     std::pair{"bool"sv, parameter_type::boolean},

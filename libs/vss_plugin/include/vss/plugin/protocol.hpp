@@ -54,7 +54,11 @@ namespace vss::plugin
 // -- limits ------------------------------------------------------------------
 
 /// The version of the plugin API this code speaks.
-inline constexpr api_version plugin_api_version{1, 0};
+inline constexpr api_version plugin_api_version{1, 1};
+
+/// The lowest version of the plugin API this code still speaks.  A new minor
+/// version only adds messages, so a plugin of the first one still works.
+inline constexpr api_version plugin_api_lowest{1, 0};
 
 /// The most bytes a header may have.  The bytes of traffic are in the blob,
 /// so a header is small; one over this is refused before it is read.
