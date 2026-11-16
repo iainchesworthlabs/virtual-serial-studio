@@ -649,9 +649,8 @@ TEST_CASE("service backend: what a plugin reports of its licence check reaches "
     QTemporaryDir dir;
     const fs::path root = fs::path(dir.path().toStdWString());
     const fs::path plugins = root / "plugins";
-    make_plugin(plugins,
-                R"(, "--notify-header={\"op\":\"licence.report\",)"
-                R"(\"reason\":\"expired\"}")");
+    make_plugin(plugins, R"(, "--notify-header={\"op\":\"licence.report\",)"
+                         R"(\"reason\":\"expired\"}")");
     ServicePluginBackend backend(options_for(root, plugins));
     const QString id = QString::fromLatin1(kPluginId);
     run_the_plugin(backend, id);
