@@ -56,7 +56,7 @@ struct traffic_tap::state
     std::size_t queued_bytes = 0;
     std::uint64_t dropped_items = 0;
     std::uint64_t dropped_bytes = 0;
-    std::vector<tap_drop> dropped;
+    std::vector<tap_drop> dropped_by_place;
     std::shared_ptr<std::function<void()>> notify;
     boost::asio::any_io_executor executor;
 
@@ -132,12 +132,12 @@ struct traffic_tap::state
         {
             ++dropped_items;
             dropped_bytes += cost;
-            auto found =
-                std::ranges::find(dropped, place.name, &tap_drop::place);
-            if (found == dropped.end())
+            auto found = std::ranges::find(dropped_by_place, place.name,
+                                           &tap_drop::place);
+            if (found == dropped_by_place.end())
             {
-                dropped.push_back(tap_drop{place.name, 0, 0});
-                found = dropped.end() - 1;
+                dropped_by_place.push_back(tap_drop{place.name, 0, 0});
+                found = dropped_by_place.end() - 1;
             }
             ++found->items;
             found->bytes += cost;
@@ -239,7 +239,7 @@ tap_batch traffic_tap::take(std::size_t max_items, std::size_t max_bytes)
     }
     batch.dropped_items = std::exchange(state_->dropped_items, 0);
     batch.dropped_bytes = std::exchange(state_->dropped_bytes, 0);
-    batch.dropped = std::exchange(state_->dropped, {});
+    batch.dropped = std::exchange(state_->dropped_by_place, {});
     return batch;
 }
 
