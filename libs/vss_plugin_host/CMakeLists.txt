@@ -8,10 +8,12 @@
 #
 
 add_library(vss_plugin_host
+  src/bundle_point.cpp
   src/bundle_sections.cpp
   src/capture_point.cpp
   src/control_relay.cpp
   src/decode_store.cpp
+  src/decoder_point.cpp
   src/extension.cpp
   src/generator_feed.cpp
   src/instances.cpp

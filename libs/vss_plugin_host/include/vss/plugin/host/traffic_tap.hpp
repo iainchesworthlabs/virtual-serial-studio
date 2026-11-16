@@ -60,7 +60,11 @@ enum class tap_item_kind
     data,
     lines,
     error,
-    bus_fault
+    bus_fault,
+    /// Only when `tap_limits::mark_losses` is set: data that was dropped
+    /// because the queue was full, at the place in the queue where it was
+    /// dropped.  `losses` says what.
+    loss
 };
 
 /// A place the tap watches.
@@ -81,6 +85,26 @@ struct tap_limits
 {
     std::size_t max_items = 4096;
     std::size_t max_bytes = std::size_t{8} * 1024 * 1024;
+    /// Put a `loss` item in the queue where data was dropped, so that a
+    /// reader knows which bytes are missing and where, and not only how many.
+    /// A loss item holds no bytes, takes no room against the limits and is
+    /// joined to the one before it when that is a loss item, so that the
+    /// queue stays no more than twice as long as its limit.  Off by default:
+    /// `take` then returns only what it always did.
+    bool mark_losses = false;
+};
+
+/// Data dropped at one place and direction, in one run of drops.
+struct tap_loss
+{
+    std::string place;
+    data_direction direction = data_direction::rx;
+    /// The events and the bytes that were dropped.
+    std::uint64_t items = 0;
+    std::uint64_t bytes = 0;
+    /// The hub's time of the first and of the last event dropped.
+    time_point first{};
+    time_point last{};
 };
 
 /// One thing that happened at a place, as the hub reported it.
@@ -101,6 +125,8 @@ struct tap_item
     bus_fault fault = bus_fault::none;
     link_id link = 0;
     std::string message;
+    /// For `loss`.
+    std::vector<tap_loss> losses;
 };
 
 /// What `take` returns.

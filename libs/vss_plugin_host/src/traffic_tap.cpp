@@ -129,6 +129,8 @@ struct traffic_tap::state
         {
             ++dropped_items;
             dropped_bytes += cost;
+            if (limits.mark_losses && item.kind == tap_item_kind::data)
+                mark_loss(place, item, cost);
             return;
         }
         item.place = place.name;
@@ -136,6 +138,45 @@ struct traffic_tap::state
             just_became_non_empty = true;
         queued_bytes += cost;
         queue.push_back(std::move(item));
+    }
+
+    // Caller holds the lock.  Notes a dropped chunk where the queue stands:
+    // in the loss item that ends the queue, or in a new one.
+    void mark_loss(const tap_place& place, const tap_item& dropped,
+                   std::size_t cost)
+    {
+        if (queue.empty() || queue.back().kind != tap_item_kind::loss)
+        {
+            tap_item marker;
+            marker.kind = tap_item_kind::loss;
+            marker.place = place.name;
+            marker.when = dropped.when;
+            if (queue.empty())
+                just_became_non_empty = true;
+            queue.push_back(std::move(marker));
+        }
+        tap_item& marker = queue.back();
+        marker.when = dropped.when;
+        const auto found = std::ranges::find_if(
+            marker.losses, [&](const tap_loss& loss) {
+                return loss.place == place.name &&
+                       loss.direction == dropped.direction;
+            });
+        if (found == marker.losses.end())
+        {
+            tap_loss loss;
+            loss.place = place.name;
+            loss.direction = dropped.direction;
+            loss.first = dropped.when;
+            loss.last = dropped.when;
+            loss.items = 1;
+            loss.bytes = cost;
+            marker.losses.push_back(std::move(loss));
+            return;
+        }
+        ++found->items;
+        found->bytes += cost;
+        found->last = dropped.when;
     }
 };
 

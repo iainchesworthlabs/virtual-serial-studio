@@ -375,6 +375,9 @@ private:
         case tap_item_kind::bus_fault:
             return took(
                 run, run.writer->add_fault(index, when, to_string(item.fault)));
+        case tap_item_kind::loss:
+            // Never queued: this tap does not ask for loss items.
+            return true;
         }
         return true;
     }
