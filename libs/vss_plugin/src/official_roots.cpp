@@ -27,55 +27,49 @@
 namespace vss::plugin
 {
 
-/// These two are only called while the table below is built by the compiler,
-/// so they have external linkage and are inline: a function with internal
-/// linkage that no code at run time calls is reported as unused.
-namespace detail
-{
-
-/// Calling this in a constant expression does not compile, which is how a
-/// wrong key is refused at build time.  It is not constexpr on purpose.
-[[noreturn]] inline void a_public_key_is_wrong()
-{
-    std::terminate();
-}
-
-/// The 32 bytes written as 64 lower-case hex characters.  Anything else
-/// does not compile.
-constexpr key_bytes key_from_hex(std::string_view text)
-{
-    if (text.size() != 64)
-        a_public_key_is_wrong();
-    const auto value = [](char c) -> std::uint8_t {
-        if (c >= '0' && c <= '9')
-            return static_cast<std::uint8_t>(c - '0');
-        if (c >= 'a' && c <= 'f')
-            return static_cast<std::uint8_t>(c - 'a' + 10);
-        a_public_key_is_wrong();
-    };
-    key_bytes out{};
-    for (std::size_t i = 0; i < out.size(); ++i)
-    {
-        out[i] = static_cast<std::uint8_t>(value(text[i * 2]) * 16 +
-                                           value(text[i * 2 + 1]));
-    }
-    return out;
-}
-
-} // namespace detail
-
 namespace
 {
 
-using detail::key_from_hex;
+/// Reads a public key written in hex.  The functions are members of a type
+/// because they are only called while the table below is built by the
+/// compiler: a free function with internal linkage that no code calls at run
+/// time is reported as unused, and one with external linkage as one that
+/// could be internal.
+struct hex_key
+{
+    /// Calling this in a constant expression does not compile, which is how a
+    /// wrong key is refused at build time.  It is not constexpr on purpose.
+    [[noreturn]] static void is_wrong() { std::terminate(); }
+
+    /// The 32 bytes written as 64 lower-case hex characters.  Anything else
+    /// does not compile.
+    static constexpr key_bytes read(std::string_view text)
+    {
+        if (text.size() != 64)
+            is_wrong();
+        const auto value = [](char c) -> std::uint8_t
+        {
+            if (c >= '0' && c <= '9')
+                return static_cast<std::uint8_t>(c - '0');
+            if (c >= 'a' && c <= 'f')
+                return static_cast<std::uint8_t>(c - 'a' + 10);
+            is_wrong();
+        };
+        key_bytes out{};
+        for (std::size_t i = 0; i < out.size(); ++i)
+        {
+            out[i] = static_cast<std::uint8_t>(value(text[i * 2]) * 16 +
+                                               value(text[i * 2 + 1]));
+        }
+        return out;
+    }
+};
 
 constexpr std::array<root_key, 2> roots{
-    root_key{"root-2026",
-             key_from_hex("3a94dda0542ec5631e0ce810151baa83"
-                          "1dd7f128ff9c393a68fef153026b0ca1")},
-    root_key{"root-next",
-             key_from_hex("648b4ce8ef09b6ce5d959d741e81e106"
-                          "3e73af05d3d156c5a0072b78c7503e1c")}};
+    root_key{"root-2026", hex_key::read("3a94dda0542ec5631e0ce810151baa83"
+                                        "1dd7f128ff9c393a68fef153026b0ca1")},
+    root_key{"root-next", hex_key::read("648b4ce8ef09b6ce5d959d741e81e106"
+                                        "3e73af05d3d156c5a0072b78c7503e1c")}};
 
 } // namespace
 
