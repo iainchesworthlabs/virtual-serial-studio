@@ -477,3 +477,20 @@ TEST_CASE("service mapping: what a plugin says is carried as it was said, and "
     // And a trust level the host did not give is never "official".
     REQUIRE(view.trust == plugin_trust::unsigned_plugin);
 }
+
+TEST_CASE("service mapping: what a plugin said of its licence check")
+{
+    host::service_plugin plugin = make_entry("org.example.thing");
+    REQUIRE(!one(plugin).has_licence_report);
+    host::plugin_licence_report report;
+    report.reason = vss::license::reason::expired;
+    report.licence_id = "someone's text";
+    plugin.licence_report = report;
+    const plugin_view view = one(plugin);
+    REQUIRE(view.has_licence_report);
+    REQUIRE(view.licence_report_reason == vss::license::reason::expired);
+    // Ok is carried too; the page shows nothing for it.
+    plugin.licence_report->reason = vss::license::reason::ok;
+    REQUIRE(one(plugin).has_licence_report);
+    REQUIRE(one(plugin).licence_report_reason == vss::license::reason::ok);
+}

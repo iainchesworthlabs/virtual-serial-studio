@@ -14,14 +14,17 @@
 
 #pragma once
 
+#include "backend/licence_view.hpp"
 #include "backend/plugin_backend.hpp"
 #include "backend/service_mapping.hpp"
 
+#include <vss/core/bytes.hpp>
 #include <vss/core/hub.hpp>
 #include <vss/license/license.hpp>
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/host/capture_point.hpp>
 #include <vss/plugin/host/control_point.hpp>
+#include <vss/plugin/host/licence_point.hpp>
 #include <vss/plugin/host/secret_point.hpp>
 #include <vss/plugin/host/service.hpp>
 
@@ -35,6 +38,8 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
+#include <set>
 #include <thread>
 #include <vector>
 
@@ -67,12 +72,27 @@ struct service_plugin_options
     /// Where the instances the user asked of each plugin are kept, so that
     /// they come back at the next start. Empty: they are not kept.
     std::filesystem::path instances_file;
+    /// The folders the licence files are in, so that the file Studio uses
+    /// can be handed to a plugin that checks the licence itself.
+    std::filesystem::path licence_user_directory;
+    std::filesystem::path licence_machine_directory;
+};
+
+/// The licence file Studio is using, by name and folder.
+struct licence_file_ref
+{
+    std::string file_name;
+    bool machine_wide = false;
 };
 
 /// The places a plugin may record, by the name it uses for them: a port by
 /// its name, a link by the names of its ends. Immutable once published.
 using plugin_place_table =
     std::map<std::string, vss::plugin::host::capture_place, std::less<>>;
+
+/// The licence file in use in what the backend knows of the licence, or
+/// nothing for the Community edition.
+std::optional<licence_file_ref> licence_file_in_use(const licence_view& view);
 
 /// The folders and files of this computer, for the program.
 service_plugin_options default_service_plugin_options();
@@ -90,7 +110,11 @@ public:
 
     /// The licence in use. Call it again when the licence changes: the
     /// plugins are judged again.
-    void set_licence(const vss::license::status& status);
+    /// `file` is the file in use, or nothing for the Community edition.
+    /// When the licence is a different one, the official plugins that run
+    /// are started again, so that they ask for the new file.
+    void set_licence(const vss::license::status& status,
+                     const std::optional<licence_file_ref>& file = {});
 
     /// Stops every plugin, each asked first, waits for them to have gone for
     /// at most seven seconds (the service ends what is left after five), and
@@ -136,6 +160,7 @@ private:
                      std::function<void(bool)> done);
     void answer_all_prompts_no();
     void load_instances();
+    void restart_waiting_plugins();
     void save_instances() const;
     vss::plugin::inspect_context context_now() const;
 
@@ -175,6 +200,15 @@ private:
         std::vector<vss::plugin::host::instance_spec> list;
     };
     std::map<std::string, kept_instances> instances_;
+    /// The bytes of the licence file in use, read on the slow thread; empty
+    /// for none. Swapped whole, so the service's strand copies a snapshot.
+    std::shared_ptr<const vss::byte_buffer> licence_bytes_;
+    /// Which licence the plugins were last told of, to start them again once
+    /// for each change.
+    std::string licence_key_;
+    bool licence_key_known_ = false;
+    /// Official plugins stopped for a licence change and not yet started.
+    std::set<std::string> restart_;
     /// Plugins taken away whose saved data is to go once they have stopped.
     std::vector<std::string> data_to_delete_;
     mutable plugin_snapshot_ptr cached_;

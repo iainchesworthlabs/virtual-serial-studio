@@ -443,3 +443,27 @@ TEST_CASE("bundle sections: the problems have names")
     REQUIRE_EQ(to_string(bundle_problem::hash_changed), "hash_changed");
     REQUIRE_EQ(to_string(bundle_problem::file_is_link), "file_is_link");
 }
+
+TEST_CASE("bundle sections: a file is measured from one handle")
+{
+    world here;
+    const fs::path data = here.directory.path();
+    const auto measured =
+        measure_file(data, "traffic", "traffic/1.jsonl", 9);
+    REQUIRE(measured.has_value());
+    REQUIRE_EQ(measured->size, std::uint64_t{9});
+    REQUIRE_EQ(measured->sha512, to_hex(sha512_of("line one\n")));
+    REQUIRE_EQ(measured->path, "traffic/1.jsonl");
+
+    const auto failed = [&](const std::string& path, std::uint64_t size)
+    { return measure_file(data, "traffic", path, size).error().problem; };
+    REQUIRE(failed("traffic/1.jsonl", 8) == bundle_problem::size_changed);
+    REQUIRE(failed("traffic/1.jsonl", 10) == bundle_problem::size_changed);
+    REQUIRE(failed("traffic/none.txt", 1) == bundle_problem::file_missing);
+    REQUIRE(failed("traffic", 1) == bundle_problem::file_not_plain);
+    REQUIRE(failed("../outside.txt", 1) == bundle_problem::path_bad);
+    REQUIRE(failed("/etc/hosts", 1) == bundle_problem::path_bad);
+    REQUIRE(measure_file(data / "absent", "traffic", "traffic/1.jsonl", 9)
+                .error()
+                .problem == bundle_problem::directory_bad);
+}

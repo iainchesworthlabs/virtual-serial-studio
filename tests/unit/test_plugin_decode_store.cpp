@@ -289,7 +289,10 @@ TEST_CASE("decode store: a trigger's limits at the edge and one past")
     value = trigger();
     value.field = decode_trigger_field{"check", 7, 2};
     REQUIRE(taken(value));
+    // A field of no bytes is allowed, as the message allows it.
     value.field->length = 0;
+    REQUIRE(taken(value));
+    value.field->length = 65'537;
     REQUIRE(refusal(value) == reject_reason::number_out_of_range);
     value.field->length = 2;
     value.field->name.clear();

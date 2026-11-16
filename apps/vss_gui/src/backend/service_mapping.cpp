@@ -399,6 +399,14 @@ plugin_snapshot map_service_snapshot(const host::service_snapshot& snapshot,
                     { return permission_id(each) == permission.id; });
             }
         }
+        // What the plugin said of its own check of the licence. Its claim:
+        // the page shows Studio's sentence for the reason, never its words.
+        if (plugin.licence_report.has_value())
+        {
+            view.has_licence_report = true;
+            view.licence_report_reason = plugin.licence_report->reason;
+        }
+
         // What Studio runs of this plugin. A plugin that is not running keeps
         // its instances, shown as not running.
         {
