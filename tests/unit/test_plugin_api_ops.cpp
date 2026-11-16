@@ -58,7 +58,7 @@ std::string seed_name(std::string_view op)
 TEST_CASE("plugin api: every message is listed once, with its own role")
 {
     const std::span<const api_op> ops = api_ops();
-    REQUIRE_EQ(ops.size(), std::size_t{40});
+    REQUIRE_EQ(ops.size(), std::size_t{43});
     for (std::size_t i = 0; i < ops.size(); ++i)
     {
         REQUIRE(is_op_name(ops[i].op));

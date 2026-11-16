@@ -61,6 +61,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_plugin_api_fixture.cpp
   unit/test_plugin_api_generator.cpp
   unit/test_plugin_api_instance.cpp
+  unit/test_plugin_api_licence.cpp
   unit/test_plugin_api_modifier.cpp
   unit/test_plugin_api_ops.cpp
   unit/test_plugin_api_trigger.cpp

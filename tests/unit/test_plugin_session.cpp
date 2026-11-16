@@ -240,8 +240,8 @@ TEST_CASE("plugin session: the version is the highest that suits both")
         const session_output out =
             session.on_bytes(bytes_of(hello(1, {1, 3})), start);
         REQUIRE(session.state() == session_state::ready);
-        REQUIRE(session.api() == (api_version{1, 0}));
-        REQUIRE(events_of<ready_event>(out)[0].api == (api_version{1, 0}));
+        REQUIRE(session.api() == plugin_api_version);
+        REQUIRE(events_of<ready_event>(out)[0].api == plugin_api_version);
     }
     // The host is newer: the plugin's own version is used.
     {
@@ -261,7 +261,7 @@ TEST_CASE("plugin session: the version is the highest that suits both")
     // A version the manifest does not allow.
     {
         session_options options = options_for_test();
-        options.accepted = api_range{api_version{1, 1}, 1, std::nullopt};
+        options.accepted = api_range{api_version{1, 2}, 1, std::nullopt};
         host_session session(options, start);
         require_closed(session.on_bytes(bytes_of(hello(1, {1, 3})), start),
                        plugin_errc::api_incompatible);
