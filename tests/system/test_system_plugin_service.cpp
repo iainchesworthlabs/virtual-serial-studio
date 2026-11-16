@@ -21,6 +21,7 @@
 #include <vss/license/license.hpp>
 #include <vss/license/sign.hpp>
 #include <vss/license/signed_file.hpp>
+#include <vss/plugin/api_licence.hpp>
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/hash.hpp>
@@ -2004,6 +2005,10 @@ TEST_CASE("plugin service: what a plugin reports of the licence is in the "
         handlers.push_back(vss::plugin::host::make_licence_point(context, {}));
         return handlers;
     };
+    // The program that offers the licence says so by the capability's name,
+    // and a plugin starts with that name in its "hello_ack".
+    options.plan.capabilities.emplace_back(
+        vss::plugin::licence_file_capability);
     plugin_service& service = fixture.start(std::move(options));
     service.rescan();
 
