@@ -25,6 +25,7 @@
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/hash.hpp>
 #include <vss/plugin/host/extension.hpp>
+#include <vss/plugin/host/licence_point.hpp>
 #include <vss/plugin/host/runner.hpp>
 #include <vss/plugin/host/sandbox.hpp>
 #include <vss/plugin/host/secret_point.hpp>
@@ -1983,6 +1984,45 @@ TEST_CASE("plugin service: a secret a plugin hands over is shown and kept "
         wait_for(service, "the plugin to be off", is_off(official_id));
     REQUIRE(!snapshot_holds_secret(*off));
     REQUIRE_EQ(shown->copy().size(), std::size_t{1});
+}
+
+TEST_CASE("plugin service: what a plugin reports of the licence is in the "
+          "snapshot")
+{
+    service_fixture fixture;
+    plugin_spec spec = official_plugin(official_id);
+    spec.arguments = {
+        R"(--notify-header={"op":"licence.report","reason":"expired",)"
+        R"("licence_id":"VSS-2026-000042"})"};
+    static_cast<void>(make_plugin(fixture.plugins_directory(), spec));
+
+    service_options options = fixture.options();
+    options.extensions = [](const vss::plugin::host::extension_context& context)
+    {
+        std::vector<std::unique_ptr<vss::plugin::host::extension_handler>>
+            handlers;
+        handlers.push_back(vss::plugin::host::make_licence_point(context, {}));
+        return handlers;
+    };
+    plugin_service& service = fixture.start(std::move(options));
+    service.rescan();
+
+    const snapshot_ptr reported = wait_for(
+        service, "the plugin's report of the licence",
+        [](const service_snapshot& latest)
+        {
+            const service_plugin* const plugin = find(latest, official_id);
+            return plugin != nullptr && plugin->licence_report.has_value();
+        });
+    const service_plugin& entry = entry_of(*reported, official_id);
+    REQUIRE(entry.licence_report->reason == vss::license::reason::expired);
+    REQUIRE_EQ(entry.licence_report->licence_id,
+               std::string("VSS-2026-000042"));
+
+    // A plugin that is off has said nothing in a run.
+    service.set_enabled(std::string(official_id), false);
+    static_cast<void>(
+        wait_for(service, "the plugin to be off", is_off(official_id)));
 }
 
 TEST_CASE("plugin service: a secret the user did not see is answered not "
