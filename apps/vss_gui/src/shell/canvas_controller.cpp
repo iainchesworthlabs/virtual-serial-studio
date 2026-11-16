@@ -9,6 +9,7 @@
 #include "advanced/link_settings_dialog.hpp"
 #include "advanced/port_settings_dialog.hpp"
 #include "backend/driver_error.hpp"
+#include "dialogs/network_endpoint.hpp"
 #include "topology/add_sheet.hpp"
 #include "topology/toolbox.hpp"
 #include "topology/topology_text.hpp"
@@ -89,6 +90,13 @@ CanvasController::CanvasController(StudioBackend& backend, UndoService& undo,
             [this](vss::endpoint_id from, slot_kind kind, wire_kind link,
                    const QPointF& point)
             { wire_new(from, kind, link, point); });
+    connect(view_, &topology::TopologyView::bus_extend_requested, this,
+            [this](vss::endpoint_id port, vss::link_id bus)
+            { extend_bus(port, bus); });
+    connect(view_, &topology::TopologyView::bus_with_requested, this,
+            &CanvasController::bus_with_requested);
+    connect(view_, &topology::TopologyView::network_requested, this,
+            &CanvasController::network_requested);
     connect(view_, &topology::TopologyView::settings_requested, this,
             [this](const QVector<vss::endpoint_id>& ports)
             { open_settings(ports); });
@@ -194,11 +202,12 @@ bool CanvasController::add_item(canvas_item item, std::optional<QPointF> at)
             {
                 // A driver problem is a whole sentence with its own next step.
                 const auto problem = driver_problem_of(made.error());
-                setup_offered_ = problem && driver_problem_offers_setup(*problem);
-                const QString error =
-                    problem ? error_text(made.error())
-                            : tr("Nothing was added: %1")
-                                  .arg(error_text(made.error()));
+                setup_offered_ =
+                    problem && driver_problem_offers_setup(*problem);
+                const QString error = problem
+                                          ? error_text(made.error())
+                                          : tr("Nothing was added: %1")
+                                                .arg(error_text(made.error()));
                 Q_EMIT message(error);
                 return error;
             }
@@ -232,6 +241,78 @@ bool CanvasController::add_request(const bundle_request& request,
     push_created(tr("Add %1").arg(topology::item_label(request.item).toLower()),
                  made->created);
     select_names(made->created);
+    return true;
+}
+
+bool CanvasController::extend_bus(vss::endpoint_id port, vss::link_id bus)
+{
+    VSS_PROFILE_ZONE("gui.shell.canvas.extend_bus");
+    const auto view = backend_.port(port);
+    const auto link = backend_.link(bus);
+    if (!view || !link || link->sources.isEmpty())
+        return false;
+    const auto anchor = backend_.port(link->sources.first());
+    if (!anchor)
+        return false;
+    const auto added = batch([&] { return backend_.add_member(bus, port); });
+    if (!added)
+    {
+        Q_EMIT message(tr("Could not add %1 to the bus: %2")
+                           .arg(view->name, error_text(added.error())));
+        return false;
+    }
+    const QString name = view->name;
+    const QString anchor_name = anchor->name;
+    // The bus is found again by a member that stays, so the step works after
+    // the bus was made again by another undo.
+    const auto bus_of = [this](const QString& member) -> vss::link_id
+    {
+        for (const link_view& candidate : backend_.links())
+        {
+            if (candidate.shape != link_shape::bus)
+                continue;
+            for (const vss::endpoint_id id : candidate.sources)
+            {
+                const auto source = backend_.port(id);
+                if (source && source->name == member)
+                    return candidate.id;
+            }
+        }
+        return 0;
+    };
+    const auto id_of = [this](const QString& member) -> vss::endpoint_id
+    {
+        for (const port_view& candidate : backend_.ports())
+        {
+            if (candidate.name == member)
+                return candidate.id;
+        }
+        return 0;
+    };
+    undo_.push(
+        {tr("Add to bus"),
+         [this, name, anchor_name, bus_of, id_of]
+         {
+             return batch(
+                 [&]
+                 {
+                     const vss::link_id found = bus_of(anchor_name);
+                     return found != 0 &&
+                            backend_.remove_member(found, id_of(name))
+                                .has_value();
+                 });
+         },
+         [this, name, anchor_name, bus_of, id_of]
+         {
+             return batch(
+                 [&]
+                 {
+                     const vss::link_id found = bus_of(anchor_name);
+                     return found != 0 &&
+                            backend_.add_member(found, id_of(name)).has_value();
+                 });
+         }});
+    Q_EMIT message(tr("Put %1 on the bus with %2.").arg(name, anchor_name));
     return true;
 }
 
@@ -420,10 +501,10 @@ bool CanvasController::remove(const QVector<vss::endpoint_id>& ports,
     // The name goes into the Edit menu ("Undo Delete ..."), so a long list of
     // ports is counted rather than spelled out.
     const QStringList removed_names = names_in(what);
-    const QString subject =
-        removed_names.isEmpty()  ? tr("link")
-        : removed_names.size() > 3 ? tr("%1 ports").arg(removed_names.size())
-                                   : removed_names.join(QStringLiteral(", "));
+    const QString subject = removed_names.isEmpty() ? tr("link")
+                            : removed_names.size() > 3
+                                ? tr("%1 ports").arg(removed_names.size())
+                                : removed_names.join(QStringLiteral(", "));
     undo_.push(
         {tr("Delete %1").arg(subject),
          [this, what]
@@ -625,6 +706,23 @@ void CanvasController::open_settings(const QVector<vss::endpoint_id>& ports)
 {
     if (ports.isEmpty())
         return;
+    // A network port is edited as one: server or client, address and port.
+    if (ports.size() == 1 && backend_.caps().network_edit)
+    {
+        const auto port = backend_.port(ports.first());
+        if (port && (port->kind == vss::endpoint_kind::tcp ||
+                     port->kind == vss::endpoint_kind::udp ||
+                     port->kind == vss::endpoint_kind::rfc2217))
+        {
+            NetworkEndpointDialog edit(backend_, true, 0, parent_);
+            if (edit.edit_port(ports.first()))
+            {
+                if (edit.exec() == QDialog::Accepted)
+                    Q_EMIT message(tr("Network port changed."));
+                return;
+            }
+        }
+    }
     PortSettingsDialog dialog(backend_, ports, parent_);
     connect(&dialog, &PortSettingsDialog::error_shown, this,
             [this](const QString& text) { Q_EMIT message(text); });
