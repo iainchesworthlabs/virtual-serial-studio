@@ -169,11 +169,13 @@ struct traffic_tap::state
         }
         tap_item& marker = queue.back();
         marker.when = dropped.when;
-        const auto found = std::ranges::find_if(
-            marker.losses, [&](const tap_loss& loss) {
-                return loss.place == place.name &&
-                       loss.direction == dropped.direction;
-            });
+        const auto found =
+            std::ranges::find_if(marker.losses,
+                                 [&](const tap_loss& loss)
+                                 {
+                                     return loss.place == place.name &&
+                                            loss.direction == dropped.direction;
+                                 });
         if (found == marker.losses.end())
         {
             tap_loss loss;

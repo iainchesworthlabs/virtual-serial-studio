@@ -86,8 +86,9 @@ std::uint64_t steady_ns() noexcept
 
 bool all_digits(std::string_view text) noexcept
 {
-    return !text.empty() && std::ranges::all_of(text, [](char c)
-                                                { return c >= '0' && c <= '9'; });
+    return !text.empty() &&
+           std::ranges::all_of(text,
+                               [](char c) { return c >= '0' && c <= '9'; });
 }
 
 /// The rate and the format that the settings of a place say, "115200 8N1",
@@ -307,6 +308,8 @@ public:
 
     void plugin_ready() override { refresh(); }
 
+    void instances_changed() override { refresh(); }
+
     void plugin_gone() override
     {
         for (auto& entry : runs_)
@@ -489,8 +492,8 @@ private:
         runs_.insert_or_assign(instance, std::move(fresh));
         context_.link.request(
             std::move(*encoded),
-            [alive = alive_, this, instance, generation](
-                error_code failure, const api_message& reply)
+            [alive = alive_, this, instance,
+             generation](error_code failure, const api_message& reply)
             {
                 if (*alive)
                     created(instance, generation, failure, reply);
@@ -542,8 +545,7 @@ private:
             if (auto encoded = encode_as(stop, placeholder_id))
             {
                 context_.link.request(
-                    std::move(*encoded),
-                    [](error_code, const api_message&) {},
+                    std::move(*encoded), [](error_code, const api_message&) {},
                     stop_timeout);
             }
         }
@@ -593,8 +595,8 @@ private:
         if (found == runs_.end() || !found->second.created)
             return count_stray();
         run& r = found->second;
-        if (place != nullptr && std::ranges::find(r.names, *place) ==
-                                    r.names.end())
+        if (place != nullptr &&
+            std::ranges::find(r.names, *place) == r.names.end())
         {
             ++r.counts.refused;
             return nullptr;
@@ -603,8 +605,7 @@ private:
     }
 
     /// Reads a message that must be one of the plugin's notifications.
-    template <class Body>
-    std::optional<Body> read(const api_message& message)
+    template <class Body> std::optional<Body> read(const api_message& message)
     {
         auto body = decode_as<Body>(message);
         if (!body)
@@ -658,7 +659,8 @@ private:
         if (r == nullptr)
             return;
         const std::array<decoded_frame, 1> one{to_frame(*body)};
-        const add_result result = r->target.store->add_records(one, steady_ns());
+        const add_result result =
+            r->target.store->add_records(one, steady_ns());
         if (result.accepted == 0)
             ++r->counts.refused;
     }
@@ -692,19 +694,18 @@ private:
         if (r.pumping_posted)
             return;
         r.pumping_posted = true;
-        boost::asio::post(
-            context_.executor,
-            [alive = alive_, this, instance = r.instance,
-             generation = r.generation]()
-            {
-                if (!*alive)
-                    return;
-                run* again = find_run(instance, generation);
-                if (again == nullptr)
-                    return;
-                again->pumping_posted = false;
-                pump(*again);
-            });
+        boost::asio::post(context_.executor,
+                          [alive = alive_, this, instance = r.instance,
+                           generation = r.generation]()
+                          {
+                              if (!*alive)
+                                  return;
+                              run* again = find_run(instance, generation);
+                              if (again == nullptr)
+                                  return;
+                              again->pumping_posted = false;
+                              pump(*again);
+                          });
     }
 
     std::size_t window_left(const run& r) const noexcept
@@ -779,8 +780,8 @@ private:
 
     std::size_t index_of(const run& r, const std::string& place) const
     {
-        return static_cast<std::size_t>(
-            std::ranges::find(r.names, place) - r.names.begin());
+        return static_cast<std::size_t>(std::ranges::find(r.names, place) -
+                                        r.names.begin());
     }
 
     /// The hub's time as the stream's: since the decoder started, and never
@@ -927,9 +928,8 @@ std::unique_ptr<decoder_point>
 make_decoder_point(const extension_context& context, hub& source,
                    place_finder find, decoder_targets targets)
 {
-    return std::make_unique<decoder_point_impl>(context, source,
-                                                std::move(find),
-                                                std::move(targets));
+    return std::make_unique<decoder_point_impl>(
+        context, source, std::move(find), std::move(targets));
 }
 
 } // namespace vss::plugin::host

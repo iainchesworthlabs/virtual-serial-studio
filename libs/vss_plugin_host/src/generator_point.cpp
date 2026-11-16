@@ -136,6 +136,8 @@ public:
 
     void plugin_ready() override { sync(); }
 
+    void instances_changed() override { sync(); }
+
     void plugin_gone() override { stop_all(); }
 
     void sync() override
@@ -203,18 +205,17 @@ private:
             outstanding += count;
             byte_buffer copy(data.begin(),
                              data.begin() + static_cast<std::ptrdiff_t>(count));
-            target_->write(std::move(copy),
-                           [done = on_done, count](boost::system::error_code ec,
-                                                   std::size_t)
-                           {
-                               if (done)
-                               {
-                                   done(count,
-                                        ec &&
-                                            ec != boost::asio::error::
-                                                      operation_aborted);
-                               }
-                           });
+            target_->write(
+                std::move(copy),
+                [done = on_done, count](boost::system::error_code ec,
+                                        std::size_t)
+                {
+                    if (done)
+                    {
+                        done(count,
+                             ec && ec != boost::asio::error::operation_aborted);
+                    }
+                });
             result.taken = count;
             return result;
         }
@@ -314,29 +315,28 @@ private:
         }
         feed_options options;
         options.port = target->id();
-        options.timing = owner_.timing_of ? owner_.timing_of(spec.type)
-                                          : feed_timing::async;
+        options.timing =
+            owner_.timing_of ? owner_.timing_of(spec.type) : feed_timing::async;
         options.window_bytes = max_feed_window;
         options.window_batches = 65536;
         options.max_batch_bytes = max_generator_write;
         const std::uint64_t generation = ++generations_;
         auto made = std::make_unique<generator_run>(spec.instance, generation,
-                                                    options,
-                                          std::move(target), context_.executor);
-        made->writer.on_done = [alive = alive_, this, number = spec.instance,
-                                generation, executor = context_.executor](
-                                   std::size_t count, bool failed)
+                                                    options, std::move(target),
+                                                    context_.executor);
+        made->writer.on_done =
+            [alive = alive_, this, number = spec.instance, generation,
+             executor = context_.executor](std::size_t count, bool failed)
         {
             // Called on the endpoint's strand, possibly after this object
             // has gone: the result goes to the service's, and nothing of
             // this object is touched before the flag is read there.
-            boost::asio::post(
-                executor,
-                [alive, this, number, generation, count, failed]()
-                {
-                    if (*alive)
-                        wrote(number, generation, count, failed);
-                });
+            boost::asio::post(executor,
+                              [alive, this, number, generation, count, failed]()
+                              {
+                                  if (*alive)
+                                      wrote(number, generation, count, failed);
+                              });
         };
         generator_run& current = *made;
         runs_.insert_or_assign(spec.instance, std::move(made));
@@ -388,7 +388,8 @@ private:
     {
         const auto asked = decode_as<generator_write_message>(message);
         if (!asked || !context_.may(permission::ports_write) ||
-            !context_.instances || !context_.instances->running(asked->instance))
+            !context_.instances ||
+            !context_.instances->running(asked->instance))
         {
             ++counts_.writes_dropped;
             return;
@@ -403,16 +404,17 @@ private:
         }
         feed_batch batch;
         batch.data = asked->data;
-        deal_with(*current, current->feed.on_batch(std::move(batch),
-                                                   clock_now(),
-                                                   current->writer));
+        deal_with(*current,
+                  current->feed.on_batch(std::move(batch), clock_now(),
+                                         current->writer));
     }
 
     void done(const api_message& message)
     {
         const auto asked = decode_as<generator_done_message>(message);
         if (!asked || !context_.may(permission::ports_write) ||
-            !context_.instances || !context_.instances->running(asked->instance))
+            !context_.instances ||
+            !context_.instances->running(asked->instance))
         {
             ++counts_.writes_dropped;
             return;
@@ -439,10 +441,9 @@ private:
         if (!allowed(message.id, asked->instance))
             return;
         const auto found = context_.instances->find(asked->instance);
-        const feed_timing timing =
-            owner_.timing_of && found.has_value()
-                ? owner_.timing_of(found->spec.type)
-                : feed_timing::async;
+        const feed_timing timing = owner_.timing_of && found.has_value()
+                                       ? owner_.timing_of(found->spec.type)
+                                       : feed_timing::async;
         if (timing != feed_timing::rules)
         {
             refuse(message.id, api_errc::not_declared,

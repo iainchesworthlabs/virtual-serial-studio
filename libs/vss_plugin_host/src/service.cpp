@@ -466,10 +466,17 @@ private:
                         runner->request(std::move(message), std::move(handler));
                     });
                 entry.instances->on_change(
-                    [weak = weak_from_this()]()
+                    [weak = weak_from_this(), id]()
                     {
-                        if (const auto self = weak.lock())
-                            self->publish_soon();
+                        const auto self = weak.lock();
+                        if (!self)
+                            return;
+                        self->publish_soon();
+                        // Later, and not from here: a handler may ask the
+                        // instances what they hold, and they are in the
+                        // middle of changing.
+                        self->post([id](impl& me)
+                                   { me.instances_changed(id); });
                     });
                 if (const auto wanted = wanted_.find(id);
                     wanted != wanted_.end())
@@ -596,6 +603,18 @@ private:
                 return;
         }
         found->second.runner->unknown(message);
+    }
+
+    /// The instances of a plugin changed: its extension points are told,
+    /// while the plugin is ready.
+    void instances_changed(const std::string& id)
+    {
+        const auto found = running_.find(id);
+        if (found == running_.end() || found->second.ready_start == 0)
+            return;
+        const auto handlers = found->second.handlers;
+        for (const auto& handler : *handlers)
+            handler->instances_changed();
     }
 
     /// A runner's snapshot changed: its instances are told when the
