@@ -10,6 +10,7 @@
 add_library(vss_plugin_host
   src/bundle_sections.cpp
   src/capture_point.cpp
+  src/control_point.cpp
   src/control_relay.cpp
   src/decode_store.cpp
   src/extension.cpp
