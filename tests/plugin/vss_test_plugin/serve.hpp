@@ -51,6 +51,9 @@ struct serve_options
     /// puts the "id" in; the answer to each is printed as "answer <op of the
     /// answer>".
     std::vector<std::string> send_headers;
+    /// After those: a notification for each of these, each the text of a
+    /// JSON object that holds an "op".  Sent as it is, with no "id".
+    std::vector<std::string> notify_headers;
     /// A request with one of these "op"s is answered with "ok" and printed
     /// as "got <op>".
     std::vector<std::string> echo_ops;

@@ -228,7 +228,7 @@ travel in them. The plugin hands the secret to the host, which shows it once in 
 
 Design: `plugins.md` 8.7 and `licensing.md`. An official plugin checks the licence itself and never takes the host's
 word, so the host hands it the bytes of the licence file and the plugin tells the host what it found. These messages need
-the engine capability `licence.file`. An official plugin is always answered. A plugin from anyone else is answered only
+the engine capability `licence_file`. An official plugin is always answered. A plugin from anyone else is answered only
 when it declared the permission `licence.read` and the user granted it, because the file holds the user's name; without
 it the answer is the `error` value `not_granted`. A host that names the capability never answers `unsupported`. Added in
 version 1.1 of the API.
@@ -258,7 +258,7 @@ whose value is `unsupported`. These are the names:
 | `route_hook` | The engine has the stage on a route that a modifier uses | 7.6 |
 | `events_bus_fault_detail` | A bus fault event has its value, link and time | 20.4 |
 | `timeline` | The engine plays a recording as a timeline (`timeline.load`) | 19.4 |
-| `licence.file` | The host sends the licence file to a plugin that has the permission `licence.read` (`licence.get`) | 8.7 |
+| `licence_file` | The host sends the licence file to an official plugin, or to one that has the permission `licence.read`, when it asks (`licence.get`) | 8.7 |
 
 `timeline` is not offered in release candidate 6. `timeline.load` is answered with an `error` whose value is
 `unsupported`, and a plugin that replays a recording checks for the capability and shows that it cannot.

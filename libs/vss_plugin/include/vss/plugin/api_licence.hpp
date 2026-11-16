@@ -9,7 +9,8 @@
 // section 8.7, and docs/licensing.md.
 //
 // A plugin may use these only when the host offers the engine capability
-// `licence.file` and the plugin has the permission `licence.read`.  The host
+// `licence_file` and the plugin is official or has the permission
+// `licence.read`.  The host
 // never judges a licence for the plugin and never sends one that was not
 // asked for.  The bytes of a licence file are untrusted until the plugin has
 // verified them.
@@ -36,7 +37,7 @@ inline constexpr std::size_t max_licence_id = 64;
 
 /// The engine capability the host names in `hello_ack` when it answers
 /// `licence.get`.
-inline constexpr std::string_view licence_file_capability = "licence.file";
+inline constexpr std::string_view licence_file_capability = "licence_file";
 
 /// The name a message uses for a reason of the licence library, such as
 /// `not_yet_valid`.  The library has the sentences and not the names.
