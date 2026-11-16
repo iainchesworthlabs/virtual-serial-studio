@@ -23,6 +23,9 @@
 
 class QCheckBox;
 class QLabel;
+class QPlainTextEdit;
+class QShowEvent;
+class QTimer;
 class QPushButton;
 
 namespace vss::gui
@@ -205,6 +208,96 @@ private:
     QPushButton* cancel_ = nullptr;
     QPushButton* remove_ = nullptr;
 };
+
+/// "A code from <plugin name>" (width 480): shows what a plugin handed Studio
+/// to show once. Close is the default. The code is held in the dialog's own
+/// text box only, and is removed when the dialog closes or its time runs out.
+class PluginSecretDialog final : public QDialog
+{
+    Q_OBJECT
+
+public:
+    /// `remaining_seconds` is what is left of the secret's time.
+    PluginSecretDialog(const plugin_secret_request& request,
+                       int remaining_seconds, QWidget* parent = nullptr);
+    ~PluginSecretDialog() override;
+
+    QPlainTextEdit* code_box() const noexcept { return code_; }
+    QLabel* label_text() const noexcept { return label_; }
+    QLabel* time_line() const noexcept { return time_; }
+    QPushButton* copy_button() const noexcept { return copy_; }
+    QPushButton* close_button() const noexcept { return close_; }
+    /// True once the dialog has been on the screen.
+    bool was_shown() const noexcept { return shown_; }
+    /// The person has seen the code: closed the dialog or pressed Copy while
+    /// it was still there.
+    bool seen() const noexcept { return seen_; }
+    /// The program is closing: whatever happens next, it was not seen.
+    void abandon() noexcept
+    {
+        abandoned_ = true;
+        seen_ = false;
+    }
+    bool timed_out() const noexcept { return remaining_ <= 0; }
+    int remaining_seconds() const noexcept { return remaining_; }
+
+    /// One second has passed. A timer calls it; a test calls it directly.
+    void tick();
+
+Q_SIGNALS:
+    /// The time ran out. The code is already gone from the dialog.
+    void timed_out_now();
+
+protected:
+    void showEvent(QShowEvent* event) override;
+    void done(int result) override;
+
+private:
+    void update_time_line();
+    void remove_code();
+
+    QPlainTextEdit* code_ = nullptr;
+    QLabel* label_ = nullptr;
+    QLabel* time_ = nullptr;
+    QPushButton* copy_ = nullptr;
+    QPushButton* close_ = nullptr;
+    QTimer* clock_ = nullptr;
+    QTimer* copied_clock_ = nullptr;
+    QString copy_text_;
+    int remaining_ = 0;
+    bool shown_ = false;
+    bool seen_ = false;
+    bool abandoned_ = false;
+};
+
+/// "Let <plugin name> use remote control?" (width 560). Refuse is the
+/// default, and closing the dialog is Refuse. Accepted means Allow.
+class PluginControlDialog final : public QDialog
+{
+    Q_OBJECT
+
+public:
+    explicit PluginControlDialog(const plugin_control_request& request,
+                                 QWidget* parent = nullptr);
+
+    QPushButton* refuse_button() const noexcept { return refuse_; }
+    QPushButton* allow_button() const noexcept { return allow_; }
+    /// The scope rows, in order, as the sentences they show.
+    QStringList scope_sentences() const { return sentences_; }
+    QLabel* life_line() const noexcept { return life_; }
+    NoteBanner* data_note() const noexcept { return data_note_; }
+
+private:
+    QPushButton* refuse_ = nullptr;
+    QPushButton* allow_ = nullptr;
+    QLabel* life_ = nullptr;
+    NoteBanner* data_note_ = nullptr;
+    QStringList sentences_;
+};
+
+/// The sentence for one scope of the remote control, and whether it lets the
+/// other side see or send data (drawn amber).
+QString control_scope_sentence(const QString& scope, bool* amber = nullptr);
 
 /// The plugin in the current snapshot with this id and folder, or null. A
 /// dialog uses it to see that the version it was opened for is still there.

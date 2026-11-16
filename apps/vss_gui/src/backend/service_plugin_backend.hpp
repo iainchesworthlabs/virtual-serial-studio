@@ -17,8 +17,12 @@
 #include "backend/plugin_backend.hpp"
 #include "backend/service_mapping.hpp"
 
+#include <vss/core/hub.hpp>
 #include <vss/license/license.hpp>
 #include <vss/plugin/discover.hpp>
+#include <vss/plugin/host/capture_point.hpp>
+#include <vss/plugin/host/control_point.hpp>
+#include <vss/plugin/host/secret_point.hpp>
 #include <vss/plugin/host/service.hpp>
 
 #include <boost/asio/executor_work_guard.hpp>
@@ -27,6 +31,8 @@
 
 #include <atomic>
 #include <filesystem>
+#include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -55,7 +61,18 @@ struct service_plugin_options
     std::string studio_version;
     /// Seeds the waits between starts of a plugin that keeps failing.
     std::uint64_t seed = 0;
+    /// Studio's hub, for the plugins that record. Null: no plugin can record.
+    /// It must outlive the backend.
+    vss::hub* hub = nullptr;
+    /// Where the instances the user asked of each plugin are kept, so that
+    /// they come back at the next start. Empty: they are not kept.
+    std::filesystem::path instances_file;
 };
+
+/// The places a plugin may record, by the name it uses for them: a port by
+/// its name, a link by the names of its ends. Immutable once published.
+using plugin_place_table =
+    std::map<std::string, vss::plugin::host::capture_place, std::less<>>;
 
 /// The folders and files of this computer, for the program.
 service_plugin_options default_service_plugin_options();
@@ -95,12 +112,31 @@ public:
     void add_plugin(const QString& folder) override;
     void remove_plugin(const QString& plugin_id, const QString& hash,
                        bool delete_saved_data) override;
+    void add_instance(const QString& plugin_id,
+                      const QString& point_id) override;
+    void remove_instance(const QString& plugin_id, quint64 number) override;
+    void answer_secret(quint64 id, bool seen) override;
+    void answer_control(quint64 id, bool allowed) override;
+
+    /// Publishes the places a plugin may record. Call it from the GUI thread
+    /// whenever the ports or links change; the service reads the table it
+    /// last got, never a GUI object.
+    void set_places(std::shared_ptr<const plugin_place_table> places);
 
 private:
     void after_change();
     void refresh_extras();
     void delete_data_of_gone_plugins();
     void process_removals();
+    std::vector<std::unique_ptr<vss::plugin::host::extension_handler>>
+    make_handlers(const vss::plugin::host::extension_context& context);
+    void ask_secret(const vss::plugin::host::secret_to_show& secret,
+                    std::function<void(bool)> done);
+    void ask_control(const vss::plugin::host::control_approval_request& request,
+                     std::function<void(bool)> done);
+    void answer_all_prompts_no();
+    void load_instances();
+    void save_instances() const;
     vss::plugin::inspect_context context_now() const;
 
     service_plugin_options options_;
@@ -126,6 +162,19 @@ private:
     };
     /// Plugins switched off to be removed once they have stopped.
     std::vector<pending_removal> removals_;
+    std::shared_ptr<const plugin_place_table> places_;
+    /// The answers owed for the dialogs asked for and not yet answered.
+    std::map<quint64, std::function<void(bool)>> secret_done_;
+    std::map<quint64, std::function<void(bool)>> control_done_;
+    std::atomic<quint64> next_prompt_{1};
+    /// What the user asked of each plugin, by plugin id. Read and changed on
+    /// the slow thread only, after the constructor.
+    struct kept_instances
+    {
+        std::uint64_t next = 1;
+        std::vector<vss::plugin::host::instance_spec> list;
+    };
+    std::map<std::string, kept_instances> instances_;
     /// Plugins taken away whose saved data is to go once they have stopped.
     std::vector<std::string> data_to_delete_;
     mutable plugin_snapshot_ptr cached_;

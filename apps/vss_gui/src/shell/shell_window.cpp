@@ -40,6 +40,7 @@
 #include "shell/format.hpp"
 #include "shell/launcher.hpp"
 #include "shell/licence_notice.hpp"
+#include "shell/plugin_notice.hpp"
 #include "shell/port_warnings.hpp"
 #include "shell/setup_group.hpp"
 #include "shell/status_bar.hpp"
@@ -54,8 +55,8 @@
 #include "support/help_contents_dialog.hpp"
 #include "support/licence_dialog.hpp"
 #include "support/plugin_parts.hpp"
+#include "support/plugin_prompts.hpp"
 #include "support/plugins_dialog.hpp"
-#include "shell/plugin_notice.hpp"
 #include "support/running_setup.hpp"
 #include "support/settings.hpp"
 #include "support/settings_dialog.hpp"
@@ -1440,6 +1441,11 @@ void ShellWindow::connect_plugins()
     if (host == nullptr)
         return;
     plugin_notice_->set_backend(host);
+    // A code or a control session a plugin asks for. Nothing waits on these
+    // dialogs when the program ends.
+    plugin_prompts_ = new support::PluginPromptQueue(*host, this, this);
+    connect(qApp, &QCoreApplication::aboutToQuit, plugin_prompts_,
+            &support::PluginPromptQueue::shut_down);
     connect(plugin_notice_, &PluginNotice::plugins_requested, this,
             [this] { open_plugins(); });
     connect(plugin_notice_, &PluginNotice::decision_requested, this,

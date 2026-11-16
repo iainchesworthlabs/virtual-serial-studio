@@ -21,6 +21,7 @@
 #include "theme/theme.hpp"
 #include "widgets/controls.hpp"
 #include "widgets/dialogs.hpp"
+#include "widgets/notes.hpp"
 
 #include <QAccessible>
 #include <QApplication>
@@ -34,6 +35,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QLocale>
+#include <QMenu>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
@@ -1032,8 +1034,9 @@ TEST_CASE("decision dialog: the permissions, the isolation line and what a "
     settle();
     REQUIRE(dialog.changed_banner()->isVisibleTo(&dialog));
     REQUIRE_EQ(dialog.changed_banner()->text(),
-               QStringLiteral("This is a different version from the one you "
-                              "approved."));
+               QStringLiteral("You allowed an earlier version of this plugin. "
+                              "Look at what changed before you allow this "
+                              "one."));
     REQUIRE(dialog.more_banner()->isVisibleTo(&dialog));
     REQUIRE_EQ(dialog.more_banner()->text(),
                QStringLiteral("It asks for more than before:\nConnect to "
@@ -1662,7 +1665,10 @@ TEST_CASE("plugins page: every control has an accessible name and the right "
             QAccessibleInterface* interface =
                 QAccessible::queryAccessibleInterface(button);
             REQUIRE(interface != nullptr);
-            REQUIRE(interface->role() == QAccessible::Button);
+            // A button that opens a menu is a menu button.
+            REQUIRE(interface->role() == (button->menu() != nullptr
+                                              ? QAccessible::ButtonMenu
+                                              : QAccessible::Button));
         }
         for (QCheckBox* box : root.findChildren<QCheckBox*>())
         {
@@ -1920,4 +1926,206 @@ TEST_CASE("plugins page: until the first scan has finished it says it is "
     settle();
     REQUIRE(title->isVisibleTo(&dialog));
     REQUIRE_EQ(title->text(), QStringLiteral("No plugins are installed"));
+}
+
+// -- what a plugin runs, and what it said of its licence
+// ------------------------
+
+namespace
+{
+
+plugin_view plugin_with_points()
+{
+    plugin_view view = fake_plugin_samples().front();
+    view.id = QStringLiteral("org.example.points");
+    view.name = QStringLiteral("Points");
+    view.folder = QStringLiteral("C:/plugins/points");
+    view.state = plugin_state::available;
+    view.note = plugin_note::none;
+    view.adds.clear();
+    plugin_addition one;
+    one.kind = plugin_addition_kind::generator;
+    one.type_id = QStringLiteral("pulse");
+    one.type_name = QStringLiteral("Pulse");
+    one.max_instances = 2;
+    plugin_addition two;
+    two.kind = plugin_addition_kind::fixture;
+    two.type_id = QStringLiteral("meter");
+    two.type_name = QStringLiteral("Meter");
+    two.max_instances = 1;
+    plugin_addition three;
+    three.kind = plugin_addition_kind::generator;
+    three.type_id = QStringLiteral("tuned");
+    three.type_name = QStringLiteral("Tuned");
+    three.max_instances = 1;
+    three.needs_settings = true;
+    view.adds = {one, two, three};
+    view.instances.clear();
+    view.log.clear();
+    return view;
+}
+
+} // namespace
+
+TEST_CASE("plugins page: what it runs lists the instances and adds and removes")
+{
+    plugin_view plugin = plugin_with_points();
+    plugin_instance_view running;
+    running.number = 1;
+    running.point_id = QStringLiteral("pulse");
+    running.point_name = QStringLiteral("Pulse");
+    running.state = plugin_instance_state::running;
+    plugin_instance_view refused;
+    refused.number = 2;
+    refused.point_id = QStringLiteral("meter");
+    refused.point_name = QStringLiteral("Meter");
+    refused.state = plugin_instance_state::refused;
+    refused.refusal = QStringLiteral("The plugin turned it down.");
+    refused.reason = QStringLiteral("No such port.");
+    plugin.instances = {running, refused};
+    fixture env({plugin});
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    dialog.select(plugin.id);
+    settle();
+    QWidget* detail = dialog.detail();
+    const auto states =
+        detail->findChildren<QLabel*>(QStringLiteral("pluginInstanceState"));
+    REQUIRE_EQ(states.size(), 2);
+    REQUIRE_EQ(states[0]->text(), QStringLiteral("Running"));
+    REQUIRE_EQ(states[1]->text(), QStringLiteral("Refused"));
+    const auto says =
+        detail->findChild<QLabel*>(QStringLiteral("pluginInstanceSays"));
+    REQUIRE(says != nullptr);
+    REQUIRE(says->text().contains(QStringLiteral("No such port.")));
+    REQUIRE(says->textFormat() == Qt::PlainText);
+
+    // Remove asks for the instance by its number.
+    const auto buttons = detail->findChildren<QPushButton*>(
+        QStringLiteral("pluginInstanceRemove"));
+    REQUIRE_EQ(buttons.size(), 2);
+    REQUIRE_EQ(buttons[0]->accessibleName(), QStringLiteral("Remove Pulse"));
+    env.backend.clear_requests();
+    buttons[0]->click();
+    REQUIRE_EQ(env.backend.requests().size(), std::size_t{1});
+    REQUIRE(env.backend.requests()[0].kind ==
+            plugin_request_kind::remove_instance);
+    REQUIRE_EQ(env.backend.requests()[0].number, quint64{1});
+    env.backend.flush();
+    settle();
+
+    // Add offers what has room and needs no setting Studio cannot ask for.
+    auto* add = dialog.detail()->findChild<QPushButton*>(
+        QStringLiteral("pluginInstanceAdd"));
+    REQUIRE(add != nullptr);
+    REQUIRE(add->isEnabled());
+    QMenu* menu = add->menu();
+    REQUIRE(menu != nullptr);
+    REQUIRE_EQ(menu->actions().size(), 3);
+    REQUIRE_EQ(menu->actions()[0]->text(), QStringLiteral("Pulse"));
+    REQUIRE(menu->actions()[0]->isEnabled());
+    // Meter is the refused instance's point, with one allowed.
+    REQUIRE(!menu->actions()[1]->isEnabled());
+    // Tuned has a setting with no default.
+    REQUIRE(!menu->actions()[2]->isEnabled());
+    env.backend.clear_requests();
+    menu->actions()[0]->trigger();
+    REQUIRE_EQ(env.backend.requests().size(), std::size_t{1});
+    REQUIRE(env.backend.requests()[0].kind ==
+            plugin_request_kind::add_instance);
+    REQUIRE_EQ(env.backend.requests()[0].path, QStringLiteral("pulse"));
+}
+
+TEST_CASE("plugins page: a plugin that is not running keeps its instances")
+{
+    plugin_view plugin = plugin_with_points();
+    plugin.state = plugin_state::off;
+    plugin_instance_view kept;
+    kept.number = 1;
+    kept.point_id = QStringLiteral("pulse");
+    kept.point_name = QStringLiteral("Pulse");
+    kept.state = plugin_instance_state::not_running;
+    plugin.instances = {kept};
+    fixture env({plugin});
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    dialog.select(plugin.id);
+    settle();
+    const auto states = dialog.detail()->findChildren<QLabel*>(
+        QStringLiteral("pluginInstanceState"));
+    REQUIRE_EQ(states.size(), 1);
+    REQUIRE_EQ(states[0]->text(), QStringLiteral("Not running"));
+    // A plugin that cannot be used cannot be given more to do.
+    plugin_view broken = plugin_with_points();
+    broken.state = plugin_state::cannot_be_used;
+    broken.note = plugin_note::invalid_signature;
+    env.backend.set_plugins({broken});
+    env.backend.flush();
+    settle();
+    dialog.select(broken.id);
+    settle();
+    auto* add = dialog.detail()->findChild<QPushButton*>(
+        QStringLiteral("pluginInstanceAdd"));
+    REQUIRE(add != nullptr);
+    REQUIRE(!add->isEnabled());
+}
+
+TEST_CASE("plugins page: what the plugin said of its licence, and licence.read")
+{
+    plugin_view plugin = plugin_with_points();
+    plugin.trust = plugin_trust::official;
+    plugin.has_licence_report = true;
+    plugin.licence_report_reason = vss::license::reason::expired;
+    plugin.licence_status = vss::license::no_licence();
+    fixture env({plugin});
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    dialog.select(plugin.id);
+    settle();
+    auto* report = dialog.detail()->findChild<NoteBanner*>(
+        QStringLiteral("pluginDetailLicenceReport"));
+    REQUIRE(report != nullptr);
+    const QString sentence =
+        reason_sentence(vss::license::reason::expired, plugin.licence_status);
+    REQUIRE(!sentence.isEmpty());
+    // Studio's own check found nothing wrong, so the two disagree.
+    REQUIRE_EQ(report->text(),
+               QStringLiteral("This plugin did not accept the licence: ") +
+                   sentence +
+                   QStringLiteral(" Studio and the plugin disagree. Check that "
+                                  "Studio and the plugin are both up to "
+                                  "date."));
+    // Studio's check agrees: no second sentence.
+    plugin.licence_reason = vss::license::reason::expired;
+    env.backend.set_plugins({plugin});
+    env.backend.flush();
+    settle();
+    dialog.select(plugin.id);
+    settle();
+    report = dialog.detail()->findChild<NoteBanner*>(
+        QStringLiteral("pluginDetailLicenceReport"));
+    REQUIRE(report != nullptr);
+    REQUIRE_EQ(report->text(),
+               QStringLiteral("This plugin did not accept the licence: ") +
+                   sentence);
+    // `ok` shows nothing.
+    plugin.licence_report_reason = vss::license::reason::ok;
+    env.backend.set_plugins({plugin});
+    env.backend.flush();
+    settle();
+    dialog.select(plugin.id);
+    settle();
+    REQUIRE(dialog.detail()->findChild<NoteBanner*>(
+                QStringLiteral("pluginDetailLicenceReport")) == nullptr);
+
+    // The permission sentence says what the file holds.
+    plugin_permission_view licence_read;
+    licence_read.id = QStringLiteral("licence.read");
+    REQUIRE_EQ(permission_sentence(licence_read),
+               QStringLiteral("Read your licence file. The file holds your "
+                              "name."));
+    REQUIRE(!is_amber_permission(QStringLiteral("licence.read")));
 }

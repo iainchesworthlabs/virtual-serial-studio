@@ -311,6 +311,79 @@ void FakePluginBackend::remove_plugin(const QString& plugin_id,
     notify_request_finished(result);
 }
 
+void FakePluginBackend::add_instance(const QString& plugin_id,
+                                     const QString& point_id)
+{
+    fake_plugin_request seen;
+    seen.kind = plugin_request_kind::add_instance;
+    seen.plugin_id = plugin_id;
+    seen.path = point_id;
+    record(seen);
+    auto next = std::make_shared<plugin_snapshot>(*snapshot_);
+    for (plugin_view& plugin : next->plugins)
+    {
+        if (plugin.id != plugin_id)
+            continue;
+        quint64 number = 1;
+        for (const plugin_instance_view& each : plugin.instances)
+            number = std::max(number, each.number + 1);
+        plugin_instance_view made;
+        made.number = number;
+        made.point_id = point_id;
+        for (const plugin_addition& point : plugin.adds)
+        {
+            if (point.type_id == point_id)
+                made.point_name = point.type_name;
+        }
+        made.state = plugin.state == plugin_state::available
+                         ? plugin_instance_state::running
+                         : plugin_instance_state::not_running;
+        plugin.instances.push_back(made);
+    }
+    snapshot_ = std::move(next);
+    notify_snapshot_changed();
+}
+
+void FakePluginBackend::remove_instance(const QString& plugin_id,
+                                        quint64 number)
+{
+    fake_plugin_request seen;
+    seen.kind = plugin_request_kind::remove_instance;
+    seen.plugin_id = plugin_id;
+    seen.number = number;
+    record(seen);
+    auto next = std::make_shared<plugin_snapshot>(*snapshot_);
+    for (plugin_view& plugin : next->plugins)
+    {
+        if (plugin.id == plugin_id)
+            std::erase_if(plugin.instances,
+                          [number](const plugin_instance_view& each)
+                          { return each.number == number; });
+    }
+    snapshot_ = std::move(next);
+    notify_snapshot_changed();
+}
+
+void FakePluginBackend::answer_secret(quint64 id, bool seen)
+{
+    secret_answers_.emplace_back(id, seen);
+}
+
+void FakePluginBackend::answer_control(quint64 id, bool allowed)
+{
+    control_answers_.emplace_back(id, allowed);
+}
+
+void FakePluginBackend::ask_secret(const plugin_secret_request& request)
+{
+    Q_EMIT secret_requested(request);
+}
+
+void FakePluginBackend::ask_control(const plugin_control_request& request)
+{
+    Q_EMIT control_requested(request);
+}
+
 // -- samples ------------------------------------------------------------------
 
 namespace

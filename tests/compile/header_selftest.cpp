@@ -61,6 +61,7 @@
 #include <vss/plugin/hash.hpp>
 #include <vss/plugin/host/bundle_sections.hpp>
 #include <vss/plugin/host/capture_point.hpp>
+#include <vss/plugin/host/control_point.hpp>
 #include <vss/plugin/host/control_relay.hpp>
 #include <vss/plugin/host/decode_store.hpp>
 #include <vss/plugin/host/extension.hpp>

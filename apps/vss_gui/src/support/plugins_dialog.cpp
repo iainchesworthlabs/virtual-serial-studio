@@ -32,6 +32,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QLocale>
+#include <QMenu>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
@@ -51,6 +52,26 @@ namespace
 
 constexpr int kListWidth = 320;
 constexpr int kMaxLogLines = 200;
+
+QString instance_state_text(plugin_instance_state state)
+{
+    switch (state)
+    {
+    case plugin_instance_state::not_running:
+        return QCoreApplication::translate("PluginsDialog", "Not running");
+    case plugin_instance_state::waiting:
+        return QCoreApplication::translate("PluginsDialog", "Waiting");
+    case plugin_instance_state::starting:
+        return QCoreApplication::translate("PluginsDialog", "Starting");
+    case plugin_instance_state::running:
+        return QCoreApplication::translate("PluginsDialog", "Running");
+    case plugin_instance_state::stopping:
+        return QCoreApplication::translate("PluginsDialog", "Stopping");
+    case plugin_instance_state::refused:
+        return QCoreApplication::translate("PluginsDialog", "Refused");
+    }
+    return {};
+}
 
 QPushButton* make_button(const QString& text, const char* role, QWidget* parent,
                          const QString& object_name = {})
@@ -816,6 +837,8 @@ QString PluginsDialog::detail_signature(const plugin_view& plugin,
           << QString::number(static_cast<int>(plugin.isolation))
           << QString::number(static_cast<int>(plugin.timing))
           << QString::number(static_cast<int>(plugin.licence_reason))
+          << QString::number(plugin.has_licence_report)
+          << QString::number(static_cast<int>(plugin.licence_report_reason))
           << QString::number(static_cast<int>(plugin.used_copy_trust))
           << QString::number(plugin.back_off_seconds)
           << QString::number(plugin.attempt)
@@ -828,7 +851,15 @@ QString PluginsDialog::detail_signature(const plugin_view& plugin,
           << QString::number(snapshot.can_run_plugins)
           << QString::number(snapshot.user_plugins_allowed);
     for (const plugin_addition& each : plugin.adds)
-        parts << QString::number(static_cast<int>(each.kind)) << each.type_name;
+        parts << QString::number(static_cast<int>(each.kind)) << each.type_name
+              << each.type_id << QString::number(each.max_instances)
+              << QString::number(each.needs_settings);
+    for (const plugin_instance_view& each : plugin.instances)
+    {
+        parts << QString::number(each.number) << each.point_id
+              << QString::number(static_cast<int>(each.state)) << each.refusal
+              << each.reason << QString::number(each.settings_pending);
+    }
     for (const plugin_permission_view& each : plugin.permissions)
     {
         parts << each.id << QString::number(each.required) << each.reason
@@ -1300,6 +1331,141 @@ void PluginsDialog::refresh_detail()
         layout->addWidget(change, 0, Qt::AlignLeft);
     }
 
+    // -- what the plugin said of its licence check
+    if (view.has_licence_report &&
+        view.licence_report_reason != vss::license::reason::ok)
+    {
+        QString text =
+            QCoreApplication::translate(
+                "PluginsDialog", "This plugin did not accept the licence: %1")
+                .arg(reason_sentence(view.licence_report_reason,
+                                     view.licence_status));
+        // Studio looked and found nothing wrong, so one of them is wrong.
+        if (view.licence_reason == vss::license::reason::ok &&
+            view.state != plugin_state::needs_licence)
+        {
+            text += QLatin1Char(' ') +
+                    QCoreApplication::translate(
+                        "PluginsDialog",
+                        "Studio and the plugin disagree. Check that Studio "
+                        "and the plugin are both up to date.");
+        }
+        auto* report = make_plain_note(root);
+        report->setObjectName(QStringLiteral("pluginDetailLicenceReport"));
+        report->set_kind(NoteBanner::kind::warn);
+        report->set_text(text);
+        layout->addWidget(report);
+    }
+
+    // -- what it runs
+    if (!view.adds.empty())
+    {
+        auto* runs_heading = make_plain_label(
+            QCoreApplication::translate("PluginsDialog", "What it runs"), root,
+            text_style::heading);
+        layout->addWidget(runs_heading);
+        if (view.instances.empty())
+        {
+            auto* none =
+                make_muted_label(QCoreApplication::translate(
+                                     "PluginsDialog", "Nothing is set up yet."),
+                                 root);
+            none->setObjectName(QStringLiteral("pluginDetailNoInstances"));
+            layout->addWidget(none);
+        }
+        for (const plugin_instance_view& instance : view.instances)
+        {
+            auto* row_box = new QVBoxLayout();
+            row_box->setSpacing(2);
+            auto* row_line = new QHBoxLayout();
+            row_line->setSpacing(8);
+            auto* point_label = make_plain_label(instance.point_name, root,
+                                                 text_style::body, true);
+            point_label->setObjectName(QStringLiteral("pluginInstanceName"));
+            row_line->addWidget(point_label, 1);
+            auto* state_label =
+                make_muted_label(instance_state_text(instance.state), root);
+            state_label->setObjectName(QStringLiteral("pluginInstanceState"));
+            row_line->addWidget(state_label, 0, Qt::AlignTop);
+            QPushButton* take_away = make_button(
+                QCoreApplication::translate("PluginsDialog", "Remove"), "quiet",
+                root, QStringLiteral("pluginInstanceRemove"));
+            take_away->setAccessibleName(
+                QCoreApplication::translate("PluginsDialog", "Remove %1")
+                    .arg(plain_text(instance.point_name)));
+            const QString plugin_id = view.id;
+            const quint64 number = instance.number;
+            connect(take_away, &QPushButton::clicked, this,
+                    [this, plugin_id, number]
+                    { backend_.remove_instance(plugin_id, number); });
+            row_line->addWidget(take_away, 0, Qt::AlignTop);
+            row_box->addLayout(row_line);
+            if (instance.state == plugin_instance_state::refused)
+            {
+                row_box->addWidget(make_muted_label(instance.refusal, root,
+                                                    text_style::caption));
+                if (!instance.reason.trimmed().isEmpty())
+                {
+                    auto* says = make_plain_label(
+                        QCoreApplication::translate("PluginsDialog",
+                                                    "The plugin says: %1")
+                            .arg(quoted(instance.reason)),
+                        root, text_style::caption, true);
+                    says->setObjectName(QStringLiteral("pluginInstanceSays"));
+                    row_box->addWidget(says);
+                }
+            }
+            if (instance.settings_pending)
+            {
+                row_box->addWidget(make_muted_label(
+                    QCoreApplication::translate("PluginsDialog",
+                                                "Sending the new settings"),
+                    root, text_style::caption));
+            }
+            layout->addLayout(row_box);
+        }
+        // What can still be added: the points that have room, and can be
+        // started without settings Studio cannot ask for yet.
+        QPushButton* add_instance =
+            make_button(QCoreApplication::translate("PluginsDialog", "Add..."),
+                        "quiet", root, QStringLiteral("pluginInstanceAdd"));
+        auto* menu = new QMenu(add_instance);
+        int offered = 0;
+        for (const plugin_addition& point : view.adds)
+        {
+            int have = 0;
+            for (const plugin_instance_view& each : view.instances)
+            {
+                if (each.point_id == point.type_id)
+                    ++have;
+            }
+            const bool room = have < point.max_instances;
+            QAction* entry = menu->addAction(plain_text(point.type_name));
+            entry->setEnabled(room && !point.needs_settings);
+            if (point.needs_settings)
+                entry->setToolTip(QCoreApplication::translate(
+                    "PluginsDialog",
+                    "This needs settings that Studio cannot ask for yet."));
+            else if (!room)
+                entry->setToolTip(QCoreApplication::translate(
+                    "PluginsDialog", "The plugin allows no more of these."));
+            if (room && !point.needs_settings)
+                ++offered;
+            const QString plugin_id = view.id;
+            const QString point_id = point.type_id;
+            connect(entry, &QAction::triggered, this,
+                    [this, plugin_id, point_id]
+                    { backend_.add_instance(plugin_id, point_id); });
+        }
+        add_instance->setMenu(menu);
+        const bool usable = view.state != plugin_state::cannot_be_used &&
+                            view.state != plugin_state::needs_newer_studio &&
+                            view.state != plugin_state::blocked &&
+                            view.state != plugin_state::not_used;
+        add_instance->setEnabled(usable && offered > 0);
+        layout->addWidget(add_instance, 0, Qt::AlignLeft);
+    }
+
     // -- where it is used
     auto* used_heading = make_plain_label(
         QCoreApplication::translate("PluginsDialog", "Used in this setup"),
@@ -1738,6 +1904,8 @@ void PluginsDialog::on_request_finished(const plugin_request_result& result)
     case plugin_request_kind::set_no_isolation:
     case plugin_request_kind::remove_plugin:
     case plugin_request_kind::start_again:
+    case plugin_request_kind::add_instance:
+    case plugin_request_kind::remove_instance:
         break;
     }
 }

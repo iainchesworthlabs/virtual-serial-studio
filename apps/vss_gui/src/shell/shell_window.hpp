@@ -40,6 +40,10 @@ class InspectorPanel;
 class Launcher;
 class LicenceNotice;
 class PluginNotice;
+namespace support
+{
+class PluginPromptQueue;
+}
 class FixtureBehaviours;
 struct setup_group;
 class MonitorPanel;
@@ -352,6 +356,7 @@ private:
     NoteBanner* lost_banner_ = nullptr;
     LicenceNotice* licence_notice_ = nullptr;
     PluginNotice* plugin_notice_ = nullptr;
+    support::PluginPromptQueue* plugin_prompts_ = nullptr;
     UpdateNotice* update_notice_ = nullptr;
     updates::UpdateService* update_service_ = nullptr;
     QThread* recreate_thread_ = nullptr;

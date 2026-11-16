@@ -404,6 +404,30 @@ TEST_CASE("service mapping: permissions, manifest, decisions, shadowing and "
     REQUIRE(revised.note == plugin_note::decision_changed);
     REQUIRE(revised.differs_from_approved);
 
+    // A copy nobody decided about, of a plugin the user decided about before:
+    // what it asks beyond that decision is new.
+    plug::plugin_decision before;
+    before.plugin_id = "org.example.thing";
+    before.hash.bytes[0] = 0x99;
+    before.level = plug::trust_level::unsigned_plugin;
+    before.enabled = true;
+    before.granted = {plug::permission::ports_read};
+    before.decided_on = day(2026, 11, 1);
+    host::service_plugin later =
+        with_problem("org.example.thing", plug::plugin_errc::signature_missing);
+    later.asked = {needed, optional_one};
+    later.earlier_decision = before;
+    const plugin_view later_view = one(later);
+    REQUIRE(later_view.note == plugin_note::decision_changed);
+    REQUIRE(later_view.differs_from_approved);
+    REQUIRE(!later_view.permissions[0].is_new);
+    REQUIRE(later_view.permissions[1].is_new);
+    // Without an earlier decision it is a first question.
+    later.earlier_decision.reset();
+    const plugin_view first_view = one(later);
+    REQUIRE(first_view.note == plugin_note::decision_first);
+    REQUIRE(!first_view.differs_from_approved);
+
     // The notes at the top.
     host::service_snapshot noted;
     noted.notes = {"The policy file could not be used: others can write it."};
