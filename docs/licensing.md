@@ -92,6 +92,7 @@ The payload is UTF-8 JSON:
 | `edition` | `pro` or `enterprise`. Community has no file |
 | `licensee.name` | The person or organisation the licence is issued to. Shown on the Licence page |
 | `licensee.contact` | Optional. A team or role, not a personal e-mail address |
+| `licensee.email` | Optional. The email address the licensee gave when they asked for the licence. It must have the form of an address (ASCII, one `@`, a domain with a dot). It is personal data: Studio shows it on the Licence page of the computer that holds the licence, and a support bundle leaves it out unless the user turns on the row that adds the licensee's name and email |
 | `issued_at` | When the owner signed it. Used for key rotation and the clock check |
 | `starts_at`, `expires_at` | The term, in UTC. A renewal bought early starts when the old one ends, so no days are lost |
 | `grace_days` | Days after `expires_at` during which Pro features still work. 28 for annual, 0 for trial, and whatever was agreed for enterprise (28 unless the agreement says otherwise) |
@@ -242,7 +243,9 @@ system. Both public halves ship in every build.
 
 ### Revocation
 
-With no network, revocation can only travel with something the customer
+Studio does not fetch a revocation list over the network. The check for
+updates ([Online updates](updates.md)) could carry one, and that is left out of
+the first version, so revocation can only travel with something the customer
 installs. There are two carriers:
 
 1. **Each release of Studio and of each official plugin carries a revocation
@@ -270,10 +273,16 @@ revocation list only ever holds ids, never names.
 
 | Place | Used for |
 |---|---|
-| Per-user data directory, `licences/` | What Help, Licence, Import licence copies the file to |
+| Per-user folder (`%LOCALAPPDATA%\Virtual Serial Studio\licences`, `$XDG_DATA_HOME/virtual-serial-studio/licences` or `~/.local/share/virtual-serial-studio/licences`, `~/Library/Application Support/Virtual Serial Studio/licences`) | What Help, Licence, Import licence and `vss_cli licence import` copy the file to |
 | Per-machine directory (`%ProgramData%\Virtual Serial Studio\licences`, `/etc/virtual-serial-studio/licences`, `/Library/Application Support/Virtual Serial Studio/licences`) | An administrator installing a licence for the computers they manage. Studio only reads it |
 
-Studio reads every `.vsslic` in both places and uses the best one: a valid
+On Linux the per-user folder is under `$XDG_DATA_HOME` when that is an absolute
+path, and under `~/.local/share` when it is unset, empty or not absolute. The
+latest time seen and the clock resets used are kept in `licence-clock.json`,
+beside the per-user `licences` folder.
+
+Studio reads every `.vsslic` in both places (at most 64 from each, in name
+order, and none larger than 64 KiB) and uses the best one: a valid
 licence beats one in grace, which beats an expired one; then Enterprise beats
 Pro; then the latest expiry. The others are listed on the Licence page.
 Importing never deletes an older file, and removing a licence is a button with
@@ -390,8 +399,10 @@ one.
 
 One Pro licence is one seat. A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.
 Controlling one of the two from the other is part of the seat. There is no
-server, and the GUI makes no network connection, so nothing can count
-installations. The options:
+server, and Studio never sends a licence anywhere, so nothing can count
+installations. Activation and seat counting stay offline. The only connection
+Studio makes is the check for updates ([Online updates](updates.md)), which
+sends nothing about the licence. The options:
 
 | Option | How it works | For | Against |
 |---|---|---|---|
@@ -399,7 +410,7 @@ installations. The options:
 | B. One file for each seat | As A, with a seat number in each file | A leak points at one seat | More files for the customer to place. Still nothing technical stops copying |
 | C. Machine names in the file | The file lists computer names. Studio compares its own name | A real limit for a site that wants one. Uses a name the administrator already manages. No hardware fingerprint | A new or renamed computer needs a new file from the owner. A name can be set by the user, so it is a control for honest sites, not a lock |
 | D. Hardware fingerprint | The customer sends a code made from hardware ids, and the file is bound to it | Hardest to copy | Breaks on a new disk, a virtual machine or a container. A hardware id is personal data. A steady load of reissue requests on the owner. Hostile to the lab customer |
-| E. Seats find each other on the network | Copies of Studio announce themselves and count | A true count on one network | Breaks the rule of no network access from the GUI. Fails across subnets. Looks like telemetry |
+| E. Seats find each other on the network | Copies of Studio announce themselves and count | A true count on one network | Breaks the rule that Studio makes no network connection of its own except to check for updates. Fails across subnets. Looks like telemetry |
 
 **Recommendation.**
 
@@ -469,12 +480,20 @@ links it. It has no Qt and no network code, and builds as two parts:
 | Part | Does | Used by |
 |---|---|---|
 | `vss::signed_file` | The envelope: parse, size limits, base64url, the signed message, Ed25519 verify, the trust list with purposes and windows | The licence code, and the plugin signer for its manifests |
-| `vss::license` | The payload, the states, the clock check, revocation, machine names, `check(feature)` | Studio's window (its backend), `vss_license`, the plugin library `vss_plugin`, official plugins. `vss_cli` does not use it and has no licence command |
+| `vss::license` | The payload, the states, the clock check, revocation, machine names, `check(feature)` | Studio's window (its backend), `vss_license`, `vss_cli licence`, the plugin library `vss_plugin`, official plugins |
+| `vss::license::store` | The licence files on this computer: the per-user and per-machine folders, the best licence, import, remove, the revocation lists and the stored latest time | Studio's window (its backend, through a thin adaptor) and `vss_cli licence` |
 
 Time, the computer's name and the stored latest time are passed in, so every
 state can be tested without touching the clock. Results are
 `vss::result<T>`. Signing lives in a third small part, `vss::signed_file_sign`,
 that Studio does not link.
+
+`vss::license::store` is where the files are read. It has no Qt. It reads a
+file only after checking its size, copies an imported file to a new name in the
+per-user folder (it never replaces a file), and never writes to the per-machine
+folder. `vss_cli licence` prints what the store found, and
+`vss_cli licence import <file>` imports a file through it. The agent, the
+control gateway and the plugin host do not ask it yet.
 
 The plugin framework session should build its signature check on
 `vss::signed_file` and not write a second one. A note saying so is in the
@@ -639,8 +658,9 @@ What is not built: any use of `check(feature)` that changes what Studio offers
 (the Licence page and the Support page ask it, to say what the licence grants,
 and nothing else does), a licence service in the agent and the control
 gateway, so the gateway's `status` has no edition, and the plugin host that
-would run an official plugin. `vss_license` is built with the tools and is not
-installed.
+would run an official plugin. The licence store is built (`vss::license::store`,
+used by Studio and by `vss_cli licence`); the agent and the gateway do not ask
+it yet. `vss_license` is built with the tools and is not installed.
 
 The private repository, its workflow, the environment and the real keys are
 the owner's to create. This repository gives them the tool and this page.

@@ -629,7 +629,7 @@ constexpr std::ios_base::openmode exclusive_create_flag()
     if constexpr (requires { Mode::noreplace; })
         return Mode::noreplace;
     else
-        return std::ios_base::openmode{};
+        return std::ios_base::in & std::ios_base::out;  // no bits set
 }
 
 /// `.saving-` and sixteen hex digits from the system's random source, then a

@@ -228,6 +228,13 @@ const agent::port_summary* find_port(const agent::list_reply& listed,
     return found == listed.ports.end() ? nullptr : &*found;
 }
 
+/// The name of a port in a list; empty when the list has no such port.
+std::string name_of(const agent::list_reply& listed, vss::endpoint_id id)
+{
+    const auto* port = find_port(listed, id);
+    return port == nullptr ? std::string() : port->name;
+}
+
 /// True when the port has counted exactly `expected` bytes received.
 bool port_rx_is(agent::client& source, vss::endpoint_id id,
                 std::uint64_t expected)
@@ -605,6 +612,113 @@ TEST_CASE("agent server: engine errors keep their codes")
 
     // An error leaves the connection usable.
     REQUIRE(source->list());
+}
+
+TEST_CASE("agent server: a link is taken away and its ports stay")
+{
+    fixture env;
+    auto source = env.connect();
+    const auto a = source->create_port("a");
+    const auto b = source->create_port("b");
+    REQUIRE(a);
+    REQUIRE(b);
+    const auto linked = source->connect_ports(*a, *b, true);
+    REQUIRE(linked);
+
+    // The link carries bytes from a to b.
+    REQUIRE(source->write(*a, vss::to_bytes("one")));
+    REQUIRE(vss::testkit::wait_until([&] { return port_rx_is(*source, *b, 3); },
+                                     long_wait));
+
+    const auto before = source->list();
+    REQUIRE(before);
+    REQUIRE_EQ(before->links.size(), std::size_t{1});
+    REQUIRE(source->disconnect(*linked));
+    const auto after = source->list();
+    REQUIRE(after);
+    REQUIRE(after->links.empty());
+    REQUIRE_EQ(after->ports.size(), std::size_t{2});
+    REQUIRE(after->revision > before->revision);
+
+    // What is written to a now stops at a.
+    REQUIRE(source->write(*a, vss::to_bytes("two")));
+    REQUIRE(vss::testkit::wait_until([&] { return port_rx_is(*source, *a, 6); },
+                                     long_wait));
+    std::this_thread::sleep_for(100ms);
+    REQUIRE(port_rx_is(*source, *b, 3));
+
+    // The same id again, and an id nothing ever had, are not found; the
+    // connection is as good as it was.
+    const auto again = source->disconnect(*linked);
+    REQUIRE(!again);
+    REQUIRE_EQ(again.error(), code(vss::errc::not_found));
+    const auto nowhere = source->disconnect(9999);
+    REQUIRE(!nowhere);
+    REQUIRE_EQ(nowhere.error(), code(vss::errc::not_found));
+    REQUIRE(!source->last_error_message().empty());
+    const auto last = source->list();
+    REQUIRE(last);
+    REQUIRE_EQ(last->revision, after->revision);
+
+    // The ports can be linked again, under another id.
+    const auto relinked = source->connect_ports(*a, *b, true);
+    REQUIRE(relinked);
+    REQUIRE(*relinked != *linked);
+}
+
+TEST_CASE("agent server: a port is renamed, and the list says so")
+{
+    fixture env;
+    auto source = env.connect();
+    auto other = env.connect("other");
+    const auto a = source->create_port("a");
+    const auto b = source->create_port("b");
+    REQUIRE(a);
+    REQUIRE(b);
+
+    const auto before = source->list();
+    REQUIRE(before);
+    REQUIRE(source->rename_port(*a, "bench"));
+    for (agent::client* const reader : {source.get(), other.get()})
+    {
+        const auto listed = reader->list();
+        REQUIRE(listed);
+        REQUIRE_EQ(listed->ports.size(), std::size_t{2});
+        const auto* renamed = find_port(*listed, *a);
+        REQUIRE(renamed != nullptr);
+        REQUIRE_EQ(renamed->name, std::string("bench"));
+        const auto* kept = find_port(*listed, *b);
+        REQUIRE(kept != nullptr);
+        REQUIRE_EQ(kept->name, std::string("b"));
+        REQUIRE(listed->revision > before->revision);
+    }
+
+    // The engine's refusals come through by their codes.
+    const auto taken = source->rename_port(*b, "bench");
+    REQUIRE(!taken);
+    REQUIRE_EQ(taken.error(), code(vss::errc::already_exists));
+    const auto empty = source->rename_port(*b, "");
+    REQUIRE(!empty);
+    REQUIRE_EQ(empty.error(), code(vss::errc::invalid_argument));
+    const auto unknown = source->rename_port(9999, "x");
+    REQUIRE(!unknown);
+    REQUIRE_EQ(unknown.error(), code(vss::errc::not_found));
+    REQUIRE(!source->last_error_message().empty());
+
+    // The name the port left is free, and the port that was refused kept
+    // its own.
+    REQUIRE(source->rename_port(*b, "a"));
+    const auto listed = source->list();
+    REQUIRE(listed);
+    REQUIRE_EQ(name_of(*listed, *b), std::string("a"));
+    REQUIRE_EQ(name_of(*listed, *a), std::string("bench"));
+
+    // A name as long as a name may be.
+    const std::string longest(agent::max_text_size, 'n');
+    REQUIRE(source->rename_port(*a, longest));
+    const auto long_listed = source->list();
+    REQUIRE(long_listed);
+    REQUIRE_EQ(name_of(*long_listed, *a), longest);
 }
 
 // -- the handshake -----------------------------------------------------------
@@ -1493,7 +1607,8 @@ TEST_CASE("agent server: a read-only connection lists and subscribes and "
     const auto b = maker->create_port("b");
     REQUIRE(a);
     REQUIRE(b);
-    REQUIRE(maker->connect_ports(*a, *b, true));
+    const auto joined = maker->connect_ports(*a, *b, true);
+    REQUIRE(joined);
 
     agent::client_options options;
     options.instance = env.instance.name();
@@ -1524,11 +1639,24 @@ TEST_CASE("agent server: a read-only connection lists and subscribes and "
     const auto written = looker->write(*a, vss::to_bytes("x"));
     REQUIRE(!written);
     REQUIRE_EQ(written.error(), denied);
+    const auto unlinked = looker->disconnect(*joined);
+    REQUIRE(!unlinked);
+    REQUIRE_EQ(unlinked.error(), denied);
+    const auto renamed = looker->rename_port(*a, "other");
+    REQUIRE(!renamed);
+    REQUIRE_EQ(renamed.error(), denied);
+    // The refusal does not depend on whether the id is one.
+    const auto unknown_link = looker->disconnect(9999);
+    REQUIRE(!unknown_link);
+    REQUIRE_EQ(unknown_link.error(), denied);
+    const auto unknown_port = looker->rename_port(9999, "other");
+    REQUIRE(!unknown_port);
+    REQUIRE_EQ(unknown_port.error(), denied);
     const auto ended = looker->shutdown();
     REQUIRE(!ended);
     REQUIRE_EQ(ended.error(), denied);
     REQUIRE(!env.server.wait_for_stop_request(0ms));
-    REQUIRE_EQ(env.server.counters().read_only_refused, std::uint64_t{5});
+    REQUIRE_EQ(env.server.counters().read_only_refused, std::uint64_t{9});
 
     // Nothing changed, and the connection is still good for looking.
     const auto after = looker->list();
@@ -1536,6 +1664,7 @@ TEST_CASE("agent server: a read-only connection lists and subscribes and "
     REQUIRE_EQ(after->revision, before->revision);
     REQUIRE_EQ(after->ports.size(), std::size_t{2});
     REQUIRE_EQ(after->links.size(), before->links.size());
+    REQUIRE_EQ(name_of(*after, *a), std::string("a"));
 
     REQUIRE(looker->subscribe(true, 20));
     REQUIRE(maker->write(*a, vss::to_bytes("seen")));

@@ -534,7 +534,19 @@ function Get-PnpDevice {
     if ($fails) { Write-Error 'the device query failed'; return }
     $global:Devices | Where-Object { $_.InstanceId -like $InstanceId }
 }
-function Get-Service { [CmdletBinding()] param($Name) }
+# The helper service, for the path that has no install-helper.ps1 (the scenario's service_stays keeps it after a delete).
+$global:ServiceState = if ($Scenario.service) { 'Running' } else { $null }
+function Get-Service {
+    [CmdletBinding()] param($Name)
+    if ($global:ServiceState) { [pscustomobject]@{ Name = 'vsscom_helper'; Status = $global:ServiceState } }
+}
+function sc.exe {
+    Log ('sc.exe ' + ($args -join ' '))
+    $global:LASTEXITCODE = 0
+    if ($args[0] -eq 'stop' -and $global:ServiceState) { $global:ServiceState = 'Stopped' }
+    if ($args[0] -eq 'delete' -and -not $Scenario.service_stays) { $global:ServiceState = $null }
+}
+function Start-Sleep { }
 function Get-WindowsDriver {
     param([switch] $Online, [switch] $All)
     foreach ($p in $global:Packages) { [pscustomobject]@{ OriginalFileName = 'C:\x\' + $p.original; Driver = $p.published } }
@@ -570,11 +582,13 @@ PORT_DEVICES = [
 
 @unittest.skipUnless(POWERSHELL, "needs Windows PowerShell")
 class RemoveDriver(Harness):
-    def remove(self, helper: str = "Log 'helper uninstall'\nexit 0", **scenario: object) -> Run:
+    def remove(self, helper: str | None = "Log 'helper uninstall'\nexit 0", **scenario: object) -> Run:
+        # helper=None is a package folder with no install-helper.ps1: the script then stops the service itself.
         package = self.tmp / "package"
         if not package.exists():
             (package / "helper").mkdir(parents=True)
-            (package / "helper" / "install-helper.ps1").write_text(helper, encoding="ascii")
+            if helper is not None:
+                (package / "helper" / "install-helper.ps1").write_text(helper, encoding="ascii")
         base: dict = {
             "admin": True,
             "devices": PORT_DEVICES,
@@ -639,14 +653,62 @@ class RemoveDriver(Harness):
         self.assertEqual(run.returncode, 10, run.stdout + run.stderr)
 
     # DRV-07
-    def test_a_helper_script_that_exits_with_an_error_ends_with_8(self) -> None:
-        run = self.remove(helper="exit 3")
+    def test_a_helper_script_that_exits_with_an_error_ends_with_8_after_the_devices_and_the_package(self) -> None:
+        run = self.remove(helper="Log 'helper uninstall'\nexit 3")
         self.assertEqual(run.returncode, 8, run.stdout + run.stderr)
-        self.assertEqual(run.calls("Remove-PortDevices"), [])
+        self.assertIn("install-helper.ps1 -Uninstall failed with 3", run.stderr)
+        self.assertEqual(run.calls("Remove-PortDevices"), ["Remove-PortDevices"])
+        self.assertIn(self.DELETE, run.log)
+        # The order of the success path stays: helper, devices, package.
+        self.assertLess(run.log.index("helper uninstall"), run.log.index("Remove-PortDevices"))
+        self.assertLess(run.log.index("Remove-PortDevices"), run.log.index(self.DELETE))
 
-    def test_a_helper_script_that_throws_ends_with_8(self) -> None:
+    def test_a_helper_script_that_throws_ends_with_8_after_the_devices_and_the_package(self) -> None:
         run = self.remove(helper="throw 'the helper broke'")
         self.assertEqual(run.returncode, 8, run.stdout + run.stderr)
+        self.assertIn("the helper broke", run.stderr)
+        self.assertEqual(run.calls("Remove-PortDevices"), ["Remove-PortDevices"])
+        self.assertIn(self.DELETE, run.log)
+
+    def test_a_helper_service_that_stays_when_there_is_no_helper_script_ends_with_8_after_the_devices_and_the_package(self) -> None:
+        run = self.remove(helper=None, service=True, service_stays=True)
+        self.assertEqual(run.returncode, 8, run.stdout + run.stderr)
+        self.assertIn("vsscom_helper service did not go", run.stderr)
+        self.assertEqual(run.calls("Remove-PortDevices"), ["Remove-PortDevices"])
+        self.assertIn(self.DELETE, run.log)
+
+    def test_a_helper_service_that_goes_when_there_is_no_helper_script_ends_with_0(self) -> None:
+        run = self.remove(helper=None, service=True)
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertEqual(run.calls("sc.exe"), ["sc.exe stop vsscom_helper", "sc.exe delete vsscom_helper"])
+        self.assertIn("vsscom_helper removed", run.stdout)
+
+    def test_a_helper_that_fails_and_a_device_that_stays_ends_with_7_and_names_both(self) -> None:
+        run = self.remove(helper="exit 3", remove_mode="throws")
+        self.assertEqual(run.returncode, 7, run.stdout + run.stderr)
+        self.assertIn(self.DELETE, run.log)
+        self.assertIn("SWD\\VSSCOMUM\\0000", run.stderr)
+        self.assertIn("Access is denied", run.stderr)
+        self.assertIn("install-helper.ps1 -Uninstall failed with 3", run.stderr)
+
+    def test_a_helper_that_fails_and_a_package_that_cannot_be_deleted_ends_with_7_and_names_both(self) -> None:
+        run = self.remove(helper="exit 3", delete_code=5)
+        self.assertEqual(run.returncode, 7, run.stdout + run.stderr)
+        self.assertIn("failed with 5", run.stderr)
+        self.assertIn("install-helper.ps1 -Uninstall failed with 3", run.stderr)
+
+    def test_a_helper_that_fails_and_a_restart_ends_with_8_and_mentions_the_restart(self) -> None:
+        run = self.remove(helper="exit 3", delete_code=3010)
+        self.assertEqual(run.returncode, 8, run.stdout + run.stderr)
+        self.assertIn("restart", run.stderr)
+
+    def test_a_run_where_everything_works_ends_with_0_and_says_nothing_of_a_failure(self) -> None:
+        run = self.remove()
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertEqual(run.stderr.strip(), "")
+        self.assertIn("removed", run.stdout.splitlines()[-1])
+        self.assertNotIn("failed", run.stdout)
+        self.assertEqual(run.calls("Remove-PortDevices"), ["Remove-PortDevices"])
 
     def test_a_package_that_cannot_be_deleted_ends_with_7_and_not_an_administrator_with_2(self) -> None:
         self.assertEqual(self.remove(delete_code=5).returncode, 7)

@@ -70,9 +70,16 @@ enum class action_kind
     watch,
     sessions,
     kick,
+    audit_verify,
     port_create,
     port_remove,
+    port_show,
+    port_rename,
     link,
+    links,
+    link_show,
+    unlink,
+    ping,
     send,
     expect,
     run_begin,
@@ -107,13 +114,16 @@ struct control_arguments
     std::uint64_t count = 0;
     /// For `kick`: the number of the session.
     std::uint64_t session = 0;
-    /// For `port create`, `port remove`, `link` and `send`: the name or kind
-    /// of a port, the ports (the second is for `link`), whether a link goes
-    /// one way, and the bytes to send.
+    /// For `port create`, `port remove`, `port show`, `port rename`, `link`
+    /// and `send`: the name or kind of a port (`port rename` has the new name
+    /// in `name`), the ports (the second is for `link`), whether a link goes
+    /// one way, and the bytes to send.  `link show` and `unlink` have the id
+    /// of the link in `link_id`.
     std::string name;
     std::string kind;
     std::string port;
     std::string other_port;
+    std::string link_id;
     bool one_way = false;
     vss::byte_buffer bytes;
     /// For `expect`: the bytes to wait for, how long to wait in ms, whether
@@ -625,6 +635,14 @@ control_arguments parse_command(const raw_arguments& raw)
         parsed.valid = true;
         return parsed;
     }
+    if (words.size() == 2 && words[0] == "audit" && words[1] == "verify")
+    {
+        if (!no_foreign_options(raw) || !no_port_options(raw) || raw.token_file)
+            return parsed;
+        parsed.action = action_kind::audit_verify;
+        parsed.valid = true;
+        return parsed;
+    }
     if (words.size() == 2 && words[0] == "kick")
     {
         const auto number = whole_number<std::uint64_t>(words[1]);
@@ -637,26 +655,73 @@ control_arguments parse_command(const raw_arguments& raw)
         return parsed;
     }
     if (words.size() == 3 && words[0] == "port" &&
-        (words[1] == "create" || words[1] == "remove"))
+        (words[1] == "create" || words[1] == "remove" || words[1] == "show"))
     {
-        // A port is made with a name and removed by its id; only `create`
-        // takes a kind.
+        // A port is made with a name and removed or shown by its id; only
+        // `create` takes a kind.
         const bool create = words[1] == "create";
         if (!no_foreign_options(raw) || raw.hex || raw.one_way ||
             (!create && raw.kind) || words[2].empty() ||
             (raw.kind && raw.kind->empty()))
             return parsed;
-        parsed.action =
-            create ? action_kind::port_create : action_kind::port_remove;
         if (create)
         {
+            parsed.action = action_kind::port_create;
             parsed.name = words[2];
             parsed.kind = raw.kind.value_or(std::string());
         }
         else
         {
+            parsed.action = words[1] == "remove" ? action_kind::port_remove
+                                                 : action_kind::port_show;
             parsed.port = words[2];
         }
+        parsed.token_file = raw.token_file;
+        parsed.valid = true;
+        return parsed;
+    }
+    if (words.size() == 4 && words[0] == "port" && words[1] == "rename")
+    {
+        if (!no_foreign_options(raw) || !no_port_options(raw) ||
+            words[2].empty() || words[3].empty())
+            return parsed;
+        parsed.action = action_kind::port_rename;
+        parsed.port = words[2];
+        parsed.name = words[3];
+        parsed.token_file = raw.token_file;
+        parsed.valid = true;
+        return parsed;
+    }
+    if (words.size() == 2 && words[0] == "unlink")
+    {
+        if (!no_foreign_options(raw) || !no_port_options(raw) ||
+            words[1].empty())
+            return parsed;
+        parsed.action = action_kind::unlink;
+        parsed.link_id = words[1];
+        parsed.token_file = raw.token_file;
+        parsed.valid = true;
+        return parsed;
+    }
+    if (words.size() == 1 && (words[0] == "links" || words[0] == "ping"))
+    {
+        if (!no_foreign_options(raw) || !no_port_options(raw))
+            return parsed;
+        parsed.action =
+            words[0] == "links" ? action_kind::links : action_kind::ping;
+        parsed.token_file = raw.token_file;
+        parsed.valid = true;
+        return parsed;
+    }
+    if (words.size() == 3 && words[0] == "link" && words[1] == "show")
+    {
+        // A port id is never the word `show`, so this is not a link of two
+        // ports.
+        if (!no_foreign_options(raw) || !no_port_options(raw) ||
+            words[2].empty())
+            return parsed;
+        parsed.action = action_kind::link_show;
+        parsed.link_id = words[2];
         parsed.token_file = raw.token_file;
         parsed.valid = true;
         return parsed;
@@ -735,7 +800,8 @@ bool is_administration(action_kind action) noexcept
     return action == action_kind::stop || action == action_kind::token_create ||
            action == action_kind::token_list ||
            action == action_kind::token_revoke ||
-           action == action_kind::sessions || action == action_kind::kick;
+           action == action_kind::sessions || action == action_kind::kick ||
+           action == action_kind::audit_verify;
 }
 
 /// What the command line says, as `parse_command` understood it and with
@@ -775,12 +841,26 @@ const char* action_name(action_kind action) noexcept
         return "sessions";
     case action_kind::kick:
         return "kick";
+    case action_kind::audit_verify:
+        return "audit verify";
     case action_kind::port_create:
         return "port create";
     case action_kind::port_remove:
         return "port remove";
+    case action_kind::port_show:
+        return "port show";
+    case action_kind::port_rename:
+        return "port rename";
     case action_kind::link:
         return "link";
+    case action_kind::links:
+        return "links";
+    case action_kind::link_show:
+        return "link show";
+    case action_kind::unlink:
+        return "unlink";
+    case action_kind::ping:
+        return "ping";
     case action_kind::send:
         return "send";
     case action_kind::expect:
@@ -1191,6 +1271,24 @@ int sessions(client& gateway)
     return exit_ok;
 }
 
+/// `audit verify`: `intact <records>`, or `broken <records> <file> <line>
+/// <what is wrong>` and the exit code of a refusal.
+int audit_verify(client& gateway)
+{
+    const auto found = gateway.verify_audit();
+    if (!found)
+        return report_with_code("audit verify", found.error(), gateway);
+    if (found->intact)
+    {
+        std::printf("intact %llu\n", number_of(found->records));
+        return exit_ok;
+    }
+    std::printf("broken %llu %s %llu %s\n", number_of(found->records),
+                plain_word(found->file).c_str(), number_of(found->line),
+                printable(found->problem).c_str());
+    return exit_refused;
+}
+
 int kick(client& gateway, std::uint64_t number)
 {
     const auto kicked = gateway.kick_session(number);
@@ -1224,6 +1322,22 @@ int port_remove(client& gateway, const std::string& port)
     return exit_ok;
 }
 
+int port_rename(client& gateway, const control_arguments& args)
+{
+    const auto renamed = gateway.rename_port(args.port, args.name);
+    if (!renamed)
+        return report_with_code("port rename", renamed.error(), gateway);
+    return exit_ok;
+}
+
+int unlink_ports(client& gateway, const std::string& link)
+{
+    const auto removed = gateway.disconnect_link(link);
+    if (!removed)
+        return report_with_code("unlink", removed.error(), gateway);
+    return exit_ok;
+}
+
 int link_ports(client& gateway, const control_arguments& args)
 {
     const auto made =
@@ -1231,6 +1345,92 @@ int link_ports(client& gateway, const control_arguments& args)
     if (!made)
         return report_with_code("link", made.error(), gateway);
     std::printf("%s\n", made->c_str());
+    return exit_ok;
+}
+
+/// What the gateway said when it did not know the id, in words that name the
+/// thing asked for.  Any other error is reported with its code name.
+int report_unknown_id(const char* what, const char* thing,
+                      const vss::error_code& error, const client& gateway)
+{
+    if (error == vss::control::api_errc::not_found)
+    {
+        std::fprintf(stderr, "control %s failed: no %s has that id\n", what,
+                     thing);
+        return exit_refused;
+    }
+    return report_with_code(what, error, gateway);
+}
+
+/// The ports of a link, as `p_1,p_2`, or `-` for none.
+std::string joined_ids(const std::vector<std::string>& ids)
+{
+    std::string joined;
+    for (const std::string& id : ids)
+    {
+        if (!joined.empty())
+            joined += ',';
+        joined += plain_word(id);
+    }
+    return joined.empty() ? std::string("-") : joined;
+}
+
+int port_show(client& gateway, const std::string& port)
+{
+    const auto found = gateway.get_port(port);
+    if (!found)
+        return report_unknown_id("port show", "port", found.error(), gateway);
+    // The name and the path are text from outside, so they are cleaned.
+    std::printf("Port: %s\n", plain_word(found->id).c_str());
+    std::printf("Name: %s\n", printable(found->name).c_str());
+    std::printf("Path: %s\n", printable(found->path).c_str());
+    std::printf("Kind: %s\n", plain_word(found->kind).c_str());
+    std::printf("State: %s\n", plain_word(found->state).c_str());
+    std::printf("Open: %s\n", found->open ? "yes" : "no");
+    std::printf("Received: %llu bytes\n", number_of(found->bytes_rx));
+    std::printf("Sent: %llu bytes\n", number_of(found->bytes_tx));
+    return exit_ok;
+}
+
+int list_links(client& gateway)
+{
+    const auto listed = gateway.list_links();
+    if (!listed)
+        return report_with_code("links", listed.error(), gateway);
+    if (listed->empty())
+    {
+        std::puts("No links");
+        return exit_ok;
+    }
+    for (const vss::control::link_entry& entry : *listed)
+    {
+        std::printf("%s %s %s %s %llu\n", plain_word(entry.id).c_str(),
+                    plain_word(entry.mode).c_str(),
+                    joined_ids(entry.sources).c_str(),
+                    joined_ids(entry.targets).c_str(), number_of(entry.bytes));
+    }
+    return exit_ok;
+}
+
+int link_show(client& gateway, const std::string& link)
+{
+    const auto found = gateway.get_link(link);
+    if (!found)
+        return report_unknown_id("link show", "link", found.error(), gateway);
+    std::printf("Link: %s\n", plain_word(found->id).c_str());
+    std::printf("Mode: %s\n", plain_word(found->mode).c_str());
+    std::printf("Sources: %s\n", joined_ids(found->sources).c_str());
+    std::printf("Targets: %s\n", joined_ids(found->targets).c_str());
+    std::printf("Bytes: %llu\n", number_of(found->bytes));
+    return exit_ok;
+}
+
+int ping(client& gateway)
+{
+    const auto answered = gateway.ping();
+    if (!answered)
+        return report_with_code("ping", answered.error(), gateway);
+    std::puts("ok");
     return exit_ok;
 }
 
@@ -1462,24 +1662,54 @@ const char* control_usage() noexcept
            "      the program gave itself.  kick closes one session by its\n"
            "      number.\n"
            "\n"
+           "  vss_cli control audit verify [--instance=<name>]\n"
+           "      Have the gateway check its audit log: that every line is a\n"
+           "      record, that the numbers follow each other and that each\n"
+           "      line carries the hash of the line before.  It prints intact\n"
+           "      and the number of records, or broken, the number of records\n"
+           "      read, the file, the line and what is wrong there, with exit\n"
+           "      code 1.  A broken chain says that a line was removed,\n"
+           "      changed or moved; an intact one does not prove that nobody\n"
+           "      rewrote the whole log.  It cannot be used over TCP.\n"
+           "\n"
            "  vss_cli control port create <name> [--kind=<kind>]\n"
            "           [--instance=<name>] [--token-file=<file>]\n"
            "  vss_cli control port remove <id> [--instance=<name>]\n"
            "           [--token-file=<file>]\n"
+           "  vss_cli control port rename <id> <name> [--instance=<name>]\n"
+           "           [--token-file=<file>]\n"
            "  vss_cli control link <id> <id> [--one-way] [--instance=<name>]\n"
+           "           [--token-file=<file>]\n"
+           "  vss_cli control unlink <id> [--instance=<name>]\n"
            "           [--token-file=<file>]\n"
            "  vss_cli control send <id> --hex=<digits> [--instance=<name>]\n"
            "           [--token-file=<file>]\n"
-           "      Make and remove ports, link them and send bytes to one.\n"
+           "      Make, rename and remove ports, link and unlink them, and\n"
+           "      send bytes to one.\n"
            "      port create prints the id of the new port (p_3), and link\n"
            "      prints the id of the link (l_2).  A link joins the two\n"
            "      ports both ways, or with --one-way from the first to the\n"
-           "      second.  send takes the bytes as hex digits, two for each\n"
+           "      second.  unlink takes away the link with that id and leaves\n"
+           "      the ports.  port rename gives a port a new name.  send\n"
+           "      takes the bytes as hex digits, two for each\n"
            "      byte and no spaces, as in --hex=00ff68690d0a.  It sends\n"
            "      64 KiB at most.  These need the scope control.ports, and\n"
            "      send needs control.data; the default role of this user\n"
            "      (monitor) has neither.  When the engine says no, the line\n"
            "      ends with the name of its error, as in (engine.not_found).\n"
+           "\n"
+           "  vss_cli control port show <id> [--instance=<name>]\n"
+           "           [--token-file=<file>]\n"
+           "  vss_cli control links [--instance=<name>] [--token-file=<file>]\n"
+           "  vss_cli control link show <id> [--instance=<name>]\n"
+           "           [--token-file=<file>]\n"
+           "  vss_cli control ping [--instance=<name>] [--token-file=<file>]\n"
+           "      port show and link show print one port or one link.  links\n"
+           "      prints one line for each link: id, mode, the ports on each\n"
+           "      side and the bytes it carried.  An id that nothing has is\n"
+           "      an error.  These need the scope monitor.  ping asks only\n"
+           "      whether the gateway answers; it needs no scope and does not\n"
+           "      ask the agent.\n"
            "\n"
            "  vss_cli control expect <id> --pattern=<digits> [--timeout=<ms>]\n"
            "           [--tx] [--send-to=<id> --send=<digits>]\n"
@@ -1528,15 +1758,16 @@ const char* control_usage() noexcept
            "\n"
            "  vss_cli control <command> ... --loopback-port=<port>\n"
            "           --token-file=<file>\n"
-           "      status, watch, port, link, send, expect and run can connect\n"
-           "      over TCP to 127.0.0.1 at the port (1 to 65535) that\n"
-           "      `vss_gate --loopback-port=<port>` listens on, instead of "
-           "the\n"
-           "      pipe or socket.  Nobody is known by the system over TCP, so\n"
-           "      --token-file is needed, and the token must have been made\n"
+           "      status, watch, port, link, unlink, links, ping, send, expect "
+           "and run\n"
+           "      can connect over TCP to 127.0.0.1 at the port (1 to 65535)\n"
+           "      that `vss_gate --loopback-port=<port>` listens on, instead\n"
+           "      of the pipe or socket.  Nobody is known by the system over\n"
+           "      TCP, --token-file is needed, and the token must have been "
+           "made\n"
            "      with token create --transport=loopback: a token made for\n"
            "      one transport is refused on the other.  token, sessions,\n"
-           "      kick and stop cannot be used over TCP.\n"
+           "      kick, audit and stop cannot be used over TCP.\n"
            "\n";
 }
 
@@ -1596,12 +1827,26 @@ int command_control(const std::vector<std::string>& arguments)
         return sessions(gateway);
     case action_kind::kick:
         return kick(gateway, args.session);
+    case action_kind::audit_verify:
+        return audit_verify(gateway);
     case action_kind::port_create:
         return port_create(gateway, args);
     case action_kind::port_remove:
         return port_remove(gateway, args.port);
+    case action_kind::port_show:
+        return port_show(gateway, args.port);
+    case action_kind::port_rename:
+        return port_rename(gateway, args);
+    case action_kind::unlink:
+        return unlink_ports(gateway, args.link_id);
     case action_kind::link:
         return link_ports(gateway, args);
+    case action_kind::links:
+        return list_links(gateway);
+    case action_kind::link_show:
+        return link_show(gateway, args.link_id);
+    case action_kind::ping:
+        return ping(gateway);
     case action_kind::send:
         return send_bytes(gateway, args);
     case action_kind::expect:

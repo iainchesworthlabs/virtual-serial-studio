@@ -48,6 +48,9 @@ set(CMAKE_AUTOUIC OFF)
 # Qt Widgets.
 add_subdirectory(src/backend)
 
+# The update check: the service, the transport and the per-system files.
+add_subdirectory(src/updates)
+
 # Tracy: the instrumented QApplication and the profiling switch.
 add_subdirectory(src/profiling)
 

@@ -27,6 +27,7 @@ The documentation is still built by MkDocs from `docs/`, and is published under 
 | `static/css/site.css` | The styles. The build writes the colour tokens above it. It names no colour itself |
 | `static/` | Files copied as they are (`robots.txt`) |
 | `data/release.json` | The newest GitHub release, as last recorded. The downloads page is made from it |
+| `data/update-feed.json` | The signed update feed of the newest release that has one, as `--refresh-release` last downloaded it. There is none in the repository yet. The build copies it unchanged to `updates/v1/feed.json` |
 
 ## Build, check and look
 
@@ -43,6 +44,13 @@ into `docs/` work only on the published site, or after `mkdocs build --site-dir 
 rewrites `data/release.json` and then builds. The Docs workflow does this when it publishes. A visitor's browser never
 asks GitHub for anything: the downloads page holds plain links to the release files.
 
+`--refresh-release` also downloads the `update-feed.json` asset of the newest release that has one (a final release or a
+pre-release, by version) into `data/update-feed.json`. The build copies that file, unchanged, to `updates/v1/feed.json`,
+which is the address Studio reads (`docs/updates.md`, section 4.1). It does not read or sign the file. `site_check.py`
+checks the copy with the keys in `libs/vss_update/src/trusted_keys_release.cpp`, and without a copy there is nothing to
+check. With no feed the build says so and the site has no `updates/` folder. The feed is made by the `feed` job of the
+release workflow (`docs/releasing.md`, "The update feed").
+
 `python3 tools/site_check.py --external` also requests each outside link. CI does not, so that a pull request does not
 fail because another site is down.
 
@@ -54,6 +62,8 @@ fail because another site is down.
   images, table headers, unique ids, a visible focus style, no text size in pixels.
 - The contrast of every token pair in `contrast_pairs`, in the light and the dark set.
 - `css/site.css` names no colour outside the generated token block.
+- `updates/v1/feed.json`, when the site has it, is a feed that Studio would accept: signed by a key that the build
+  trusts, with a valid payload.
 - Each page in `draft_pages` still says DRAFT.
 
 It does not replace a person with a keyboard and a screen reader. Check a new page by hand at 200 percent text, in

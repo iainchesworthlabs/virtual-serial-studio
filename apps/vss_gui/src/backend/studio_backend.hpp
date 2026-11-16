@@ -32,6 +32,8 @@
 namespace vss::gui
 {
 
+class PluginBackend;
+
 /// The one narrow interface between every screen and the engine.
 ///
 /// Screens call this, never `vss::studio` directly.  The real implementation
@@ -369,6 +371,12 @@ public:
     /// `licence_file_view::file_name`. A file an administrator installed is
     /// never removed. Returns true when a file was removed.
     virtual bool remove_licence(const QString& /*file_name*/) { return false; }
+
+    // -- plugins (capability: plugins) -------------------------------------
+
+    /// The plugin host the Plugins page talks to, or null when this backend
+    /// has none. The backend owns it.
+    virtual PluginBackend* plugin_backend() const { return nullptr; }
 
     // -- documents ---------------------------------------------------------
 

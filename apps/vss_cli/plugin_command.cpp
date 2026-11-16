@@ -3,12 +3,16 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// vss_cli plugin - which plugins are installed on this computer.
+// vss_cli plugin - which plugins are installed on this computer, and what
+// each one is.
 //
-//   list    read-only: the plugins found in the plugin folders, and for each
-//           one the problem it has, if any
+//   list    read-only: the plugins found in the plugin folders, for each one
+//           the problem it has, if any, and what the checks before a run say
+//   verify, install, remove
+//           in plugin_install_command.cpp
+//   run     in plugin_run_command.cpp
 //
-// It runs no plugin, checks no signature and changes nothing.  Text that came
+// `list` runs no plugin.  Text that came
 // from a plugin is shown as plain text, so that a plugin cannot move the
 // cursor or change the colours of the terminal.  docs/plugins.md is the
 // design.
@@ -16,16 +20,20 @@
 
 #include "plugin_command.hpp"
 
+#include "plugin_install_command.hpp"
+#include "plugin_run_command.hpp"
+#include "plugin_support.hpp"
+
 #include <vss/core/error.hpp>
 #include <vss/plugin/access.hpp>
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/hash.hpp>
+#include <vss/plugin/install.hpp>
 #include <vss/plugin/locations.hpp>
 #include <vss/plugin/manifest.hpp>
 #include <vss/plugin/policy.hpp>
 #include <vss/plugin/verify.hpp>
-#include <vss/ports/permissions.hpp>
 
 #include <boost/json.hpp>
 
@@ -48,6 +56,10 @@ namespace
 namespace fs = std::filesystem;
 namespace json = boost::json;
 namespace plug = vss::plugin;
+
+using plugin_support::path_text;
+using plugin_support::plain;
+using plugin_support::text_value;
 
 constexpr int exit_ok = 0;
 constexpr int exit_usage = 2;
@@ -103,103 +115,6 @@ bool parse_list(const std::vector<std::string>& arguments,
     return true;
 }
 
-// -- text from outside ------------------------------------------------------
-
-/// `text` with every byte outside printable ASCII replaced by `?`.
-std::string plain(std::string_view text)
-{
-    std::string out;
-    out.reserve(text.size());
-    for (const char c : text)
-    {
-        const auto byte = static_cast<unsigned char>(c);
-        out += byte >= 0x20 && byte <= 0x7e ? c : '?';
-    }
-    return out;
-}
-
-/// How many bytes the UTF-8 character at the start of `text` has, or 0 when
-/// the bytes there are not a character: a stray or missing continuation, a
-/// longer form than needed, a surrogate or a value above U+10FFFF.
-std::size_t utf8_length(std::string_view text)
-{
-    constexpr std::size_t not_a_character = 0;
-    const auto at = [&text](std::size_t index)
-    { return static_cast<unsigned>(static_cast<unsigned char>(text[index])); };
-    const auto continuation = [&](std::size_t index, unsigned low,
-                                  unsigned high)
-    {
-        return index < text.size() && at(index) >= low && at(index) <= high;
-    };
-
-    const unsigned lead = at(0);
-    if (lead < 0x80)
-        return 1;
-    if (lead >= 0xc2 && lead <= 0xdf)
-        return continuation(1, 0x80, 0xbf) ? 2 : not_a_character;
-    if (lead >= 0xe0 && lead <= 0xef)
-    {
-        const unsigned low = lead == 0xe0 ? 0xa0 : 0x80;
-        const unsigned high = lead == 0xed ? 0x9f : 0xbf;
-        if (continuation(1, low, high) && continuation(2, 0x80, 0xbf))
-            return 3;
-        return not_a_character;
-    }
-    if (lead >= 0xf0 && lead <= 0xf4)
-    {
-        const unsigned low = lead == 0xf0 ? 0x90 : 0x80;
-        const unsigned high = lead == 0xf4 ? 0x8f : 0xbf;
-        if (continuation(1, low, high) && continuation(2, 0x80, 0xbf) &&
-            continuation(3, 0x80, 0xbf))
-            return 4;
-        return not_a_character;
-    }
-    return not_a_character;
-}
-
-/// `text` as valid UTF-8, with each byte that is not part of a character
-/// replaced by `?`.  A JSON text must be valid UTF-8.
-std::string valid_utf8(std::string_view text)
-{
-    std::string out;
-    out.reserve(text.size());
-    std::size_t index = 0;
-    while (index < text.size())
-    {
-        const std::size_t length = utf8_length(text.substr(index));
-        if (length == 0)
-        {
-            out += '?';
-            ++index;
-        }
-        else
-        {
-            out.append(text.substr(index, length));
-            index += length;
-        }
-    }
-    return out;
-}
-
-/// The path with `/` between the names, as UTF-8.
-std::string path_text(const fs::path& path)
-{
-    const std::u8string text = path.generic_u8string();
-    return std::string(text.begin(), text.end());
-}
-
-/// The folder of the running program, or an empty path when it cannot be
-/// found.
-fs::path program_directory()
-{
-    const std::string program = vss::permissions::this_program();
-    if (program.empty())
-        return {};
-    // The text is UTF-8 on every system.
-    const std::u8string text(program.begin(), program.end());
-    return fs::path(text).parent_path();
-}
-
 // -- what was found ---------------------------------------------------------
 
 /// What came of looking for the administrator's policy.
@@ -227,6 +142,12 @@ struct report
     std::string policy_detail;
 
     plug::discovery found;
+
+    /// What this computer says about plugins, and the verdict on each plugin
+    /// of `found`, in the same order.  A plugin whose manifest was not read
+    /// has none.
+    plugin_support::computer computer;
+    std::vector<std::optional<plug::inspection>> verdicts;
 };
 
 std::string failure_line(const std::string& detail, const vss::error_code& why)
@@ -237,7 +158,7 @@ std::string failure_line(const std::string& detail, const vss::error_code& why)
 report gather(const list_options& options)
 {
     report out;
-    const fs::path programs = program_directory();
+    const fs::path programs = plugin_support::program_directory();
 
     std::string detail;
     const auto kind = plug::kind_of_install(programs, &detail);
@@ -283,6 +204,22 @@ report gather(const list_options& options)
     }
 
     out.found = plug::discover_plugins(roots);
+
+    // The policy file is read for the verdicts only when the usual folders
+    // are used, as for the report.
+    out.computer = plugin_support::this_computer(options.roots.empty());
+    for (const plug::found_plugin& each : out.found.plugins)
+    {
+        if (each.declared.has_value())
+        {
+            out.verdicts.emplace_back(
+                plug::inspect_plugin(each.directory, out.computer.context));
+        }
+        else
+        {
+            out.verdicts.emplace_back(std::nullopt);
+        }
+    }
     return out;
 }
 
@@ -301,9 +238,19 @@ std::string state_text(const vss::error_code& problem)
 }
 
 /// Whether the plugin has a `plugin.sig`.  A signature that could not be
-/// read, because it is a link or too large, is still there.
-bool has_signature(const plug::found_plugin& each)
+/// read, because it is a link or too large, is still there.  When the
+/// plugin was looked at for a verdict, the answer is from that look, so that
+/// it agrees with the verdict.
+bool has_signature(const plug::found_plugin& each,
+                   const plug::inspection* verdict)
 {
+    if (verdict != nullptr && !verdict->files.empty())
+    {
+        return std::any_of(verdict->files.begin(), verdict->files.end(),
+                           [](const plug::file_entry& file) {
+                               return file.path == plug::signature_file_name;
+                           });
+    }
     if (each.signature_bytes.has_value())
         return true;
     return std::any_of(each.files.begin(), each.files.end(),
@@ -311,9 +258,14 @@ bool has_signature(const plug::found_plugin& each)
                        { return file.path == plug::signature_file_name; });
 }
 
-/// The fingerprint, or nothing when the files were never measured.
-std::optional<std::string> fingerprint(const plug::found_plugin& each)
+/// The fingerprint, or nothing when the files were never measured.  It is
+/// the one of the look that gave the verdict, when there is one, so that the
+/// two are of the same files.
+std::optional<std::string> fingerprint(const plug::found_plugin& each,
+                                       const plug::inspection* verdict)
 {
+    if (verdict != nullptr && !verdict->files.empty())
+        return verdict->hash.short_text();
     if (each.files.empty())
         return std::nullopt;
     return each.hash.short_text();
@@ -369,19 +321,22 @@ std::string heading_of(const plug::found_plugin& each)
 }
 
 void add_plugin(std::string& out, const plug::found_plugin& each,
-                const plug::discovery& found)
+                const plug::discovery& found, const plug::inspection* verdict,
+                const plug::inspect_context& context)
 {
     out += heading_of(each);
     out += '\n';
     add_line(out, "Folder:       ", plain(path_text(each.directory)));
     add_line(out, "Installed for: ", installed_for(each.scope));
-    const std::optional<std::string> print = fingerprint(each);
+    const std::optional<std::string> print = fingerprint(each, verdict);
     add_line(out, "Fingerprint:  ",
              print.has_value() ? plain(print.value()) : "not worked out");
-    add_line(out, "Signature:    ",
-             has_signature(each) ? "present, not checked by this build"
-                                 : "not signed");
-
+    if (verdict == nullptr)
+    {
+        add_line(out, "Signature:    ",
+                 has_signature(each, verdict) ? "present, not checked"
+                                     : "not signed");
+    }
     std::string state = state_text(each.problem);
     if (!each.detail.empty())
     {
@@ -389,6 +344,8 @@ void add_plugin(std::string& out, const plug::found_plugin& each,
         state += each.detail;
     }
     add_line(out, "State:        ", plain(state));
+    if (verdict != nullptr)
+        plugin_support::add_verdict_lines(out, *verdict, context);
 
     if (const plug::found_plugin* winner = winner_of(each, found))
     {
@@ -453,9 +410,13 @@ std::string text_of(const report& result)
     }
     out += '\n';
 
-    for (const plug::found_plugin& each : result.found.plugins)
+    for (std::size_t index = 0; index < result.found.plugins.size(); ++index)
     {
-        add_plugin(out, each, result.found);
+        const std::optional<plug::inspection>& verdict =
+            result.verdicts[index];
+        add_plugin(out, result.found.plugins[index], result.found,
+                   verdict.has_value() ? &*verdict : nullptr,
+                   result.computer.context);
         out += '\n';
     }
 
@@ -470,17 +431,20 @@ std::string text_of(const report& result)
     if (!result.found.roots.empty())
         out += '\n';
 
+    for (const std::string& note : result.computer.notes)
+    {
+        out += "Note: ";
+        out += plain(note);
+        out += '\n';
+    }
+    if (!result.computer.notes.empty())
+        out += '\n';
+
     add_summary(out, result.found.plugins.size());
     return out;
 }
 
 // -- the JSON ---------------------------------------------------------------
-
-json::value text_value(std::string_view text)
-{
-    const std::string cleaned = valid_utf8(text);
-    return json::value(json::string(cleaned.data(), cleaned.size()));
-}
 
 json::value optional_text_value(const std::optional<std::string>& text)
 {
@@ -504,7 +468,9 @@ json::value policy_json(const report& result)
     return json::value(std::move(policy));
 }
 
-json::value plugin_json(const plug::found_plugin& each)
+json::value plugin_json(const plug::found_plugin& each,
+                        const plug::inspection* verdict,
+                        const plug::inspect_context& context)
 {
     json::object item;
     const std::optional<plug::manifest>& declared = each.declared;
@@ -523,8 +489,8 @@ json::value plugin_json(const plug::found_plugin& each)
     }
     item["folder"] = text_value(path_text(each.directory));
     item["scope"] = text_value(plug::to_string(each.scope));
-    item["fingerprint"] = optional_text_value(fingerprint(each));
-    item["signature"] = has_signature(each) ? "present" : "none";
+    item["fingerprint"] = optional_text_value(fingerprint(each, verdict));
+    item["signature"] = has_signature(each, verdict) ? "present" : "none";
     item["state"] = text_value(state_text(each.problem));
     item["detail"] = text_value(each.detail);
     const std::optional<std::size_t>& shadowed_by = each.shadowed_by;
@@ -536,6 +502,8 @@ json::value plugin_json(const plug::found_plugin& each)
     {
         item["shadowed_by"] = nullptr;
     }
+    if (verdict != nullptr)
+        plugin_support::add_verdict_json(item, *verdict, context);
     return json::value(std::move(item));
 }
 
@@ -552,8 +520,14 @@ std::string json_of(const report& result)
     top["policy"] = policy_json(result);
 
     json::array plugins;
-    for (const plug::found_plugin& each : result.found.plugins)
-        plugins.push_back(plugin_json(each));
+    for (std::size_t index = 0; index < result.found.plugins.size(); ++index)
+    {
+        const std::optional<plug::inspection>& verdict =
+            result.verdicts[index];
+        plugins.push_back(plugin_json(result.found.plugins[index],
+                                      verdict.has_value() ? &*verdict : nullptr,
+                                      result.computer.context));
+    }
     top["plugins"] = std::move(plugins);
 
     json::array roots;
@@ -593,18 +567,29 @@ int command_list(const std::vector<std::string>& arguments)
 
 const char* plugin_usage() noexcept
 {
-    return "  vss_cli plugin list [--json] [--root <folder>]...\n"
-           "      Show the plugins found in the plugin folders of this "
-           "computer,\n"
-           "      and the problem of each one that has a problem.  Reads "
-           "only: it\n"
-           "      runs no plugin and checks no signature.  Each --root "
-           "replaces\n"
-           "      the usual folders with the folders given; the policy file "
-           "is\n"
-           "      then not read.  Exit code 0 means it ran, whatever it "
-           "found.\n"
-           "\n";
+    static const std::string text = []
+    {
+        std::string out =
+            "  vss_cli plugin list [--json] [--root <folder>]...\n"
+            "      Show the plugins found in the plugin folders of this "
+            "computer,\n"
+            "      the problem of each one that has a problem, and for each "
+            "the\n"
+            "      checks made before a run: signature, trust, whether it "
+            "may run\n"
+            "      and whether the licence covers it.  It runs no plugin and "
+            "changes\n"
+            "      nothing.  Each --root replaces the usual folders with the "
+            "folders\n"
+            "      given; the policy file is then not read.  Exit code 0 "
+            "means it\n"
+            "      ran, whatever it found.\n"
+            "\n";
+        out += plugin_install_usage();
+        out += plugin_run_usage();
+        return out;
+    }();
+    return text.c_str();
 }
 
 int command_plugin(const std::vector<std::string>& arguments)
@@ -617,6 +602,14 @@ int command_plugin(const std::vector<std::string>& arguments)
     const std::string& verb = arguments[1];
     if (verb == "list")
         return command_list(arguments);
+    if (verb == "verify")
+        return command_plugin_verify(arguments);
+    if (verb == "install")
+        return command_plugin_install(arguments);
+    if (verb == "remove")
+        return command_plugin_remove(arguments);
+    if (verb == "run")
+        return command_plugin_run(arguments);
     std::fprintf(stderr, "plugin: unknown step %s\n", verb.c_str());
     std::fputs(plugin_usage(), stderr);
     return exit_usage;

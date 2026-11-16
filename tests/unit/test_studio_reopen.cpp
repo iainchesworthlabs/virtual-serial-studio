@@ -7,6 +7,7 @@
 // connection, and the ports of the Windows driver that a restart takes away.
 //
 
+#include "support/scripted_transport.hpp"
 #include "support/test_support.hpp"
 
 #include <vss/studio/studio.hpp>
@@ -19,6 +20,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <future>
 #include <memory>
 #include <optional>
@@ -221,6 +223,126 @@ struct log_watch
         return false;
     }
 };
+
+/// Stands in for opening an address, so that a test decides when a connection
+/// comes up.  Every call makes a scripted transport.  After #hold_next the
+/// next call waits inside the factory until #release, as a connection that
+/// takes a while does.
+class held_opener
+{
+public:
+    held_opener() = default;
+    held_opener(const held_opener&) = delete;
+    held_opener& operator=(const held_opener&) = delete;
+
+    /// A test that fails must not leave a thread waiting here.
+    ~held_opener() { release(); }
+
+    studio_options options()
+    {
+        studio_options made;
+        made.make_transport = [this](const transport::executor_type& executor,
+                                     const std::string&,
+                                     const serial_settings*, error_code&)
+        { return open(executor); };
+        return made;
+    }
+
+    void hold_next()
+    {
+        std::lock_guard lock(mutex_);
+        hold_ = true;
+        entered_ = false;
+        released_ = false;
+    }
+
+    bool wait_entered(std::chrono::milliseconds limit = 10000ms)
+    {
+        return wait_until(
+            [this]
+            {
+                std::lock_guard lock(mutex_);
+                return entered_;
+            },
+            limit);
+    }
+
+    void release()
+    {
+        {
+            std::lock_guard lock(mutex_);
+            released_ = true;
+        }
+        changed_.notify_all();
+    }
+
+    /// How many transports were made.
+    std::size_t opened() const
+    {
+        std::lock_guard lock(mutex_);
+        return made_.size();
+    }
+
+    std::shared_ptr<vss_test_support::scripted_transport>
+    transport_at(std::size_t index) const
+    {
+        std::lock_guard lock(mutex_);
+        return made_.at(index);
+    }
+
+    /// How many owners transport `index` has, this opener being one: 1 means
+    /// nothing else holds it.
+    long owners_of(std::size_t index) const
+    {
+        std::lock_guard lock(mutex_);
+        return made_.at(index).use_count();
+    }
+
+private:
+    std::shared_ptr<transport> open(const transport::executor_type& executor)
+    {
+        auto made =
+            std::make_shared<vss_test_support::scripted_transport>(executor);
+        std::unique_lock lock(mutex_);
+        made_.push_back(made);
+        if (hold_)
+        {
+            hold_ = false;
+            entered_ = true;
+            // The limit is only there so that a broken test cannot hang.
+            changed_.wait_for(lock, 60s, [this] { return released_; });
+        }
+        return made;
+    }
+
+    mutable std::mutex mutex_;
+    std::condition_variable changed_;
+    std::vector<std::shared_ptr<vss_test_support::scripted_transport>> made_;
+    bool hold_ = false;
+    bool entered_ = false;
+    bool released_ = false;
+};
+
+config::port_entry client_entry(const std::string& name)
+{
+    config::port_entry port;
+    port.name = name;
+    port.kind = "tcp";
+    port.uri = "tcp://127.0.0.1:4001";
+    return port;
+}
+
+/// True when transport `index` of the opener was closed, never had a read
+/// armed, and is held by nothing but the opener.
+bool unused_and_released(const held_opener& opener, std::size_t index)
+{
+    const auto made = opener.transport_at(index);
+    // `made` is an owner too.
+    return wait_until(
+               [&] { return !made->is_open() && opener.owners_of(index) == 2; },
+               10000ms) &&
+           made->reads_armed() == 0;
+}
 
 reconnect_policy quick_policy(unsigned max_attempts = 0)
 {
@@ -510,4 +632,171 @@ TEST_CASE("lost ports: a studio without the Windows driver has none")
     const auto report = app.recreate_lost_ports();
     REQUIRE(report.recreated.empty());
     REQUIRE(report.failed.empty());
+}
+
+TEST_CASE("reopen: a port removed while its new connection is made stays "
+          "removed")
+{
+    held_opener opener;
+    studio app(opener.options());
+    const auto port = app.attach_serial("remote", "tcp://127.0.0.1:4001");
+    REQUIRE(port);
+    const endpoint_id id = (*port)->id();
+    (*port)->close();
+    REQUIRE(wait_for_state(*port, endpoint_state::closed));
+
+    // The connection takes its time, and the port is removed meanwhile.
+    opener.hold_next();
+    auto outcome = std::async(std::launch::async, [&app, id]
+                              { return app.reopen(id); });
+    REQUIRE(opener.wait_entered());
+    REQUIRE(app.remove_port(id));
+    opener.release();
+
+    const auto reopened = outcome.get();
+    REQUIRE(!reopened);
+    REQUIRE_EQ(reopened.error(), make_error_code(errc::not_found));
+    REQUIRE_EQ(opener.opened(), std::size_t{2});
+    // The new connection was closed and is held by nothing.
+    REQUIRE(unused_and_released(opener, 1));
+    REQUIRE(app.engine().find_endpoint(id) == nullptr);
+    REQUIRE(app.endpoint_infos().empty());
+}
+
+TEST_CASE("reopen: a port that File > Open replaces while its new connection "
+          "is made stays removed")
+{
+    held_opener opener;
+    studio app(opener.options());
+    config::document first;
+    first.name = "first";
+    first.ports = {client_entry("remote")};
+    REQUIRE(app.apply(first));
+    const auto old_port = app.find("remote");
+    REQUIRE(old_port);
+    const endpoint_id id = old_port->id();
+    old_port->close();
+    REQUIRE(wait_for_state(old_port, endpoint_state::closed));
+
+    opener.hold_next();
+    auto outcome = std::async(std::launch::async, [&app, id]
+                              { return app.reopen(id); });
+    REQUIRE(opener.wait_entered());
+
+    // A setup in which the port differs: it is removed and made again.
+    config::port_entry changed = client_entry("remote");
+    changed.capture = false;
+    config::document second;
+    second.name = "second";
+    second.ports = {changed};
+    REQUIRE(app.replace(second));
+    opener.release();
+
+    const auto reopened = outcome.get();
+    REQUIRE(!reopened);
+    REQUIRE_EQ(reopened.error(), make_error_code(errc::not_found));
+    REQUIRE_EQ(opener.opened(), std::size_t{3});
+    REQUIRE(unused_and_released(opener, 1));
+    REQUIRE(app.engine().find_endpoint(id) == nullptr);
+
+    // What replace made is the only port, and it runs.
+    REQUIRE_EQ(app.endpoint_infos().size(), std::size_t{1});
+    const auto made = app.find("remote");
+    REQUIRE(made);
+    REQUIRE(made->id() != id);
+    const auto kept = opener.transport_at(2);
+    REQUIRE(wait_until(
+        [&] { return kept->is_open() && kept->reads_armed() > 0; }, 10000ms));
+    REQUIRE(made->is_open());
+}
+
+TEST_CASE("reconnect: a try that is under way when the port is removed does "
+          "not bring it back")
+{
+    held_opener opener;
+    studio app(opener.options());
+    app.set_reconnect_policy(quick_policy());
+    const auto port = app.attach_serial("remote", "tcp://127.0.0.1:4001");
+    REQUIRE(port);
+    const endpoint_id id = (*port)->id();
+
+    // The connection is lost, and the reconnector is inside its first try.
+    opener.hold_next();
+    (*port)->close();
+    REQUIRE(opener.wait_entered());
+    REQUIRE(app.remove_port(id));
+    opener.release();
+
+    REQUIRE(unused_and_released(opener, 1));
+    REQUIRE(app.engine().find_endpoint(id) == nullptr);
+    REQUIRE(app.endpoint_infos().empty());
+
+    // And it does not try again for a port that is gone.
+    std::this_thread::sleep_for(500ms);
+    REQUIRE_EQ(opener.opened(), std::size_t{2});
+}
+
+TEST_CASE("reopen: a removal that races the hand-over leaves nothing running")
+{
+    // Whether the removal comes before the hand-over, during it or after it
+    // depends on the threads; each is allowed to happen, and each must end
+    // with the port gone and the new transport closed and released.
+    held_opener opener;
+    studio app(opener.options());
+    for (std::size_t round = 0; round < 25; ++round)
+    {
+        // The test keeps no handle on the endpoint, which would hold the
+        // transport it was given until the end of the round.
+        endpoint_id id = 0;
+        {
+            const auto port =
+                app.attach_serial("remote", "tcp://127.0.0.1:4001");
+            REQUIRE(port);
+            id = (*port)->id();
+            (*port)->close();
+            REQUIRE(wait_for_state(*port, endpoint_state::closed));
+        }
+
+        opener.hold_next();
+        auto outcome = std::async(std::launch::async, [&app, id]
+                                  { return app.reopen(id); });
+        REQUIRE(opener.wait_entered());
+        opener.release();
+        REQUIRE(app.remove_port(id));
+        static_cast<void>(outcome.get());
+
+        const std::size_t fresh = opener.opened() - 1;
+        const auto made = opener.transport_at(fresh);
+        REQUIRE(wait_until([&] { return !made->is_open(); }, 10000ms));
+        // `made` is an owner too.
+        REQUIRE(wait_until([&] { return opener.owners_of(fresh) == 2; },
+                           10000ms));
+        REQUIRE(app.engine().find_endpoint(id) == nullptr);
+        REQUIRE(app.endpoint_infos().empty());
+    }
+}
+
+TEST_CASE("reconfigure: a port removed while its new connection is made stays "
+          "removed")
+{
+    held_opener opener;
+    studio app(opener.options());
+    const auto port = app.attach_serial("device", "serial://not-a-device");
+    REQUIRE(port);
+    const endpoint_id id = (*port)->id();
+
+    opener.hold_next();
+    serial_settings settings;
+    settings.baud_rate = 9600;
+    auto outcome = std::async(std::launch::async, [&app, id, settings]
+                              { return app.reconfigure_port(id, settings); });
+    REQUIRE(opener.wait_entered());
+    REQUIRE(app.remove_port(id));
+    opener.release();
+
+    const auto reconfigured = outcome.get();
+    REQUIRE(!reconfigured);
+    REQUIRE_EQ(reconfigured.error(), make_error_code(errc::not_found));
+    REQUIRE(unused_and_released(opener, 1));
+    REQUIRE(app.engine().find_endpoint(id) == nullptr);
 }

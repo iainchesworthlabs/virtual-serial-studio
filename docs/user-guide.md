@@ -1133,8 +1133,8 @@ sent to the client as modem state.
 
 To let other computers connect, allow the port through the host firewall and
 listen on an interface they can reach (`0.0.0.0` for all interfaces). Try
-`127.0.0.1` first. Studio does not use the network unless you add an endpoint
-like these.
+`127.0.0.1` first. Apart from the check for updates (see [Updates](#updates)),
+Studio makes no network connection unless you add an endpoint like these.
 
 ### Who may connect
 
@@ -1400,6 +1400,9 @@ turns it on.
   quits. Builds without the profiler show both switches as unavailable. See
   [profiling](profiling.md).
 
+The last group in the dialog, **Updates**, has *Check for updates automatically*
+and *Include pre-release versions*. See [Updates](#updates).
+
 **Reset to defaults** restores them. The values are stored with `QSettings` (the
 registry on Windows, a configuration file on Linux and macOS).
 
@@ -1447,8 +1450,8 @@ registry on Windows, a configuration file on Linux and macOS).
   diagnostic information** copies the build information and the environment for
   a bug report.
 - **Help → About** shows the application icon, the version and the licence
-  at the top, and has five tabs: About (the GPLv3 notice and a link to the
-  source code), Build information (the version, Git tag, commit, branch,
+  at the top, and has six tabs: About (the GPLv3 notice and a link to the
+  source code), Updates (see [Updates](#updates)), Build information (the version, Git tag, commit, branch,
   whether the tree was modified, CI build number, build time, build type,
   compiler, and the Qt and Boost it was built with), Environment (operating
   system, architecture, Qt running, display and the language chosen), Licences
@@ -1462,6 +1465,252 @@ The application is available in nine languages (English, French, Spanish,
 German, Hebrew, Yiddish, Japanese, Simplified Chinese and Arabic). It follows
 the system language, and there is no language setting in the window. See
 [i18n.md](i18n.md).
+
+## Plugins
+
+**Tools, Plugins...** lists the plugins installed on this computer. A plugin
+adds fixtures, generators, link behaviours or connections to other tools, and
+each one runs as its own program, apart from Studio. Studio never downloads a
+plugin. A plugin is a folder that you or your administrator put in a plugin
+folder.
+
+Studio runs a plugin you have switched on as a program of its own, apart from
+Studio, and stops it when you switch it off or close Studio. If it stops
+unexpectedly Studio starts it again after a short wait, and after five failures
+in ten minutes it stops trying and says so; **Start again** tries once more.
+How far this computer can keep a plugin apart from your files and other programs
+is shown for each plugin (**Isolation**). Where it cannot keep a plugin that is
+not official apart, the plugin does not run unless you allow it for that version
+with **Run without isolation...**.
+
+### The list and the detail
+
+The list is on the left, with a box to filter it by name. A row shows the
+plugin's name, who stands behind it, its version, its state and a switch. The
+rows that need attention are first. Choose a row to see its detail on the
+right. F6 moves between the list and the detail.
+
+The line under the name says who stands behind the plugin:
+
+| Line | Meaning |
+|---|---|
+| Official | Signed by Virtual Serial Studio. Only these show the Virtual Serial Studio badge |
+| Signed by *name* | Signed with a key that you or your administrator approved. Not verified by Virtual Serial Studio |
+| Signed by an author you have not approved | Signed with a key that is not on this computer, so the signature could not be checked |
+| Unsigned | Nobody signed it. Studio cannot tell who made it or whether it was changed |
+
+A signature shows who made a plugin and that its files are unchanged. It does
+not show that the plugin is safe. Everything a plugin says about itself, such as
+its name, its description and its messages, is shown as plain text and is never
+used to decide what Studio shows about it.
+
+The state of a plugin is one of On, Starting, Off, Needs your decision,
+Blocked, Not isolated, Not used, Needs a licence, Stopped, Not compatible,
+Can't be used and Not installed. Under the name of the plugin the page says why
+and what you can do about it.
+
+### Deciding about a plugin
+
+A plugin that Studio has not seen before, or whose files changed since you
+approved it, needs your decision before it can run. Switch it on, or choose
+**Review and decide**. The question lists the plugin's name, version and
+fingerprint, what it adds and each permission it asks for. A permission that the
+plugin needs is a row. A permission that the plugin marks as optional has a
+check box, ticked, that you can untick. The permissions that give a plugin the
+most are marked with a warning.
+
+The dialog starts on **Cancel**, and Enter alone cancels. Your answer is kept for
+that version of the plugin only. If its files change, Studio asks again, and says
+when the new version asks for more than the one you approved.
+
+### Approving an author's key
+
+An author of plugins publishes a small public key file, which ends in
+`.vsskey.json`. Choose **Import a key...** and pick the file. Studio shows the
+author's name, the key's id and its fingerprint in groups of four. Compare the
+fingerprint with the one the author published on their website or sent you, tick
+the box and choose **Approve this key**. Studio never looks for key files in a
+plugin's folder, and approving a key never switches a plugin on: each plugin
+still needs its own decision. **Remove this key...** in the detail of a plugin
+takes it back, and the plugins signed with it ask again.
+
+### Running a plugin without isolation
+
+Studio runs a plugin apart from your files and other programs when this computer
+can. When it cannot, a plugin that is not official is shown as Not isolated.
+Where your administrator allows it, **Run without isolation...** lets you run
+that version of that plugin with your own access to your files and the network.
+**Undo** in the Isolation row takes it back.
+
+### Plugins in the rest of the window
+
+- **Toolbox (Advanced).** A **Plugins** group under Ports and Bundles has a tile for each fixture type of a plugin that is switched on. A plugin that is starting, that needs a licence or that stopped keeps its tile, disabled, and the tile says why. A plugin that is switched off, waiting for your decision, blocked or not compatible has no tile. A tile's top right corner has the plugin mark, and its menu has **Show in Plugins**.
+- **Ports.** A port that a plugin provides says so in the Inspector (**Provided by**). While its plugin is not available the port stays open and sends nothing, the canvas marks it **Plugin not available**, and the Inspector says why and offers the action that helps: **Switch on**, **Review and decide**, **Licence**, **Start again** or **Show in Plugins**. Its settings are kept.
+- **Notices.** One notice at a time appears at the top of the window when a new plugin is found, when a plugin changed and was stopped, when a plugin that your setup uses stopped, or when a plugin was withdrawn. A notice never takes the focus and **Dismiss** hides it.
+- **Status bar.** While a plugin reads the data of ports or links, a chip reads **Reading data**, or **Recording** when it records. It opens Plugins, and it cannot be dismissed.
+- **Licence.** The row of the official plugins on the Licence page has a **Plugins** link.
+
+### Adding and removing a plugin
+
+**Add a plugin...** asks for a plugin's folder and looks into it first. A
+question shows the plugin's version, who made it, what its signature says, its
+fingerprint and whether it can be used, and copies nothing until you choose
+**Add plugin**. A plugin that cannot be used cannot be added. The copy goes into
+your own plugin folder, for you only, and the new row is selected. Nothing runs.
+The same question shows the command for installing it for everyone,
+`vss_cli plugin install <folder> --for-everyone`, as text to copy: Studio never
+asks for administrator rights. **Remove plugin...** asks first and deletes the
+plugin's folder; it does not go to the bin. The plugin's saved data is kept
+unless you tick the box. An
+administrator can also put a plugin's folder in the machine plugin folder, which
+the page shows under the list. If your
+administrator has turned your own plugin folder off, those two buttons are
+disabled.
+
+## Updates
+
+Studio can ask whether a newer version has been published, tell you, and
+download it when you say yes. It is the only thing Studio asks the network for
+by itself. Studio always asks you first, and it never installs an update with
+nobody watching.
+
+The automatic check is off in a new install. Studio makes no request for an
+update until you have said yes, or until you check by hand.
+
+### The question at first start
+
+The first time Studio starts for you, a banner in the window asks: "Check for
+updates automatically? Once a day Studio would ask virtual-serial-studio.com for
+the newest version. Nothing about you or this computer is sent." The buttons are
+**Turn on** and **No thanks**.
+
+Either answer is kept, and Studio does not ask again, also after Studio itself
+is updated. The banner takes no focus and blocks nothing, and it stays until you
+answer it. It is not shown in a developer build, in a build that cannot check
+for updates, or when your administrator has turned update checks off.
+
+### Checking by hand
+
+**Help → Check for updates...** opens **Help → About** on the **Updates** tab and
+starts a check. The same action is found as "Check for updates" with `Ctrl+K`.
+The tab shows:
+
+| Row | What it says |
+|---|---|
+| This version | The version and the kind of install: "installed for everyone on this computer", "unpacked from an archive" or "copied from the disk image". |
+| Newest version | "Not checked yet.", "Checking...", "`<version>` is the newest version." or "`<version>` is available." |
+| Last checked | The date and time, or "Never". |
+| Plugins | One line for each installed official plugin that has a newer version. Left out when there is none. |
+
+**Check now** asks again. When something is available, **Update...** opens the
+update dialog. A check by hand works whether or not the automatic check is on.
+
+If the check fails, the sentence says why: "Studio could not reach the update
+server. Check the connection and try again." or "The update information could
+not be trusted, so nothing was changed." Nothing on your computer is changed.
+A developer build says "This is a developer build. The newest release is
+`<version>`." and offers no install.
+
+### When an update is found
+
+A check that runs by itself never opens a window. It shows a banner, "Virtual
+Serial Studio `<version>` is available.", with **Details** and **Later**, and puts
+an **Update available** chip in the status bar. **Later** hides the banner until
+Studio is next started. The chip stays.
+
+**Details**, the chip and **Update...** in About open the update dialog,
+"Update Virtual Serial Studio". It says "Version `<new version>` is available. You
+have `<this version>`." and shows:
+
+- **What is new**: the summary from the update information, as plain text, and a
+  **Release notes** link that opens in your browser.
+- The file, with its name and size, such as `virtual-serial-studio-v0.3.0-windows-x86_64.exe, 48 MB`.
+- When ports are running, a note: "3 ports are running. Installing stops them."
+
+The buttons are **Download and install**, **Skip this version** and **Not now**.
+**Skip this version** stops the automatic check from mentioning that version
+again. It speaks again for a later one, and a check by hand still shows it.
+**Not now** closes the dialog.
+
+When there is no file for the way this copy was installed, the dialog says "There
+is no package for this kind of install. Download one from
+virtual-serial-studio.com." and the main button is **Open the downloads page**.
+
+### Download and install
+
+**Download and install** shows a progress bar with **Cancel**. **Cancel** deletes
+what arrived and goes back to the first page. Then it reads "Checking the
+download...": Studio compares the file with the SHA-512 in the signed update
+information, and uses it only when they match. The file comes from the project's
+releases on GitHub.
+
+What happens next depends on how this copy of Studio was installed:
+
+| This copy of Studio | After the download is checked |
+|---|---|
+| Installed with the Windows installer | "The update is ready. Studio will close and the installer will start. Windows asks for an administrator." **Install now** starts the installer, and Studio then closes as Quit does, which stops the running ports. If you say no to the Windows prompt, nothing changes and Studio stays open. The installer shows its own pages and updates in place, so the driver, the helper service and your COM numbers are kept. |
+| Copied from the macOS disk image | "The update is ready. Quit Studio, then drag Virtual Serial Studio onto Applications in the window that opens." **Open the disk image** opens it. Studio does not replace itself. |
+| Installed from a `.deb` or `.rpm` package on Linux | The dialog shows the command, `sudo apt install <file>` or `sudo dnf install <file>`, with a copy button. Where `pkexec` exists, **Install** runs it and the system asks for an administrator. **Show in folder** shows the file. Start Studio again afterwards. |
+| Unpacked from a zip or another archive (Windows, macOS or Linux) | Once the download is checked, the file is put in your Downloads folder: "The download is in `<folder>`. This copy of Studio was unpacked from an archive, so unpack the new one in its place." **Show in folder** shows it. |
+
+**Not now** keeps the checked file until Studio quits. **Update...** in About
+then goes straight to this page. Studio never raises its own rights: every step
+that needs an administrator is a prompt from the system, for a program the
+system starts.
+
+If a download fails, the dialog names what failed and offers **Try again**. It
+says "Studio could not reach the update server. Check the connection and try
+again.", "The download was not the file that was published, so it was deleted."
+or "Studio could not save the download." Nothing is installed and
+Studio is as it was.
+
+### Turning the check on or off
+
+- In **Tools → Settings**, the **Updates** group has *Check for updates
+  automatically* and *Include pre-release versions* ("Offers release candidates
+  as well as finished releases."). The check box in the Updates tab of About is
+  the same setting as the first one. Both apply at once.
+- When the automatic check is on, Studio checks once a day, 60 seconds after it
+  starts. A check that fails by itself is silent and is tried again an hour
+  later, up to three times.
+- With it off, Studio checks only when you use **Check for updates...** or
+  **Check now**.
+- An administrator turns the check off for everyone on a computer with
+  `"update_check": false` in the policy file (see [Where Studio looks for
+  plugins](#where-studio-looks-for-plugins) for where it is, and the key's place
+  in [the plugin framework](plugins.md), section 8.6). Studio then makes no check
+  by itself and none by hand. **Check for updates...** and **Check now** are
+  disabled, the Settings check boxes are disabled with "Set by your
+  administrator.", and the sentence in About reads "Update checks are turned off
+  by your administrator." A policy file that cannot be trusted is ignored by the
+  update check, which then follows your setting.
+- `vss_cli` makes no update check. A computer that runs without a window is
+  updated by whoever sets it up.
+
+### What is sent
+
+A check is one HTTPS request for one file,
+`https://virtual-serial-studio.com/updates/v1/feed.json`. It has no query string,
+no cookie and no body. Its `User-Agent` is the fixed text `VirtualSerialStudio`,
+with no version and no system in it. Studio downloads the whole file and
+chooses for itself, so the site is never told which version you have. The
+server sees what any web server sees: the address the request came from and the
+time. Studio uses your system's proxy settings and never ignores a certificate
+error.
+
+The file is signed with an Ed25519 key. Studio checks the signature with a key
+it was built with, and refuses a file that does not verify. A file that is
+older than one Studio has already accepted is refused too, and an update is only
+ever a newer version than the one you run.
+
+A download is made only after you say yes. It comes from the project's releases
+on GitHub, which sees the request as it sees any download.
+
+Studio sends nothing about you, your computer or how you use Studio. No
+licence is sent, because there is no activation server and no licence check
+over the network. There is no usage data, no crash report and no account. See
+the [privacy page](https://virtual-serial-studio.com/privacy.html) for the
+same statement.
 
 ## Licences
 
@@ -1498,7 +1747,9 @@ effect at once, with no restart. Importing never deletes an older file.
 
 | Folder | Where | Used for |
 |---|---|---|
-| Your licence folder | The `licences` folder in Studio's per-user data folder | Where **Import licence...** copies files |
+| Your licence folder, Windows | `%LOCALAPPDATA%\Virtual Serial Studio\licences` | Where **Import licence...** copies files |
+| Your licence folder, Linux | `$XDG_DATA_HOME/virtual-serial-studio/licences`, or `~/.local/share/virtual-serial-studio/licences` when `XDG_DATA_HOME` is not set | The same |
+| Your licence folder, macOS | `~/Library/Application Support/Virtual Serial Studio/licences` | The same |
 | The per-machine folder, Windows | `%ProgramData%\Virtual Serial Studio\licences` | A licence an administrator puts there for every user of the computer |
 | The per-machine folder, Linux | `/etc/virtual-serial-studio/licences` | The same |
 | The per-machine folder, macOS | `/Library/Application Support/Virtual Serial Studio/licences` | The same |
@@ -1508,6 +1759,22 @@ the most: a valid licence before one in its grace period, that before one that
 has ended, then Enterprise before Pro, then the one that ends last. The others
 are listed on the Licence page. Studio only reads the per-machine folder. It
 never writes to it, and **Remove** does not touch a file there.
+
+### From the command line
+
+`vss_cli licence` prints what Studio sees on this computer, one line for each
+fact: `Edition:` (`community`, `pro` or `enterprise`), `State:` (`none`,
+`valid`, `expiring`, `grace`, `expired`, `not_yet_valid`, `clock_suspect` or
+`invalid`), `Reason:` when the licence is not in force, then the licence
+number, its kind, who it is licensed to, its term, the days left and the
+seats, and the licence files it found in both folders. The edition and state
+words are the ones the control gateway's status uses. It reads files and
+sends nothing, and its exit status is 0 whatever it finds.
+
+`vss_cli licence import <file>` checks a licence file as Studio does and copies
+it to your licence folder. It prints one sentence and exits with 0 when the
+licence is installed and 1 when nothing was copied. The file you give it stays
+where it was.
 
 ### When a licence ends
 
@@ -1718,6 +1985,9 @@ again.
 | Self-test the wiring | `vss_cli selftest` |
 | Check what the system may block | `vss_cli permissions check` |
 | List the installed plugins | `vss_cli plugin list` (add `--json` for a script) |
+| Check a plugin folder | `vss_cli plugin verify <folder>` |
+| Install or remove a plugin | `vss_cli plugin install <folder>`, `vss_cli plugin remove <id>` |
+| Run one installed plugin | `vss_cli plugin run <id>` (add `--json` for a script) |
 
 `virtual`, `vport`, `bus`, `capture`, `run`, `share`, `join`, `bridge` and
 `loopback` keep running until `Ctrl-C`, `SIGTERM` or, on Linux and macOS, `SIGHUP`
@@ -1726,7 +1996,8 @@ again.
 down before they end. `--verbose` prints the port table every half second while
 `run`, `share`, `join`, `bus`, `bridge`, `loopback` and `vport` wait, and `vss_cli
 --help` lists every option. An option takes its value as `--name=value` or as
-`--name value`; an option a command does not have, a missing value and a value that
+`--name value`, except under `control`, `agent`, `permissions` and `plugin`,
+which take `--name=value` only; an option a command does not have, a missing value and a value that
 is not a number where one is needed end the command with exit code 2 and one line
 on standard error. `vss_cli --version` prints the version of the build, as
 `vss_gui --version` does.
@@ -1848,8 +2119,9 @@ vss_cli plugin list [--json] [--root <folder>]...
 ```
 
 `plugin list` shows the plugins that are installed on this computer. It only
-reads. It runs no plugin, checks no signature and changes nothing. This build
-does not run plugins.
+reads. It runs no plugin and changes nothing. This build does not run plugins.
+For each plugin it also makes the checks that come before a run, the same ones
+`plugin verify` makes, and shows what they found.
 
 It starts with whether Studio is installed for everyone on this computer or for
 you only, and with the administrator's policy file, if there is one. Then it
@@ -1857,11 +2129,15 @@ prints one block for each plugin:
 
 ```text
 com.example.modbus-fixture  1.2.0  Modbus fixture
-  Folder:       C:/Users/me/AppData/Local/VirtualSerialStudio/plugins/modbus-fixture
+  Folder:       C:/Users/me/AppData/Local/Virtual Serial Studio/plugins/modbus-fixture
   Installed for: you only
   Fingerprint:  3f9a1c0d2b7e4a61
-  Signature:    not signed
   State:        found
+  Signature:    Not signed. Studio cannot tell who made it or whether it was changed.
+  Trust:        Unsigned
+  Key:          none
+  May run:      no, sandbox_insufficient: ...
+  Licence:      none needed
 ```
 
 - **Folder** is the plugin's own folder.
@@ -1869,13 +2145,15 @@ com.example.modbus-fixture  1.2.0  Modbus fixture
   Studio`, from the folder the plugin was found in.
 - **Fingerprint** is the first 16 characters of a hash of all the plugin's
   files. A change to any file gives a different fingerprint.
-- **Signature** is `not signed` when the plugin has no `plugin.sig`. When it has
-  one, it is `present, not checked by this build`.
 - **State** is `found` when the plugin's files are in order, and nothing more.
   Otherwise it is the reason, such as `manifest_invalid`, and a line that says
   what is wrong. When two folders hold a plugin with the same id, the copy found
   first counts. The other is `shadowed`, and a `Not used` line names the folder
   of the copy that counts.
+- **Signature**, **Trust**, **Key**, **May run** and **Licence** are what the
+  checks found. They are explained under `plugin verify` below. A plugin whose
+  manifest could not be read has a `Signature` line that says whether there is
+  a `plugin.sig`, and none of the others.
 
 A plugin whose `plugin.json` cannot be read is shown by the name of its folder.
 A plugin folder that cannot be looked through is named after the plugins. Text
@@ -1885,8 +2163,11 @@ printable ASCII is shown as `?`. The JSON keeps valid UTF-8 as it is.
 `--json` prints one JSON object and nothing else: `install` (`for_everyone`,
 `for_one_user` or `null`), `policy` (`file`, `present`, `used` and `detail`),
 `plugins` (one object for each plugin, with `id`, `version`, `name`, `folder`,
-`scope`, `fingerprint`, `signature`, `state`, `detail` and `shadowed_by`) and
-`roots_not_read`. A value that is not known is `null`.
+`scope`, `fingerprint`, `signature`, `state`, `detail` and `shadowed_by`, and
+for a plugin whose manifest was read the members that `plugin verify --json`
+has: `signature_state`, `trust`, `trust_line`, `key_id`, `may_run`,
+`run_reason`, `run_detail` and `licence`) and `roots_not_read`. A value that is
+not known is `null`.
 
 `--root <folder>` looks in the folders you give instead of the usual ones, and
 may be repeated. Each folder counts as your own, and the policy file is not
@@ -1896,6 +2177,242 @@ The exit code is 0 when the command ran, whatever it found: a plugin with a
 problem is a finding, not a failure of the command. It is 2 for a command line
 the program does not understand.
 
+### Checking a plugin with `vss_cli plugin verify`
+
+```bash
+vss_cli plugin verify <folder> [--allow-unsigned] [--json]
+```
+
+`plugin verify` makes the checks that come before a plugin runs, on a plugin
+folder, and says what it found. It only reads. It runs nothing.
+
+```text
+com.example.modbus-fixture  1.2.0  Modbus fixture
+  Folder:       C:/Downloads/modbus-fixture
+  Fingerprint:  3f9a1c0d2b7e4a61
+  Signature:    Signed by Example Ltd. Not verified by Virtual Serial Studio.
+  Trust:        Signed by Example Ltd
+  Key:          example-2026
+  May run:      yes
+  Licence:      none needed
+  Install:      can be installed
+This build does not run plugins.
+```
+
+- **Signature** says whether the signature holds and who made it. "Official"
+  plugins are signed by Virtual Serial Studio. A signature shows who made a
+  plugin and that its files are unchanged. It does not show that the plugin is
+  safe.
+- **Trust** is `Official`, `Signed by <author>`, `Unsigned` or `Signed by an
+  author you have not approved`. The last is a plugin signed with a key that is
+  not on this computer, so the signature could not be checked.
+- **Key** is the id of the signing key, or `none`.
+- **May run** is `yes`, or `no` and the reason code and a line about it, such as
+  `expired` or `sandbox_insufficient`. It says what Studio would decide. This
+  build runs no plugin, whatever it says.
+- **Licence** is `none needed`, `covered`, or `not covered` and why. The command
+  line does not read licence files yet, so for an official plugin that needs an
+  edition it says `not checked`.
+- **Install** is `can be installed`, `cannot be installed` and the reason, or
+  `cannot be installed unless you give --allow-unsigned`.
+
+The exit code is 0 when the plugin can be installed, 1 when it cannot, and 2 for
+a command line the program does not understand. A plugin cannot be installed
+when its folder is not a plugin folder, when a file is not what its manifest
+lists or the folder holds a file it does not list, when its signature does not
+hold, when its id cannot be the name of a folder (such as `con.example`), or
+when it can never run: its id is one that only official plugins may use, or it
+was withdrawn. A plugin that has expired, or that this computer cannot isolate,
+or that the licence does not cover, can be installed; the line `May run` says
+what is wrong. A plugin with no signature can be installed only with
+`--allow-unsigned`, and so can one signed with a key nobody has approved,
+because nothing shows who made it. The `Install` line says which of the two it
+is.
+
+`--json` prints one JSON object: `id`, `version`, `name`, `folder`,
+`fingerprint`, `problem` and `detail` (why the folder cannot be used, or
+`null`), `signature_state` (`absent`, `invalid`, `valid` or `unknown_key`),
+`trust` (`official`, `third_party_signed`, `signed_unknown_key`, `unsigned` or
+`null`), `trust_line`, `key_id`, `may_run`, `run_reason`, `run_detail`,
+`licence` (`checked`, `covered` and `detail`), `installable` and `install`.
+
+### Installing a plugin with `vss_cli plugin install`
+
+```bash
+vss_cli plugin install <folder> [--for-everyone] [--replace] [--allow-unsigned] [--root <folder>]
+vss_cli plugin remove <id> [--for-everyone] [--root <folder>]
+```
+
+A plugin arrives as a zip file. Studio does not open zip files. Unzip it with
+your system's own tool into a folder of its own, look at the folder with
+`plugin verify`, and install from that folder. The folder must hold
+`plugin.json` and the files it lists, and usually `plugin.sig`.
+
+`plugin install` makes the same checks as `plugin verify`. If they allow it, it
+copies the plugin into your plugin folder, under its id, and prints what it did
+and what the checks found. It runs nothing from the plugin. If a check fails, it
+says which one and writes nothing.
+
+- The folder is measured, and then each file is copied and checked against that
+  measurement as it is copied, including `plugin.json` and `plugin.sig`, which
+  are the files that were judged. A file that changed while the plugin was being
+  looked at or copied stops the install. The copy is checked against the
+  plugin's manifest again before it is put in place.
+- A copy keeps the owner's read and execute permissions of the file it came from,
+  is never writable by the group or others, and the program that the manifest
+  names is made executable for its owner (on Linux and macOS).
+- The copy is made in a folder called `.vss-work` inside the plugin folder and is
+  renamed into place in one step, so a failure leaves the old plugin or the new
+  one and never half of each. Studio ignores every name that starts with a dot
+  in a plugin folder, so nothing in `.vss-work` is taken for a plugin. The
+  folder is removed when the install ends. If an install is cut off, the next
+  install removes what it left.
+- A link, or anything that is not a plain file or folder, in the plugin folder
+  stops the install.
+- A plugin with the same id that is already installed stops the install unless
+  you give `--replace`. With it, the old copy is put aside, the new one is put in
+  place and the old one is removed. If putting the new one in place fails, the
+  old one is put back. If the old one cannot be removed, the command says so, with
+  the folder that holds it, and exits with 1; the new plugin is installed.
+- `--allow-unsigned` is needed for a plugin that has no signature.
+- `--for-everyone` installs into the folder of everyone on this computer. Run
+  the command from a prompt that may write there. Studio does not ask for more
+  rights. It stops with a message when the folder can be changed by someone who
+  is not an administrator, or when it cannot be written. It does not make the
+  folder: when the folder is not there, it looks at the nearest folder above it
+  that is, and stops in the same way. `plugin remove --for-everyone` stops in
+  the same way. A plugin installed for everyone may not run confined until a
+  later step gives the confined plugin access to it, which a user cannot do
+  later on that folder.
+- `--root <folder>` installs into the folder you give. The policy file is read
+  as it is for `plugin verify`.
+
+The exit code is 0 when the plugin was installed and 1 when it was not.
+
+`plugin remove` removes the folder of an installed plugin. It takes the id of
+the plugin, such as `com.example.modbus-fixture`, and refuses anything that is
+not a plugin id or a folder that is not a plugin. It does not touch the plugin's
+data. It runs nothing.
+
+### Running a plugin with `vss_cli plugin run`
+
+```bash
+vss_cli plugin run <id> [--root <folder>]... [--data <folder>] [--trust <file>] [--seconds <n>] [--json] [--instance <kind>:<type>[=<params>]]...
+```
+
+`plugin run` runs one installed plugin the way Studio's plugin host runs it, and
+prints what happens: the plugin starts, says hello, is confined and stops. Use
+it to see a plugin work, from a script, or from the tests of a plugin of your
+own. It runs the plugin until you press `Ctrl-C`, or until the plugin cannot run
+any more. With `--seconds <n>` it stops the plugin after `n` seconds with the
+plugin running. It always stops the plugin in order: the plugin is asked to
+stop, the command waits until it has gone, and only then ends.
+
+It makes no decision about trust. A plugin runs only when the file given with
+`--trust` holds your decision about this exact copy of it, as Studio keeps it.
+A plugin that needs your decision is shown as `needs your decision`, and the
+command ends with exit code 1. Decide in Studio. The command never writes the
+trust file.
+
+```text
+state: starting
+state: running; process 4120; sandbox partial (not applied: system_calls, user_interface)
+output: listening
+log info: ready to serve
+state: stopping; process 4120; sandbox partial (not applied: system_calls, user_interface)
+state: stopped
+```
+
+It prints one line each time the state of the plugin changes, and one line for
+each new line of the plugin's output or log:
+
+- `state:` is `starting`, `running`, `stopping`, `stopped`, `waiting to start
+  again in <n> s (failure <k> of <m>)`, `stopped after failing`, `off`, `needs
+  your decision`, `blocked by the administrator`, `needs a licence` or `cannot
+  be used`. After it come the `reason` code and the `detail` when there is one,
+  the `process` id when the plugin has one, the `sandbox` level and the parts of
+  the sandbox that were not applied, and the `status` the plugin last gave. A
+  plugin that fails is started again after a wait. After `<m>` failures it is
+  not started again.
+- `output:` is a line the plugin wrote to its standard output or standard error.
+- `log` and a level, such as `log info:`, is a message the plugin sent to the
+  log.
+
+Text that comes from a plugin is printed as plain text, and each byte that is
+not printable ASCII is shown as `?`, so a plugin cannot move the cursor or
+change the colours of your terminal.
+
+- `--json` prints one JSON object on each line instead. A change of state has
+  `type` set to `state` and the members `plugin`, `state` (`starting`,
+  `running`, `stopping`, `stopped`, `waiting_to_start_again`,
+  `stopped_after_failing`, `off`, `needs_decision`, `blocked_by_administrator`,
+  `needs_licence` or `cannot_be_used`), `reason`, `detail`, `process_id`,
+  `sandbox` (`level`, `not_applied` and `failure`), `status` (`level`, `text`
+  and `code`), `wait_ms`, `failures` and `failure_limit`. A value that is not
+  known is `null`. A line of output or log has `type` set to `log`, and
+  `plugin`, `source` (`output` or `log`), `level` and `text`. A line the
+  computer has to say, such as a policy file that could not be used, has `type`
+  set to `note` and `text`.
+- `--root <folder>` looks in the folders you give instead of the usual ones, and
+  may be repeated. Each folder counts as your own, and the policy file is not
+  read.
+- `--trust <file>` is the file that holds your decisions about plugins. The
+  default is `trust.json` in your Virtual Serial Studio folder, the folder that
+  holds your `plugins` folder.
+- `--data <folder>` is the folder where plugins keep their data, in a folder of
+  their own under it. The default is `plugin-data` in your Virtual Serial Studio
+  folder.
+- `--seconds <n>` stops the plugin after `n` seconds with the plugin running,
+  from 1 to 2678400. Without it, or with 0, the command runs until `Ctrl-C`.
+  With `--instance`, the seconds count from when the plugin is running and each
+  instance is running or refused.
+- `--instance <kind>:<type>[=<params>]` asks the plugin host for an instance of
+  an extension point of the plugin, and may be repeated. `<kind>` is
+  `generator`, `fixture`, `modifier`, `adapter` or `decoder`, `<type>` is the
+  `id` of the extension point in the plugin's manifest, and `<params>` is the
+  text of a JSON object of at most 64 KiB. Without `=<params>` the parameters
+  are `{}`. The command checks only that the parameters are a JSON object; the
+  host checks the kind and the type against the manifest, and the plugin is
+  free to refuse the parameters. The instances are numbered 1, 2, 3 in the order
+  given. A bad `--instance` ends the command with exit code 2 and one line that
+  says what is wrong.
+
+The command grants a plugin no engine capabilities and reads no licence files, so
+a plugin that needs a licence is shown as `needs a licence`.
+
+#### Instances
+
+With `--instance`, the command prints one line each time the state of an
+instance changes:
+
+```text
+instance 1 adapter:recorder: waiting
+instance 1 adapter:recorder: running
+instance 2 adapter:nothing: refused; problem capability_missing
+instance 3 adapter:recorder: refused; problem misbehaving; reason "refused by the test plugin"
+```
+
+After the number and the kind and type comes the state: `waiting` (the plugin is
+not ready), `creating`, `running`, `refused` or `stopping`. A refused instance
+has the `problem`, a reason code such as `capability_missing` (the manifest has
+no such extension point), `too_many` (the manifest allows no more of the type),
+`misbehaving` (the plugin answered with an error) or `unresponsive` (the plugin
+did not answer), and the `reason` the plugin gave, as plain text. A line is
+printed again when the problem or the reason changes. A state that lasts only a
+moment may not be printed.
+
+With `--json` a change of an instance has `type` set to `instance` and the
+members `plugin`, `instance` (the number), `kind`, `instance_type`, `state`,
+`problem` (the code, or `null`), `reason` (the plugin's text, or `null`) and
+`params_pending`.
+
+The exit code is 0 when the plugin was running and was stopped by `--seconds` or
+by you, 1 when it never ran, or ran and failed too often, and 2 for a command
+line the program does not understand or an id that no plugin has. When
+`--instance` was given and the command ends by `--seconds`, it is 0 only when
+every instance was running at some point; otherwise it is 1, and one line names
+the first instance that never ran.
+
 ### Where Studio looks for plugins
 
 Studio looks in three folders, widest first. When two of them hold a plugin with
@@ -1904,9 +2421,9 @@ the same id, the first counts.
 | | Windows | Linux | macOS |
 |---|---|---|---|
 | Studio's own | `<program_directory>/../studio-plugins` | the same | the same |
-| Machine | `%ProgramData%\VirtualSerialStudio\plugins` | `/usr/local/share/virtual-serial-studio/plugins` | `/Library/Application Support/VirtualSerialStudio/plugins` |
-| User | `%LOCALAPPDATA%\VirtualSerialStudio\plugins` | `$XDG_DATA_HOME/virtual-serial-studio/plugins`, or `$HOME/.local/share/virtual-serial-studio/plugins` when `XDG_DATA_HOME` is unset, empty or not an absolute path | `$HOME/Library/Application Support/VirtualSerialStudio/plugins` |
-| Policy file | `%ProgramData%\VirtualSerialStudio\policy.json` | `/etc/virtual-serial-studio/policy.json` | `/Library/Application Support/VirtualSerialStudio/policy.json` |
+| Machine | `%ProgramData%\Virtual Serial Studio\plugins` | `/usr/local/share/virtual-serial-studio/plugins` | `/Library/Application Support/Virtual Serial Studio/plugins` |
+| User | `%LOCALAPPDATA%\Virtual Serial Studio\plugins` | `$XDG_DATA_HOME/virtual-serial-studio/plugins`, or `$HOME/.local/share/virtual-serial-studio/plugins` when `XDG_DATA_HOME` is unset, empty or not an absolute path | `$HOME/Library/Application Support/Virtual Serial Studio/plugins` |
+| Policy file | `%ProgramData%\Virtual Serial Studio\policy.json` | `/etc/virtual-serial-studio/policy.json` | `/Library/Application Support/Virtual Serial Studio/policy.json` |
 
 `<program_directory>` is the folder that holds Studio's programs, such as
 `<install>/bin`. Studio's own folder is next to it. It is called

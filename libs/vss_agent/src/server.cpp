@@ -830,6 +830,24 @@ private:
         return connect_reply{*linked};
     }
 
+    reply_body answer_to(const disconnect_request& body)
+    {
+        const auto removed = studio_.disconnect(body.link);
+        if (!removed)
+            return refused(removed.error());
+        revision_.fetch_add(1);
+        return done_reply{};
+    }
+
+    reply_body answer_to(const rename_port_request& body)
+    {
+        const auto renamed = studio_.rename_port(body.endpoint, body.name);
+        if (!renamed)
+            return refused(renamed.error());
+        revision_.fetch_add(1);
+        return done_reply{};
+    }
+
     /// As the window's Send pane: bytes for an open port, and for a mock
     /// fixture the device speaking.
     reply_body answer_to(const write_request& body)

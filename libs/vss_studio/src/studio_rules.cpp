@@ -109,7 +109,7 @@ void observe_set(rules::scheduler_hooks& hooks, hub* engine, endpoint_id id,
                     " times a second. It stays suspended until it is "
                     "resumed.";
         else
-            text += ".";
+            text += '.';
         say(*engine, id, place->name(), std::move(text));
     };
 

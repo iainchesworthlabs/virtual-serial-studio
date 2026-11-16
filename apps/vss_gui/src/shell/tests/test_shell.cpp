@@ -2029,9 +2029,10 @@ TEST_CASE("licence: Help lists Licence after the environment entry, and Search "
     const qsizetype licence = ids.indexOf(QStringLiteral("help.licence"));
     REQUIRE(environment >= 0);
     REQUIRE_EQ(licence, environment + 1);
-    // Support follows Licence, and About comes last.
+    // Support follows Licence, then Check for updates, and About comes last.
     REQUIRE_EQ(ids.at(licence + 1), QStringLiteral("help.support"));
-    REQUIRE_EQ(ids.at(licence + 2), QStringLiteral("help.about"));
+    REQUIRE_EQ(ids.at(licence + 2), QStringLiteral("help.updates"));
+    REQUIRE_EQ(ids.at(licence + 3), QStringLiteral("help.about"));
 
     auto* action = window.findChild<QAction*>(QStringLiteral("help.licence"));
     REQUIRE(action != nullptr);
@@ -2110,7 +2111,9 @@ TEST_CASE("support: Help lists Support after Licence, and Search finds it")
     const qsizetype support = ids.indexOf(QStringLiteral("help.support"));
     REQUIRE(licence >= 0);
     REQUIRE_EQ(support, licence + 1);
-    REQUIRE_EQ(ids.at(support + 1), QStringLiteral("help.about"));
+    // Check for updates sits between Support and About.
+    REQUIRE_EQ(ids.at(support + 1), QStringLiteral("help.updates"));
+    REQUIRE_EQ(ids.at(support + 2), QStringLiteral("help.about"));
 
     auto* action = window.findChild<QAction*>(QStringLiteral("help.support"));
     REQUIRE(action != nullptr);
@@ -2599,4 +2602,61 @@ TEST_CASE("shell: a new setup and closing wait while the JSON view applies")
     REQUIRE_EQ(backend.ports().size(), std::size_t{1});
     REQUIRE_EQ(backend.ports()[0].name, QStringLiteral("fresh"));
     clear_settings();
+}
+
+TEST_CASE("plugins: Tools has Plugins after Setup check, with no shortcut, "
+          "found by search, and off with a reason in a build without a host")
+{
+    clear_settings();
+    for (const bool has_host : {false, true})
+    {
+        vss::gui::FakeStudioBackend backend;
+        vss::gui::capabilities caps;
+        caps.plugins = has_host;
+        backend.set_capabilities(caps);
+        vss::gui::ShellWindow window(backend);
+        window.show();
+        QApplication::processEvents();
+
+        QMenu* tools = nullptr;
+        for (QAction* top : window.menuBar()->actions())
+        {
+            if (top->menu() != nullptr &&
+                top->text().remove(QLatin1Char('&')) == QStringLiteral("Tools"))
+                tools = top->menu();
+        }
+        REQUIRE(tools != nullptr);
+        QAction* setup = nullptr;
+        QAction* plugins = nullptr;
+        bool plugins_follows_setup = false;
+        for (QAction* each : tools->actions())
+        {
+            if (each->text() == QStringLiteral("Setup check"))
+                setup = each;
+            else if (each->text() == QStringLiteral("Plugins..."))
+            {
+                plugins = each;
+                plugins_follows_setup = setup != nullptr;
+            }
+            else if (setup != nullptr && plugins == nullptr)
+                setup = nullptr;
+        }
+        REQUIRE(setup != nullptr);
+        REQUIRE(plugins != nullptr);
+        REQUIRE(plugins_follows_setup);
+        REQUIRE(plugins->shortcut().isEmpty());
+        REQUIRE_EQ(plugins->isEnabled(), has_host);
+        if (!has_host)
+        {
+            REQUIRE_EQ(plugins->toolTip(),
+                       QStringLiteral("Not available in this build"));
+        }
+        // Search actions finds it as "Plugins".
+        bool found = false;
+        for (QAction* each : window.findChildren<vss::gui::ActionRegistry*>()
+                                 .value(0)
+                                 ->search(QStringLiteral("Plugins")))
+            found = found || each->text() == QStringLiteral("Plugins...");
+        REQUIRE(found);
+    }
 }

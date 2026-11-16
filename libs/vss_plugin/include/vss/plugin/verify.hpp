@@ -93,6 +93,11 @@ struct signature_finding
 /// this copy of Studio.  docs/plugins.md, section 5.2.
 enum class install_kind { for_everyone, for_one_user };
 
+/// The level a signature finding gives: `official`, `third_party_signed`,
+/// `signed_unknown_key`, or `unsigned_plugin` for anything else.  `verify`
+/// uses it, and so do callers that report a level next to a refusal.
+trust_level trust_level_of(const signature_finding& signature) noexcept;
+
 struct verify_input
 {
     /// The manifest as read, after `check_files` accepted the directory.

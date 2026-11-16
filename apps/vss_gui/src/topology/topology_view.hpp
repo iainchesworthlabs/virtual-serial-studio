@@ -9,6 +9,7 @@
 
 #include "backend/canvas_edit.hpp"
 #include "backend/capabilities.hpp"
+#include "backend/plugin_part_view.hpp"
 #include "backend/view_types.hpp"
 #include "topology/topology_layout.hpp"
 #include "widgets/notes.hpp"
@@ -168,6 +169,14 @@ public:
     bool node_is_unlinked(vss::endpoint_id id) const;
     bool node_is_device(vss::endpoint_id id) const;
     QStringList node_badges(vss::endpoint_id id) const;
+    /// What a port that a plugin provides says about its plugin: the badge
+    /// and the accessible name. Setting it redraws the nodes that changed.
+    void set_plugin_parts(
+        const QHash<vss::endpoint_id, vss::gui::part_description>& parts);
+    /// The name a screen reader gets for a node: "<port name>, <type name>,
+    /// plugin not available" for a port whose plugin cannot run, else the
+    /// port's name.
+    QString node_accessible_name(vss::endpoint_id id) const;
 
     vss::endpoint_id focused_port() const noexcept { return focused_port_; }
     vss::link_id focused_link() const noexcept { return focused_link_; }
@@ -349,6 +358,7 @@ private:
     QHash<vss::endpoint_id, QPointF> positions_;
     QVector<vss::endpoint_id> new_nodes_;
     QHash<vss::endpoint_id, QSizeF> node_sizes_;
+    QHash<vss::endpoint_id, vss::gui::part_description> plugin_parts_;
 
     std::function<port_menu_state(vss::endpoint_id)> menu_state_;
     QLabel* empty_ = nullptr;

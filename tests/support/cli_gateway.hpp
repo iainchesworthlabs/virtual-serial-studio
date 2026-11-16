@@ -72,7 +72,8 @@ public:
         }
         catch (...)
         {
-            // A lock file left behind fails no test.
+            // best effort: a lock file left behind fails no test, and a
+            // destructor has nobody to tell.
         }
     }
 

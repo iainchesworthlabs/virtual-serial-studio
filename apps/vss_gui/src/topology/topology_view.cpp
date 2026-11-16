@@ -467,6 +467,13 @@ void TopologyView::rebuild_items()
         node.owner = owners.contains(port.id);
         node.dropped = port.stats.dropped > 0;
         node.tooltip = topology_text::node_tooltip(port, node.unlinked);
+        if (const auto part = plugin_parts_.constFind(port.id);
+            part != plugin_parts_.constEnd() && !part->running)
+        {
+            node.plugin_badge = part->badge;
+            node.accessible_name = part->accessible_name;
+            node.tooltip += QLatin1Char('\n') + part->note;
+        }
         switch (port.kind)
         {
         case vss::endpoint_kind::mock:
@@ -2365,9 +2372,42 @@ QStringList TopologyView::node_badges(vss::endpoint_id id) const
         result.append(topology_text::owner_badge());
     if (item->data().dropped)
         result.append(topology_text::dropped_badge());
+    if (!item->data().plugin_badge.isEmpty())
+        result.append(item->data().plugin_badge);
     if (item->data().unlinked)
         result.append(topology_text::unlinked_badge());
     return result;
+}
+
+void TopologyView::set_plugin_parts(
+    const QHash<vss::endpoint_id, vss::gui::part_description>& parts)
+{
+    const auto look = [](const QHash<vss::endpoint_id,
+                                     vss::gui::part_description>& all)
+    {
+        QHash<vss::endpoint_id, QString> out;
+        for (auto each = all.begin(); each != all.end(); ++each)
+        {
+            if (!each->running)
+                out.insert(each.key(),
+                           each->badge + QLatin1Char('|') + each->note);
+        }
+        return out;
+    };
+    const bool changed = look(parts) != look(plugin_parts_);
+    plugin_parts_ = parts;
+    if (changed)
+        rebuild_items();
+}
+
+QString TopologyView::node_accessible_name(vss::endpoint_id id) const
+{
+    NodeItem* item = node_items_.value(id);
+    if (item == nullptr)
+        return {};
+    return item->data().accessible_name.isEmpty()
+               ? item->data().name
+               : item->data().accessible_name;
 }
 
 // -- Advanced canvas ---------------------------------------------------------

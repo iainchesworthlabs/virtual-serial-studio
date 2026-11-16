@@ -11,6 +11,7 @@
 #include <vss/license/sign.hpp>
 #include <vss/license/signed_file.hpp>
 #include <vss/license/test_keys.hpp>
+#include <vss/license/words.hpp>
 
 #include <boost/json/object.hpp>
 #include <boost/json/parse.hpp>
@@ -185,60 +186,6 @@ std::vector<sf::trusted_key> keys_for(bool with_test_keys)
     return keys;
 }
 
-std::string_view name_of(state value)
-{
-    switch (value)
-    {
-    case state::none:
-        return "none";
-    case state::valid:
-        return "valid";
-    case state::expiring:
-        return "expiring";
-    case state::grace:
-        return "grace";
-    case state::expired:
-        return "expired";
-    case state::not_yet_valid:
-        return "not yet valid";
-    case state::clock_suspect:
-        return "clock suspect";
-    case state::invalid:
-        return "invalid";
-    }
-    return "unknown";
-}
-
-std::string_view sentence_for(reason value)
-{
-    switch (value)
-    {
-    case reason::ok:
-        return "ok";
-    case reason::no_licence:
-        return "there is no licence";
-    case reason::expired:
-        return "the licence has ended";
-    case reason::not_yet_valid:
-        return "the licence has not started yet";
-    case reason::clock_suspect:
-        return "the date is before a time that has certainly passed";
-    case reason::malformed:
-        return "the file is damaged or is not a licence";
-    case reason::newer_version:
-        return "the licence needs a newer version";
-    case reason::bad_signature:
-        return "the signature does not verify";
-    case reason::revoked:
-        return "the licence or its key was withdrawn";
-    case reason::wrong_computer:
-        return "the licence does not name this computer";
-    case reason::not_in_licence:
-        return "the licence does not include the feature";
-    }
-    return "unknown";
-}
-
 std::string_view name_of(licence_kind value)
 {
     switch (value)
@@ -278,6 +225,8 @@ void print_licence(std::ostream& out, const licence& value)
         << "Licensee: " << value.licensee_name << '\n';
     if (!value.licensee_contact.empty())
         out << "Contact: " << value.licensee_contact << '\n';
+    if (!value.licensee_email.empty())
+        out << "Email: " << value.licensee_email << '\n';
     out << "Issued: " << format_time(value.issued_at) << '\n'
         << "Starts: " << format_time(value.starts_at) << '\n'
         << "Expires: " << format_time(value.expires_at) << '\n'
@@ -447,8 +396,8 @@ int verify(std::span<const std::string> words, surroundings& where)
     }
 
     const status result = evaluate(*text, judged);
-    where.out << "State: " << name_of(result.state) << '\n'
-              << "Reason: " << sentence_for(result.reason) << '\n'
+    where.out << "State: " << state_word(result.state) << '\n'
+              << "Reason: " << reason_sentence(result.reason) << '\n'
               << "Judged at: " << format_time(judged.now) << '\n'
               << "Revocations: " << consulted << '\n';
     if (result.value)
@@ -700,8 +649,8 @@ constexpr std::array<std::string_view, 15> licence_request_fields{
     "licence_id", "kind",          "edition",    "licensee",    "issued_at",
     "starts_at",  "expires_at",    "grace_days", "seats",       "features",
     "machines",   "updates_until", "replaces",   "clock_reset", "critical"};
-constexpr std::array<std::string_view, 2> licensee_request_fields{"name",
-                                                                  "contact"};
+constexpr std::array<std::string_view, 3> licensee_request_fields{
+    "name", "contact", "email"};
 constexpr std::array<std::string_view, 5> revocation_request_fields{
     "sequence", "issued_at", "licences", "keys", "critical"};
 constexpr std::array<std::string_view, 2> revoked_key_request_fields{"key_id",

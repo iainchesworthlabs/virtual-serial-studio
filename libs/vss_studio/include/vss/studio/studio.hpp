@@ -135,6 +135,15 @@ struct studio_options
                                               virtual_port_kind,
                                               const std::string&, unsigned)>
         make_virtual_port;
+    /// Opens the transport of an address, for `attach_serial`, `reopen` and
+    /// `reconfigure_port`: the last argument is the settings to open it with,
+    /// or null when the address alone describes it.  Empty means the real
+    /// one.  It is there so that a test can stand in for a connection that
+    /// takes time or fails.
+    std::function<std::shared_ptr<transport>(
+        const transport::executor_type&, const std::string&,
+        const serial_settings*, error_code&)>
+        make_transport;
     /// How long `replace` waits for a COM number it freed, and how often it
     /// tries (see `retry_while_number_busy`).
     std::chrono::milliseconds com_number_wait{com_number_removal_wait};
@@ -390,8 +399,10 @@ public:
     /// `errc::not_found` for an unknown port and `errc::unsupported` for one
     /// that cannot be made again (a mock fixture, a pseudo terminal, an
     /// in-process loopback).  A port that cannot be opened reports why and is
-    /// left as it was.  It can block while the transport connects, so do not
-    /// call it from the GUI thread.
+    /// left as it was.  A port that is removed while the new transport is
+    /// being made stays removed: the transport is closed and the result is
+    /// `errc::not_found`.  It can block while the transport connects, so do
+    /// not call it from the GUI thread.
     result<void> reopen(endpoint_id id);
 
     /// Turns the retry of lost connections on or off.  With the policy on, a
@@ -696,6 +707,18 @@ private:
     /// Drops the plugin bindings of links that are gone: a link goes with
     /// its ports, and nothing tells the studio when it does.
     void forget_plugins_of_removed_links();
+    /// Opens the transport of an address: the one of `make_transport` when a
+    /// test set it, otherwise the real one.
+    std::shared_ptr<transport> open_address(const std::string& uri,
+                                            const serial_settings* settings,
+                                            error_code& ec) const;
+    /// Gives `fresh` to the endpoint `found`, which `reopen` and
+    /// `reconfigure_port` made it for while no lock was held.  When the port
+    /// was removed in the meantime, `fresh` is closed, nothing is started and
+    /// the result is `errc::not_found`.
+    result<void> hand_over(endpoint_id id,
+                           const std::shared_ptr<endpoint>& found,
+                           std::shared_ptr<transport> fresh);
     /// One try of the retry policy for a lost connection.
     result<void> reconnect_attempt(endpoint_id id);
     /// True for an endpoint the retry policy applies to.

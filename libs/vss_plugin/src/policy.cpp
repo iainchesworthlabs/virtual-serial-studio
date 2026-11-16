@@ -36,7 +36,8 @@ constexpr std::array sandbox_names{
 constexpr std::array known_keys{
     "policy_version"sv, "allow"sv,           "allow_keys"sv,
     "deny_plugins"sv,   "min_sandbox"sv,     "allow_no_sandbox"sv,
-    "user_plugins"sv,   "on_timeout"sv,      "permissions_denied"sv};
+    "user_plugins"sv,   "on_timeout"sv,      "permissions_denied"sv,
+    "update_check"sv};
 
 std::string_view view_of(const json::string& text) noexcept
 {
@@ -240,6 +241,9 @@ policy official_only_policy()
     out.min_sandbox = sandbox_level::full;
     out.allow_no_sandbox = false;
     out.user_plugins = false;
+    // An untrusted policy file neither turns the update check off nor on:
+    // the check follows the user's setting (docs/updates.md, section 6.3).
+    out.update_check = true;
     return out;
 }
 
@@ -355,6 +359,11 @@ result<policy> parse_policy(std::string_view text, std::string* explain)
     {
         out.user_plugins =
             flag(state, *value, "user_plugins", out.user_plugins);
+    }
+    if (const json::value* const value = object.if_contains("update_check"))
+    {
+        out.update_check =
+            flag(state, *value, "update_check", out.update_check);
     }
     // `on_timeout` may be null, which keeps the default.
     if (const json::value* const value = object.if_contains("on_timeout");

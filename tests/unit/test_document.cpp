@@ -529,7 +529,7 @@ struct scratch_folder
     scratch_folder(const scratch_folder&) = delete;
     scratch_folder& operator=(const scratch_folder&) = delete;
 
-    /// A path that no other test and no other run of the tests has used.
+    /// A name no other test, and no earlier run, has used.
     static std::filesystem::path fresh_path()
     {
         static int counter = 0;
