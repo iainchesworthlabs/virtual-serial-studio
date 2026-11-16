@@ -18,7 +18,7 @@ namespace vss::plugin::host
 namespace
 {
 
-constexpr std::uint32_t max_window_batches = 4096;
+constexpr std::uint32_t max_window_batches = 65536;
 
 std::uint32_t clamp_part(std::uint32_t part) noexcept
 {
@@ -74,13 +74,14 @@ generator_feed::generator_feed(feed_options options)
 {
     options_.window_bytes =
         std::clamp<std::uint64_t>(options_.window_bytes, 1, max_feed_window);
-    options_.window_batches =
-        std::clamp<std::uint32_t>(options_.window_batches, 1, max_window_batches);
+    options_.window_batches = std::clamp<std::uint32_t>(
+        options_.window_batches, 1, max_window_batches);
     options_.max_batch_bytes = std::clamp<std::uint64_t>(
         options_.max_batch_bytes, 1, options_.window_bytes);
     options_.grant_threshold = std::clamp<std::uint64_t>(
         options_.grant_threshold, 1, options_.window_bytes);
-    options_.refusals_to_end = std::max<std::uint32_t>(options_.refusals_to_end, 1);
+    options_.refusals_to_end =
+        std::max<std::uint32_t>(options_.refusals_to_end, 1);
     options_.time_scale.num = clamp_part(options_.time_scale.num);
     options_.time_scale.den = clamp_part(options_.time_scale.den);
     if (options_.max_run.count() < 0)
