@@ -299,7 +299,7 @@ private:
     }
 
     void asked(const control_approval_request& ask,
-               std::function<void(bool)> done)
+               const std::function<void(bool)>& done)
     {
         approval_mode mode = approval_mode::approve;
         {
@@ -347,7 +347,8 @@ api_message plugin_message(std::string_view op, std::uint64_t id,
 }
 
 /// A `control.session.request` with these scopes.
-api_message session_request(std::uint64_t id, std::vector<std::string> scopes,
+api_message session_request(std::uint64_t id,
+                            const std::vector<std::string>& scopes,
                             std::string peer = "lab computer")
 {
     json::array list;
@@ -504,7 +505,7 @@ std::uint64_t open_session(point_rig& rig, std::uint64_t id,
                            std::vector<std::string> scopes,
                            std::string peer = "lab computer")
 {
-    REQUIRE(rig.offer(session_request(id, std::move(scopes), std::move(peer))));
+    REQUIRE(rig.offer(session_request(id, scopes, std::move(peer))));
     const sent_message answer = rig.wait_answer(id);
     if (answer.message.op != opened_op)
         throw vss_test::failure("the session was not opened: " +
