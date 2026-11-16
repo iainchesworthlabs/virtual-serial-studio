@@ -568,15 +568,19 @@ bool hub::would_create_cycle(endpoint_id from, endpoint_id to) const
 bool hub::bus_would_create_cycle(const std::vector<endpoint_id>& members) const
 {
     // The members become one node.  Any existing route that leaves one of
-    // them and arrives at one of them again, directly or through other links,
-    // would be a loop through the bus.  None of the members is in a bus yet,
-    // so each stands for itself.
-    const std::unordered_set<endpoint_id> goals(members.begin(), members.end());
+    // them and arrives at a different one, directly or through other links,
+    // would be a loop through the bus.  A route that comes back to the member
+    // it left is not: a two-way link is a pair of routes, so the way back to
+    // the same member always exists, and the bus never sends to the member a
+    // byte came from.  None of the members is in a bus yet, so each stands for
+    // itself.
     for (endpoint_id member : members)
     {
         const auto it = routes_.find(member);
         if (it == routes_.end())
             continue;
+        std::unordered_set<endpoint_id> goals(members.begin(), members.end());
+        goals.erase(member);
         for (const auto& route : it->second)
         {
             if (reaches(cycle_node(route.to), goals))
