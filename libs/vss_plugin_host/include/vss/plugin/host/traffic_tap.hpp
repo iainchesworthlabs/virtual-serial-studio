@@ -103,6 +103,14 @@ struct tap_item
     std::string message;
 };
 
+/// What was dropped at one place.
+struct tap_drop
+{
+    std::string place;
+    std::uint64_t items = 0;
+    std::uint64_t bytes = 0;
+};
+
 /// What `take` returns.
 struct tap_batch
 {
@@ -110,6 +118,8 @@ struct tap_batch
     /// Dropped since the previous `take`, because the queue was full.
     std::uint64_t dropped_items = 0;
     std::uint64_t dropped_bytes = 0;
+    /// The same drops, for each place that had any.
+    std::vector<tap_drop> dropped;
 };
 
 class traffic_tap
