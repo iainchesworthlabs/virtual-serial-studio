@@ -61,6 +61,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_plugin_api_fixture.cpp
   unit/test_plugin_api_generator.cpp
   unit/test_plugin_api_instance.cpp
+  unit/test_plugin_api_licence.cpp
   unit/test_plugin_api_modifier.cpp
   unit/test_plugin_api_ops.cpp
   unit/test_plugin_api_trigger.cpp
@@ -250,6 +251,7 @@ endif()
 # The control tests start vss_gate beside them.
 if(TARGET vss_agent AND TARGET vss_cli AND TARGET vss_gate)
   list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_control.cpp
+    system/test_system_plugin_control_point.cpp
     system/test_system_plugin_control_relay_gateway.cpp)
 endif()
 

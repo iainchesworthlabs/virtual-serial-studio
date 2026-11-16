@@ -41,21 +41,11 @@ using vss::plugin::host::control_session_refused;
 using vss::plugin::host::control_session_request;
 using vss_test_relay::approval_mode;
 using vss_test_relay::relay_rig;
+using vss_test_relay::unused_instance;
 using namespace std::chrono_literals;
 
 namespace
 {
-
-/// A gateway instance name that nothing listens on: up to 32 letters, digits,
-/// `_` and `-`.
-std::string unused_instance()
-{
-    std::random_device device;
-    std::ostringstream text;
-    text << "nogate" << std::hex << std::setw(8) << std::setfill('0')
-         << device();
-    return text.str();
-}
 
 control_relay_options options_for(const std::string& instance)
 {

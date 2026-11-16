@@ -285,6 +285,8 @@ private:
         std::uint64_t ready_start = 0;
         plugin_hash hash;
         std::vector<permission> granted;
+        /// What the plugin last reported of the licence in this run.
+        std::optional<plugin_licence_report> licence_report;
     };
 
     /// On the worker thread: everything that reads a disk.
@@ -481,6 +483,21 @@ private:
                     context.plugin_name = scanned.shown.name;
                     context.plugin_version = scanned.shown.version;
                     context.granted = scanned.shown.granted;
+                    context.official =
+                        scanned.shown.level == trust_level::official;
+                    context.licence_reported = [weak = weak_from_this(),
+                                                id](plugin_licence_report said)
+                    {
+                        const auto self = weak.lock();
+                        if (!self)
+                            return;
+                        const auto found = self->running_.find(id);
+                        if (found == self->running_.end() ||
+                            found->second.licence_report == said)
+                            return;
+                        found->second.licence_report = std::move(said);
+                        self->publish_soon();
+                    };
                     context.data_directory = data_directory;
                     context.instances = entry.instances;
                     context.executor = boost::asio::any_io_executor(strand_);
@@ -602,6 +619,9 @@ private:
             if (ready && entry.ready_start == 0)
             {
                 entry.ready_start = now->starts;
+                // What an earlier run said of the licence is not this
+                // run's word.
+                entry.licence_report.reset();
                 for (const auto& handler : *entry.handlers)
                     handler->plugin_ready();
                 entry.instances->plugin_ready();
@@ -683,6 +703,7 @@ private:
             {
                 plugin.run = found->second.runner->snapshot();
                 plugin.instances = found->second.instances->views();
+                plugin.licence_report = found->second.licence_report;
             }
         }
         next->notes = notes_;

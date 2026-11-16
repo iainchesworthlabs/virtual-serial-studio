@@ -173,14 +173,20 @@ public:
             request(message);
             return true;
         }
-        if (message.op == frame_op)
+        if (message.op == frame_op || message.op == close_op)
         {
-            frame(message);
-            return true;
-        }
-        if (message.op == close_op)
-        {
-            close(message);
+            if (message.id != 0)
+            {
+                // Neither is ever a request, and one that asks for an
+                // answer gets it: nothing was done.
+                refuse(message.id, api_errc::bad_request,
+                       "this message takes no answer");
+                return true;
+            }
+            if (message.op == frame_op)
+                frame(message);
+            else
+                close(message);
             return true;
         }
         return false;

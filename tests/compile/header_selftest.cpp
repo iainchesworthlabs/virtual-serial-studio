@@ -54,6 +54,7 @@
 #include <vss/plugin/api_fixture.hpp>
 #include <vss/plugin/api_generator.hpp>
 #include <vss/plugin/api_instance.hpp>
+#include <vss/plugin/api_licence.hpp>
 #include <vss/plugin/api_message.hpp>
 #include <vss/plugin/api_modifier.hpp>
 #include <vss/plugin/discover.hpp>
@@ -67,6 +68,7 @@
 #include <vss/plugin/host/extension.hpp>
 #include <vss/plugin/host/generator_feed.hpp>
 #include <vss/plugin/host/instances.hpp>
+#include <vss/plugin/host/licence_point.hpp>
 #include <vss/plugin/host/process.hpp>
 #include <vss/plugin/host/recording.hpp>
 #include <vss/plugin/host/runner.hpp>

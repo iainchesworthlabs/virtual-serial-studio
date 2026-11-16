@@ -1071,8 +1071,9 @@ back as they are. An entry that is malformed (no `id`, a `name` with a control
 character, `params` that is not an object) is an error, like any other mistake
 in the file.
 
-This build does not run plugins. It checks the list when it reads a setup and
-keeps it with the port or the link, so a setup that is opened and saved again,
+Studio does not yet run a plugin that a setup names for a port or a link. It
+checks the list when it reads a setup and keeps it with the port or the link,
+so a setup that is opened and saved again,
 from the window or from the command line, still has it. The list goes with its
 port or link: remove the link and make it again, and the new link has none. A
 version of Studio from before this change opens such a file, ignores the list,
@@ -2119,7 +2120,7 @@ vss_cli plugin list [--json] [--root <folder>]...
 ```
 
 `plugin list` shows the plugins that are installed on this computer. It only
-reads. It runs no plugin and changes nothing. This build does not run plugins.
+reads. It runs no plugin and changes nothing.
 For each plugin it also makes the checks that come before a run, the same ones
 `plugin verify` makes, and shows what they found.
 
@@ -2196,7 +2197,6 @@ com.example.modbus-fixture  1.2.0  Modbus fixture
   May run:      yes
   Licence:      none needed
   Install:      can be installed
-This build does not run plugins.
 ```
 
 - **Signature** says whether the signature holds and who made it. "Official"

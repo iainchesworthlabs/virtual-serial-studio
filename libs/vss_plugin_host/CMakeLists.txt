@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # The plugin host: what runs a plugin once libs/vss_plugin has checked it.
-# So far it holds one thing, a plugin as a process of the operating system:
-# started with a private channel and nothing else of the host's, its output
-# captured, and ended together with everything it started. There is no
-# sandbox yet, and nothing in Studio starts a plugin. See docs/plugins.md.
+# It starts a plugin as a process of the operating system with a private
+# channel and nothing else of the host's, confines it where the system can,
+# keeps it running, and answers the messages of the extension points. See
+# docs/plugins.md.
 #
 
 add_library(vss_plugin_host
@@ -16,6 +16,7 @@ add_library(vss_plugin_host
   src/extension.cpp
   src/generator_feed.cpp
   src/instances.cpp
+  src/licence_point.cpp
   src/process.cpp
   src/recording.cpp
   src/runner.cpp
