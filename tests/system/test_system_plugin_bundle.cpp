@@ -49,7 +49,6 @@ using vss::plugin::bundle_result_message;
 using vss::plugin::decode_as;
 using vss::plugin::encode_as;
 using vss::plugin::error_message;
-using vss::plugin::ok_message;
 using vss::plugin::other_message;
 using vss::plugin::permission;
 using vss::plugin::sha512_of;
@@ -297,8 +296,9 @@ TEST_CASE("plugin bundle: a section of no files is a good section")
     fixture.ask(std::string(section_id));
     fixture.answer(0, result_reply({}));
     REQUIRE(fixture.until(1));
-    REQUIRE(fixture.outcomes[0].prepared.has_value());
-    REQUIRE(fixture.outcomes[0].prepared->offered.files.empty());
+    const auto& prepared = fixture.outcomes[0].prepared;
+    REQUIRE(prepared.has_value());
+    REQUIRE(prepared.value().offered.files.empty());
 }
 
 TEST_CASE("plugin bundle: a file that is not there, or not as large as "

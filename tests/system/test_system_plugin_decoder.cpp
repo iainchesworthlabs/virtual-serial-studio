@@ -45,7 +45,6 @@
 #include <vector>
 
 using vss::control_line;
-using vss::plugin::api_errc;
 using vss::plugin::api_message;
 using vss::plugin::decode_as;
 using vss::plugin::decoder_ack_message;
@@ -708,8 +707,9 @@ TEST_CASE("plugin decoder: line changes are in the stream with what changed")
     REQUIRE_EQ(line.place, std::string(bus_name));
     REQUIRE_EQ(line.changed.size(), std::size_t{1});
     REQUIRE(line.changed.front() == decoder_line::dtr);
-    REQUIRE(line.lines[0].has_value());
-    REQUIRE(*line.lines[0]);
+    const std::optional<bool> dtr = line.lines[0];
+    REQUIRE(dtr.has_value());
+    REQUIRE(dtr.value());
 }
 
 TEST_CASE("plugin decoder: the window is never exceeded under a slow plugin")
@@ -717,7 +717,7 @@ TEST_CASE("plugin decoder: the window is never exceeded under a slow plugin")
     rig fixture;
     fixture.start_decoder();
     // 400 chunks of 1000 bytes: more than the window holds.
-    constexpr std::uint64_t total = 400 * 1000;
+    constexpr std::uint64_t total = std::uint64_t{400} * 1000;
     for (int i = 0; i < 400; ++i)
         fixture.serial.inject_read(std::string(1000, 'w'));
     // Nothing is acknowledged, so no more than the window is sent.
@@ -731,7 +731,8 @@ TEST_CASE("plugin decoder: the window is never exceeded under a slow plugin")
     wait_until([&] { fixture.pump(); return false; }, 300ms);
     REQUIRE(fixture.state().unacknowledged_bytes <= window);
     std::uint64_t held = 0;
-    for (const auto& data : fixture.sent().data)
+    const stream already = fixture.sent();
+    for (const auto& data : already.data)
         held += data.length;
     REQUIRE(held <= window);
     REQUIRE_EQ(fixture.state().acked_seq, std::uint64_t{0});
@@ -998,6 +999,7 @@ TEST_CASE("plugin decoder: the store is read from other threads while the "
     std::atomic<bool> done{false};
     std::atomic<std::uint64_t> read{0};
     std::vector<std::thread> readers;
+    readers.reserve(4);
     for (int i = 0; i < 4; ++i)
     {
         readers.emplace_back(
