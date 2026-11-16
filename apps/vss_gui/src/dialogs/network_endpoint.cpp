@@ -78,12 +78,6 @@ bool valid_listen_host(const QString& text)
     return valid_ipv4(text) || valid_ipv6_ish(text);
 }
 
-bool valid_remote_host(const QString& text)
-{
-    return !text.isEmpty() && !text.contains(QLatin1Char(' ')) &&
-           !text.contains(QLatin1Char('/'));
-}
-
 QString listen_host(QComboBox* combo, QLineEdit* custom)
 {
     QString data = combo->currentData().toString();

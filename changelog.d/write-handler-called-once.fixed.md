@@ -1,0 +1,1 @@
+**A write is reported once on macOS.** When a write failed, or a port was stopped while a write was with the device, the program that asked for the write could be told about it twice on macOS, and Studio could stop. The engine now empties a handler when it takes it, on every platform.

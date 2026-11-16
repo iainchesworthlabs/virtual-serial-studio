@@ -7,6 +7,7 @@
 #include "simple/job_plan.hpp"
 
 #include "backend/driver_error.hpp"
+#include "dialogs/network_uri.hpp"
 
 #include <vss/core/link.hpp>
 #include <vss/core/profile.hpp>
@@ -56,12 +57,25 @@ end_plan end_of(const std::vector<port_view>& ports, vss::endpoint_id id)
     {
         end.what = end_plan::kind::network_device;
         end.rfc2217 = port->kind == vss::endpoint_kind::rfc2217;
-        // The path of a network port reads host:port.
-        const QString where = port->path.section(QStringLiteral("://"), -1);
-        end.address = where.section(QLatin1Char(':'), 0, 0);
-        end.network_port = where.section(QLatin1Char(':'), 1, 1)
-                               .section(QLatin1Char('?'), 0, 0)
-                               .toUInt();
+        // The path of a network port reads scheme://host:port, with an IPv6
+        // host in brackets.
+        const auto parsed =
+            parse_network_uri(port->path.contains(QStringLiteral("://"))
+                                  ? port->path
+                                  : QStringLiteral("tcp://") + port->path);
+        if (parsed)
+        {
+            end.address = parsed->host;
+            end.network_port = static_cast<unsigned>(parsed->port);
+        }
+        else
+        {
+            const QString where = port->path.section(QStringLiteral("://"), -1);
+            end.address = where.section(QLatin1Char(':'), 0, 0);
+            end.network_port = where.section(QLatin1Char(':'), 1, 1)
+                                   .section(QLatin1Char('?'), 0, 0)
+                                   .toUInt();
+        }
         if (end.network_port == 0)
             end.network_port = 4001;
         break;
@@ -291,17 +305,145 @@ vss::result<void> edit_ends(StudioBackend& backend, const link_view& old,
     return {};
 }
 
+/// The name a device end's port starts from, before `unique_name`.
+QString device_name_base(const end_plan& end)
+{
+    const QString path =
+        end.what == end_plan::kind::device ? end.device_path : end.address;
+    QString base = QStringLiteral("device-%1").arg(path).toLower();
+    base.replace(QRegularExpression(QStringLiteral("[^a-z0-9]+")),
+                 QStringLiteral("-"));
+    while (base.endsWith(QLatin1Char('-')))
+        base.chop(1);
+    return base;
+}
+
+QSet<QString> port_names(const StudioBackend& backend)
+{
+    QSet<QString> names;
+    for (const auto& port : backend.ports())
+        names.insert(port.name);
+    return names;
+}
+
+/// Opens the device of a "let other computers use my device" plan, opens the
+/// network port other computers connect to, and links them.  The device keeps
+/// every setting of the plan.  The ports made are removed again when a step
+/// fails.  Returns the device's port.
+vss::result<vss::endpoint_id> open_network_job(StudioBackend& backend,
+                                               const job_plan& plan)
+{
+    VSS_PROFILE_ZONE("gui.simple.job_plan.open_network_job");
+    if (plan.first.empty())
+        return vss::make_error_code(vss::errc::invalid_argument);
+    QSet<QString> taken = port_names(backend);
+    const end_plan& end = plan.first.front();
+
+    std::vector<vss::endpoint_id> made;
+    const auto undo = [&backend, &made]
+    {
+        for (auto it = made.rbegin(); it != made.rend(); ++it)
+            static_cast<void>(backend.remove_port(*it));
+    };
+
+    const QString device_name = unique_name(device_name_base(end), taken);
+    taken.insert(device_name);
+    const auto device = backend.attach_serial(
+        device_name, device_uri(end, plan.serial), plan.serial, true);
+    if (!device)
+        return device.error();
+    made.push_back(*device);
+
+    // `tcp://` would connect out to the address: only `tcp-listen://` waits
+    // for other computers.
+    const QString listen_name =
+        unique_name(QStringLiteral("network-%1").arg(plan.listen_port), taken);
+    const auto listener = backend.attach_serial(
+        listen_name,
+        build_network_uri(network_transport::tcp, network_role::server,
+                          QStringLiteral("0.0.0.0"),
+                          static_cast<int>(plan.listen_port)),
+        vss::serial_settings{}, true);
+    if (!listener)
+    {
+        undo();
+        return listener.error();
+    }
+    made.push_back(*listener);
+
+    const auto linked = backend.connect_ports(*device, *listener, {});
+    if (!linked)
+    {
+        undo();
+        return linked.error();
+    }
+    return *device;
+}
+
+/// Makes the network setup of `plan`, or changes `previous` into it.  Both
+/// the old and the new setup may want the same device and the same network
+/// port, so the old one is closed first.  When the new one cannot be made,
+/// the old one is made again from its plan; `previous_lost` is set when that
+/// fails too.
+vss::result<vss::endpoint_id> build_network(StudioBackend& backend,
+                                            const job_plan& plan,
+                                            const setup_view* previous,
+                                            bool* previous_lost)
+{
+    VSS_PROFILE_ZONE("gui.simple.job_plan.build_network");
+    if (plan.first.empty())
+        return vss::make_error_code(vss::errc::invalid_argument);
+    if (previous == nullptr)
+        return open_network_job(backend, plan);
+
+    const job_plan old_plan = plan_from(*previous, backend.ports());
+    for (const auto id : previous->group.ports)
+        static_cast<void>(backend.remove_port(id));
+    const auto made = open_network_job(backend, plan);
+    if (made)
+        return made;
+    const bool restorable =
+        previous->kind == job::network && !old_plan.first.empty();
+    if (!restorable || !open_network_job(backend, old_plan))
+    {
+        if (previous_lost != nullptr)
+            *previous_lost = true;
+    }
+    return made.error();
+}
+
 } // namespace
+
+std::optional<end_plan> resolved_network_end(const end_plan& end,
+                                             QString* error)
+{
+    if (error != nullptr)
+        error->clear();
+    if (end.what != end_plan::kind::network_device)
+        return end;
+    const auto typed = parse_device_address(end.address, error);
+    if (!typed)
+        return std::nullopt;
+    end_plan resolved = end;
+    resolved.address = typed->host;
+    if (typed->port)
+        resolved.network_port = static_cast<unsigned>(*typed->port);
+    if (typed->transport)
+        resolved.rfc2217 = *typed->transport == network_transport::rfc2217;
+    return resolved;
+}
 
 QString device_uri(const end_plan& end, const vss::serial_settings& serial)
 {
     if (end.what == end_plan::kind::network_device)
     {
-        return QStringLiteral("%1://%2:%3")
-            .arg(end.rfc2217 ? QStringLiteral("rfc2217")
-                             : QStringLiteral("tcp"),
-                 end.address.trimmed())
-            .arg(end.network_port);
+        // An address that cannot be read is passed on as typed: the form does
+        // not let it get this far.
+        const end_plan target = resolved_network_end(end).value_or(end);
+        return build_network_uri(target.rfc2217 ? network_transport::rfc2217
+                                                : network_transport::tcp,
+                                 network_role::client, target.address,
+                                 static_cast<int>(target.network_port));
     }
     return QStringLiteral("serial://%1?baud=%2")
         .arg(end.device_path)
@@ -348,11 +490,9 @@ job_plan plan_from(const setup_view& setup, const std::vector<port_view>& ports)
         plan.first = ends({setup.device});
         if (const auto listener = find(ports, setup.listener))
         {
-            const unsigned number = listener->path.section(QLatin1Char(':'), -1)
-                                        .section(QLatin1Char('?'), 0, 0)
-                                        .toUInt();
-            if (number != 0)
-                plan.listen_port = number;
+            const int number = network_port_from_uri(listener->path);
+            if (number > 0)
+                plan.listen_port = static_cast<unsigned>(number);
         }
         break;
     }
@@ -377,6 +517,16 @@ plan_changes compare(const job_plan& plan, const setup_view& previous)
 {
     VSS_PROFILE_ZONE("gui.simple.job_plan.compare");
     plan_changes changes;
+    // The network setup is one engine operation that is made again: the
+    // device and the network port close, so the computers connected lose
+    // their connection, and a device and a network port open.
+    if (plan.kind == job::network)
+    {
+        for (const auto id : previous.group.ports)
+            changes.closed.push_back(id);
+        changes.added = 2;
+        return changes;
+    }
     QSet<vss::endpoint_id> kept;
     for (const auto* list : {&plan.first, &plan.second})
     {
@@ -408,61 +558,125 @@ plan_changes compare(const job_plan& plan, const setup_view& previous)
 vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
                                           const job_plan& plan,
                                           const setup_view* previous,
-                                          unsigned* clashed_com)
+                                          unsigned* clashed_com,
+                                          bool* previous_lost)
 {
     VSS_PROFILE_ZONE("gui.simple.job_plan.build_setup");
     if (clashed_com != nullptr)
         *clashed_com = 0;
+    if (previous_lost != nullptr)
+        *previous_lost = false;
+
+    // Letting other computers in opens the device and the network port, and a
+    // change closes the old pair first.
+    if (plan.kind == job::network)
+        return build_network(backend, plan, previous, previous_lost);
+
     const auto before = backend.ports();
     QSet<QString> taken;
     for (const auto& port : before)
         taken.insert(port.name);
 
+    // Device settings chosen in the form reach the devices that stay open
+    // (a new device is opened with them).  Nothing is asked of a change that
+    // leaves the settings as they were.
+    std::vector<std::pair<vss::endpoint_id, vss::serial_settings>> to_change;
+    if (previous != nullptr &&
+        plan.serial != plan_from(*previous, before).serial)
+    {
+        for (const auto* ends : {&plan.first, &plan.second})
+        {
+            for (const auto& end : *ends)
+            {
+                // A device on this PC, or one over RFC 2217, which takes the
+                // new speed.  The engine refuses plain TCP and UDP.
+                const bool takes_settings =
+                    end.what == end_plan::kind::device ||
+                    (end.what == end_plan::kind::network_device && end.rfc2217);
+                if (end.existing == 0 || !takes_settings)
+                    continue;
+                if (const auto port = find(before, end.existing);
+                    port && port->serial != plan.serial)
+                    to_change.emplace_back(end.existing, port->serial);
+            }
+        }
+        if (!to_change.empty() && !backend.caps().port_settings)
+            return vss::make_error_code(vss::errc::unsupported);
+    }
+
     std::vector<vss::endpoint_id> made;
-    const auto undo_made = [&backend, &made]
+    std::vector<std::pair<vss::endpoint_id, vss::serial_settings>> changed;
+    const auto undo_made = [&backend, &made, &changed]
     {
         for (auto it = made.rbegin(); it != made.rend(); ++it)
             static_cast<void>(backend.remove_port(*it));
         made.clear();
+        for (auto it = changed.rbegin(); it != changed.rend(); ++it)
+            static_cast<void>(backend.set_port_settings(it->first, it->second));
+        changed.clear();
     };
 
-    // Letting other computers in is one engine operation that opens the
-    // device and the network port together, so a change makes it again.
-    if (plan.kind == job::network)
+    // The ends are named in the order of the plan and made in three passes:
+    // devices (and ends that stay) first, so a device that is busy is found
+    // before Windows spends about 27 seconds installing a new port; then the
+    // ports that chose a COM number; then the Automatic ones, which take the
+    // lowest number that is free, which may be one a later end chose.
+    enum class pass
     {
-        if (plan.first.empty())
-            return vss::make_error_code(vss::errc::invalid_argument);
-        if (previous != nullptr)
+        device,
+        chosen_number,
+        automatic
+    };
+    struct end_slot
+    {
+        const end_plan* end = nullptr;
+        QString name;
+        vss::endpoint_id id = 0;
+        pass when = pass::device;
+    };
+    std::vector<end_slot> slots;
+    const std::size_t first_count = plan.first.size();
+    for (const auto* ends : {&plan.first, &plan.second})
+    {
+        for (const auto& end : *ends)
         {
-            for (const auto id : previous->group.ports)
-                static_cast<void>(backend.remove_port(id));
+            end_slot slot;
+            slot.end = &end;
+            if (end.existing == 0)
+            {
+                if (end.what == end_plan::kind::program)
+                {
+                    slot.name = unique_name(end.label, taken);
+                    slot.when =
+                        end.com_number != 0 && backend.caps().com_numbers
+                            ? pass::chosen_number
+                            : pass::automatic;
+                }
+                else
+                {
+                    slot.name = unique_name(
+                        device_name_base(
+                            resolved_network_end(end).value_or(end)),
+                        taken);
+                }
+                taken.insert(slot.name);
+            }
+            slots.push_back(std::move(slot));
         }
-        const auto linked = backend.bridge(
-            device_uri(plan.first.front(), plan.serial),
-            QStringLiteral("tcp://0.0.0.0:%1").arg(plan.listen_port));
-        if (!linked)
-            return linked.error();
-        if (const auto link = backend.link(*linked))
-        {
-            if (!link->sources.isEmpty())
-                return link->sources.front();
-        }
-        return vss::endpoint_id{0};
     }
 
     const auto make_end =
-        [&](const end_plan& end) -> vss::result<vss::endpoint_id>
+        [&](const end_slot& slot) -> vss::result<vss::endpoint_id>
     {
+        const end_plan& end = *slot.end;
         if (end.existing != 0)
             return end.existing;
         if (end.what == end_plan::kind::program)
         {
-            const QString name = unique_name(end.label, taken);
-            taken.insert(name);
-            auto port =
-                end.com_number != 0 && backend.caps().com_numbers
-                    ? backend.create_driver_port(name, true, end.com_number)
-                    : backend.create_auto_port(name, true);
+            auto port = slot.when == pass::chosen_number
+                            ? backend.create_driver_port(slot.name, true,
+                                                         end.com_number)
+                            : backend.create_auto_port(slot.name, true);
             if (!port)
             {
                 if (clashed_com != nullptr && end.com_number != 0 &&
@@ -475,52 +689,48 @@ vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
             made.push_back(*port);
             return port;
         }
-        const QString path =
-            end.what == end_plan::kind::device ? end.device_path : end.address;
-        QString base = QStringLiteral("device-%1").arg(path).toLower();
-        base.replace(QRegularExpression(QStringLiteral("[^a-z0-9]+")),
-                     QStringLiteral("-"));
-        while (base.endsWith(QLatin1Char('-')))
-            base.chop(1);
-        const QString name = unique_name(base, taken);
-        taken.insert(name);
-        auto port = backend.attach_serial(name, device_uri(end, plan.serial),
-                                          plan.serial, true);
+        auto port = backend.attach_serial(
+            slot.name, device_uri(end, plan.serial), plan.serial, true);
         if (port)
             made.push_back(*port);
         return port;
     };
 
-    const auto make_all = [&](const std::vector<end_plan>& ends)
-        -> vss::result<std::vector<vss::endpoint_id>>
+    for (const pass when : {pass::device, pass::chosen_number, pass::automatic})
     {
-        std::vector<vss::endpoint_id> ids;
-        for (const auto& end : ends)
+        for (auto& slot : slots)
         {
-            const auto id = make_end(end);
+            if (slot.when != when)
+                continue;
+            const auto id = make_end(slot);
             if (!id)
+            {
+                undo_made();
                 return id.error();
-            ids.push_back(*id);
+            }
+            slot.id = *id;
         }
-        return ids;
-    };
-
-    const auto first = make_all(plan.first);
-    if (!first)
-    {
-        undo_made();
-        return first.error();
     }
-    const auto second = make_all(plan.second);
-    if (!second)
-    {
-        undo_made();
-        return second.error();
-    }
-    if (first->empty())
+    std::vector<vss::endpoint_id> first_ids;
+    std::vector<vss::endpoint_id> second_ids;
+    for (std::size_t index = 0; index < slots.size(); ++index)
+        (index < first_count ? first_ids : second_ids)
+            .push_back(slots[index].id);
+    if (first_ids.empty())
     {
         undo_made();
         return vss::make_error_code(vss::errc::invalid_argument);
+    }
+
+    for (const auto& [id, settings] : to_change)
+    {
+        const auto result = backend.set_port_settings(id, plan.serial);
+        if (!result)
+        {
+            undo_made();
+            return result.error();
+        }
+        changed.emplace_back(id, settings);
     }
 
     vss::endpoint_id echo = 0;
@@ -550,8 +760,8 @@ vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
         }
     }
 
-    const auto& a = *first;
-    const auto& b = *second;
+    const auto& a = first_ids;
+    const auto& b = second_ids;
 
     // The ports of the plan stay; the ones the setup had before and the plan
     // leaves out close.
@@ -672,8 +882,8 @@ vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
     if (!linked)
     {
         undo_made();
-        if (old_link)
-            static_cast<void>(relink(backend, *old_link));
+        if (old_link && !relink(backend, *old_link) && previous_lost != nullptr)
+            *previous_lost = true;
         return linked.error();
     }
 

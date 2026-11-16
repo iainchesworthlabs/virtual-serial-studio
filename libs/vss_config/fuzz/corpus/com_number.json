@@ -1,1 +1,1 @@
-{"name":"numbers","ports":[{"name":"a","kind":"virtual","virtual_kind":"windows-driver","com_number":7},{"name":"b","kind":"virtual","com_number":255},{"name":"c","kind":"virtual"}],"links":[{"mode":"duplex","sources":["a"],"targets":["b"]}]}
+{"version":1,"name":"numbers","ports":[{"name":"a","kind":"virtual","virtual_kind":"windows-driver","com_number":7},{"name":"b","kind":"virtual","com_number":255},{"name":"c","kind":"virtual"}],"links":[{"mode":"duplex","sources":["a"],"targets":["b"]}]}

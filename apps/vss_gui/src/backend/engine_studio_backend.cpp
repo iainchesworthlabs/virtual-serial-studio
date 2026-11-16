@@ -172,7 +172,8 @@ bool same_port_shape(const port_view& left, const port_view& right)
     return left.id == right.id && left.name == right.name &&
            left.path == right.path && left.description == right.description &&
            left.kind == right.kind && left.state == right.state &&
-           left.lines == right.lines && left.open == right.open &&
+           left.serial == right.serial && left.lines == right.lines &&
+           left.open == right.open &&
            left.supports_control_lines == right.supports_control_lines &&
            left.studio_only == right.studio_only && left.peer == right.peer &&
            left.peer_format == right.peer_format &&
@@ -273,6 +274,7 @@ capabilities EngineStudioBackend::caps() const
 {
     capabilities caps = capabilities{};
     caps.licences = licences_ != nullptr;
+    caps.plugins = plugins_ != nullptr;
     // Boost.VirtualSerial's network backends only connect. Waiting for other
     // computers is `vss_ports`' listen transport (`tcp-listen://`,
     // `udp-listen://` and `rfc2217-listen://`), which
@@ -455,7 +457,7 @@ EngineStudioBackend::create_port_with_com_number(
     // accepts.  Another device's number is refused in about a tenth of a
     // second.  This runs off the GUI thread.
     using clock = std::chrono::steady_clock;
-    constexpr auto kRemovalWait = std::chrono::seconds(90);
+    constexpr auto kRemovalWait = vss::com_number_removal_wait;
     std::map<unsigned, clock::time_point> recent;
     {
         const std::lock_guard lock(removed_mutex_);
@@ -1061,6 +1063,17 @@ EngineStudioBackend::apply(const vss::config::document& document,
     return {};
 }
 
+vss::result<void>
+EngineStudioBackend::replace(const vss::config::document& document)
+{
+    const auto replaced = studio_.replace(document);
+    // The ports may have changed even when the call failed and put them back.
+    rebuild();
+    if (!replaced)
+        return replaced.error();
+    return {};
+}
+
 vss::result<share_view> EngineStudioBackend::share_serial(const QString& uri,
                                                           int listeners)
 {
@@ -1227,6 +1240,12 @@ void EngineStudioBackend::rebuild()
         // it reads back as it goes; the signals belong to the GUI thread.
         QMetaObject::invokeMethod(this, emit_changes, Qt::QueuedConnection);
     }
+}
+
+void EngineStudioBackend::set_plugin_backend(
+    std::unique_ptr<PluginBackend> host)
+{
+    plugins_ = std::move(host);
 }
 
 void EngineStudioBackend::set_licence_store(

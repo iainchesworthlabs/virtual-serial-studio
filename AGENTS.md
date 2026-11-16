@@ -22,7 +22,9 @@ This file applies to any automated contributor. Read it before changing the repo
   add a capability flag and degrade visibly.
 - Warnings are errors in every build. The build must stay clean on GCC, Clang, AppleClang and MSVC, so write portable
   code and never disable a test, warning, hook or lint to get green.
-- No secrets in the repository or in logs. No network access from the GUI, no telemetry, no analytics.
+- No secrets in the repository or in logs. Studio makes no network connection of its own except to check for updates
+  and to download an update the user agreed to. It sends nothing about the user, the computer or how Studio is used.
+  No telemetry, no analytics. `docs/updates.md` says what the one exception is.
 
 ## Build and test
 

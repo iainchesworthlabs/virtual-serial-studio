@@ -566,7 +566,11 @@ class MainTests(SiteTestCase):
         with contextlib.redirect_stdout(out):
             code = site_build.main(["--root", str(self.root)])
         self.assertEqual(code, 0)
-        self.assertEqual(out.getvalue(), f"site_build: wrote 3 pages to {self.out}\n")
+        self.assertEqual(
+            out.getvalue(),
+            f"site_build: wrote 3 pages to {self.out}\n"
+            "site_build: there is no update feed, so the site has no updates/v1/feed.json\n",
+        )
         self.assertTrue((self.out / "index.html").is_file())
 
     def test_build_error_goes_to_stderr(self) -> None:
@@ -697,7 +701,7 @@ class RefreshTests(SiteTestCase):
                     self.assertEqual(site_build.fetch_releases(REPO), [])
                 request = captured["request"]
                 self.assertEqual(request.full_url,
-                                 f"https://api.github.com/repos/{REPO}/releases?per_page=1")
+                                 f"https://api.github.com/repos/{REPO}/releases?per_page=100")
                 self.assertEqual(captured["timeout"], 30)
                 headers = {k.lower(): v for k, v in request.header_items()}
                 self.assertEqual(headers["accept"], "application/vnd.github+json")
@@ -706,6 +710,208 @@ class RefreshTests(SiteTestCase):
                     self.assertEqual(headers["authorization"], "Bearer s3cret")
                 else:
                     self.assertNotIn("authorization", headers)
+
+
+FEED = b'{"format":1,\r\n "not": "parsed or changed"}\r\n\x00\xff'
+
+
+class FeedCopyTests(SiteTestCase):
+    def test_the_feed_is_copied_byte_for_byte(self) -> None:
+        write(self.source / "data" / "update-feed.json", FEED)
+        self.build()
+        self.assertEqual((self.out / "updates" / "v1" / "feed.json").read_bytes(), FEED)
+
+    def test_without_a_feed_the_site_has_no_updates_folder(self) -> None:
+        self.build()
+        self.assertFalse((self.out / "updates").exists())
+
+    def test_the_same_input_gives_the_same_output(self) -> None:
+        write(self.source / "data" / "update-feed.json", FEED)
+        self.build()
+        first = self.snapshot()
+        self.build()
+        self.assertEqual(self.snapshot(), first)
+        self.assertIn("updates/v1/feed.json", first)
+
+    def test_the_feed_is_one_of_the_inputs(self) -> None:
+        write(self.source / "data" / "update-feed.json", FEED)
+        output = site_build.generate(self.root.resolve(), self.source.resolve())
+        self.assertIn(self.source.resolve() / "data" / "update-feed.json", output.inputs)
+
+    def test_the_command_says_when_there_is_no_feed(self) -> None:
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(site_build.main(["--root", str(self.root)]), 0)
+        self.assertIn("there is no update feed, so the site has no updates/v1/feed.json", out.getvalue())
+        write(self.source / "data" / "update-feed.json", FEED)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(site_build.main(["--root", str(self.root)]), 0)
+        self.assertEqual(out.getvalue(), f"site_build: wrote 3 pages to {self.out}\n")
+
+
+class RefreshFeedTests(SiteTestCase):
+    @staticmethod
+    def api(tag: str, feed: bool = True, draft: bool = False, **changes: object) -> dict[str, object]:
+        assets: list[dict[str, object]] = [
+            {"name": "a.deb", "size": 10,
+             "browser_download_url": f"{RELEASE_PREFIX}download/{tag}/a.deb"},
+        ]
+        if feed:
+            assets.append({"name": "update-feed.json", "size": 99,
+                           "browser_download_url": f"{RELEASE_PREFIX}download/{tag}/update-feed.json"})
+        entry: dict[str, object] = {
+            "tag_name": tag, "prerelease": "-" in tag, "draft": draft,
+            "published_at": "2026-12-01T10:00:00Z", "html_url": RELEASE_PREFIX + "tag/" + tag,
+            "assets": assets,
+        }
+        entry.update(changes)
+        return entry
+
+    def refresh(self, response: object, messages: list[str] | None = None) -> list[str]:
+        asked: list[str] = []
+
+        def asset(url: str) -> bytes:
+            asked.append(url)
+            return b"the feed of " + url.split("/")[-2].encode()
+
+        site_build.refresh_release(
+            self.root,
+            fetch=lambda repo: response,
+            fetch_asset=asset,
+            log=(messages.append if messages is not None else None),
+        )
+        return asked
+
+    def stored(self) -> bytes:
+        return (self.source / "data" / "update-feed.json").read_bytes()
+
+    def test_the_feed_of_the_newest_release_that_has_one(self) -> None:
+        # Not the first in the list, and not the one without a feed.
+        asked = self.refresh([self.api("v0.4.0", feed=False), self.api("v0.2.0"),
+                              self.api("v0.3.0-rc.1"), self.api("v0.1.0")])
+        self.assertEqual(self.stored(), b"the feed of v0.3.0-rc.1")
+        self.assertEqual(asked, [f"{RELEASE_PREFIX}download/v0.3.0-rc.1/update-feed.json"])
+
+    def test_the_greatest_version_and_not_the_first_or_the_latest(self) -> None:
+        self.refresh([self.api("v0.2.0"), self.api("v0.10.0-rc.1"), self.api("v0.9.0")])
+        self.assertEqual(self.stored(), b"the feed of v0.10.0-rc.1")
+        self.refresh([self.api("v0.2.0-rc.1"), self.api("v0.2.0"), self.api("v0.2.0-rc.2")])
+        self.assertEqual(self.stored(), b"the feed of v0.2.0")
+
+    def test_a_draft_and_a_tag_that_is_not_a_version_do_not_count(self) -> None:
+        self.refresh([self.api("v9.0.0", draft=True), self.api("nightly"), self.api("v0.2.0")])
+        self.assertEqual(self.stored(), b"the feed of v0.2.0")
+
+    def test_the_feed_is_stored_as_it_came(self) -> None:
+        for data in (FEED, b"[]"):
+            site_build.refresh_release(
+                self.root, fetch=lambda repo: [self.api("v0.2.0")], fetch_asset=lambda url, data=data: data
+            )
+            self.assertEqual(self.stored(), data)
+
+    def test_the_refreshed_feed_builds_into_the_site(self) -> None:
+        self.refresh([self.api("v0.2.0")])
+        self.build()
+        self.assertEqual((self.out / "updates" / "v1" / "feed.json").read_bytes(), b"the feed of v0.2.0")
+        self.assertIn("v0.2.0", self.output("features.html"))
+
+    def test_no_release_with_a_feed_leaves_the_stored_file_alone(self) -> None:
+        messages: list[str] = []
+        self.refresh([self.api("v0.2.0", feed=False)], messages)
+        self.assertFalse((self.source / "data" / "update-feed.json").exists())
+        self.assertEqual(messages, ["no release has update-feed.json, so the stored feed is left as it is"])
+        write(self.source / "data" / "update-feed.json", FEED)
+        self.refresh([self.api("v0.2.0", feed=False)])
+        self.assertEqual(self.stored(), FEED)
+        # The release record is refreshed all the same.
+        record = json.loads((self.source / "data" / "release.json").read_text(encoding="utf-8"))
+        self.assertEqual(record["tag"], "v0.2.0")
+
+    def test_the_log_names_the_release(self) -> None:
+        messages: list[str] = []
+        self.refresh([self.api("v0.2.0")], messages)
+        self.assertEqual(messages, ["update-feed.json of v0.2.0 is the update feed"])
+
+    def test_an_address_of_another_place_is_refused_and_nothing_changes(self) -> None:
+        write(self.source / "data" / "update-feed.json", FEED)
+        before = (self.source / "data" / "release.json").read_bytes()
+        entry = self.api("v0.2.0")
+        entry["assets"][1]["browser_download_url"] = "https://evil.test/update-feed.json"  # type: ignore[index]
+        with self.assertRaises(site_build.BuildError) as caught:
+            self.refresh([entry])
+        self.assertIn(RELEASE_PREFIX, str(caught.exception))
+        self.assertEqual(self.stored(), FEED)
+        self.assertEqual((self.source / "data" / "release.json").read_bytes(), before)
+
+    def test_a_download_that_fails_changes_nothing(self) -> None:
+        write(self.source / "data" / "update-feed.json", FEED)
+        before = (self.source / "data" / "release.json").read_bytes()
+
+        def broken(url: str) -> bytes:
+            raise OSError("connection reset")
+
+        with self.assertRaises(site_build.BuildError) as caught:
+            site_build.refresh_release(self.root, fetch=lambda repo: [self.api("v0.2.0")], fetch_asset=broken)
+        self.assertIn("connection reset", str(caught.exception))
+        self.assertIn("v0.2.0", str(caught.exception))
+        self.assertEqual(self.stored(), FEED)
+        self.assertEqual((self.source / "data" / "release.json").read_bytes(), before)
+
+    def test_an_empty_or_large_feed_is_refused(self) -> None:
+        for data in (b"", b"x" * (site_build.MAX_FEED_BYTES + 1)):
+            with self.subTest(size=len(data)), self.assertRaises(site_build.BuildError):
+                site_build.refresh_release(
+                    self.root, fetch=lambda repo: [self.api("v0.2.0")], fetch_asset=lambda url, data=data: data
+                )
+        self.assertFalse((self.source / "data" / "update-feed.json").exists())
+        data = b"x" * site_build.MAX_FEED_BYTES
+        site_build.refresh_release(
+            self.root, fetch=lambda repo: [self.api("v0.2.0")], fetch_asset=lambda url: data
+        )
+        self.assertEqual(self.stored(), data)
+
+    def test_the_command_reports_what_it_stored(self) -> None:
+        api = [self.api("v0.2.0")]
+        out = io.StringIO()
+        with unittest.mock.patch.object(site_build, "fetch_releases", return_value=api), \
+                unittest.mock.patch.object(site_build, "download_feed", return_value=FEED), \
+                contextlib.redirect_stdout(out):
+            code = site_build.main(["--root", str(self.root), "--refresh-release"])
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            out.getvalue(),
+            "site_build: update-feed.json of v0.2.0 is the update feed\n"
+            f"site_build: wrote 3 pages to {self.out}\n",
+        )
+        self.assertEqual((self.out / "updates" / "v1" / "feed.json").read_bytes(), FEED)
+
+    def test_the_default_download_sends_no_token_and_reads_a_limited_amount(self) -> None:
+        captured = {}
+
+        class Response(io.BytesIO):
+            def __enter__(self) -> "Response":
+                return self
+
+            def __exit__(self, *exc: object) -> None:
+                self.close()
+
+        def fake_urlopen(request, timeout):  # type: ignore[no-untyped-def]
+            captured["request"] = request
+            captured["timeout"] = timeout
+            return Response(b"x" * (site_build.MAX_FEED_BYTES + 10))
+
+        url = f"{RELEASE_PREFIX}download/v0.2.0/update-feed.json"
+        with unittest.mock.patch.dict(os.environ, {"GITHUB_TOKEN": "s3cret"}), \
+                unittest.mock.patch("urllib.request.urlopen", fake_urlopen):
+            data = site_build.download_feed(url)
+        self.assertEqual(len(data), site_build.MAX_FEED_BYTES + 1)
+        request = captured["request"]
+        self.assertEqual(request.full_url, url)
+        self.assertEqual(captured["timeout"], 30)
+        headers = {k.lower(): v for k, v in request.header_items()}
+        self.assertNotIn("authorization", headers)
+        self.assertEqual(headers["user-agent"], "virtual-serial-studio-site-build")
 
 
 if __name__ == "__main__":

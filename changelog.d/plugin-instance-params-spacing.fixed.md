@@ -1,0 +1,1 @@
+**An instance is told its parameters when they were written with spaces.** Before, an instance whose parameters were written with spaces between their parts was never sent the message and was reported as not answering.

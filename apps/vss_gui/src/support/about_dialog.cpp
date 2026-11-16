@@ -9,14 +9,18 @@
 #include "support/build_info.hpp"
 #include "support/licence_text.hpp"
 #include "support/third_party.hpp"
+#include "support/update_text.hpp"
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
+#include "updates/update_service.hpp"
 #include "widgets/common.hpp"
 #include "widgets/controls.hpp"
 #include "widgets/dialogs.hpp"
 
 #include <vss/core/profile.hpp>
 
+#include <QAccessible>
+#include <QCheckBox>
 #include <QClipboard>
 #include <QCoreApplication>
 #include <QDesktopServices>
@@ -28,6 +32,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSignalBlocker>
 #include <QTabWidget>
 #include <QTimer>
 #include <QUrl>
@@ -90,11 +95,51 @@ void add_licence(QVBoxLayout* layout, const QString& name,
     }
 }
 
+/// Tells assistive technology about a change, politely: it waits for the
+/// person to finish what they were hearing.
+void announce_politely(QWidget* widget, const QString& text)
+{
+    if (widget == nullptr || text.isEmpty())
+        return;
+    QAccessibleAnnouncementEvent event(widget, text);
+    event.setPoliteness(QAccessible::AnnouncementPoliteness::Polite);
+    QAccessible::updateAccessibility(&event);
+}
+
+/// The label of a row in the card of a definition list.
+QLabel* row_label(const QString& text, QWidget* parent)
+{
+    auto* label = new QLabel(text, parent);
+    label->setFont(Theme::instance().font(text_style::caption));
+    label->setProperty("muted", true);
+    label->setContentsMargins(14, 8, 14, 8);
+    label->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    polish(label);
+    return label;
+}
+
+/// The value of a row. A row whose value is empty is left out.
+QLabel* row_value(QWidget* parent)
+{
+    auto* value = new QLabel(parent);
+    value->setFont(Theme::instance().font(text_style::body));
+    value->setContentsMargins(14, 8, 14, 8);
+    value->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    value->setWordWrap(true);
+    return value;
+}
+
 } // namespace
 
 AboutDialog::AboutDialog(StudioBackend& backend, QWidget* parent)
+    : AboutDialog(backend, nullptr, parent)
+{
+}
+
+AboutDialog::AboutDialog(StudioBackend& backend,
+                         updates::UpdateService* updates, QWidget* parent)
     : QDialog(parent), info_(current_build_info()),
-      edition_(edition_label(backend.licence().status))
+      edition_(edition_label(backend.licence().status)), updates_(updates)
 {
     build();
 }
@@ -151,7 +196,7 @@ void AboutDialog::build()
         QCoreApplication::translate(
             "About",
             "Version %1. Free software under the GNU General Public License, "
-            "version 3 or later. Edition: %2.")
+            "version 3. Edition: %2.")
             .arg(info_.full_version(), edition_),
         header);
     sub->setFont(Theme::instance().font(text_style::body));
@@ -163,7 +208,8 @@ void AboutDialog::build()
     outer->addWidget(header);
 
     // Five tabs follow, in this order: About, Build information,
-    // Environment, Licences, Fonts.
+    // Environment, Licences, Fonts. With the update service, Updates comes
+    // second.
     // page() makes each tab's content page and its vertical layout.
     tabs_ = new QTabWidget(this);
     tabs_->setAccessibleName(
@@ -179,9 +225,8 @@ void AboutDialog::build()
             "About",
             "This program is free software: you can redistribute it and/or "
             "modify it under the terms of the GNU General Public License as "
-            "published by the Free Software Foundation, either version 3 of "
-            "the "
-            "License, or (at your option) any later version."),
+            "published by the Free Software Foundation, version 3 of the "
+            "License."),
         about_page));
     about_layout->addWidget(body_label(
         QCoreApplication::translate(
@@ -213,6 +258,14 @@ void AboutDialog::build()
     about_layout->addWidget(source);
     about_layout->addStretch(1);
     tabs_->addTab(about_page, QCoreApplication::translate("About", "About"));
+
+    // Updates tab, second: only with the update service.
+    if (updates_ != nullptr)
+    {
+        updates_page_ = build_updates_page();
+        tabs_->addTab(updates_page_,
+                      QCoreApplication::translate("About", "Updates"));
+    }
 
     // Build information tab, then Environment tab.
     // Each is a label and value grid built from the same info_ as its copied
@@ -247,7 +300,7 @@ void AboutDialog::build()
         QCoreApplication::translate(
             "About",
             "Virtual Serial Studio is free software under the GNU General "
-            "Public License, version 3 or later. It uses these components:"),
+            "Public License, version 3. It uses these components:"),
         licences_page));
     for (const third_party_component& component :
          bundled_components(profiling_compiled()))
@@ -325,6 +378,153 @@ void AboutDialog::build()
     close->setFocus(Qt::OtherFocusReason);
     QTimer::singleShot(0, close,
                        [close] { close->setFocus(Qt::OtherFocusReason); });
+}
+
+void AboutDialog::show_updates_tab()
+{
+    if (updates_page_ != nullptr)
+        tabs_->setCurrentWidget(updates_page_);
+}
+
+QWidget* AboutDialog::build_updates_page()
+{
+    QVBoxLayout* layout = nullptr;
+    QWidget* result = page(tabs_, layout);
+    QWidget* content = static_cast<QScrollArea*>(result)->widget();
+
+    // The definition list, in a card. Rows with no value are left out.
+    auto* card = new QFrame(content);
+    card->setObjectName(QStringLiteral("updatesCard"));
+    card->setProperty("card", true);
+    polish(card);
+    auto* grid = new QGridLayout(card);
+    grid->setContentsMargins(0, 0, 0, 0);
+    grid->setHorizontalSpacing(0);
+    grid->setVerticalSpacing(0);
+    // The "Plugins" row of the spec goes here, after "Last checked": one
+    // line for each plugin with an update. The service has no plugin data
+    // yet, so there is no such row.
+    updates_version_label_ =
+        row_label(QCoreApplication::translate("About", "This version"), card);
+    updates_version_ = row_value(card);
+    updates_version_->setObjectName(QStringLiteral("updatesVersion"));
+    auto* newest_label =
+        row_label(QCoreApplication::translate("About", "Newest version"), card);
+    updates_status_ = row_value(card);
+    updates_status_->setObjectName(QStringLiteral("updatesStatus"));
+    updates_checked_label_ =
+        row_label(QCoreApplication::translate("About", "Last checked"), card);
+    updates_checked_ = row_value(card);
+    updates_checked_->setObjectName(QStringLiteral("updatesChecked"));
+    grid->addWidget(updates_version_label_, 0, 0);
+    grid->addWidget(updates_version_, 0, 1);
+    grid->addWidget(newest_label, 1, 0);
+    grid->addWidget(updates_status_, 1, 1);
+    grid->addWidget(updates_checked_label_, 2, 0);
+    grid->addWidget(updates_checked_, 2, 1);
+    grid->setColumnStretch(1, 1);
+    layout->addWidget(card);
+
+    // The same setting as in Settings.
+    updates_automatic_ = new QCheckBox(
+        QCoreApplication::translate("About", "Check for updates automatically"),
+        content);
+    updates_automatic_->setObjectName(QStringLiteral("updatesAutomatic"));
+    layout->addWidget(updates_automatic_);
+    auto* note = new QLabel(
+        QCoreApplication::translate(
+            "About",
+            "Once a day Studio asks virtual-serial-studio.com for the newest "
+            "version. Nothing about you or this computer is sent."),
+        content);
+    note->setFont(Theme::instance().font(text_style::caption));
+    note->setProperty("muted", true);
+    note->setWordWrap(true);
+    polish(note);
+    layout->addWidget(note);
+    layout->addStretch(1);
+
+    // The buttons of the tab, right aligned. The dialog's own footer is
+    // unchanged.
+    auto* buttons = new QHBoxLayout();
+    buttons->setContentsMargins(0, 0, 0, 0);
+    buttons->setSpacing(8);
+    buttons->addStretch(1);
+    updates_check_ = make_dialog_button(
+        QCoreApplication::translate("About", "Check now"), nullptr, content);
+    updates_check_->setObjectName(QStringLiteral("updatesCheck"));
+    updates_check_->setAutoDefault(false);
+    buttons->addWidget(updates_check_);
+    updates_update_ = make_dialog_button(
+        QCoreApplication::translate("About", "Update..."), "primary", content);
+    updates_update_->setObjectName(QStringLiteral("updatesUpdate"));
+    updates_update_->setAutoDefault(false);
+    buttons->addWidget(updates_update_);
+    layout->addLayout(buttons);
+
+    connect(updates_automatic_, &QCheckBox::toggled, this,
+            [this](bool on) { updates_->set_automatic(on); });
+    connect(updates_check_, &QPushButton::clicked, this,
+            [this] { check_for_updates(); });
+    connect(updates_update_, &QPushButton::clicked, this,
+            [this] { Q_EMIT update_requested(); });
+    connect(updates_, &updates::UpdateService::changed, this,
+            [this] { refresh_updates(); });
+    refresh_updates();
+    return result;
+}
+
+void AboutDialog::check_for_updates()
+{
+    // Pressing the button disables it, which moves the focus away. Remember
+    // that it had it, so it can have it back when the check ends.
+    updates_restore_focus_ = focusWidget() == updates_check_;
+    updates_->check_now();
+}
+
+void AboutDialog::refresh_updates()
+{
+    const updates::snapshot& state = updates_->state();
+
+    const QString version =
+        update_this_version_text(info_.version, state.install_kind);
+    updates_version_->setText(version);
+    updates_version_->setAccessibleName(version);
+    updates_version_->setVisible(!version.isEmpty());
+    updates_version_label_->setVisible(!version.isEmpty());
+
+    // The sentence is a polite live region: it is announced when it changes,
+    // without moving focus.
+    const QString sentence = update_status_text(state, info_.version);
+    const bool sentence_changed = updates_status_->text() != sentence;
+    updates_status_->setText(sentence);
+    updates_status_->setAccessibleName(sentence);
+    if (sentence_changed && isVisible())
+        announce_politely(updates_status_, sentence);
+
+    const QString checked = update_last_checked_text(state.last_checked);
+    updates_checked_->setText(checked);
+    updates_checked_->setAccessibleName(checked);
+    updates_checked_->setVisible(!checked.isEmpty());
+    updates_checked_label_->setVisible(!checked.isEmpty());
+
+    {
+        const QSignalBlocker block(updates_automatic_);
+        updates_automatic_->setChecked(updates_->automatic());
+    }
+    updates_automatic_->setEnabled(updates_->available());
+
+    const bool checking = state.state == updates::check_state::checking;
+    updates_check_->setEnabled(updates_->available() && !checking);
+    updates_update_->setVisible(state.state == updates::check_state::available);
+    // A check that ended: the button has the focus again if it had it.
+    if (updates_was_checking_ && !checking && updates_restore_focus_)
+    {
+        updates_restore_focus_ = false;
+        if (updates_check_->isEnabled())
+            updates_check_->setFocus(Qt::OtherFocusReason);
+    }
+    updates_was_checking_ = checking;
 }
 
 QString AboutDialog::source_url()

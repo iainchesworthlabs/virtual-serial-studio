@@ -26,6 +26,18 @@ rpm=$(ls "$dist"/*.rpm)
 echo "deb: $deb"
 echo "rpm: $rpm"
 
+# GitHub renames a release asset whose name has a character outside this set (a "~" becomes a "."), and
+# SHA512SUMS, which the publish job writes before the upload, would then name a file the release does not
+# have. tools/ci/release_verify.py makes the same check on the files about to be published.
+for file in "$dist"/*; do
+  case ${file##*/} in
+    *[!A-Za-z0-9._-]*)
+      echo "The file name ${file##*/} has a character that GitHub changes in the name of a release asset" >&2
+      exit 1
+      ;;
+  esac
+done
+
 # ---------------------------------------------------------------------------
 # What the packages say about themselves
 # ---------------------------------------------------------------------------
@@ -102,6 +114,12 @@ done
 
 # The GUI starts: loading the xcb platform plug-in is what needs the xcb libraries.
 xvfb-run -a vss_gui --version
+
+# The GUI can make a TLS connection, which the check for updates needs: Qt's TLS plug-in is in
+# the package and the OpenSSL 3 it loads came with the package's dependencies. ldd cannot show
+# this, because the plug-in loads OpenSSL when it is first used. No connection is made.
+test -f "$root/plugins/tls/libqopensslbackend.so"
+xvfb-run -a vss_gui --check-tls
 EOF
 )
 

@@ -32,6 +32,8 @@
 namespace vss::gui
 {
 
+class PluginBackend;
+
 /// The one narrow interface between every screen and the engine.
 ///
 /// Screens call this, never `vss::studio` directly.  The real implementation
@@ -370,11 +372,32 @@ public:
     /// never removed. Returns true when a file was removed.
     virtual bool remove_licence(const QString& /*file_name*/) { return false; }
 
+    // -- plugins (capability: plugins) -------------------------------------
+
+    /// The plugin host the Plugins page talks to, or null when this backend
+    /// has none. The backend owns it.
+    virtual PluginBackend* plugin_backend() const { return nullptr; }
+
     // -- documents ---------------------------------------------------------
 
     virtual vss::config::document snapshot() const = 0;
+
+    /// Adds the ports and links of `document` to what is running, as
+    /// `studio::apply` does: nothing that runs is removed, and a port name
+    /// that is taken gets a number (`a-2`).  It is for a backend that has no
+    /// ports yet, such as the restore of the running setup at start-up.  With
+    /// `rollback_on_error` a failure removes the ports it made.
     virtual vss::result<void> apply(const vss::config::document& document,
                                     bool rollback_on_error) = 0;
+
+    /// Makes what is running equal to `document`, as `studio::replace` does:
+    /// afterwards the ports and links are the document's and no others, a
+    /// running port that is identical to one of the document's is kept (same
+    /// endpoint and id, so a Windows driver port keeps its COM number), and a
+    /// failure leaves the setup as it was as far as that is possible.  File,
+    /// Open, a template and Topology JSON, Apply mean this.
+    virtual vss::result<void>
+    replace(const vss::config::document& document) = 0;
 
     // -- scenarios ---------------------------------------------------------
 

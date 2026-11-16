@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<!-- Translation origin: Written by Claude for the flow usability pass -->
+<!-- Translation origin: Plugin notice strings -->
 <TS version="2.1" language="zh_CN">
     <context>
         <name>About</name>
@@ -27,8 +27,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="170" />
-            <source>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.</source>
-            <translation>本程序是自由软件：您可以依据自由软件基金会发布的 GNU 通用公共许可证的条款，对本程序进行再发布和/或修改；许可证可以是第 3 版，也可以（由您选择）是任何更高版本。</translation>
+            <source>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 3 of the License.</source>
+            <translation>本程序是自由软件：您可以依据自由软件基金会发布的 GNU 通用公共许可证的条款，对本程序进行再发布和/或修改；许可证为第 3 版。</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="179" />
@@ -62,8 +62,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="237" />
-            <source>Virtual Serial Studio is free software under the GNU General Public License, version 3 or later. It uses these components:</source>
-            <translation>Virtual Serial Studio 是自由软件，遵循 GNU 通用公共许可证第 3 版或更高版本。它使用以下组件：</translation>
+            <source>Virtual Serial Studio is free software under the GNU General Public License, version 3. It uses these components:</source>
+            <translation>Virtual Serial Studio 是自由软件，遵循 GNU 通用公共许可证第 3 版。它使用以下组件：</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="242" />
@@ -74,6 +74,11 @@
             <location filename="../src/support/about_dialog.cpp" line="243" />
             <source>GNU Lesser General Public License, version 3, or the GNU General Public License, version 3.</source>
             <translation>GNU 宽通用公共许可证第 3 版，或 GNU 通用公共许可证第 3 版。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="243" />
+            <source>GNU General Public License, version 3.</source>
+            <translation>GNU 通用公共许可证第 3 版。</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="247" />
@@ -323,13 +328,129 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="1" />
-            <source>Version %1. Free software under the GNU General Public License, version 3 or later. Edition: %2.</source>
-            <translation>版本 %1。自由软件，遵循 GNU 通用公共许可证第 3 版或更高版本。版本类型：%2。</translation>
+            <source>Version %1. Free software under the GNU General Public License, version 3. Edition: %2.</source>
+            <translation>版本 %1。自由软件，遵循 GNU 通用公共许可证第 3 版。版本类型：%2。</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="1" />
             <source>Create support bundle</source>
             <translation>创建支持包</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="268" />
+            <source>Updates</source>
+            <translation>更新</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="409" />
+            <source>This version</source>
+            <translation>此版本</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="413" />
+            <source>Newest version</source>
+            <translation>最新版本</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="417" />
+            <source>Last checked</source>
+            <translation>上次检查</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="431" />
+            <source>Check for updates automatically</source>
+            <translation>自动检查更新</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="436" />
+            <source>Once a day Studio asks virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>Studio 每天向 virtual-serial-studio.com 询问一次最新版本。不会发送任何关于您或此计算机的信息。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="455" />
+            <source>Check now</source>
+            <translation>立即检查</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="460" />
+            <source>Update...</source>
+            <translation>更新...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="32" />
+            <source>copied from the disk image</source>
+            <translation>从磁盘映像复制</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="36" />
+            <source>installed for everyone on this computer</source>
+            <translation>已为此计算机上的所有用户安装</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="38" />
+            <source>unpacked from an archive</source>
+            <translation>从压缩包解压</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="51" />
+            <source>Not checked yet.</source>
+            <translation>尚未检查。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="53" />
+            <source>Checking...</source>
+            <translation>正在检查...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="56" />
+            <source>This is a developer build. The newest release is %1.</source>
+            <translation>这是开发者构建版本。最新发布的版本是 %1。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="60" />
+            <location filename="../src/support/update_text.cpp" line="64" />
+            <source>%1 is the newest version.</source>
+            <translation>%1 是最新版本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="68" />
+            <source>%1 is available. Download it from virtual-serial-studio.com.</source>
+            <translation>%1 可用。请从 virtual-serial-studio.com 下载。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="72" />
+            <source>%1 is available.</source>
+            <translation>%1 可用。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="76" />
+            <source>The update information could not be trusted, so nothing was changed.</source>
+            <translation>无法信任更新信息，因此未做任何更改。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="79" />
+            <source>Studio could not reach the update server. Check the connection and try again.</source>
+            <translation>Studio 无法连接到更新服务器。请检查网络连接后重试。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="83" />
+            <source>Update checks are turned off by your administrator.</source>
+            <translation>您的管理员已关闭更新检查。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="86" />
+            <source>This build cannot check for updates.</source>
+            <translation>此构建版本无法检查更新。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="100" />
+            <source>%1, %2</source>
+            <translation>%1，%2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="107" />
+            <source>Never</source>
+            <translation>从未</translation>
         </message>
     </context>
     <context>
@@ -2771,6 +2892,21 @@ Networks: %5</source>
             <source>%1, %2</source>
             <translation>%1，%2</translation>
         </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="1" />
+            <source>Provided by</source>
+            <translation>提供者</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>在“插件”中显示</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="1" />
+            <source>These settings are kept. They apply again when the plugin is available.</source>
+            <translation>这些设置会保留。插件可用时会再次生效。</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -3299,6 +3435,11 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
             <translation>无法更改配置。Studio 报告：%1。Studio 已尽可能恢复了原来的内容。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>无法更改配置。Studio 报告：%1。无法恢复之前的配置。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />
@@ -4224,6 +4365,16 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_panel.cpp" line="622" />
             <source>JSON Lines (*.jsonl)</source>
             <translation>JSON Lines (*.jsonl)</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="356" />
+            <source>Traffic table columns</source>
+            <translation>流量表的列</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="800" />
+            <source>%1 column is %2 px wide.</source>
+            <translation>%1 列宽 %2 像素。</translation>
         </message>
     </context>
     <context>
@@ -6584,6 +6735,41 @@ Networks: %5</source>
             <location filename="../src/support/settings_dialog.cpp" line="626" />
             <source>Studio could not write the sign-in entry. Nothing was changed.</source>
             <translation>Studio 无法写入登录启动项。没有做任何更改。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="256" />
+            <source>Updates</source>
+            <translation>更新</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="263" />
+            <source>Check for updates automatically</source>
+            <translation>自动检查更新</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="269" />
+            <source>Once a day Studio asks virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>Studio 每天向 virtual-serial-studio.com 询问一次最新版本。不会发送任何关于您或此计算机的信息。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="277" />
+            <source>Include pre-release versions</source>
+            <translation>包含预发布版本</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="283" />
+            <source>Offers release candidates as well as finished releases.</source>
+            <translation>除正式发布的版本外，还会提供候选发布版本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="883" />
+            <source>Set by your administrator.</source>
+            <translation>由您的管理员设置。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="885" />
+            <source>This build cannot check for updates.</source>
+            <translation>此构建版本无法检查更新。</translation>
         </message>
     </context>
     <context>
@@ -9413,6 +9599,52 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="1" />
             <source>Support bundle</source>
             <translation>支持包</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2030" />
+            <location filename="../src/shell/shell_window.cpp" line="3148" />
+            <source>Not everything that was running could be put back, so the setup is marked as changed.</source>
+            <translation>无法恢复之前运行的所有内容，因此该配置已标记为已更改。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2090" />
+            <source>The setup needs a device or network endpoint that is not available on this PC. Check the device, then try again.</source>
+            <translation>该配置需要此电脑上不可用的设备或网络端点。请检查设备，然后重试。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="605" />
+            <source>Check for updates...</source>
+            <translation>检查更新...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="606" />
+            <source>update version new release download</source>
+            <translation>更新 版本 新 发布 下载</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3096" />
+            <source>Update checks are turned off by your administrator.</source>
+            <translation>您的管理员已关闭更新检查。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3097" />
+            <source>This build cannot check for updates.</source>
+            <translation>此构建版本无法检查更新。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Plugins...</source>
+            <translation>插件...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>plugin plugins extension fixture generator trust</source>
+            <translation>插件 plugin plugins 扩展 模拟设备 生成器 信任</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Started again.</source>
+            <translation>已重新启动。</translation>
         </message>
     </context>
     <context>
@@ -18075,6 +18307,11 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>无法更改配置。Studio 报告：%1。无法恢复之前的配置。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio 无法读取 Windows 保留了哪些 COM 编号，因此会在创建端口时选择一个空闲编号，并在端口就绪时显示。</translation>
         </message>
@@ -19805,6 +20042,16 @@ Networks: %5</source>
             <source>Bundles</source>
             <translation>组合</translation>
         </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="1" />
+            <source>Plugins</source>
+            <translation>插件</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>在“插件”中显示</translation>
+        </message>
     </context>
     <context>
         <name>TopologyView</name>
@@ -20404,6 +20651,11 @@ Networks: %5</source>
             <source>licence number</source>
             <translation>许可证编号</translation>
         </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Plugins</source>
+            <translation>插件</translation>
+        </message>
     </context>
     <context>
         <name>LicenceImport</name>
@@ -20667,7 +20919,7 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
-            <source>Whether the Studio driver and com0com are present, their versions, how the driver is signed, the helper service&apos;s state and the results of the setup check.</source>
+            <source>Whether the Studio driver and com0com are present, their versions, how the driver is signed, the helper service's state and the results of the setup check.</source>
             <translation>Studio 驱动程序和 com0com 是否存在、它们的版本、驱动程序的签名方式、辅助服务的状态，以及配置检查的结果。</translation>
         </message>
         <message>
@@ -20697,7 +20949,7 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
-            <source>This computer&apos;s name</source>
+            <source>This computer's name</source>
             <translation>此计算机的名称</translation>
         </message>
         <message>
@@ -20929,6 +21181,1749 @@ Networks: %5</source>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Support ended with your licence on %1.</source>
             <translation>技术支持已随您的许可证于 %1 结束。</translation>
+        </message>
+    </context>
+    <context>
+        <name>UpdateNotice</name>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="26" />
+            <location filename="../src/shell/update_notice.cpp" line="76" />
+            <source>Turn on</source>
+            <translation>开启</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="77" />
+            <source>Details</source>
+            <translation>详细信息</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="79" />
+            <source>No thanks</source>
+            <translation>不用了</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="80" />
+            <source>Later</source>
+            <translation>稍后</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="113" />
+            <source>Check for updates automatically? Once a day Studio would ask virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>是否自动检查更新？Studio 每天会向 virtual-serial-studio.com 询问一次最新版本。不会发送任何关于您或此计算机的信息。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="122" />
+            <source>Virtual Serial Studio %1 is available.</source>
+            <translation>Virtual Serial Studio %1 可用。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="130" />
+            <source>Studio will check for updates once a day.</source>
+            <translation>Studio 每天检查一次更新。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="132" />
+            <source>Studio will not check for updates. You can change this in Settings.</source>
+            <translation>Studio 不会检查更新。您可以在“设置”中更改。</translation>
+        </message>
+    </context>
+    <context>
+        <name>UpdateChip</name>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="139" />
+            <source>Update available</source>
+            <translation>有可用更新</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="144" />
+            <source>Update available: version %1. Open the update.</source>
+            <translation>有可用更新：版本 %1。打开更新。</translation>
+        </message>
+    </context>
+    <context>
+        <name>UpdateDialog</name>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="164" />
+            <source>Update Virtual Serial Studio</source>
+            <translation>更新 Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="209" />
+            <source>What is new</source>
+            <translation>新增内容</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="238" />
+            <source>Release notes</source>
+            <translation>发行说明</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="273" />
+            <source>Download progress</source>
+            <translation>下载进度</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="292" />
+            <source>Restart Studio to use the new version.</source>
+            <translation>请重新启动 Studio 以使用新版本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="299" />
+            <source>The package could not be installed. Use the command above.</source>
+            <translation>无法安装该软件包。请使用上方的命令。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="336" />
+            <source>Skip this version</source>
+            <translation>跳过此版本</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="342" />
+            <source>Not now</source>
+            <translation>暂不</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="343" />
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="346" />
+            <source>Show in folder</source>
+            <translation>在文件夹中显示</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="349" />
+            <source>Download and install</source>
+            <translation>下载并安装</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="352" />
+            <source>Open the downloads page</source>
+            <translation>打开下载页面</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="355" />
+            <source>Install now</source>
+            <translation>立即安装</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="358" />
+            <source>Open the disk image</source>
+            <translation>打开磁盘映像</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="361" />
+            <source>Install</source>
+            <translation>安装</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="364" />
+            <source>Try again</source>
+            <translation>重试</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="366" />
+            <source>Close</source>
+            <translation>关闭</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="443" />
+            <source>Could not start the installer</source>
+            <translation>无法启动安装程序</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="445" />
+            <source>Studio could not start %1. It is in %2.</source>
+            <translation>Studio 无法启动 %1。它位于 %2。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="461" />
+            <source>The download was not the file that was published, so it was deleted.</source>
+            <translation>下载的内容不是已发布的文件，因此已将其删除。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="469" />
+            <source>Studio could not save the download.</source>
+            <translation>Studio 无法保存下载的文件。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="474" />
+            <source>Studio could not reach the update server. Check the connection and try again.</source>
+            <translation>Studio 无法连接到更新服务器。请检查网络连接后重试。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="480" />
+            <source>Could not download the update</source>
+            <translation>无法下载更新</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="531" />
+            <source>Version %1 is available. You have %2.</source>
+            <translation>版本 %1 可用。您当前的版本是 %2。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="545" />
+            <source>Release notes for version %1, opens in your browser</source>
+            <translation>版本 %1 的发行说明，将在浏览器中打开</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="553" />
+            <source>%1, %2</source>
+            <translation>%1，%2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="558" />
+            <source>There is no package for this kind of install. Download one from virtual-serial-studio.com.</source>
+            <translation>此安装方式没有可用的软件包。请从 virtual-serial-studio.com 下载一个。</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/update_dialog.cpp" line="571" />
+            <source>%n port is running. Installing stops it.</source>
+            <translation>
+                <numerusform>%n 个串口正在运行。安装会使其停止。</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/update_dialog.cpp" line="575" />
+            <source>%n ports are running. Installing stops them.</source>
+            <translation>
+                <numerusform>%n 个串口正在运行。安装会使它们停止。</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="600" />
+            <source>Checking the download...</source>
+            <translation>正在检查下载的文件...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="609" />
+            <source>Downloading %1...</source>
+            <translation>正在下载 %1...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="627" />
+            <source>%1 of %2</source>
+            <translation>%1 / %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="640" />
+            <source>%1 percent</source>
+            <translation>百分之 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="659" />
+            <source>The update is ready. Studio will close and the installer will start. Windows asks for an administrator.</source>
+            <translation>更新已就绪。Studio 将关闭，安装程序将启动。Windows 会要求管理员。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="667" />
+            <source>The update is ready. Quit Studio, then drag Virtual Serial Studio onto Applications in the window that opens.</source>
+            <translation>更新已就绪。请退出 Studio，然后在打开的窗口中将 Virtual Serial Studio 拖到“应用程序”上。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="675" />
+            <source>The update is ready. Install it with this command, then start Studio again.</source>
+            <translation>更新已就绪。请使用此命令安装，然后重新启动 Studio。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="680" />
+            <source>Install command</source>
+            <translation>安装命令</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="696" />
+            <source>The download is in %1. This copy of Studio was unpacked from an archive, so unpack the new one in its place.</source>
+            <translation>下载的文件位于 %1。此 Studio 副本是从压缩包解压的，因此请在原位置解压新版本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="821" />
+            <source>Studio will not mention %1 again.</source>
+            <translation>Studio 不会再提及 %1。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="25" />
+            <source>%1 MB</source>
+            <translation>%1 MB</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginDecisionDialog</name>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Switch on %1?</source>
+            <translation>开启 %1？</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run a plugin from %1?</source>
+            <translation>运行来自 %1 的插件？</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run an unofficial plugin?</source>
+            <translation>运行非官方插件？</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by Virtual Serial Studio.</source>
+            <translation>由 Virtual Serial Studio 签名。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1, whose plugins you have approved before. Not verified by Virtual Serial Studio.</source>
+            <translation>由 %1 签名，您以前批准过其插件。未经 Virtual Serial Studio 验证。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1. Not verified by Virtual Serial Studio. Only run it if you know who that is.</source>
+            <translation>由 %1 签名。未经 Virtual Serial Studio 验证。只有在您知道对方是谁时才运行它。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Unofficial plugin. It can do anything Studio can.</source>
+            <translation>非官方插件。它能做 Studio 能做的任何事。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot tell who made it or whether it was changed.</source>
+            <translation>Studio 无法判断它由谁制作，也无法判断它是否被更改。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It is signed with a key that Studio does not have (%1), so the signature could not be checked.</source>
+            <translation>它使用 Studio 没有的密钥（%1）签名，因此无法检查签名。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Switch on</source>
+            <translation>开启</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run this plugin</source>
+            <translation>运行此插件</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run anyway</source>
+            <translation>仍然运行</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio runs it apart from your files and other programs.</source>
+            <translation>Studio 将它与您的文件和其他程序隔离开运行。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio can only partly keep it apart on this computer: %1.</source>
+            <translation>在此计算机上，Studio 只能部分隔离它：%1。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep it apart on this computer. It runs with your own access to files and the network.</source>
+            <translation>在此计算机上，Studio 无法隔离它。它将以您自己对文件和网络的访问权限运行。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep it apart on this computer, so it will not run here.</source>
+            <translation>在此计算机上，Studio 无法隔离它，因此它不会在这里运行。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Import the author's key...</source>
+            <translation>导入作者的密钥...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>This is a different version from the one you approved.</source>
+            <translation>这是与您批准过的不同的版本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>It asks for more than before:</source>
+            <translation>它请求的权限比以前更多：</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Version</source>
+            <translation>版本</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>指纹</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>What it adds</source>
+            <translation>它添加的内容</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>It asks to:</source>
+            <translation>它请求：</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Needed</source>
+            <translation>所需</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Decide anyway</source>
+            <translation>仍然决定</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginInstallDialog</name>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Add %1?</source>
+            <translation>添加 %1？</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Add a plugin</source>
+            <translation>添加插件</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio copies the folder into your own plugin folder. Nothing runs.</source>
+            <translation>Studio 会将该文件夹复制到您自己的插件文件夹中。不会运行任何内容。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio cannot add this plugin.</source>
+            <translation>Studio 无法添加此插件。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Nothing is wrong with it.</source>
+            <translation>没有任何问题。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>To install it for everyone on this computer, an administrator runs this command. Studio never asks for administrator rights.</source>
+            <translation>要为此计算机上的所有人安装，管理员需运行此命令。Studio 从不请求管理员权限。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Install command</source>
+            <translation>安装命令</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Add plugin</source>
+            <translation>添加插件</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginKeyImportDialog</name>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Approve the key of %1?</source>
+            <translation>批准 %1 的密钥？</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Plugins signed with this key will be shown as signed by %1. Not verified by Virtual Serial Studio.</source>
+            <translation>使用此密钥签名的插件将显示为由 %1 签名。未经 Virtual Serial Studio 验证。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Author</source>
+            <translation>作者</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Key id</source>
+            <translation>密钥 ID</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>fingerprint</source>
+            <translation>指纹</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint copied.</source>
+            <translation>指纹已复制。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>指纹</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>File</source>
+            <translation>文件</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Compare the fingerprint with the one the author published, on their website or in a message from them. If they differ, do not approve the key.</source>
+            <translation>请将指纹与作者在其网站上或在其消息中发布的指纹对比。如果不同，请不要批准此密钥。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>This key file came with the plugin. Anyone who changed the plugin could have changed this file too, so compare the fingerprint with one from somewhere else.</source>
+            <translation>此密钥文件随插件一起提供。任何更改了插件的人也可能更改了此文件，因此请将指纹与来自其他地方的指纹对比。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>The fingerprint is the one the author published</source>
+            <translation>指纹与作者发布的一致</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Approve this key</source>
+            <translation>批准此密钥</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginNoIsolationDialog</name>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run %1 without isolation?</source>
+            <translation>不隔离而运行 %1？</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>It will run with your own access to your files, the network and other programs.</source>
+            <translation>它将以您自己对文件、网络和其他程序的访问权限运行。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio cannot tell who made it or whether it was changed.</source>
+            <translation>Studio 无法判断它由谁制作，也无法判断它是否被更改。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Version</source>
+            <translation>版本</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>指纹</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>This applies to this version of this plugin only. A changed plugin asks again.</source>
+            <translation>这只适用于此插件的此版本。插件有更改时会再次询问。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>I understand that Studio is not keeping this plugin apart</source>
+            <translation>我了解 Studio 不会将此插件隔离开</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Run without isolation</source>
+            <translation>不隔离而运行</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginPart</name>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Switch on</source>
+            <translation>开启</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Review and decide</source>
+            <translation>查看并决定</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Licence</source>
+            <translation>许可证</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Start again</source>
+            <translation>重新启动</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1, %2</source>
+            <translation>%1，%2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>在“插件”中显示</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1, from the plugin %2 (%3)</source>
+            <translation>%1，来自插件 %2（%3）</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1, from the plugin %2</source>
+            <translation>%1，来自插件 %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Plugin not available</source>
+            <translation>插件不可用</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1, %2, plugin not available</source>
+            <translation>%1，%2，插件不可用</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>The generator %1 is not running.</source>
+            <translation>生成器 %1 没有运行。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>The link behaviour %1 is not running, so data on this link is being dropped.</source>
+            <translation>链接行为 %1 没有运行，因此此链接上的数据被丢弃。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>The link behaviour %1 is not running, so data on this link passes unchanged.</source>
+            <translation>链接行为 %1 没有运行，因此此链接上的数据原样通过。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which is switched off. The port stays open and sends nothing.</source>
+            <translation>此模拟设备来自插件 %1，该插件已关闭。串口保持打开，不发送任何内容。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which is waiting for your decision. The port stays open and sends nothing.</source>
+            <translation>此模拟设备来自插件 %1，该插件正在等待你的决定。串口保持打开，不发送任何内容。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which your administrator has blocked. The port stays open and sends nothing.</source>
+            <translation>此模拟设备来自插件 %1，该插件已被你的管理员阻止。串口保持打开，不发送任何内容。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1. %2 The port stays open and sends nothing.</source>
+            <translation>此模拟设备来自插件 %1。%2 串口保持打开，不发送任何内容。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>The plugin %1 has stopped. This fixture still sends its fixed replies. Anything the plugin worked out itself has stopped.</source>
+            <translation>插件 %1 已停止。此模拟设备仍会发送其固定回复。插件自行计算的内容已停止。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>The plugin %1 has stopped, so this fixture sends nothing.</source>
+            <translation>插件 %1 已停止，因此此模拟设备不发送任何内容。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which cannot run in this version of Studio. The port stays open and sends nothing.</source>
+            <translation>此模拟设备来自插件 %1，该插件无法在此版本的 Studio 中运行。串口保持打开，不发送任何内容。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture needs the plugin %1, which is not installed on this computer. The port stays open and sends nothing.</source>
+            <translation>此模拟设备需要插件 %1，但该插件未安装在这台计算机上。串口保持打开，不发送任何内容。</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginsDialog</name>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Virtual Serial Studio</source>
+            <translation>Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Official</source>
+            <translation>官方</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1</source>
+            <translation>由 %1 签名</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Unsigned</source>
+            <translation>未签名</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by an author you have not approved</source>
+            <translation>由您未批准的作者签名</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>On</source>
+            <translation>开</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Starting</source>
+            <translation>正在启动</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Off</source>
+            <translation>关</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Needs your decision</source>
+            <translation>需要您决定</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Blocked</source>
+            <translation>已阻止</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not isolated</source>
+            <translation>未隔离</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not used</source>
+            <translation>未使用</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Needs a licence</source>
+            <translation>需要许可证</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Stopped</source>
+            <translation>已停止</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not compatible</source>
+            <translation>不兼容</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Can't be used</source>
+            <translation>无法使用</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not installed</source>
+            <translation>未安装</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1, %2, %3</source>
+            <translation>%1，%2，%3</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1, version %2</source>
+            <translation>%1，版本 %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not available in this build</source>
+            <translation>此版本不可用</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>See your ports and links, their state and their counters.</source>
+            <translation>查看您的串口和链接、它们的状态和计数器。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Read the data that passes through the ports and links you use it on.</source>
+            <translation>读取经过您使用它的串口和链接的数据。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Send data from the ports you use it on.</source>
+            <translation>从您使用它的串口发送数据。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Add, remove and connect ports and links.</source>
+            <translation>添加、移除和连接串口与链接。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Hold, change or drop data on the links you use it on.</source>
+            <translation>在您使用它的链接上暂存、更改或丢弃数据。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Cause line errors and disconnections, and set timed replies.</source>
+            <translation>引发线路错误和断开连接，并设置定时回复。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>See the list of serial devices on this computer.</source>
+            <translation>查看此计算机上的串行设备列表。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Read files in a folder you choose.</source>
+            <translation>读取您所选文件夹中的文件。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Write files in a folder you choose.</source>
+            <translation>在您所选的文件夹中写入文件。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>, </source>
+            <translation>、</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Accept connections from programs on this computer, on %1.</source>
+            <translation>接受来自此计算机上其他程序的连接，在 %1 上。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Accept connections on %1.</source>
+            <translation>在 %1 上接受连接。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Connect to %1.</source>
+            <translation>连接到 %1。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Start other programs.</source>
+            <translation>启动其他程序。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Add a section to a support bundle. You see it and choose whether to include it.</source>
+            <translation>向支持包添加一个部分。您可以看到它，并选择是否包含。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by Virtual Serial Studio.</source>
+            <translation>由 Virtual Serial Studio 签名。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1. Not verified by Virtual Serial Studio.</source>
+            <translation>由 %1 签名。未经 Virtual Serial Studio 验证。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed with a key that Studio does not have (%1), so the signature could not be checked.</source>
+            <translation>使用 Studio 没有的密钥（%1）签名，因此无法检查签名。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not signed. Studio cannot tell who made it or whether it was changed.</source>
+            <translation>未签名。Studio 无法判断它由谁制作，也无法判断它是否被更改。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>None. You allowed this on %1.</source>
+            <translation>无。您已于 %1 允许此项。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Full</source>
+            <translation>完全</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Partial: %1</source>
+            <translation>部分：%1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>None on this computer</source>
+            <translation>此计算机上没有</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Timed by Studio</source>
+            <translation>由 Studio 计时</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>In the path of the data</source>
+            <translation>在数据路径上</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Beside the data</source>
+            <translation>数据旁路</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio carries out this plugin's rules itself, so its timing is exact and it keeps working if the plugin stops.</source>
+            <translation>Studio 自己执行此插件的规则，因此其时序准确，即使插件停止它也能继续工作。</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Data on a link waits for this plugin, for up to %n microseconds each time.</source>
+            <translation>
+                <numerusform>链接上的数据每次最多等待此插件 %n 微秒。</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin watches and acts, and data never waits for it.</source>
+            <translation>此插件只观察和执行操作，数据从不等待它。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Everyone on this computer</source>
+            <translation>此计算机上的所有人</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>You only</source>
+            <translation>仅您自己</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Came with Studio</source>
+            <translation>随 Studio 提供</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Fixture: %1</source>
+            <translation>模拟设备：%1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Generator: %1</source>
+            <translation>生成器：%1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Link behaviour: %1</source>
+            <translation>链接行为：%1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Connection: %1</source>
+            <translation>连接：%1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Uses the %1 on this computer. Those files are not covered by the signature.</source>
+            <translation>使用此计算机上的 %1。这些文件不在签名的覆盖范围内。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Plugin</source>
+            <translation>插件</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Start now</source>
+            <translation>立即启动</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Review and decide</source>
+            <translation>查看并决定</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Show the copy that is used</source>
+            <translation>显示正在使用的副本</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Copy details</source>
+            <translation>复制详细信息</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run without isolation...</source>
+            <translation>不隔离而运行...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Licence</source>
+            <translation>许可证</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Start again</source>
+            <translation>重新启动</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Show log</source>
+            <translation>显示日志</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Starting.</source>
+            <translation>正在启动。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It stopped unexpectedly. Starting again in 1 second (attempt %1 of 5).</source>
+            <translation>它意外停止。将在 1 秒后重新启动（第 %1 次尝试，共 5 次）。</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It stopped unexpectedly. Starting again in %n seconds (attempt %1 of 5).</source>
+            <translation>
+                <numerusform>它意外停止。将在 %n 秒后重新启动（第 %1 次尝试，共 5 次）。</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>You have not decided whether to run this plugin.</source>
+            <translation>您尚未决定是否运行此插件。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin changed since you approved it. Review it again before it runs.</source>
+            <translation>此插件在您批准后发生了更改。运行之前请重新查看。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator allows only official plugins. This one is not official.</source>
+            <translation>您的管理员只允许官方插件。此插件不是官方插件。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator has blocked this plugin.</source>
+            <translation>您的管理员已阻止此插件。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator requires more isolation than this computer can give this plugin.</source>
+            <translation>您的管理员要求的隔离程度高于此计算机能为此插件提供的程度。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep this plugin apart from your files and other programs on this computer, so it will not run. Only your administrator can allow it.</source>
+            <translation>在此计算机上，Studio 无法将此插件与您的文件和其他程序隔离开，因此它不会运行。只有您的管理员可以允许它。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep this plugin apart from your files and other programs on this computer, so it will not run.</source>
+            <translation>在此计算机上，Studio 无法将此插件与您的文件和其他程序隔离开，因此它不会运行。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>The copy installed for everyone is used. This copy is newer (version %1), and it is still not used. Ask your administrator to update the copy for everyone.</source>
+            <translation>使用的是为所有人安装的副本。此副本更新（版本 %1），但仍不会被使用。请让您的管理员更新为所有人安装的副本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>The copy installed for everyone is used. This copy, installed for you only, is not.</source>
+            <translation>使用的是为所有人安装的副本。此副本仅为您安装，不会被使用。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another plugin with the same identifier is installed, %1. This one, %2, is not used. They are not the same plugin.</source>
+            <translation>已安装另一个标识符相同的插件，%1。此插件 %2 不会被使用。它们不是同一个插件。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Its identifier is one that only official plugins may use, and it is not signed by Virtual Serial Studio. It will not run.</source>
+            <translation>它的标识符只有官方插件才能使用，而它没有由 Virtual Serial Studio 签名。它不会运行。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 Its settings are kept, and it runs again when a licence allows it.</source>
+            <translation>%1 它的设置会保留，许可证允许时它会再次运行。</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It stopped %n times in 10 minutes, so Studio stopped starting it.</source>
+            <translation>
+                <numerusform>它在 10 分钟内停止了 %n 次，因此 Studio 不再启动它。</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It did not answer, so Studio stopped it.</source>
+            <translation>它没有响应，因此 Studio 已停止它。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It sent more than it is allowed to (%1), so Studio stopped it.</source>
+            <translation>它发送的数据超过允许的量（%1），因此 Studio 已停止它。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin needs a newer version of Studio. This is version %1.</source>
+            <translation>此插件需要较新版本的 Studio。当前是版本 %1。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin needs something this build does not have: %1.</source>
+            <translation>此插件需要此构建所没有的内容：%1。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin was made for an older version of Studio. Ask its author for a newer one.</source>
+            <translation>此插件是为较旧版本的 Studio 制作的。请向其作者索取较新的版本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Its description file is not valid, so Studio cannot tell what it is.</source>
+            <translation>它的描述文件无效，因此 Studio 无法判断它是什么。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Its signature does not match its files. They may have been changed. Get the plugin again from its author.</source>
+            <translation>它的签名与其文件不符。文件可能已被更改。请向其作者重新获取此插件。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin was withdrawn by Virtual Serial Studio. It will not run.</source>
+            <translation>此插件已被 Virtual Serial Studio 撤回。它不会运行。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin expired on %1. Look for a newer version.</source>
+            <translation>此插件已于 %1 过期。请查找较新的版本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>A setup uses this plugin, and it is not installed on this computer. Its parts of the setup are kept.</source>
+            <translation>某个配置使用此插件，而它没有安装在此计算机上。该配置中属于它的部分会保留。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>A policy file was found on this computer and could not be trusted, so only official plugins will run.</source>
+            <translation>在此计算机上找到一个策略文件，但无法信任它，因此只有官方插件会运行。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator allows only official plugins on this computer.</source>
+            <translation>您的管理员只允许在此计算机上使用官方插件。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator installs the plugins on this computer. Plugins in your own plugin folder are not used.</source>
+            <translation>您的管理员在此计算机上安装插件。您自己的插件文件夹中的插件不会被使用。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Official plugins need a Pro licence.</source>
+            <translation>官方插件需要 Pro 许可证。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Plugins</source>
+            <translation>插件</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Plugins add fixtures, generators, link behaviours and connections to other tools. Each one runs as its own program, apart from Studio.</source>
+            <translation>插件可添加模拟设备、生成器、链接行为以及与其他工具的连接。每个插件都作为独立的程序运行，与 Studio 分开。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>1 needs attention</source>
+            <translation>1 个需要处理</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%n need attention</source>
+            <translation>
+                <numerusform>%n 个需要处理</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%n on</source>
+            <translation>
+                <numerusform>%n 个已开启</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>The plugin says: %1</source>
+            <translation>插件说：%1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Version</source>
+            <translation>版本</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>指纹</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Remove %1?</source>
+            <translation>移除 %1？</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Also delete its saved data</source>
+            <translation>同时删除其保存的数据</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Remove plugin</source>
+            <translation>移除插件</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Check again</source>
+            <translation>再次检查</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Close</source>
+            <translation>关闭</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1, %2</source>
+            <translation>%1，%2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>What it adds</source>
+            <translation>它添加的内容</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Import the author's key...</source>
+            <translation>导入作者的密钥...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>fingerprint</source>
+            <translation>指纹</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Fingerprint copied.</source>
+            <translation>指纹已复制。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Undo</source>
+            <translation>撤销</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Show in folder</source>
+            <translation>在文件夹中显示</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Copy</source>
+            <translation>复制</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Details copied.</source>
+            <translation>已复制详细信息。</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Checked. %n plugins found.</source>
+            <translation>
+                <numerusform>已检查。找到 %n 个插件。</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>That folder is not a plugin. A plugin's folder holds a file named plugin.json.</source>
+            <translation>该文件夹不是插件。插件的文件夹中包含名为 plugin.json 的文件。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>%1 is already installed for you. Remove it first to add a different copy.</source>
+            <translation>%1 已为您安装。请先将其移除，再添加其他副本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your administrator installs the plugins on this computer.</source>
+            <translation>此计算机上的插件由管理员安装。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Made by</source>
+            <translation>制作者</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Signature</source>
+            <translation>签名</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Signing key</source>
+            <translation>签名密钥</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio deletes the plugin's folder. Setups that use it keep their parts, which stop working until the plugin is installed again. Its saved data is kept unless you tick the box.</source>
+            <translation>Studio 会删除插件的文件夹。使用该插件的设置会保留其部分，这些部分在重新安装插件之前无法工作。除非您勾选该选项，否则其保存的数据会保留。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Filter plugins</source>
+            <translation>筛选插件</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Installed plugins</source>
+            <translation>已安装的插件</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>No plugins are installed</source>
+            <translation>未安装任何插件</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Plugins are folders that you or your administrator put in the plugin folder. Studio does not download anything.</source>
+            <translation>插件是由您或管理员放入插件文件夹的文件夹。Studio 不会下载任何内容。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Open the plugin folder</source>
+            <translation>打开插件文件夹</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Add a plugin...</source>
+            <translation>添加插件...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Import a key...</source>
+            <translation>导入密钥...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Path copied.</source>
+            <translation>路径已复制。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Plugin details</source>
+            <translation>插件详情</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Remove plugin...</source>
+            <translation>移除插件...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>To install a plugin for everyone on this computer, an administrator puts its folder in %1.</source>
+            <translation>要为此计算机上的所有人安装插件，管理员需将其文件夹放入 %1。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>folder path</source>
+            <translation>文件夹路径</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>No plugin matches %1.</source>
+            <translation>没有与 %1 匹配的插件。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Installed by your administrator</source>
+            <translation>由管理员安装</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Select a plugin to see its details.</source>
+            <translation>选择一个插件以查看其详情。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Description</source>
+            <translation>说明</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>A signature shows who made a plugin and that its files are unchanged. It does not show that the plugin is safe.</source>
+            <translation>签名表明插件的制作者，以及插件文件未被更改。它不表示该插件是安全的。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1, approved on %2</source>
+            <translation>%1，批准于 %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Remove this key...</source>
+            <translation>移除此密钥...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Expires</source>
+            <translation>到期</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Included in your licence</source>
+            <translation>包含在您的许可证中</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Timing</source>
+            <translation>时间</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Isolation</source>
+            <translation>隔离</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Installed for</source>
+            <translation>安装对象</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Folder</source>
+            <translation>文件夹</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>What it may do</source>
+            <translation>允许的操作</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Not allowed</source>
+            <translation>不允许</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Change what it may do...</source>
+            <translation>更改允许的操作...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Set by your administrator</source>
+            <translation>由管理员设置</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Used in this setup</source>
+            <translation>此设置中使用</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Not used in this setup.</source>
+            <translation>此设置中未使用。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Show</source>
+            <translation>显示</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Recent messages (%1)</source>
+            <translation>最近的消息 (%1)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Messages from %1</source>
+            <translation>来自 %1 的消息</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Copied.</source>
+            <translation>已复制。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>These lines come from the plugin.</source>
+            <translation>这些行来自插件。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1 started again.</source>
+            <translation>%1 已重新启动。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1 is on.</source>
+            <translation>%1 已开启。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1 is off.</source>
+            <translation>%1 已关闭。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Remove the key of %1?</source>
+            <translation>移除 %1 的密钥？</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Plugins signed with this key stop running and ask again.</source>
+            <translation>使用此密钥签名的插件将停止运行并再次询问。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Remove key</source>
+            <translation>移除密钥</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Choose a plugin's folder</source>
+            <translation>选择插件文件夹</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Choose an author's public key file</source>
+            <translation>选择作者的公钥文件</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Plugin key files (*.vsskey.json)</source>
+            <translation>插件密钥文件 (*.vsskey.json)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>That file is not a plugin key file.</source>
+            <translation>该文件不是插件密钥文件。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>A key with the id %1 is already approved. An id cannot change its key.</source>
+            <translation>已有 ID 为 %1 的密钥获得批准。ID 不能更换其密钥。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>The id %1 belongs to a key that is already on this computer.</source>
+            <translation>ID %1 属于此计算机上已有的密钥。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Checked. 1 plugin found.</source>
+            <translation>已检查。找到 1 个插件。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Added for you only. Review it before it runs.</source>
+            <translation>仅为您添加。运行前请先查看。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>The key of %1 is approved.</source>
+            <translation>%1 的密钥已获批准。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Status</source>
+            <translation>状态</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Looking for plugins...</source>
+            <translation>正在查找插件...</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginToolbox</name>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is starting.</source>
+            <translation>%1 正在启动。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 has stopped. Open Plugins to start it again.</source>
+            <translation>%1 已停止。打开“插件”可重新启动它。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1, plugin</source>
+            <translation>%1，插件</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Fixture from the plugin %1. %2.</source>
+            <translation>来自插件 %1 的模拟设备。%2。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1
+From the plugin %2
+%3</source>
+            <translation>%1
+来自插件 %2
+%3</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginTrafficChip</name>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Recording</source>
+            <translation>正在记录</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Reading data</source>
+            <translation>正在读取数据</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%n plugins are reading data. Open Plugins.</source>
+            <translation>
+                <numerusform>%n 个插件正在读取数据。打开“插件”。</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is recording data on 1 port. Open Plugins.</source>
+            <translation>%1 正在记录 1 个串口上的数据。打开“插件”。</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is recording data on %n ports. Open Plugins.</source>
+            <translation>
+                <numerusform>%1 正在记录 %n 个串口上的数据。打开“插件”。</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is reading data on 1 port. Open Plugins.</source>
+            <translation>%1 正在读取 1 个串口上的数据。打开“插件”。</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is reading data on %n ports. Open Plugins.</source>
+            <translation>
+                <numerusform>%1 正在读取 %n 个串口上的数据。打开“插件”。</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginSandbox</name>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>no containment</source>
+            <translation>没有遏制</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>no file isolation</source>
+            <translation>没有文件隔离</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>no network isolation</source>
+            <translation>没有网络隔离</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>other programs are not kept out of reach</source>
+            <translation>其他程序没有被隔开</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>system calls are not limited</source>
+            <translation>系统调用没有限制</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>the desktop is not kept out of reach</source>
+            <translation>桌面没有被隔开</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>no limits on resources</source>
+            <translation>没有资源限制</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginNotice</name>
+        <message>
+            <location filename="../src/shell/plugin_notice.cpp" line="57" />
+            <source>Dismiss</source>
+            <translation>忽略</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="489" />
+            <source>A new plugin was found: %1. It will not run until you decide.</source>
+            <translation>发现新插件：%1。在您决定之前它不会运行。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="494" />
+            <location filename="../src/support/plugin_parts.cpp" line="512" />
+            <source>Review and decide</source>
+            <translation>查看并决定</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="508" />
+            <source>%1 changed since you approved it and has been stopped.</source>
+            <translation>%1 在您批准后发生了更改，已被停止。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="523" />
+            <source>The plugin %1 has stopped. Parts of this setup that use it are not running.</source>
+            <translation>插件 %1 已停止。此设置中使用它的部分没有运行。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="529" />
+            <location filename="../src/support/plugin_parts.cpp" line="546" />
+            <source>Plugins</source>
+            <translation>插件</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="531" />
+            <source>Start again</source>
+            <translation>重新启动</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="540" />
+            <source>%1 was withdrawn by Virtual Serial Studio and has been stopped.</source>
+            <translation>%1 已被 Virtual Serial Studio 撤回，并已停止。</translation>
         </message>
     </context>
 </TS>

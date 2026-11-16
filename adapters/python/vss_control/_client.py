@@ -26,6 +26,8 @@ from ._errors import ControlError, TransportError, error_from_reply
 from ._frame import FrameError, FrameReader
 from ._wire import (
     API_VERSION,
+    MAX_CASE_MESSAGE_SIZE,
+    MAX_RUN_NAME_SIZE,
     Batch,
     WireError,
     clean_text,
@@ -386,6 +388,14 @@ class Client:
         """Removes the port with this id.  Needs `control.ports`."""
         self._call("ports.remove", {"port": clean_text(port)})
 
+    def rename_port(self, port, name):
+        """Gives the port with this id a new name.  Needs `control.ports`.
+        Raises `invalid_argument` for an id that is not of the form `p_3`,
+        `not_found` for one that no port has, and `engine.invalid_argument`
+        for an empty name or `engine.already_exists` for a name another port
+        has."""
+        self._call("ports.rename", {"port": clean_text(port), "name": clean_text(name)})
+
     def connect_ports(self, first, second, one_way=False):
         """Links two ports, both ways or from `first` to `second` only, and
         returns the id of the link (`l_1`).  Needs `control.ports`."""
@@ -395,6 +405,12 @@ class Client:
             "one_way": bool(one_way),
         }
         return self._call("links.connect", fields, expect="created")["created"]
+
+    def disconnect_link(self, link):
+        """Takes away the link with this id; the ports stay.  Needs
+        `control.ports`.  Raises `invalid_argument` for an id that is not of
+        the form `l_2` and `not_found` for one that no link has."""
+        self._call("links.disconnect", {"link": clean_text(link)})
 
     def send(self, port, data):
         """Writes bytes to a port.  Needs `control.data`; the gateway takes
@@ -514,18 +530,23 @@ class Client:
 
     def begin_run(self, name):
         """Begins a named run: while it is open the gateway notes how each
-        `expect_bytes` ended and what `record_in_run` tells it.  Returns the
+        `expect_bytes` ended and what `record_in_run` tells it.  A name of more
+        than 128 bytes is cut to 128 and ends in `...`.  Returns the
         run (`run` id, `name`, `open`, `tests`, `failures`, ...).  Raises
         `conflict` while a run of this principal is open."""
-        return self._call("runs.begin", {"name": clean_text(name)}, expect="run")
+        return self._call(
+            "runs.begin", {"name": clean_text(name, MAX_RUN_NAME_SIZE)}, expect="run"
+        )
 
     def record_in_run(self, name, outcome, message="", duration_ms=0):
         """Adds a check of your own to the open run.  `outcome` is `passed`,
-        `failed`, `error` or `skipped`."""
+        `failed`, `error` or `skipped`.  A name of more than 128 bytes and a
+        message of more than 512 are cut to that and end in `...`, so the
+        check is recorded whatever the text is."""
         fields = {
-            "name": clean_text(name),
+            "name": clean_text(name, MAX_RUN_NAME_SIZE),
             "outcome": clean_text(outcome),
-            "message": clean_text(message),
+            "message": clean_text(message, MAX_CASE_MESSAGE_SIZE),
             "duration_ms": _number(duration_ms, "duration_ms", _U64_MAX),
         }
         self._call("runs.record", fields)

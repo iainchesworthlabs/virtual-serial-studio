@@ -586,6 +586,65 @@ class RequestTests(Setup):
             client.get_link("l_1")
         self.assertEqual(caught.exception.code, "protocol_error")
 
+    def test_disconnect_and_rename_put_the_ids_and_the_name_in_the_header(self):
+        client = self.greet()
+        self.gateway.sendall(reply(2, "done"))
+        self.gateway.sendall(reply(3, "done"))
+        self.assertIsNone(client.disconnect_link("l_2"))
+        self.assertIsNone(client.rename_port("p_3", "bench"))
+        first, first_blob = self.read_request()
+        second, second_blob = self.read_request()
+        self.assertEqual(first, {"id": 2, "op": "links.disconnect", "link": "l_2"})
+        self.assertEqual(second, {"id": 3, "op": "ports.rename", "port": "p_3", "name": "bench"})
+        self.assertEqual((first_blob, second_blob), (b"", b""))
+
+    def test_a_refused_disconnect_or_rename_keeps_the_connection(self):
+        client = self.greet()
+        self.gateway.sendall(error(2, "engine.not_found", "the engine refused the request"))
+        self.gateway.sendall(error(3, "engine.already_exists", "the engine refused the request"))
+        self.gateway.sendall(error(4, "invalid_argument", "bad id"))
+        self.gateway.sendall(error(5, "forbidden", "not allowed"))
+        self.gateway.sendall(reply(6, "done"))
+        with self.assertRaises(EngineError) as caught:
+            client.disconnect_link("l_9")
+        self.assertEqual(caught.exception.code, "engine.not_found")
+        with self.assertRaises(EngineError) as caught:
+            client.rename_port("p_1", "taken")
+        self.assertEqual(caught.exception.code, "engine.already_exists")
+        with self.assertRaises(ControlError) as caught:
+            client.rename_port("COM3", "x")
+        self.assertEqual(caught.exception.code, "invalid_argument")
+        self.assertNotIsInstance(caught.exception, EngineError)
+        with self.assertRaises(ControlError) as caught:
+            client.disconnect_link("l_1")
+        self.assertEqual(caught.exception.code, "forbidden")
+        self.assertIsNone(client.rename_port("p_1", "ok"))
+
+    def test_a_disconnect_or_rename_answered_with_the_wrong_reply_is_a_protocol_error(self):
+        client = self.greet()
+        self.gateway.sendall(reply(2, "created", created="l_1"))
+        with self.assertRaises(TransportError) as caught:
+            client.disconnect_link("l_1")
+        self.assertEqual(caught.exception.code, "protocol_error")
+
+    def test_the_arguments_of_a_disconnect_and_a_rename_are_text(self):
+        client = self.greet()
+        for kind, call in (
+            (TypeError, lambda: client.disconnect_link(2)),
+            (TypeError, lambda: client.disconnect_link(None)),
+            (TypeError, lambda: client.rename_port(3, "x")),
+            (TypeError, lambda: client.rename_port("p_3", 5)),
+            (TypeError, lambda: client.rename_port("p_3", None)),
+        ):
+            with self.assertRaises(kind):
+                call()
+        # Nothing was sent, and the connection is as it was.
+        self.gateway.sendall(reply(client._last_id + 1, "done"))
+        client.rename_port("p_1", "n" * 5000)
+        header, _ = self.read_request()
+        # A name that is too long is cut as the name of a new port is.
+        self.assertEqual(len(header["name"]), 1024)
+
     def test_the_id_of_a_reading_request_is_text(self):
         client = self.greet()
         with self.assertRaises(TypeError):
@@ -627,6 +686,38 @@ class RequestTests(Setup):
         client.create_port("n" * 5000)
         header, _ = self.read_request()
         self.assertEqual(len(header["name"]), 1024)
+
+    def test_a_run_name_and_a_check_are_cut_to_what_the_gateway_takes(self):
+        # The gateway refuses a run or a check name of more than 128 bytes and
+        # a message of more than 512, so the client cuts them (and says so),
+        # and a failed check is recorded whatever its text is.
+        client = self.greet()
+        self.gateway.sendall(
+            reply(2, "run", run="r_1", name="x", open=True, tests=0, failures=0, errors=0, skipped=0, duration_ms=0)
+        )
+        client.begin_run("r" * 500)
+        header, _ = self.read_request()
+        self.assertEqual(header["op"], "runs.begin")
+        self.assertEqual(header["name"], "r" * 125 + "...")
+
+        self.gateway.sendall(reply(3, "done"))
+        client.record_in_run("é" * 300, "failed", message="€" * 900, duration_ms=4)
+        header, _ = self.read_request()
+        self.assertEqual(header["op"], "runs.record")
+        for field, limit in (("name", 128), ("message", 512)):
+            self.assertLessEqual(len(header[field].encode("utf-8")), limit)
+            self.assertTrue(header[field].endswith("..."))
+        # Two bytes to a character: 125 bytes for text are 62 characters.
+        self.assertEqual(header["name"], "é" * 62 + "...")
+        # Three bytes to a character: 509 bytes for text are 169 characters.
+        self.assertEqual(header["message"], "€" * 169 + "...")
+
+        # A text that fits is sent as it is, at the limit too.
+        self.gateway.sendall(reply(4, "done"))
+        client.record_in_run("n" * 128, "passed", message="m" * 512)
+        header, _ = self.read_request()
+        self.assertEqual(header["name"], "n" * 128)
+        self.assertEqual(header["message"], "m" * 512)
 
 
 class ConnectArgumentTests(unittest.TestCase):

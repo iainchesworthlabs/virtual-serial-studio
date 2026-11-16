@@ -345,7 +345,7 @@ std::string create_token(const std::string& instance, const std::string& label,
 /// A text that must not hold a secret, and what the secret looks like in it.
 struct needle
 {
-    const char* kind;
+    const char* kind = nullptr;
     std::string text;
 };
 
@@ -732,10 +732,34 @@ TEST_CASE("system control: the gateway shows the ports of the agent")
             "vss_cli control status did not exit with 0; output: " +
             status.output);
     }
-    REQUIRE(contains(status.output, "Remote control: local only"));
+    REQUIRE(contains(status.output, "Remote control: on"));
+    REQUIRE(!contains(status.output, "local only"));
     REQUIRE(contains(status.output, "You may: monitor"));
     REQUIRE(contains(status.output, "Agent: running"));
-    REQUIRE(contains(status.output, "Edition: community (licence: none)"));
+    // The gateway reads the licence folders of this computer, as
+    // `vss_cli licence` does, so the two say the same.  On a computer
+    // with no licence that is the Community edition.
+    child_process asked(VSS_AGENT_CLI_PROGRAM, {"licence"});
+    const std::string said = asked.read_all(long_limit);
+    REQUIRE(asked.wait(long_limit) == std::optional<int>(0));
+    const auto value_after = [&said](const std::string& label)
+    {
+        const auto start = said.find(label);
+        if (start == std::string::npos)
+            return std::string();
+        const auto from = start + label.size();
+        return said.substr(from,
+                           said.find_first_of("\r\n", from) - from);
+    };
+    const std::string edition = value_after("Edition: ");
+    const std::string state = value_after("State: ");
+    REQUIRE(!edition.empty());
+    REQUIRE(!state.empty());
+    std::string edition_line = "Edition: " + edition;
+    edition_line += " (licence: ";
+    edition_line += state;
+    edition_line += ')';
+    REQUIRE(contains(status.output, edition_line));
 
     auto script = connect_client(instance);
     const auto listed = script->list_ports();
@@ -815,7 +839,8 @@ TEST_CASE("system control: a gateway with no agent says so")
 
     const auto status = run_cli("control", instance, {"status"});
     REQUIRE(status.code == 0);
-    REQUIRE(contains(status.output, "Remote control: local only"));
+    REQUIRE(contains(status.output, "Remote control: on"));
+    REQUIRE(!contains(status.output, "local only"));
     REQUIRE(contains(status.output, "Agent: not running"));
 
     auto script = connect_client(instance);
@@ -1128,6 +1153,28 @@ TEST_CASE("system control: a monitor watches without the bytes")
         saw_b = saw_b || (event.port == b_id && event.direction == "rx");
     }
     REQUIRE(saw_b);
+}
+
+TEST_CASE("system control: audit verify says the log is whole, and is not "
+          "for a token")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    gate_process gate(instance);
+
+    const auto checked = run_cli("control", instance, {"audit", "verify"});
+    require_exit(checked, 0, "vss_cli control audit verify");
+    REQUIRE(checked.output.rfind("intact ", 0) == 0);
+
+    // It is a command of this user on the administration endpoint: it takes
+    // no token and no TCP port.
+    const auto with_token = run_cli(
+        "control", instance,
+        {"audit", "verify",
+         "--token-file=" + (gate.scratch_dir() / "none.token").string()});
+    require_exit(with_token, 2, "vss_cli control audit verify --token-file");
+    const auto more = run_cli("control", instance, {"audit", "check"});
+    require_exit(more, 2, "vss_cli control audit check");
 }
 
 TEST_CASE("system control: sessions lists a watch and kick ends it")
@@ -1477,6 +1524,116 @@ TEST_CASE("system control: expect waits for the bytes that a send brings")
     REQUIRE(!contains(missed.output, "matched"));
 }
 
+TEST_CASE("system control: a link is taken away and a port is renamed")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    gate_process gate(instance, {"--local-role=control"});
+
+    const std::string a_id = control_create_port(instance, "alpha");
+    const std::string b_id = control_create_port(instance, "beta");
+    const std::string link_id =
+        id_line(run_cli("control", instance, {"link", a_id, b_id, "--one-way"}),
+                "l_", "vss_cli control link --one-way");
+
+    // The link carries bytes from alpha to beta.
+    const auto carried =
+        run_cli("control", instance,
+                {"expect", b_id, "--pattern=6f6e65", "--send-to=" + a_id,
+                 "--send=6f6e65", "--timeout=20000"});
+    require_exit(carried, 0, "vss_cli control expect over a link");
+
+    // Unlinking is quiet when it works, as `port remove` is, and the link
+    // is gone from the list while both ports stay.
+    const auto unlinked = run_cli("control", instance, {"unlink", link_id});
+    require_exit(unlinked, 0, "vss_cli control unlink");
+    REQUIRE(unlinked.output.empty());
+    const auto links = run_cli("control", instance, {"links"});
+    require_exit(links, 0, "vss_cli control links after unlink");
+    REQUIRE_EQ(lines_of(links.output), std::vector<std::string>{"No links"});
+    REQUIRE(agent_lists_port(instance, "alpha"));
+    REQUIRE(agent_lists_port(instance, "beta"));
+
+    // What is sent to alpha no longer arrives at beta.
+    const auto cut =
+        run_cli("control", instance,
+                {"expect", b_id, "--pattern=74776f", "--send-to=" + a_id,
+                 "--send=74776f", "--timeout=300"});
+    require_exit(cut, 1, "vss_cli control expect after unlink");
+    REQUIRE(contains(cut.output, "timeout"));
+
+    // The same link again is not found, and a word that is no id is a
+    // mistake, as for the other commands on ids.
+    const auto again = run_cli("control", instance, {"unlink", link_id});
+    require_exit(again, 1, "vss_cli control unlink of a link that is gone");
+    REQUIRE(contains(again.output, "control unlink failed"));
+    REQUIRE(contains(again.output, "engine.not_found"));
+    const auto not_an_id = run_cli("control", instance, {"unlink", a_id});
+    require_exit(not_an_id, 1, "vss_cli control unlink of a port");
+    REQUIRE(contains(not_an_id.output, "invalid_argument"));
+
+    // `link <id> <id>` and `link show <id>` still work beside it.
+    const std::string again_id =
+        id_line(run_cli("control", instance, {"link", a_id, b_id}), "l_",
+                "vss_cli control link after unlink");
+    REQUIRE(again_id != link_id);
+    require_exit(run_cli("control", instance, {"link", "show", again_id}), 0,
+                 "vss_cli control link show");
+
+    // Renaming is quiet too, and the agent and the one-port view say the new
+    // name.
+    const auto renamed =
+        run_cli("control", instance, {"port", "rename", a_id, "bench"});
+    require_exit(renamed, 0, "vss_cli control port rename");
+    REQUIRE(renamed.output.empty());
+    REQUIRE(agent_lists_port(instance, "bench"));
+    const auto shown = run_cli("control", instance, {"port", "show", a_id});
+    require_exit(shown, 0, "vss_cli control port show after rename");
+    REQUIRE(contains(shown.output, "Name: bench"));
+    REQUIRE(!contains(shown.output, "Name: alpha"));
+
+    // A name another port has, and a port that is not there, say so.
+    const auto taken =
+        run_cli("control", instance, {"port", "rename", b_id, "bench"});
+    require_exit(taken, 1, "vss_cli control port rename to a name in use");
+    REQUIRE(contains(taken.output, "control port rename failed"));
+    REQUIRE(contains(taken.output, "engine.already_exists"));
+    const auto missing =
+        run_cli("control", instance, {"port", "rename", "p_9999", "x"});
+    require_exit(missing, 1, "vss_cli control port rename of no port");
+    REQUIRE(contains(missing.output, "engine.not_found"));
+    const auto name =
+        run_cli("control", instance, {"port", "rename", "alpha", "x"});
+    require_exit(name, 1, "vss_cli control port rename of a name");
+    REQUIRE(contains(name.output, "invalid_argument"));
+
+    // `port create`, `port remove` and `port show` are as they were.
+    const std::string c_id = control_create_port(instance, "gamma");
+    require_exit(run_cli("control", instance, {"port", "remove", c_id}), 0,
+                 "vss_cli control port remove");
+    require_exit(run_cli("control", instance, {"port", "show", b_id}), 0,
+                 "vss_cli control port show");
+}
+
+TEST_CASE("system control: a monitor may not unlink or rename")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    gate_process gate(instance);
+    create_port(instance, "seen");
+    const std::string id = id_of_port(instance, "seen");
+
+    const auto unlinked = run_cli("control", instance, {"unlink", "l_1"});
+    require_exit(unlinked, 1, "vss_cli control unlink as a monitor");
+    REQUIRE(contains(unlinked.output, "forbidden"));
+    const auto renamed =
+        run_cli("control", instance, {"port", "rename", id, "other"});
+    require_exit(renamed, 1, "vss_cli control port rename as a monitor");
+    REQUIRE(contains(renamed.output, "forbidden"));
+    REQUIRE(agent_lists_port(instance, "seen"));
+    REQUIRE(!agent_lists_port(instance, "other"));
+}
+
 TEST_CASE("system control: a monitor may not wait for bytes")
 {
     agent_process agent(unique_instance());
@@ -1634,6 +1791,20 @@ TEST_CASE("system control: the commands on ports refuse a bad command line")
         {"link", "p_1", "p_2", "--hex=00"},
         {"link", "p_1", "p_2", "--kind=loopback"},
         {"link", "p_1", "p_2", "--one-way", "--one-way"},
+        {"unlink"},
+        {"unlink", ""},
+        {"unlink", "l_1", "l_2"},
+        {"unlink", "l_1", "--hex=00"},
+        {"unlink", "l_1", "--kind=loopback"},
+        {"unlink", "l_1", "--one-way"},
+        {"port", "rename"},
+        {"port", "rename", "p_1"},
+        {"port", "rename", "", "a"},
+        {"port", "rename", "p_1", ""},
+        {"port", "rename", "p_1", "a", "b"},
+        {"port", "rename", "p_1", "a", "--kind=loopback"},
+        {"port", "rename", "p_1", "a", "--hex=00"},
+        {"port", "rename", "p_1", "a", "--one-way"},
         {"status", "--one-way"},
         {"sessions", "--hex=00"},
         {"watch", "--kind=loopback"},
@@ -1764,6 +1935,8 @@ TEST_CASE("system control: the commands on ports refuse a bad command line")
         {"port", "show", "p_1", port_option, token_option},
         {"links", port_option, token_option},
         {"link", "show", "l_1", port_option, token_option},
+        {"unlink", "l_1", port_option, token_option},
+        {"port", "rename", "p_1", "a", port_option, token_option},
         {"ping", port_option, token_option},
         {"send", "p_1", "--hex=00", port_option, token_option},
         {"expect", "p_1", "--pattern=00", port_option, token_option},
@@ -1788,6 +1961,8 @@ TEST_CASE("system control: the commands on ports refuse a bad command line")
         {"port", "show", "p_1"},
         {"links"},
         {"link", "show", "l_1"},
+        {"unlink", "l_1"},
+        {"port", "rename", "p_1", "a"},
         {"ping"},
         {"expect", "p_1", "--pattern=00"},
         {"expect", "p_1", "--pattern=00FFab", "--timeout=100000", "--tx"},
@@ -1875,6 +2050,12 @@ TEST_CASE("system control: a token made for loopback works over TCP and "
         run_cli("control", instance, {"status", port_option, tcp_option});
     require_exit(status, 0, "vss_cli control status over TCP");
     REQUIRE(contains(status.output, "You are: token:"));
+    // The command says how it was reached, and never that nothing but the
+    // local endpoint is open, which the gateway's reply does not tell it.
+    REQUIRE(contains(status.output, "Remote control: on"));
+    REQUIRE(contains(status.output, "Reached over: TCP on 127.0.0.1:" +
+                                        std::to_string(started.port)));
+    REQUIRE(!contains(status.output, "local only"));
     static_cast<void>(
         control_create_port(instance, "viaTcp", {port_option, tcp_option}));
     REQUIRE(agent_lists_port(instance, "viaTcp"));
@@ -1902,6 +2083,9 @@ TEST_CASE("system control: a token made for loopback works over TCP and "
     const auto still_local =
         run_cli("control", instance, {"status", local_option});
     require_exit(still_local, 0, "vss_cli control status, a local token");
+    REQUIRE(
+        contains(still_local.output, "Reached over: the local pipe or socket"));
+    REQUIRE(!contains(still_local.output, "TCP"));
 
     // Without a token file there is nobody to be over TCP, and the command
     // line is refused before anything is connected.
@@ -1976,4 +2160,88 @@ TEST_CASE("system control: vss_gate does not start on a port that is taken")
     }
     REQUIRE(contains(output, "cannot start"));
     REQUIRE(!contains(output, "listening on"));
+}
+
+TEST_CASE("system control: a token file that exists is not used, no token is "
+          "made and none is shown")
+{
+    gate_process gate(unique_instance());
+    const std::string& instance = gate.instance();
+
+    const std::filesystem::path file = gate.scratch_dir() / "rig.token";
+    // The first run makes the file, as a rig script does; the second run, with
+    // the same name, is the same script on the next day.
+    const auto first = run_cli("control", instance,
+                               {"token", "create", "--label=first",
+                                "--scope=monitor", "--out=" + file.string()});
+    require_exit(first, 0, "vss_cli control token create --out");
+    const std::string kept = read_text(file);
+
+    const auto second = run_cli("control", instance,
+                                {"token", "create", "--label=second",
+                                 "--scope=monitor", "--out=" + file.string()});
+    require_exit(second, 1,
+                 "vss_cli control token create --out, a file that is there");
+    REQUIRE(contains(second.output, "exists already"));
+    REQUIRE(contains(second.output, "no token was made"));
+    REQUIRE(!contains(second.output, "Token written to"));
+    REQUIRE(!contains(second.output, "only time"));
+    // Nothing of a token is on the screen, and the file is as it was.
+    REQUIRE(!find_token(second.output).has_value());
+    REQUIRE(!contains(second.output, kept.substr(0, kept.size() - 1)));
+    REQUIRE_EQ(read_text(file), kept);
+
+    // Only the first token is there.
+    const auto listed = run_cli("control", instance, {"token", "list"});
+    require_exit(listed, 0, "vss_cli control token list");
+    REQUIRE(contains(listed.output, "first"));
+    REQUIRE(!contains(listed.output, "second"));
+
+    // A file that was there before the first run is the same.
+    const std::filesystem::path older = gate.scratch_dir() / "older.token";
+    {
+        std::ofstream earlier(older, std::ios::binary);
+        earlier << "an earlier file\n";
+    }
+    const auto third = run_cli("control", instance,
+                               {"token", "create", "--label=third",
+                                "--scope=monitor", "--out=" + older.string()});
+    require_exit(third, 1, "vss_cli control token create --out, an old file");
+    REQUIRE(!find_token(third.output).has_value());
+    REQUIRE_EQ(read_text(older), std::string("an earlier file\n"));
+    const auto again = run_cli("control", instance, {"token", "list"});
+    REQUIRE(!contains(again.output, "third"));
+}
+
+TEST_CASE("system control: a run name and a check that are too long are cut, "
+          "not refused")
+{
+    gate_process gate(unique_instance());
+    const std::string& instance = gate.instance();
+
+    const std::string long_name = std::string(300, 'n');
+    const std::string long_message =
+        "assertion failed: " + std::string(900, 'm');
+    const auto begun =
+        run_cli("control", instance, {"run", "begin", long_name});
+    const std::string run_id =
+        id_line(begun, "r_", "vss_cli control run begin, a long name");
+    const auto noted = run_cli("control", instance,
+                               {"run", "record", long_name, "--outcome=failed",
+                                "--message=" + long_message, "--duration=3"});
+    require_exit(noted, 0, "vss_cli control run record, a long message");
+    const auto ended = run_cli("control", instance, {"run", "end"});
+    require_exit(ended, 0, "vss_cli control run end");
+    REQUIRE(contains(ended.output, "tests=1"));
+    REQUIRE(contains(ended.output, "failures=1"));
+
+    const auto shown = run_cli("control", instance, {"run", "report", run_id});
+    require_exit(shown, 0, "vss_cli control run report");
+    // 128 bytes of the name and 512 of the message, each ending in "...".
+    REQUIRE(
+        contains(shown.output, "name=\"" + std::string(125, 'n') + "...\""));
+    REQUIRE(contains(shown.output, "message=\"assertion failed: " +
+                                       std::string(512 - 18 - 3, 'm') +
+                                       "...\""));
+    REQUIRE(!contains(shown.output, std::string(126, 'n')));
 }

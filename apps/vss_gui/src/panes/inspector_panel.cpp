@@ -168,6 +168,65 @@ void InspectorPanel::build()
     name_->setWordWrap(true);
     layout->addWidget(name_);
 
+    // "Provided by", for a port that a plugin provides, with the note that
+    // says what the port does while its plugin is not available.
+    plugin_block_ = new QWidget(content_);
+    plugin_block_->setObjectName(QStringLiteral("inspectorPlugin"));
+    auto* plugin_layout = new QVBoxLayout(plugin_block_);
+    plugin_layout->setContentsMargins(0, 0, 0, 0);
+    plugin_layout->setSpacing(6);
+    auto* provided_caption =
+        new QLabel(tr("Provided by"), plugin_block_);
+    provided_caption->setFont(Theme::instance().font(text_style::caption));
+    provided_caption->setProperty("muted", true);
+    plugin_layout->addWidget(provided_caption);
+    plugin_provided_ = new QLabel(plugin_block_);
+    plugin_provided_->setObjectName(QStringLiteral("inspectorPluginProvided"));
+    plugin_provided_->setTextFormat(Qt::PlainText);
+    plugin_provided_->setWordWrap(true);
+    plugin_provided_->setFont(Theme::instance().font(text_style::body));
+    plugin_layout->addWidget(plugin_provided_);
+    auto* plugin_row = new QHBoxLayout();
+    plugin_row->setSpacing(8);
+    plugin_chip_ = new StatusChip(plugin_block_);
+    plugin_chip_->setObjectName(QStringLiteral("inspectorPluginChip"));
+    plugin_row->addWidget(plugin_chip_, 0, Qt::AlignVCenter);
+    plugin_show_ = new QPushButton(tr("Show in Plugins"), plugin_block_);
+    plugin_show_->setObjectName(QStringLiteral("inspectorPluginShow"));
+    set_role(plugin_show_, "quiet");
+    plugin_show_->setProperty("size", QStringLiteral("small"));
+    plugin_show_->setCursor(Qt::PointingHandCursor);
+    polish(plugin_show_);
+    connect(plugin_show_, &QPushButton::clicked, this,
+            [this]
+            {
+                Q_EMIT plugin_action_requested(
+                    plugin_id_,
+                    static_cast<int>(vss::gui::part_action::show_in_plugins));
+            });
+    plugin_row->addWidget(plugin_show_, 0, Qt::AlignVCenter);
+    plugin_row->addStretch(1);
+    plugin_layout->addLayout(plugin_row);
+    plugin_note_ = new NoteBanner(plugin_block_);
+    plugin_note_->setObjectName(QStringLiteral("inspectorPluginNote"));
+    plugin_note_->set_text_format(Qt::PlainText);
+    plugin_note_->set_action(QString(), [this]
+                             { Q_EMIT plugin_action_requested(
+                                   plugin_id_,
+                                   static_cast<int>(plugin_note_action_)); });
+    plugin_layout->addWidget(plugin_note_);
+    plugin_kept_ = new QLabel(
+        tr("These settings are kept. They apply again when the plugin is "
+           "available."),
+        plugin_block_);
+    plugin_kept_->setObjectName(QStringLiteral("inspectorPluginKept"));
+    plugin_kept_->setWordWrap(true);
+    plugin_kept_->setFont(Theme::instance().font(text_style::caption));
+    plugin_kept_->setProperty("muted", true);
+    plugin_layout->addWidget(plugin_kept_);
+    plugin_block_->hide();
+    layout->addWidget(plugin_block_);
+
     // Details form: captions in column 0, values in column 1, which stretches.
     auto* form = new QGridLayout();
     form->setHorizontalSpacing(8);
@@ -426,6 +485,49 @@ void InspectorPanel::refresh()
     update_content();
 }
 
+void InspectorPanel::set_plugin_parts(
+    const QHash<vss::endpoint_id, vss::gui::part_description>& parts)
+{
+    plugin_parts_ = parts;
+    update_plugin_part();
+}
+
+void InspectorPanel::update_plugin_part()
+{
+    const auto part = plugin_parts_.constFind(selected_);
+    const bool has = port_.has_value() && part != plugin_parts_.constEnd();
+    plugin_block_->setVisible(has);
+    if (!has)
+        return;
+    plugin_id_ = part->plugin_id;
+    plugin_provided_->setText(part->provided_by);
+    plugin_chip_->set_text(part->state_text);
+    plugin_chip_->set_kind(
+        part->running ? StatusChip::kind::healthy
+        : part->tone == vss::gui::part_tone::danger ? StatusChip::kind::failed
+        : part->tone == vss::gui::part_tone::warn   ? StatusChip::kind::waiting
+                                                    : StatusChip::kind::closed);
+    const bool note = part->note_shown && !part->running;
+    plugin_note_->setVisible(note);
+    plugin_kept_->setVisible(note);
+    if (!note)
+        return;
+    plugin_note_->set_kind(part->tone == vss::gui::part_tone::danger
+                               ? NoteBanner::kind::danger
+                           : part->tone == vss::gui::part_tone::warn
+                               ? NoteBanner::kind::warn
+                               : NoteBanner::kind::info);
+    if (plugin_note_->text() != part->note)
+        plugin_note_->set_text(part->note);
+    plugin_note_action_ = part->action;
+    if (QPushButton* button = plugin_note_->action_button())
+    {
+        button->setText(part->action_text);
+        button->setAccessibleName(part->action_text);
+        button->setVisible(part->action != vss::gui::part_action::none);
+    }
+}
+
 void InspectorPanel::update_content()
 {
     const bool has_port = port_.has_value();
@@ -437,6 +539,7 @@ void InspectorPanel::update_content()
     refreshing_ = true;
     const port_view& port = *port_;
     name_->setText(port.name);
+    update_plugin_part();
     state_->set_kind(chip_kind(PortModel::state_kind(port)));
     state_->set_text(PortModel::state_text(port));
     state_->setToolTip(port.state == vss::endpoint_state::failed

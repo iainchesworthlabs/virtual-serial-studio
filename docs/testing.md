@@ -51,12 +51,14 @@ of every selected case.
 * **GUI** — `gui_selftest` (the offscreen self-test, also at 200 percent scale),
   one program per area of the GUI (`gui_backend`, `gui_language`, `gui_theme`,
   `gui_shell`, `gui_simple`, `gui_panes`, `gui_topology`, `gui_advanced`,
-  `gui_support`, `gui_dialogs`, `gui_flows`), and the UI suite described
+  `gui_support`, `gui_dialogs`, `gui_flows`, `gui_updates`), and the UI suite described
   [below](#the-ui-suite). They exist only when Qt was found and run on
-  `QT_QPA_PLATFORM=offscreen`.
+  `QT_QPA_PLATFORM=offscreen`. `gui_updates` drives the update service with a fake
+  transport and tests the real transport against a web server on the loopback address;
+  no test asks the update server for anything.
 * **Fuzz replays** — `fuzz_topology`, `fuzz_endpoint_uri`, `fuzz_agent_frame` and
-  `fuzz_plugin_manifest`, `fuzz_plugin_message`, `fuzz_rule_set`, `fuzz_control_message` and
-  `fuzz_licence` replay the corpora once per build; see [Fuzzing](fuzzing.md).
+  `fuzz_plugin_manifest`, `fuzz_plugin_message`, `fuzz_plugin_parameters`, `fuzz_rule_set`, `fuzz_control_message`,
+  `fuzz_licence` and `fuzz_update_feed` replay the corpora once per build; see [Fuzzing](fuzzing.md).
 * **Tools** — `headers` (every public header compiles on its own),
   `matrix_tools` (the Python under `tools/matrix`), the `vm_*` tests (the
   PowerShell scripts of the [guest harness](vm-testing.md), checked against a

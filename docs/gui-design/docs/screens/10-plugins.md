@@ -63,7 +63,7 @@ Empty list: an EmptyState, title "No plugins are installed", text "Plugins are f
 
 Under the list: "Add a plugin..." (quiet), "Import a key..." (quiet; opens "Import an author's key" below), "Open the plugin folder" (quiet; opens the per-user plugin folder in the file manager) and "Check again" (quiet; rescans; toast "Checked. <n> plugins found." with `%n`).
 
-"Add a plugin..." opens a folder chooser with the title "Choose a plugin's folder". Studio copies the folder into the per-user plugin folder and selects the new row, which is in Needs your decision. Nothing runs. Toast "Added for you only. Review it before it runs." A folder with no description file: "That folder is not a plugin. A plugin's folder holds a file named plugin.json." A plugin already installed for you: "<plugin name> is already installed for you. Remove it first to add a different copy."
+"Add a plugin..." opens a folder chooser with the title "Choose a plugin's folder". The host looks into the folder first, off the GUI thread, and copies nothing. The dialog "Add a plugin" (below) then shows what it found. Only when the person confirms does Studio copy the folder into the per-user plugin folder and select the new row, which is in Needs your decision. Nothing runs. Toast "Added for you only. Review it before it runs." A folder with no description file: "That folder is not a plugin. A plugin's folder holds a file named plugin.json." A plugin already installed for you: "<plugin name> is already installed for you. Remove it first to add a different copy." Both are shown in the dialog, where they cannot be confirmed.
 
 Studio never asks for administrator rights. A muted line under the buttons, with a CopyButton for the path: "To install a plugin for everyone on this computer, an administrator puts its folder in <machine plugin folder>."
 
@@ -160,11 +160,25 @@ Timing sentences, as tooltips and accessible descriptions:
 ### Footer
 Left: quiet "Remove plugin..." (plugins installed for you only; disabled for a plugin installed for everyone with the tooltip "Installed by your administrator", and for one that came with Studio with the tooltip "Came with Studio"). Right: "Copy details" (quiet), Close (primary).
 
-"Remove plugin..." asks first: title "Remove <plugin name>?", text "Studio moves the plugin's folder to the bin. Setups that use it keep their parts, which stop working until the plugin is installed again." Check box "Also delete its saved data" (off). Buttons Cancel (default), "Remove plugin" (danger).
+"Remove plugin..." asks first: title "Remove <plugin name>?", text "Studio deletes the plugin's folder. Setups that use it keep their parts, which stop working until the plugin is installed again. Its saved data is kept unless you tick the box." Check box "Also delete its saved data" (off). Buttons Cancel (default), "Remove plugin" (danger).
 
 Copy details gives the plugin id, version, state, reason code, fingerprint, signer key id, who it is installed for, isolation level and the host's message. Never file contents, never a setting marked secret.
 
 Acceptance: every state in the tables can be shown from `FakeStudioBackend`; a state change updates the open dialog without closing it and is announced once as a polite live region; the list, the detail and the footer are reachable in that order by keyboard, and F6 moves between the list and the detail; every switch and button has a 24 px target; the dialog works at 200 percent text with the detail scrolling inside the dialog; both themes from tokens only; no string is built by joining translated fragments; no network call.
+
+## Add a plugin (width 560)
+Context `PluginInstallDialog`. Opens after "Add a plugin..." and the choice of a folder, once the host has looked into it. Modal. Initial focus and default are Cancel. Title "Add <plugin name>?"; for a folder that is not a plugin, "Add a plugin". Sub "Studio copies the folder into your own plugin folder. Nothing runs."
+
+Top NoteBanner:
+- A plugin that can be added: what its state will be, in the sentence of the table above (for example "You have not decided whether to run this plugin."); when there is none, info "Nothing is wrong with it."
+- A plugin that cannot be used (danger): "Studio cannot add this plugin." and a second line, the sentence of the table above for its state.
+- Not a plugin, already installed for you, and per-user plugins off by policy (danger): the sentences of "Plugins", above, "That folder is not a plugin. A plugin's folder holds a file named plugin.json.", "<plugin name> is already installed for you. Remove it first to add a different copy." and "Your administrator installs the plugins on this computer."
+
+Body: the plugin's name, then a definition list with the rows "Version", "Made by", "Signature" (the signature sentence of the detail), "Signing key" and "Fingerprint" as in the detail; rows with no value are left out. Then the line "To install it for everyone on this computer, an administrator runs this command. Studio never asks for administrator rights." and the command in a CodeBlock with a CopyButton, accessible name "Install command": `vss_cli plugin install <folder> --for-everyone` (the folder in double quotes when it has a space).
+
+Buttons: Cancel, "Add plugin" (primary, not the default). "Add plugin" is disabled when the banner is danger. Cancel copies nothing.
+
+Acceptance: Enter alone cancels; nothing is copied until "Add plugin" is pressed; a plugin that cannot be used cannot be confirmed; text from the manifest is plain text; the command is only text, and Studio never starts a program with more rights.
 
 ## Decide about a plugin (width 640)
 Context `PluginDecisionDialog`. Opens from "Review and decide", from switching on a plugin that needs a decision, and from "Change what it may do...". Modal. Initial focus is Cancel. No button is the default except Cancel for anything but an official plugin.

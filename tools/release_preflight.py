@@ -4,11 +4,21 @@
 
     python3 tools/release_preflight.py            # read-only, needs the gh CLI
     python3 tools/release_preflight.py --tag v0.1.0-rc.1
+    python3 tools/release_preflight.py --commit <sha>
 
 It changes nothing: it only reads from GitHub (code-scanning alerts, issues, workflow runs,
 secret names, variables and the release environment) and from the working tree. The exit
 status is 0 when every condition is met and 1 otherwise, so it can be run again after each
 fix. The list of conditions is in docs/releasing.md.
+
+A workflow run counts only when it is a run of that workflow on `develop`, finished with
+success, and says something about the commit to be released, which is the tip of `develop`
+unless --commit names another:
+
+    commit   CI, Docs and the Release dry run must have run on that very commit.
+    recent   The scheduled analyses (Nightly, Platform matrix, Static analysis, CodeQL,
+             MSVC analysis and the nightly Fuzz) must have run in the last MAX_AGE_DAYS days,
+             on that commit or on one of its ancestors.
 """
 
 from __future__ import annotations
@@ -18,6 +28,7 @@ import json
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import check_release_version
@@ -27,13 +38,36 @@ ROOT = Path(__file__).resolve().parent.parent
 # Alerts in these trees are in code we build but do not own, so they do not hold a release.
 THIRD_PARTY_PREFIXES = (".cache/", "build/", "_deps/", "vcpkg_installed/", "third_party/")
 
-# Workflow file and the name the report gives it.
+COMMIT = "commit"
+RECENT = "recent"
+
+# A scheduled run older than this says nothing about the commit being released.
+MAX_AGE_DAYS = 2
+
+BRANCH = "develop"
+
+
+@dataclass(frozen=True)
+class Workflow:
+    file: str
+    label: str
+    rule: str
+    # Only runs of these events count. The push runs of fuzz.yml are 60-second runs that
+    # concurrency cancels, and a manual run is not the night's run.
+    events: tuple[str, ...] | None = None
+
+
+# All of them run on `develop`; docs.yml does on every push to it.
 WORKFLOWS = (
-    ("ci.yml", "CI"),
-    ("nightly.yml", "Nightly"),
-    ("platform-matrix.yml", "Platform matrix"),
-    ("docs.yml", "Docs"),
-    ("release.yml", "Release dry run"),
+    Workflow("ci.yml", "CI", COMMIT),
+    Workflow("docs.yml", "Docs", COMMIT),
+    Workflow("release.yml", "Release dry run", COMMIT),
+    Workflow("nightly.yml", "Nightly", RECENT),
+    Workflow("platform-matrix.yml", "Platform matrix", RECENT),
+    Workflow("static-analysis.yml", "Static analysis", RECENT),
+    Workflow("codeql.yml", "CodeQL", RECENT),
+    Workflow("msvc-analysis.yml", "MSVC analysis", RECENT),
+    Workflow("fuzz.yml", "Fuzz, nightly", RECENT, events=("schedule",)),
 )
 
 FILES = ("docs/signing-key.asc", "SECURITY.md")
@@ -76,12 +110,48 @@ def judge_issues(issues: list[dict]) -> Result:
     return Result("Nightly analysis issues", True, "none open")
 
 
-def judge_run(label: str, run: dict | None) -> Result:
+def parse_time(text: str) -> datetime | None:
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def judge_run(
+    label: str,
+    run: dict | None,
+    rule: str = COMMIT,
+    target: str | None = None,
+    now: datetime | None = None,
+    relation: str | None = None,
+) -> Result:
+    """Whether the newest completed run of a workflow allows the release.
+
+    `rule` is COMMIT (the run must be of `target`) or RECENT (no older than MAX_AGE_DAYS, and of
+    `target` or an ancestor of it, which `relation` says: the status GitHub gives when it compares
+    the run's commit with `target`). A `target` of None means the commit to release is not known.
+    """
     if run is None:
-        return Result(label, False, "no completed run found")
+        where = f" on {target[:7]}" if rule == COMMIT and target else ""
+        return Result(label, False, f"no completed run found{where}")
     when = run.get("createdAt", "")[:10]
-    text = f"{run.get('conclusion')} ({run.get('event')} on {run.get('headBranch')}, {when})"
-    return Result(label, run.get("conclusion") == "success", text)
+    sha = run.get("headSha") or ""
+    text = f"{run.get('conclusion')} ({run.get('event')} on {run.get('headBranch')}, {when}, commit {sha[:7] or 'unknown'})"
+    if run.get("conclusion") != "success":
+        return Result(label, False, text)
+    if target is None:
+        return Result(label, None, text + "; the commit to release could not be read")
+    if rule == COMMIT:
+        if sha != target:
+            return Result(label, False, text + f"; ran on an older commit, the release is {target[:7]}")
+        return Result(label, True, text)
+    created = parse_time(run.get("createdAt", ""))
+    current = now or datetime.now(timezone.utc)
+    if created is None or current - created > timedelta(days=MAX_AGE_DAYS):
+        return Result(label, False, text + f"; older than {MAX_AGE_DAYS} days")
+    if sha != target and relation not in ("identical", "ahead"):
+        return Result(label, False, text + f"; that commit is not in the history of {target[:7]}")
+    return Result(label, True, text)
 
 
 def judge_secrets(names: set[str] | None, sign_windows: str | None) -> Result:
@@ -141,26 +211,56 @@ def gh(*args: str) -> object | None:
     return merged
 
 
-def latest_run(repo: str, workflow: str, branch: str | None) -> dict | None:
-    query = f"repos/{repo}/actions/workflows/{workflow}/runs?status=completed&per_page=1"
-    if branch:
-        query += f"&branch={branch}"
-    page = subprocess.run(["gh", "api", query], capture_output=True, text=True, check=False)
+def runs_query(repo: str, workflow: str, branch: str, head_sha: str | None = None, event: str | None = None) -> str:
+    """The API path of the newest completed runs of a workflow on a branch.
+
+    `head_sha` limits it to one commit and `event` to one event. The server does the filtering because
+    the page holds only 30 runs, and fuzz.yml has a push run for every merge, which can push the
+    night's scheduled run off it.
+    """
+    query = f"repos/{repo}/actions/workflows/{workflow}/runs?status=completed&per_page=30&branch={branch}"
+    if head_sha:
+        query += f"&head_sha={head_sha}"
+    if event:
+        query += f"&event={event}"
+    return query
+
+
+def latest_run(
+    repo: str, workflow: str, branch: str, head_sha: str | None = None, events: tuple[str, ...] | None = None
+) -> dict | None | bool:
+    """The newest completed run, None when there is none, False when GitHub could not be read."""
+    event = events[0] if events and len(events) == 1 else None
+    page = subprocess.run(["gh", "api", runs_query(repo, workflow, branch, head_sha, event)], capture_output=True, text=True, check=False)
     if page.returncode != 0:
-        return None
-    runs = json.loads(page.stdout).get("workflow_runs", [])
-    if not runs:
-        return None
-    run = runs[0]
-    return {
-        "conclusion": run["conclusion"],
-        "event": run["event"],
-        "headBranch": run["head_branch"],
-        "createdAt": run["created_at"],
-    }
+        return False
+    for run in json.loads(page.stdout).get("workflow_runs", []):
+        if events is None or run["event"] in events:
+            return {
+                "conclusion": run["conclusion"],
+                "event": run["event"],
+                "headBranch": run["head_branch"],
+                "headSha": run["head_sha"],
+                "createdAt": run["created_at"],
+            }
+    return None
 
 
-def collect(repo: str, tag: str | None) -> list[Result]:
+def commit_of(repo: str, ref: str) -> str | None:
+    done = subprocess.run(["gh", "api", f"repos/{repo}/commits/{ref}", "--jq", ".sha"], capture_output=True, text=True, check=False)
+    sha = done.stdout.strip()
+    return sha if done.returncode == 0 and len(sha) == 40 else None
+
+
+def relation_of(repo: str, base: str, target: str) -> str | None:
+    """How `target` stands to `base`: identical, ahead (base is an ancestor of target), behind or diverged."""
+    done = subprocess.run(
+        ["gh", "api", f"repos/{repo}/compare/{base}...{target}", "--jq", ".status"], capture_output=True, text=True, check=False
+    )
+    return done.stdout.strip() if done.returncode == 0 else None
+
+
+def collect(repo: str, tag: str | None, commit: str | None = None) -> list[Result]:
     org = repo.split("/")[0]
     results = [judge_version(tag)]
     results += judge_files()
@@ -168,10 +268,18 @@ def collect(repo: str, tag: str | None) -> list[Result]:
     results.append(Result("Code-scanning alerts", None, "could not be read") if alerts is None else judge_alerts(alerts))
     issues = gh(f"repos/{repo}/issues?state=open&labels=nightly-analysis&per_page=100")
     results.append(Result("Nightly analysis issues", None, "could not be read") if issues is None else judge_issues(issues))
-    for workflow, label in WORKFLOWS:
-        # Docs run for a pull request and for main, never for develop, so any branch will do.
-        branch = None if workflow == "docs.yml" else "develop"
-        results.append(judge_run(label + (" on develop" if branch else ""), latest_run(repo, workflow, branch)))
+    target = commit_of(repo, commit or BRANCH)
+    for workflow in WORKFLOWS:
+        label = f"{workflow.label} on {BRANCH}"
+        of_commit = target if workflow.rule == COMMIT else None
+        run = latest_run(repo, workflow.file, BRANCH, of_commit, workflow.events)
+        if run is False:
+            results.append(Result(label, None, "could not be read"))
+            continue
+        relation = None
+        if workflow.rule == RECENT and run and target and run["headSha"] != target:
+            relation = relation_of(repo, run["headSha"], target)
+        results.append(judge_run(label, run, workflow.rule, target, relation=relation))
     names = gh(f"orgs/{org}/actions/secrets?per_page=100")
     secret_names = None if names is None else {s["name"] for s in (names.get("secrets", []) if isinstance(names, dict) else names)}
     variables = gh(f"repos/{repo}/actions/variables?per_page=100")
@@ -205,8 +313,9 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--tag", help="the tag to be pushed, such as v0.1.0-rc.1; checked against the project version")
     parser.add_argument("--repo", help="owner/name; the repository of the working directory by default")
+    parser.add_argument("--commit", help="the commit to be tagged, when it is not the tip of develop")
     args = parser.parse_args(argv[1:])
-    results = collect(args.repo or default_repo(), args.tag)
+    results = collect(args.repo or default_repo(), args.tag, args.commit)
     print(render(results))
     return 0 if all(r.met for r in results) else 1
 

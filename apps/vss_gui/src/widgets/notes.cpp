@@ -118,9 +118,9 @@ void CopyButton::paintEvent(QPaintEvent* event)
 
     if (hasFocus() && FocusRingStyle::keyboard_focus())
     {
-        painter.setBrush(Qt::NoBrush);
-        painter.setPen(QPen(theme.colour(colour_role::focus), 2.0));
-        painter.drawRoundedRect(QRectF(rect()).adjusted(2, 2, -2, -2), 4, 4);
+        // The hover fill is inset 1 px with a radius of 4, so its outer
+        // radius is 5.
+        FocusRingStyle::paint_ring(painter, QRectF(rect()), 5);
     }
 
     const QPixmap glyph =

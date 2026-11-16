@@ -17,6 +17,8 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -25,7 +27,21 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import plugin_sign  # noqa: E402
 import site_check  # noqa: E402
+import update_feed  # noqa: E402
+
+
+def openssl_problem() -> str:
+    """Why OpenSSL 3 cannot be used here, or an empty text."""
+    try:
+        plugin_sign.find_openssl()
+    except plugin_sign.Refusal as refusal:
+        return refusal.message
+    return ""
+
+
+OPENSSL_PROBLEM = openssl_problem()
 
 CSS = """\
 :root{--ink:#14171c;--ground:#ffffff}
@@ -710,6 +726,159 @@ class CommandLineTests(SiteCase):
         self.assertEqual(
             site_check.DEFAULT_SITE_DIR, site_check.REPO_ROOT / "build" / "website"
         )
+
+
+REAL_KEYS_FILE = site_check.REPO_ROOT / "libs" / "vss_update" / "src" / "trusted_keys_release.cpp"
+
+
+def keys_file_text(public_key: bytes) -> str:
+    """A file in the form of ``libs/vss_update/src/trusted_keys_release.cpp``
+    with one key. The key is the public half of a throwaway key."""
+    items = ", ".join("0x%02x" % b for b in public_key)
+    return (
+        # In two parts, so that the licence check does not take it for this file's own tag.
+        "// SPDX-" "License-Identifier: GPL-3.0-or-later\n"
+        "namespace vss::update\n{\n"
+        "namespace\n{\n"
+        "constexpr public_key upd_2026_a{%s};\n"
+        "trusted_key make(std::string_view key_id, std::string_view purpose,\n"
+        "                 const public_key& key)\n"
+        "{\n    trusted_key entry;\n    entry.key = key;\n    return entry;\n}\n"
+        "} // namespace\n"
+        "std::span<const trusted_key> builtin_feed_keys()\n{\n"
+        "    static const std::array<trusted_key, 1> keys{\n"
+        '        make("upd-2026-a", feed_purpose, upd_2026_a)};\n'
+        "    return keys;\n}\n}\n"
+    ) % items
+
+
+@unittest.skipIf(bool(OPENSSL_PROBLEM), "OpenSSL 3 is not on the PATH: " + OPENSSL_PROBLEM)
+class FeedTests(SiteCase):
+    """The copy of the update feed at updates/v1/feed.json. The keys are
+    throwaway keys that OpenSSL makes for these tests."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls._keys = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(cls._keys.cleanup)
+        openssl = plugin_sign.find_openssl()
+        cls.keyfiles = []
+        for name in ("a.pem", "b.pem"):
+            path = Path(cls._keys.name) / name
+            subprocess.run([openssl, "genpkey", "-algorithm", "ed25519", "-out", str(path)],
+                           check=True, capture_output=True)
+            cls.keyfiles.append(path)
+        cls.public = [plugin_sign.public_key_of(openssl, str(p)) for p in cls.keyfiles]
+
+    def signed_feed(self, key_index: int = 0, key_id: str = "upd-2026-a") -> bytes:
+        payload = update_feed.build_payload(7, "2026-12-01T03:40:00Z", [], [])
+        text = plugin_sign.sign_envelope(
+            plugin_sign.find_openssl(), str(self.keyfiles[key_index]),
+            "update-feed", key_id, payload.encode("utf-8"),
+        )
+        return text.encode("ascii")
+
+    def changed_feed(self) -> bytes:
+        found = plugin_sign.parse_envelope(self.signed_feed())
+        payload = found.payload.replace(b'"serial": 7', b'"serial": 8')
+        self.assertNotEqual(payload, found.payload)
+        return plugin_sign.envelope_text(
+            found.purpose, found.key_id, payload, found.signature
+        ).encode("ascii")
+
+    def keys_file(self, public_key: bytes | None = None) -> Path:
+        path = self.root.parent / "trusted_keys_release.cpp"
+        path.write_text(keys_file_text(public_key or self.public[0]), encoding="utf-8")
+        return path
+
+    def check_feed(self, feed: bytes | None, keys: Path | None = None) -> list[site_check.Problem]:
+        shutil.rmtree(self.root / "updates", ignore_errors=True)
+        self.write(two_pages())
+        if feed is not None:
+            target = self.root / "updates" / "v1" / "feed.json"
+            target.parent.mkdir(parents=True)
+            target.write_bytes(feed)
+        report = site_check.check_site(self.root, {}, feed_keys=keys or self.keys_file())
+        return report.problems
+
+    def test_no_feed_is_no_problem(self) -> None:
+        self.assertEqual(self.check_feed(None), [])
+        # Whatever the keys: the file is not read when there is no feed.
+        self.assertEqual(self.check_feed(None, REAL_KEYS_FILE), [])
+
+    def test_a_feed_that_verifies_is_no_problem(self) -> None:
+        self.assertEqual(self.check_feed(self.signed_feed()), [])
+
+    def test_a_feed_that_does_not_verify_is_a_problem(self) -> None:
+        for label, feed in (
+            ("another key", self.signed_feed(key_index=1)),
+            ("a changed payload", self.changed_feed()),
+            ("a key id that is not trusted", self.signed_feed(key_id="upd-2026-b")),
+            ("not an envelope", b"{}"),
+            ("empty", b""),
+            ("the wrong purpose", plugin_sign.sign_envelope(
+                plugin_sign.find_openssl(), str(self.keyfiles[0]), "plugin", "upd-2026-a", b"{}"
+            ).encode("ascii")),
+        ):
+            with self.subTest(label):
+                problems = self.check_feed(feed)
+                self.assertEqual([(name, rule) for name, rule, _ in problems],
+                                 [("updates/v1/feed.json", "feed")])
+                self.assertNotIn("\n", problems[0][2])
+
+    def test_a_feed_when_the_build_trusts_no_key_is_a_problem(self) -> None:
+        problems = self.check_feed(self.signed_feed(), REAL_KEYS_FILE)
+        self.assertEqual([(name, rule) for name, rule, _ in problems],
+                         [("updates/v1/feed.json", "feed")])
+        self.assertIn("trusts no update feed key", problems[0][2])
+
+    def test_a_keys_file_that_cannot_be_read_is_a_problem(self) -> None:
+        bad = self.root.parent / "bad.cpp"
+        bad.write_text(keys_file_text(bytes(31)), encoding="utf-8")
+        problems = self.check_feed(self.signed_feed(), bad)
+        self.assertEqual([rule for _, rule, _ in problems], ["feed"])
+        problems = self.check_feed(self.signed_feed(), self.root.parent / "missing.cpp")
+        self.assertEqual([rule for _, rule, _ in problems], ["feed"])
+
+    def test_the_json_file_does_not_disturb_the_other_checks(self) -> None:
+        # No page links to it, the link checker does not look for it, and no
+        # policy rule applies to a file that is not a page.
+        problems = self.check_feed(self.signed_feed())
+        self.assertEqual(problems, [])
+        report = site_check.check_site(self.root, {}, feed_keys=self.keys_file())
+        self.assertEqual((report.problems, report.pages), ([], 2))
+
+    def test_the_command_checks_the_feed_with_the_given_keys(self) -> None:
+        self.write(two_pages())
+        target = self.root / "updates" / "v1" / "feed.json"
+        target.parent.mkdir(parents=True)
+        target.write_bytes(self.signed_feed())
+        config = self.root.parent / "site.json"
+        config.write_text("{}", encoding="utf-8")
+        for keys, status in ((self.keys_file(), 0), (REAL_KEYS_FILE, 1)):
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = site_check.main(
+                    [str(self.root), "--config", str(config), "--feed-keys", str(keys)]
+                )
+            self.assertEqual(code, status, out.getvalue())
+        self.assertIn("updates/v1/feed.json: feed: ", out.getvalue())
+
+
+class FeedInTheRepositoryTests(SiteCase):
+    def test_the_keys_of_the_repository_are_the_default_and_there_is_no_key_yet(self) -> None:
+        self.assertEqual(site_check.DEFAULT_FEED_KEYS, REAL_KEYS_FILE)
+        self.write(two_pages())
+        self.assertEqual(site_check.check_site(self.root, {}).problems, [])
+        self.assertEqual(update_feed.read_feed_keys(str(REAL_KEYS_FILE)), [])
+
+    def test_a_feed_with_the_keys_of_the_repository_is_a_problem_today(self) -> None:
+        self.write(two_pages())
+        target = self.root / "updates" / "v1" / "feed.json"
+        target.parent.mkdir(parents=True)
+        target.write_bytes(b"{}")
+        problems = site_check.check_site(self.root, {}).problems
+        self.assertEqual([(n, r) for n, r, _ in problems], [("updates/v1/feed.json", "feed")])
 
 
 if __name__ == "__main__":

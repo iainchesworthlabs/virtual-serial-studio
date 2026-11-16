@@ -537,7 +537,7 @@ TEST_CASE("edge: About shows the application icon, the version and the source")
                     icon_drawn = true;
                 if (label->text().contains(QStringLiteral("Version ") +
                                            version) &&
-                    label->text().contains(QStringLiteral("version 3 or later")))
+                    label->text().contains(QStringLiteral("License, version 3.")))
                     version_shown = true;
                 if (label->text().contains(
                         support::AboutDialog::source_url()) &&

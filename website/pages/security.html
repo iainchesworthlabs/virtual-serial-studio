@@ -14,7 +14,7 @@ description: How to report a vulnerability in Virtual Serial Studio in private, 
 
 <h2 id="helps">What helps most</h2>
 <ul>
-<li><strong>What is affected:</strong> the version, from the About dialog or <code>vss_gui --version</code>, the operating system, and whether it is the application, <code>vss_cli</code> or a release file.</li>
+<li><strong>What is affected:</strong> the version, from the About dialog, <code>vss_gui --version</code> or <code>vss_cli --version</code>, the operating system, and whether it is the application, <code>vss_cli</code> or a release file.</li>
 <li><strong>How to reproduce it:</strong> the smallest setup file, command line or byte stream that shows it.</li>
 <li><strong>What someone could do with it.</strong></li>
 </ul>
@@ -45,7 +45,7 @@ FD13 CB8C AC83 1664 8CD9  74D0 8149 254C 4189 4DBE</code></pre>
 <h2 id="design">How the product limits risk</h2>
 <ul>
 <li>Nothing listens on the network until you create an endpoint, and you choose the address and who may connect.</li>
-<li>The application has no telemetry and makes no connection of its own.</li>
+<li>The application has no telemetry. Its only connection of its own is the check for updates, which is off until you turn it on, and the download of an update that you agreed to.</li>
 <li>Plugins, when they arrive, run in a separate process, and an unsigned plugin loads only after you confirm.</li>
 <li>The control endpoint is off by default and local only when first turned on.</li>
 </ul>

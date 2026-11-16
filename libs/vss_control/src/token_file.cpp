@@ -160,8 +160,10 @@ std::optional<transport> parse_transport(std::string_view name) noexcept
     return std::nullopt;
 }
 
-/// A transport list: at least one name, each one known, none twice.
-std::optional<std::vector<transport>> as_transports(const json::value* item)
+/// A transport list: at least one name, each one known, none twice.  The name
+/// that is there twice is put in `repeated`, so that the refusal can say it.
+std::optional<std::vector<transport>> as_transports(const json::value* item,
+                                                    std::string& repeated)
 {
     if (item == nullptr || !item->is_array())
         return std::nullopt;
@@ -180,23 +182,36 @@ std::optional<std::vector<transport>> as_transports(const json::value* item)
         for (const transport earlier : found)
         {
             if (earlier == *parsed)
+            {
+                repeated = std::string(*text);
                 return std::nullopt;
+            }
         }
         found.push_back(*parsed);
     }
     return found;
 }
 
-std::optional<token_record> as_record(const json::value& item)
+/// The record of one token, or nothing.  `why` says what is wrong, with the
+/// token it is about when its id can be told; it holds no secret, as the file
+/// holds none.
+std::optional<token_record> as_record(const json::value& item, std::string& why)
 {
+    why = "a record is not a token record this version can read";
     if (!item.is_object())
         return std::nullopt;
     const json::object& object = item.get_object();
 
     const auto id = as_text(object.if_contains("id"));
+    const std::string subject =
+        id && valid_token_id(*id) ? "token " + std::string(*id) : "a record";
+    why = subject + " is not a token record this version can read";
     const auto label = as_text(object.if_contains("label"));
     auto scopes = as_scopes(object.if_contains("scopes"));
-    auto transports = as_transports(object.if_contains("transports"));
+    std::string repeated;
+    auto transports = as_transports(object.if_contains("transports"), repeated);
+    if (!repeated.empty())
+        why = subject + " names the transport " + repeated + " more than once";
     const auto created = as_time(object.if_contains("created"));
     const auto expires = as_time(object.if_contains("expires"));
     const auto digest = as_digest(object.if_contains("hash"));
@@ -233,8 +248,12 @@ std::optional<token_record> as_record(const json::value& item)
     return record;
 }
 
-result<token_file_content> parse_document(std::string_view text)
+/// The document in `text`.  When it is refused, `why` says what is wrong and
+/// which token it is about when that can be told.
+result<token_file_content> parse_document(std::string_view text,
+                                          std::string& why)
 {
+    why = "it is not a token file this version can read";
     json::parse_options options;
     options.max_depth = max_depth;
     boost::system::error_code failed;
@@ -266,9 +285,14 @@ result<token_file_content> parse_document(std::string_view text)
     content.tokens.reserve(records.size());
     for (const json::value& item : records)
     {
-        std::optional<token_record> record = as_record(item);
-        if (!record || !seen.insert(record->id).second)
+        std::optional<token_record> record = as_record(item, why);
+        if (!record)
             return bad_document();
+        if (!seen.insert(record->id).second)
+        {
+            why = "token " + record->id + " is in the file twice";
+            return bad_document();
+        }
         content.tokens.push_back(std::move(*record));
     }
     return content;
@@ -368,8 +392,10 @@ result<std::string> render_document(const token_file_content& content)
 
 } // namespace
 
-result<token_file_content> load_token_file(const std::filesystem::path& file)
+result<token_file_content> load_token_file(const std::filesystem::path& file,
+                                           std::string* reason)
 {
+    std::string why;
     const result<std::string> text =
         platform::read_private_file(file, max_file_size);
     if (!text)
@@ -378,10 +404,18 @@ result<token_file_content> load_token_file(const std::filesystem::path& file)
             return token_file_content{};
         // A file longer than any store can be is a file that is not one.
         if (text.error() == make_error_code(errc::invalid_argument))
+        {
+            if (reason != nullptr)
+                *reason = "token file " + file.string() +
+                          ": it is longer than a token file can be";
             return bad_document();
+        }
         return text.error();
     }
-    return parse_document(*text);
+    auto content = parse_document(*text, why);
+    if (!content && reason != nullptr)
+        *reason = "token file " + file.string() + ": " + why;
+    return content;
 }
 
 error_code save_token_file(const std::filesystem::path& file,

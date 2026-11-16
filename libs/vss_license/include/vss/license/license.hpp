@@ -14,6 +14,7 @@
 #include <vss/license/signed_file.hpp>
 
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -36,6 +37,13 @@ inline constexpr std::chrono::hours clock_tolerance{48};
 /// A licence with this many days left, or fewer, is `expiring`.
 inline constexpr int expiring_days = 30;
 inline constexpr int expiring_days_trial = 3;
+
+/// The longest feature name a licence may list, not counting a trailing `.*`.
+/// A plugin's feature is `plugins.` and its id, and a plugin id may be 128
+/// characters (`vss::plugin::max_id_length`), so this is 8 + 128. The plugin
+/// library depends on this one, so the number cannot be taken from there;
+/// tests/unit/test_plugin_licence.cpp fails if the two drift apart.
+inline constexpr std::size_t max_feature_length = 136;
 
 inline constexpr int max_grace_days = 366;
 inline constexpr int max_seats = 1'000'000;
@@ -62,6 +70,11 @@ struct licence
     std::string licensee_name;
     /// Optional. A team or role, not a personal address.
     std::string licensee_contact;
+    /// Optional. The email address the licensee gave when they asked for the
+    /// licence. It is personal data: a screen shows it to the person whose
+    /// computer holds the licence, and nothing writes it to a support bundle
+    /// unless that person turns it on.
+    std::string licensee_email;
     time_point issued_at;
     time_point starts_at;
     time_point expires_at;
@@ -93,6 +106,12 @@ result<licence> parse_payload(std::span<const std::uint8_t> payload);
 /// The payload text for a licence, as `parse_payload` reads it. Refuses a
 /// licence `parse_payload` would refuse.
 result<std::string> write_payload(const licence& value);
+
+/// Whether `text` has the form of an email address a licence may carry: at
+/// most 254 ASCII characters, one `@`, something before it, and after it a
+/// name with a dot that neither starts nor ends with a dot or a hyphen. It
+/// does not show that the address exists.
+bool is_email_address(std::string_view text) noexcept;
 
 /// "2026-11-13T02:10:00Z", the only form a payload uses.
 result<time_point> parse_time(std::string_view text);

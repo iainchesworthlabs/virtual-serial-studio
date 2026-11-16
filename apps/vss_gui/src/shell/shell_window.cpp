@@ -45,6 +45,7 @@
 #include "shell/status_bar.hpp"
 #include "shell/studio_tray.hpp"
 #include "shell/undo_steps.hpp"
+#include "shell/update_notice.hpp"
 #include "simple/job_grid.hpp"
 #include "simple/simple_page.hpp"
 #include "support/about_dialog.hpp"
@@ -52,6 +53,9 @@
 #include "support/driver_setup_dialog.hpp"
 #include "support/help_contents_dialog.hpp"
 #include "support/licence_dialog.hpp"
+#include "support/plugin_parts.hpp"
+#include "support/plugins_dialog.hpp"
+#include "shell/plugin_notice.hpp"
 #include "support/running_setup.hpp"
 #include "support/settings.hpp"
 #include "support/settings_dialog.hpp"
@@ -62,12 +66,15 @@
 #include "support/support_bundle_dialog.hpp"
 #include "support/support_dialog.hpp"
 #include "support/troubleshoot_dialog.hpp"
+#include "support/update_dialog.hpp"
+#include "support/update_text.hpp"
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
 #include "topology/links_list.hpp"
 #include "topology/toolbox.hpp"
 #include "topology/topology_text.hpp"
 #include "topology/topology_view.hpp"
+#include "updates/update_service.hpp"
 #include "widgets/chips.hpp"
 #include "widgets/controls.hpp"
 #include "widgets/dialogs.hpp"
@@ -119,6 +126,7 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <cstdint>
 #include <cstdio>
 #include <functional>
 #include <optional>
@@ -131,6 +139,46 @@ namespace
 {
 
 constexpr const char* kRecentFiles = "ui/recentFiles";
+
+/// Whether two setups are the same: the same name, description and ports in
+/// the same order, and the same links in any order.  The engine writes links
+/// in the order of their ids, and a link that was put back has a new one.
+bool same_setup(const vss::config::document& left,
+                const vss::config::document& right)
+{
+    if (left.name != right.name || left.description != right.description ||
+        left.ports != right.ports || left.links.size() != right.links.size())
+        return false;
+    std::vector<bool> used(right.links.size(), false);
+    for (const auto& link : left.links)
+    {
+        bool found = false;
+        for (std::size_t index = 0; index < right.links.size() && !found;
+             ++index)
+        {
+            if (!used[index] && right.links[index] == link)
+            {
+                used[index] = true;
+                found = true;
+            }
+        }
+        if (!found)
+            return false;
+    }
+    return true;
+}
+
+/// The ids of ports or links, in order.
+template <typename Views>
+std::vector<std::uint64_t> sorted_ids(const Views& views)
+{
+    std::vector<std::uint64_t> ids;
+    ids.reserve(views.size());
+    for (const auto& view : views)
+        ids.push_back(static_cast<std::uint64_t>(view.id));
+    std::sort(ids.begin(), ids.end());
+    return ids;
+}
 
 QString document_name(const QString& path)
 {
@@ -158,6 +206,7 @@ ShellWindow::ShellWindow(StudioBackend& backend, QWidget* parent)
     build_docks();
     build_status();
     connect_backend();
+    connect_plugins();
 
     apply_theme_setting();
     apply_density_setting();
@@ -444,6 +493,10 @@ void ShellWindow::build_actions()
     add(QStringLiteral("tools.setupCheck"), tr("Setup check"),
         tr("driver com0com permissions"), {}, {}, action_level::simple,
         [this] { open_setup_check(); });
+    add(QStringLiteral("tools.plugins"), tr("Plugins..."),
+        tr("plugin plugins extension fixture generator trust"), {}, {},
+        action_level::simple, [this] { open_plugins(); }, false,
+        [this] { return backend_.caps().plugins; });
     add(QStringLiteral("tools.benchmark"), tr("Benchmark"),
         tr("throughput speed"), {}, {}, action_level::advanced,
         [this] { open_benchmark(); });
@@ -555,6 +608,12 @@ void ShellWindow::build_actions()
     add(QStringLiteral("help.support"), tr("Support..."),
         tr("support help contact bundle address issues"), {}, {},
         action_level::simple, [this] { open_support(); });
+    // Without an update service, and while one cannot check, it is disabled.
+    add(
+        QStringLiteral("help.updates"), tr("Check for updates..."),
+        tr("update version new release download"), {}, {}, action_level::simple,
+        [this] { open_about(true); }, false, [this]
+        { return update_service_ != nullptr && update_service_->available(); });
     add(QStringLiteral("help.about"), tr("About"),
         tr("version licence copyright"), {}, {}, action_level::simple,
         [this] { open_about(); });
@@ -576,6 +635,11 @@ void ShellWindow::build_actions()
         network != nullptr && !backend_.caps().bridge)
     {
         network->setToolTip(tr("Not available in this build"));
+    }
+    if (QAction* plugins = registry_.action(QStringLiteral("tools.plugins"));
+        plugins != nullptr && !backend_.caps().plugins)
+    {
+        plugins->setToolTip(tr("Not available in this build"));
     }
     if (QAction* share = registry_.action(QStringLiteral("topology.share"));
         share != nullptr && !backend_.caps().share)
@@ -679,6 +743,7 @@ void ShellWindow::build_menus()
     QMenu* tools = add_menu(tr("&Tools"));
     add(tools, QStringLiteral("tools.search"));
     add(tools, QStringLiteral("tools.setupCheck"));
+    add(tools, QStringLiteral("tools.plugins"));
     add(tools, QStringLiteral("tools.benchmark"));
     tools->addSeparator();
     add(tools, QStringLiteral("tools.refresh"));
@@ -713,6 +778,7 @@ void ShellWindow::build_menus()
     add(help, QStringLiteral("help.environment"));
     add(help, QStringLiteral("help.licence"));
     add(help, QStringLiteral("help.support"));
+    add(help, QStringLiteral("help.updates"));
     add(help, QStringLiteral("help.about"));
 }
 
@@ -814,6 +880,9 @@ void ShellWindow::build_central()
     connect(licence_notice_, &LicenceNotice::licence_requested, this,
             [this] { open_licence(); });
     body_layout->addWidget(licence_notice_);
+    // The plugin notices sit below the licence notices, one at a time.
+    plugin_notice_ = new PluginNotice(body);
+    body_layout->addWidget(plugin_notice_);
     central_ = new QStackedWidget(body);
     body_layout->addWidget(central_, 1);
     setCentralWidget(body);
@@ -1334,6 +1403,11 @@ void ShellWindow::build_status()
             [this](bool advanced) { level_.set_advanced(advanced); });
     connect(status_, &StatusBar::licence_requested, this,
             [this] { open_licence(); });
+    status_->set_plugin_backend(backend_.plugin_backend());
+    connect(status_, &StatusBar::plugins_requested, this,
+            [this] { open_plugins(); });
+    connect(status_, &StatusBar::update_requested, this,
+            [this] { open_update_dialog(); });
     status_->set_advanced(level_.advanced());
     menuBar()->setFont(Theme::instance().font(text_style::body));
     // One header row: the menus on the left, the action search and the
@@ -1358,6 +1432,122 @@ void ShellWindow::build_status()
     setContentsMargins(gutter, 0, gutter, 0);
     status_->setFixedHeight(
         Theme::instance().metric(QStringLiteral("statusBar")));
+}
+
+void ShellWindow::connect_plugins()
+{
+    PluginBackend* host = backend_.plugin_backend();
+    if (host == nullptr)
+        return;
+    plugin_notice_->set_backend(host);
+    connect(plugin_notice_, &PluginNotice::plugins_requested, this,
+            [this] { open_plugins(); });
+    connect(plugin_notice_, &PluginNotice::decision_requested, this,
+            [this](const QString& id, const QString& folder)
+            { open_plugins(id, folder, true); });
+    connect(plugin_notice_, &PluginNotice::start_again_requested, this,
+            [this, host](const QString& id)
+            {
+                host->start_again(id);
+                status_->showMessage(tr("Started again."), 4000);
+            });
+    connect(host, &PluginBackend::snapshot_changed, this,
+            [this] { update_plugin_surfaces(); });
+    connect(&backend_, &StudioBackend::ports_changed, this,
+            [this] { update_plugin_surfaces(); });
+    if (toolbox_ != nullptr)
+    {
+        connect(toolbox_, &topology::Toolbox::show_in_plugins_requested, this,
+                [this](const QString& id) { open_plugins(id); });
+        connect(toolbox_, &topology::Toolbox::plugin_add_requested, this,
+                [this](const QString&, const QString&)
+                { status_->showMessage(tr("Not available in this build"), 4000); });
+    }
+    connect(inspector_panel_, &InspectorPanel::plugin_action_requested, this,
+            [this](const QString& id, int action)
+            { handle_part_action(id, action); });
+    update_plugin_surfaces();
+}
+
+void ShellWindow::update_plugin_surfaces()
+{
+    PluginBackend* host = backend_.plugin_backend();
+    if (host == nullptr)
+        return;
+    const plugin_snapshot_ptr snapshot = host->snapshot();
+    if (!snapshot)
+        return;
+    // The Plugins group of the toolbox.
+    if (toolbox_ != nullptr)
+    {
+        std::vector<topology::plugin_tile> tiles;
+        for (const support::plugin_tile_text& each :
+             support::plugin_toolbox_tiles(*snapshot))
+        {
+            topology::plugin_tile tile;
+            tile.plugin_id = each.plugin_id;
+            tile.type_id = each.type_id;
+            tile.label = each.label;
+            tile.accessible_name = each.accessible_name;
+            tile.accessible_description = each.accessible_description;
+            tile.tooltip = each.tooltip;
+            tile.enabled = each.enabled;
+            tiles.push_back(std::move(tile));
+        }
+        toolbox_->set_plugin_tiles(std::move(tiles));
+    }
+    // The ports that a plugin provides, on the canvas and in the Inspector.
+    const auto parts = support::describe_port_parts(
+        backend_.ports(), backend_.snapshot(), *snapshot);
+    if (topology_ != nullptr)
+        topology_->set_plugin_parts(parts);
+    if (inspector_panel_ != nullptr)
+        inspector_panel_->set_plugin_parts(parts);
+    // The plugins this setup uses, for the notice about one that stopped.
+    QStringList used;
+    for (const auto& part : parts)
+        used << part.plugin_id;
+    plugin_notice_->set_used_plugins(used);
+}
+
+void ShellWindow::handle_part_action(const QString& plugin_id, int action)
+{
+    PluginBackend* host = backend_.plugin_backend();
+    if (host == nullptr)
+        return;
+    const plugin_snapshot_ptr snapshot = host->snapshot();
+    const plugin_view* plugin = nullptr;
+    if (snapshot)
+    {
+        for (const plugin_view& each : snapshot->plugins)
+        {
+            if (each.id == plugin_id &&
+                (plugin == nullptr || plugin->state == plugin_state::not_used))
+                plugin = &each;
+        }
+    }
+    switch (static_cast<part_action>(action))
+    {
+    case part_action::none:
+        break;
+    case part_action::switch_on:
+        if (plugin != nullptr)
+            host->set_enabled(plugin->id, plugin->hash, true);
+        break;
+    case part_action::review_and_decide:
+        open_plugins(plugin_id, plugin != nullptr ? plugin->folder : QString(),
+                     true);
+        break;
+    case part_action::show_in_plugins:
+        open_plugins(plugin_id, plugin != nullptr ? plugin->folder : QString());
+        break;
+    case part_action::licence:
+        open_licence();
+        break;
+    case part_action::start_again:
+        host->start_again(plugin_id);
+        break;
+    }
 }
 
 void ShellWindow::connect_backend()
@@ -1690,13 +1880,28 @@ void ShellWindow::update_dock_titles()
 
 QString ShellWindow::document_signature() const
 {
+    // What the saved setup holds, so that a change to any of it marks the
+    // setup changed: a link's settings and a port's serial settings change a
+    // link or port in place, and its id, name and ports stay.
     QStringList parts;
     for (const auto& port : backend_.ports())
     {
-        parts << QStringLiteral("P%1:%2:%3:%4")
+        const vss::serial_settings& serial = port.serial;
+        parts << QStringLiteral("P%1:%2:%3:%4:%5")
                      .arg(static_cast<qulonglong>(port.id))
                      .arg(port.name, port.path)
-                     .arg(static_cast<int>(port.kind));
+                     .arg(static_cast<int>(port.kind))
+                     .arg(QStringLiteral("%1/%2/%3/%4/%5/%6/%7/%8")
+                              .arg(serial.baud_rate)
+                              .arg(serial.data_bits)
+                              .arg(static_cast<int>(serial.parity))
+                              .arg(static_cast<int>(serial.stop_bits))
+                              .arg(static_cast<int>(serial.flow_control))
+                              .arg(static_cast<qlonglong>(
+                                  serial.read_timeout.count()))
+                              .arg(static_cast<qlonglong>(
+                                  serial.write_timeout.count()))
+                              .arg(serial.exclusive ? 1 : 0));
     }
     for (const auto& link : backend_.links())
     {
@@ -1706,13 +1911,25 @@ QString ShellWindow::document_signature() const
             sources << QString::number(static_cast<qulonglong>(id));
         for (const auto id : link.targets)
             targets << QString::number(static_cast<qulonglong>(id));
-        parts << QStringLiteral("L%1:%2:%3:%4:%5:%6")
+        const vss::link_options& options = link.options;
+        const vss::half_duplex_options& line = options.half_duplex;
+        parts << QStringLiteral("L%1:%2:%3:%4:%5:%6:%7")
                      .arg(static_cast<qulonglong>(link.id))
                      .arg(static_cast<int>(link.shape))
                      .arg(static_cast<int>(link.mode))
                      .arg(static_cast<qulonglong>(link.owner))
                      .arg(sources.join(QLatin1Char(',')),
-                          targets.join(QLatin1Char(',')));
+                          targets.join(QLatin1Char(',')))
+                     .arg(QStringLiteral("%1/%2/%3/%4/%5/%6/%7/%8/%9")
+                              .arg(options.delay_ms)
+                              .arg(options.jitter_ms)
+                              .arg(static_cast<int>(options.policy))
+                              .arg(options.emulate_modem_lines ? 1 : 0)
+                              .arg(line.enabled ? 1 : 0)
+                              .arg(line.bit_rate)
+                              .arg(line.turnaround_ms)
+                              .arg(static_cast<int>(line.on_collision))
+                              .arg(line.rts_gating ? 1 : 0));
     }
     parts.sort();
     return parts.join(QLatin1Char('|'));
@@ -1767,8 +1984,6 @@ void ShellWindow::apply_compact()
     }
     if (ports_panel_ != nullptr)
         ports_panel_->set_compact(compact_);
-    if (monitor_panel_ != nullptr)
-        monitor_panel_->set_compact(compact_);
     apply_dock_sizes();
 }
 
@@ -1879,19 +2094,35 @@ void ShellWindow::open_network_endpoint()
         tr("Open monitor"), [this] { show_monitor(); });
 }
 
-void ShellWindow::apply_in_background(
-    vss::config::document document,
-    std::function<void(const vss::result<void>&)> finished)
+bool ShellWindow::setup_busy() const
 {
-    if (apply_work_.busy())
+    return apply_work_.busy() ||
+           (json_editor_ != nullptr && json_editor_->busy());
+}
+
+void ShellWindow::apply_in_background(
+    vss::config::document document, bool replace,
+    std::function<void(const vss::result<void>&, failed_apply)> finished)
+{
+    if (setup_busy())
         return;
     struct outcome
     {
         vss::config::document document;
+        vss::config::document before;
+        std::vector<std::uint64_t> port_ids;
+        std::vector<std::uint64_t> link_ids;
         vss::error_code error;
     };
     auto state = std::make_shared<outcome>();
     state->document = std::move(document);
+    // What runs now, to see after a failure whether it was put back whole.
+    if (replace)
+    {
+        state->before = backend_.snapshot();
+        state->port_ids = sorted_ids(backend_.ports());
+        state->link_ids = sorted_ids(backend_.links());
+    }
 
     // Nothing in the window may change the setup while the engine works on
     // it, and the changes it makes meanwhile are not the user's edits.
@@ -1925,14 +2156,16 @@ void ShellWindow::apply_in_background(
            "a minute."));
 
     apply_work_.start(
-        [this, state]
+        [this, state, replace]
         {
-            const auto applied = backend_.apply(state->document, true);
+            const auto applied = replace
+                                     ? backend_.replace(state->document)
+                                     : backend_.apply(state->document, true);
             if (!applied)
                 state->error = applied.error();
         },
-        [this, state, locked = QList<QPointer<QWidget>>(locked.begin(),
-                                                        locked.end()),
+        [this, state, replace,
+         locked = QList<QPointer<QWidget>>(locked.begin(), locked.end()),
          finished = std::move(finished)]
         {
             for (const auto& widget : locked)
@@ -1944,16 +2177,36 @@ void ShellWindow::apply_in_background(
             status_->clearMessage();
             loading_ = false;
             backend_.refresh();
-            if (state->error)
-                finished(state->error);
-            else
-                finished(vss::result<void>{});
+            if (!state->error || !replace)
+            {
+                finished(state->error ? vss::result<void>(state->error)
+                                      : vss::result<void>{},
+                         failed_apply::untouched);
+                return;
+            }
+            // A replace that failed puts back what it removed as far as it
+            // can.  When what runs is no longer the setup that was open, the
+            // title must not say it is; when it is the same setup but some of
+            // it was stopped and started again, it was not left unchanged.
+            failed_apply left = failed_apply::untouched;
+            if (!same_setup(backend_.snapshot(), state->before))
+                left = failed_apply::different;
+            else if (sorted_ids(backend_.ports()) != state->port_ids ||
+                     sorted_ids(backend_.links()) != state->link_ids)
+                left = failed_apply::remade;
+            if (left == failed_apply::different)
+            {
+                last_signature_ = document_signature();
+                set_dirty(true);
+                update_title();
+            }
+            finished(state->error, left);
         });
 }
 
 void ShellWindow::open_templates()
 {
-    if (!confirm_discard())
+    if (setup_busy() || !confirm_discard())
         return;
 
     TemplatesDialog dialog(backend_, this);
@@ -1964,19 +2217,29 @@ void ShellWindow::open_templates()
         return;
 
     apply_in_background(
-        *document,
+        *document, true,
         [this, title = dialog.result_title(),
          is_template = dialog.result_is_template(),
-         path = dialog.result_path()](const vss::result<void>& applied)
+         path = dialog.result_path()](const vss::result<void>& applied,
+                                      failed_apply left)
         {
             if (!applied)
             {
-                ErrorDialog error(
-                    tr("Could not open %1").arg(title),
-                    tr("The setup needs a device or network endpoint that "
-                       "is not available on this PC. Nothing was changed. "
-                       "Check the device, then try again."),
-                    error_text(applied.error()), this);
+                // Say only what is true: nothing was changed only when
+                // nothing was touched.
+                const QString text =
+                    left == failed_apply::different
+                        ? tr("Not everything that was running could be put "
+                             "back, so the setup is marked as changed.")
+                    : left == failed_apply::remade
+                        ? tr("The setup needs a device or network endpoint "
+                             "that is not available on this PC. Check the "
+                             "device, then try again.")
+                        : tr("The setup needs a device or network endpoint "
+                             "that is not available on this PC. Nothing was "
+                             "changed. Check the device, then try again.");
+                ErrorDialog error(tr("Could not open %1").arg(title), text,
+                                  error_text(applied.error()), this);
                 error.exec();
                 status_->refresh();
                 return;
@@ -2928,9 +3191,73 @@ void ShellWindow::restart_elevated()
     }
 }
 
+void ShellWindow::set_update_service(updates::UpdateService* service)
+{
+    if (service == update_service_)
+        return;
+    update_service_ = service;
+    status_->set_update_service(service);
+    if (service != nullptr)
+    {
+        // The banner sits in the body, directly below the licence notice.
+        QWidget* body = centralWidget();
+        update_notice_ = new UpdateNotice(*service, body);
+        if (auto* column = qobject_cast<QVBoxLayout*>(body->layout()))
+            column->insertWidget(column->indexOf(licence_notice_) + 1,
+                                 update_notice_);
+        connect(update_notice_, &UpdateNotice::answered, this,
+                [this](bool turned_on)
+                {
+                    ToastManager::instance().show(
+                        this, support::update_answer_toast(turned_on));
+                });
+        connect(update_notice_, &UpdateNotice::details_requested, this,
+                [this] { open_update_dialog(); });
+        connect(service, &updates::UpdateService::changed, this,
+                [this] { update_update_action(); });
+    }
+    update_update_action();
+}
+
+void ShellWindow::update_update_action()
+{
+    QAction* action = registry_.action(QStringLiteral("help.updates"));
+    if (action == nullptr)
+        return;
+    QString why;
+    if (update_service_ != nullptr && !update_service_->available())
+    {
+        why = update_service_->state().state ==
+                      updates::check_state::disabled_by_policy
+                  ? tr("Update checks are turned off by your administrator.")
+                  : tr("This build cannot check for updates.");
+    }
+    // An empty tooltip is the action's own text again.
+    action->setToolTip(why);
+    action->setStatusTip(why);
+    registry_.refresh();
+}
+
+void ShellWindow::open_update_dialog()
+{
+    // The dialog itself is connected by the owner of the window.
+    Q_EMIT update_dialog_requested();
+}
+
+void ShellWindow::show_update_dialog()
+{
+    if (update_service_ == nullptr || !update_service_->state().offer)
+        return;
+    support::UpdateDialog dialog(*update_service_, backend_, this);
+    connect(&dialog, &support::UpdateDialog::toast_requested, this,
+            [this](const QString& message)
+            { ToastManager::instance().show(this, message); });
+    dialog.exec();
+}
+
 void ShellWindow::open_settings()
 {
-    SettingsDialog dialog(backend_, load_ui_settings(), this);
+    SettingsDialog dialog(backend_, load_ui_settings(), update_service_, this);
     connect(&dialog, &SettingsDialog::advanced_changed, this,
             [this](bool advanced) { level_.set_advanced(advanced); });
     connect(&dialog, &SettingsDialog::settings_changed, this,
@@ -2963,17 +3290,62 @@ void ShellWindow::open_shortcuts()
     dialog.exec();
 }
 
-void ShellWindow::open_about()
+void ShellWindow::open_about(bool updates_tab)
 {
-    AboutDialog dialog(backend_, this);
+    AboutDialog dialog(backend_, update_service_, this);
     connect(&dialog, &AboutDialog::bundle_requested, this,
             &ShellWindow::open_bundle);
+    // "Update..." closes About first; the update dialog follows once it has
+    // closed, so two modal dialogs never stack.
+    bool update_wanted = false;
+    connect(&dialog, &AboutDialog::update_requested, this,
+            [&dialog, &update_wanted]
+            {
+                update_wanted = true;
+                dialog.accept();
+            });
+    if (updates_tab && update_service_ != nullptr)
+    {
+        dialog.show_updates_tab();
+        update_service_->check_now();
+    }
+    dialog.exec();
+    if (update_wanted)
+        open_update_dialog();
+}
+
+void ShellWindow::open_plugins(const QString& plugin_id, const QString& folder,
+                               bool decide)
+{
+    PluginBackend* host = backend_.plugin_backend();
+    if (host == nullptr)
+        return;
+    PluginsDialog dialog(*host, this);
+    if (!plugin_id.isEmpty())
+        dialog.select(plugin_id, folder);
+    if (decide && dialog.selected() != nullptr)
+    {
+        // The question comes first, over the page.
+        const plugin_view plugin = *dialog.selected();
+        QTimer::singleShot(0, &dialog,
+                           [&dialog, plugin] { dialog.review(plugin); });
+    }
+    connect(&dialog, &PluginsDialog::licence_requested, this,
+            [this] { QTimer::singleShot(0, this, [this] { open_licence(); }); });
+    connect(&dialog, &PluginsDialog::status_message, this,
+            [this](const QString& text) { status_->showMessage(text, 4000); });
     dialog.exec();
 }
 
 void ShellWindow::open_licence()
 {
     LicenceDialog dialog(backend_, this);
+    connect(&dialog, &LicenceDialog::plugins_requested, this,
+            [this, &dialog]
+            {
+                dialog.accept();
+                QTimer::singleShot(0, this, [this] { open_plugins(); });
+            });
     dialog.exec();
 }
 
@@ -3026,7 +3398,7 @@ void ShellWindow::copy_environment()
 
 void ShellWindow::new_document()
 {
-    if (!confirm_discard())
+    if (setup_busy() || !confirm_discard())
         return;
     if (const QString warning =
             new_setup_warning(ports_in_use(backend_.ports()));
@@ -3055,7 +3427,7 @@ void ShellWindow::new_document()
 
 void ShellWindow::open_document()
 {
-    if (!confirm_discard())
+    if (setup_busy() || !confirm_discard())
         return;
     const QString path = QFileDialog::getOpenFileName(
         this, tr("Open setup"), QString(),
@@ -3067,7 +3439,7 @@ void ShellWindow::open_document()
 
 void ShellWindow::open_path(const QString& path)
 {
-    if (!confirm_discard())
+    if (setup_busy() || !confirm_discard())
         return;
     const auto document = vss::config::load_file(path.toStdString());
     if (!document)
@@ -3080,14 +3452,21 @@ void ShellWindow::open_path(const QString& path)
     }
 
     apply_in_background(
-        *document,
-        [this, path](const vss::result<void>& applied)
+        *document, true,
+        [this, path](const vss::result<void>& applied, failed_apply left)
         {
             if (!applied)
             {
+                // As the template dialog does: the sentence is the message
+                // and the engine text is behind Copy details.
+                const bool different = left == failed_apply::different;
                 ErrorDialog dialog(
                     tr("Could not open %1").arg(QFileInfo(path).fileName()),
-                    error_text(applied.error()), {}, this);
+                    different
+                        ? tr("Not everything that was running could be put "
+                             "back, so the setup is marked as changed.")
+                        : error_text(applied.error()),
+                    different ? error_text(applied.error()) : QString(), this);
                 dialog.exec();
                 return;
             }
@@ -3409,7 +3788,7 @@ void ShellWindow::closeEvent(QCloseEvent* event)
 {
     // The engine is part way through setting up ports; closing now would
     // leave half a setup.
-    if (apply_work_.busy())
+    if (setup_busy())
     {
         event->ignore();
         return;
@@ -3475,6 +3854,8 @@ void ShellWindow::closeEvent(QCloseEvent* event)
 
 void ShellWindow::quit_studio()
 {
+    if (setup_busy())
+        return;
     quitting_ = true;
     if (!confirm_discard() || !confirm_exit())
     {
@@ -3627,8 +4008,9 @@ void ShellWindow::start_running_setup(bool automatic)
         return;
 
     apply_in_background(
-        setup->document,
-        [this, setup = *setup, automatic](const vss::result<void>& applied)
+        setup->document, false,
+        [this, setup = *setup, automatic](const vss::result<void>& applied,
+                                          failed_apply)
         {
             if (!applied)
             {

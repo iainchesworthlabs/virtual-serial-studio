@@ -17,6 +17,10 @@
                not-trusted                           no service, no package, and the log says why
              Anything else fails. On a machine that trusts neither an unsigned nor a test-signed driver, which is
              a hosted runner, not-trusted is the expected result.
+             After that, with the installer put back each time: an uninstall started as `Uninstall.exe /S _?=<folder>`
+             must leave no PATH entry, helper service, driver package or start at sign-in entry; an uninstall started
+             with /VSSUPGRADE=1 must keep the PATH entry and leave its scripts in undo-upgrade, and running
+             those scripts, as the installer does when an upgrade is cancelled, must leave a clean machine.
   Uninstall  Silent uninstall, then no install folder, Apps & features entry, Start menu folder, helper service or
              driver package may remain.
 
@@ -171,6 +175,77 @@ try {
     if ($ours.Count -ne 1) { throw "The folder $bin is on the machine PATH $($ours.Count) times after /ADDTOPATH=1 and an upgrade; it should be once." }
     $expected = (@($pathBefore.Split(';') | Where-Object { $_ }) + $bin) -join ';'
     if (($pathNow -join ';') -ne $expected) { throw 'The installer changed more of the machine PATH than its own folder.' }
+
+    # Two uninstalls that start from the install folder, which is how a deployment tool makes an uninstall wait
+    # (_?=<folder>). Only the one told it is an upgrade (/VSSUPGRADE=1, which the installer passes) may keep the
+    # driver, the helper service and the PATH entry. Each is followed by a new install, so that the Uninstall
+    # phase still finds an installed Studio. An uninstaller started with _?= cannot delete itself, so the folder
+    # is removed here.
+    $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+    $runName = 'Virtual Serial Studio'
+    function Get-OurPathEntries { @([Environment]::GetEnvironmentVariable('Path', 'Machine').Split(';') | Where-Object { $_ -and $_.TrimEnd([char]92) -ieq $bin }) }
+    function Add-OurRunEntry {
+      if ($null -eq (Get-ItemProperty -LiteralPath $runKey -Name $runName -ErrorAction SilentlyContinue)) {
+        New-ItemProperty -LiteralPath $runKey -Name $runName -Value ('"{0}" --background' -f (Join-Path $folder 'bin\vss_gui.exe')) | Out-Null
+      }
+    }
+    $uninstaller = Join-Path $folder 'Uninstall.exe'
+    $hadDriverScripts = Test-Path -LiteralPath (Join-Path $folder 'bin\driver\remove-driver.ps1')
+
+    # (a) No switch: everything goes, wherever the uninstaller runs from.
+    Add-OurRunEntry
+    $code = Invoke-Bounded $uninstaller @('/S', "_?=$folder") 'Uninstall from the install folder, not an upgrade'
+    Show-State 'State after the uninstall from the install folder'
+    if ($code -ne 0) { throw "The uninstaller exited with $code (_?= without the upgrade switch)." }
+    if (Get-Service -Name vsscom_helper -ErrorAction SilentlyContinue) { throw 'An uninstall with _?= and no upgrade switch left the helper service.' }
+    if ((Get-DriverPackages).Count -ne 0) { throw 'An uninstall with _?= and no upgrade switch left the driver package.' }
+    if ((Get-OurPathEntries).Count -ne 0) { throw 'An uninstall with _?= and no upgrade switch left the folder on the machine PATH.' }
+    if ($null -ne (Get-ItemProperty -LiteralPath $runKey -Name $runName -ErrorAction SilentlyContinue)) { throw 'An uninstall with _?= and no upgrade switch left the start at sign-in entry.' }
+    if (Test-Path -LiteralPath (Join-Path $folder 'undo-upgrade')) { throw 'An uninstall with no upgrade switch left an undo-upgrade folder.' }
+    Remove-Item -LiteralPath $folder -Recurse -Force
+    $code = Invoke-Bounded $path @('/S', '/ADDTOPATH=1') 'Install again'
+    if ($code -ne 0) { throw "The installer exited with $code (install again after the uninstall from the install folder)." }
+    Assert-Studio 'install after the uninstall from the install folder'
+
+    # (b) The switch: the PATH entry stays, Studio goes, and the scripts that finish the job are left.
+    Add-OurRunEntry
+    $code = Invoke-Bounded $uninstaller @('/S', '/VSSUPGRADE=1', "_?=$folder") 'Uninstall as an upgrade'
+    Show-State 'State after the uninstall as an upgrade'
+    if ($code -ne 0) { throw "The uninstaller exited with $code (upgrade switch)." }
+    if (Test-Path -LiteralPath (Join-Path $folder 'bin\vss_gui.exe')) { throw 'The uninstall as an upgrade left Studio.' }
+    if ((Get-OurPathEntries).Count -ne 1) { throw 'The uninstall as an upgrade did not keep the folder on the machine PATH once.' }
+    if ($null -eq (Get-ItemProperty -LiteralPath $runKey -Name $runName -ErrorAction SilentlyContinue)) { throw 'The uninstall as an upgrade removed the start at sign-in entry.' }
+    $stash = Join-Path $folder 'undo-upgrade'
+    $stashed = @('edit-path.ps1', 'stop-studio.ps1')
+    if ($hadDriverScripts) { $stashed += @('remove-driver.ps1', 'helper\install-helper.ps1') }
+    foreach ($name in $stashed) {
+      if (-not (Test-Path -LiteralPath (Join-Path $stash $name))) { throw "The uninstall as an upgrade did not leave undo-upgrade\$name." }
+    }
+    # What the installer does when the upgrade is cancelled: run those scripts from the stash.
+    $powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $undo = [ordered]@{
+      'remove-driver.ps1' = @()
+      'edit-path.ps1'     = @('-Action', 'Remove', '-Directory', $bin)
+      'stop-studio.ps1'   = @('-Action', 'Forget', '-Directory', $bin)
+    }
+    foreach ($name in $undo.Keys) {
+      $script = Join-Path $stash $name
+      if (-not (Test-Path -LiteralPath $script)) { continue }
+      $extra = @($undo[$name])
+      $out = & $powershell -NoProfile -ExecutionPolicy Bypass -File $script @extra 2>&1
+      $out | ForEach-Object { Write-Host "  $_" }
+      if ($LASTEXITCODE -notin 0, 10) { throw "undo-upgrade\$name exited with $LASTEXITCODE." }
+    }
+    if (Get-Service -Name vsscom_helper -ErrorAction SilentlyContinue) { throw 'The clean-up of an upgrade left the helper service.' }
+    if ((Get-DriverPackages).Count -ne 0) { throw 'The clean-up of an upgrade left the driver package.' }
+    if ((Get-OurPathEntries).Count -ne 0) { throw 'The clean-up of an upgrade left the folder on the machine PATH.' }
+    if ($null -ne (Get-ItemProperty -LiteralPath $runKey -Name $runName -ErrorAction SilentlyContinue)) { throw 'The clean-up of an upgrade left the start at sign-in entry.' }
+    Remove-Item -LiteralPath $folder -Recurse -Force
+    $code = Invoke-Bounded $path @('/S', '/ADDTOPATH=1') 'Install again'
+    if ($code -ne 0) { throw "The installer exited with $code (install again after the uninstall as an upgrade)." }
+    Assert-Studio 'install after the uninstall as an upgrade'
+    if ((Get-OurPathEntries).Count -ne 1) { throw 'The folder is not on the machine PATH exactly once after installing again.' }
+    if (Test-Path -LiteralPath $stash) { throw 'A finished install left undo-upgrade.' }
   }
   else {
     Show-State 'State before the uninstall'
@@ -188,7 +263,7 @@ try {
     $madeRunning = -not (Test-Path -LiteralPath $running)
     if ($madeRunning) {
       New-Item -ItemType Directory -Force -Path $data | Out-Null
-      Set-Content -LiteralPath $running -NoNewline -Encoding ascii -Value '{"dirty":false,"documentPath":"","setup":{"links":[],"ports":[{"kind":"virtual","name":"check","virtual_kind":"loopback"}]},"stopped":false,"version":1}'
+      Set-Content -LiteralPath $running -NoNewline -Encoding ascii -Value '{"dirty":false,"documentPath":"","setup":{"links":[],"ports":[{"kind":"virtual","name":"check","virtual_kind":"loopback"}],"version":1},"stopped":false,"version":1}'
     }
     $held = Start-Held 'uninstall'
 

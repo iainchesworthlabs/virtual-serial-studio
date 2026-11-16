@@ -103,7 +103,7 @@ jobs:
           echo "No new PREfast alerts since ${since}."
 
       - name: Report the failure
-        if: failure()
+        if: ${{ failure() || (cancelled() && github.event_name == 'schedule') }}
         uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
         with:
           engine: PREfast

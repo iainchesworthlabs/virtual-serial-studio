@@ -5,6 +5,7 @@
 //
 
 #include "backend/engine_studio_backend.hpp"
+#include "backend/service_plugin_backend.hpp"
 #include "backend/licence_store.hpp"
 #include "language/language_choice.hpp"
 #include "profiling/profiled_application.hpp"
@@ -23,11 +24,14 @@
 #include "support/stall_probe.hpp"
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
+#include "updates/network_transport.hpp"
+#include "updates/program_updates.hpp"
 #include "widgets/gallery.hpp"
 
 #include <vss/core/profile.hpp>
 #include <vss/core/profiling.hpp>
 #include <vss/license/license.hpp>
+#include <vss/license/store.hpp>
 #include <vss/studio/studio.hpp>
 
 #include <QAction>
@@ -204,6 +208,16 @@ try
                        "that were running before. Quits at once when there "
                        "are none. This is what start at sign-in runs."));
     parser.addOption(background_option);
+    // What the release job asks of an installed copy: a package that came
+    // without a TLS backend could never check for updates, and that is
+    // found there and not at a person's first check (docs/updates.md,
+    // section 7.4).
+    const QCommandLineOption check_tls_option(
+        QStringLiteral("check-tls"),
+        QStringLiteral("Say whether this copy can make a secure connection, "
+                       "which the check for updates needs, and exit. It "
+                       "makes no connection."));
+    parser.addOption(check_tls_option);
     // A restart as administrator starts the new Studio before the old one has
     // quit; this waits for the old one instead of handing it the window.
     QCommandLineOption replace_option(QStringLiteral("replace"),
@@ -278,6 +292,16 @@ try
             std::fflush(stdout);
             return 0;
         }
+        if (parser.isSet(check_tls_option))
+        {
+            const bool available =
+                vss::gui::updates::NetworkTransport::tls_available();
+            std::fputs(available ? "TLS is available.\n"
+                                 : "TLS is not available.\n",
+                       available ? stdout : stderr);
+            std::fflush(available ? stdout : stderr);
+            return available ? 0 : 1;
+        }
     }
 
     const bool headless = parser.isSet(selftest_option) ||
@@ -313,8 +337,8 @@ try
         {
             // The licence files on this computer. They are read from disk
             // and checked here; nothing is fetched or sent.
-            vss::gui::licence_store_options licences =
-                vss::gui::default_licence_store_options();
+            vss::license::store_options licences =
+                vss::license::default_store_options();
             const auto built =
                 vss::license::parse_time(vss::gui::support::current_build_info()
                                              .build_time.toStdString());
@@ -322,6 +346,21 @@ try
                 licences.build_time = *built;
             backend.set_licence_store(
                 std::make_unique<vss::gui::licence_store>(std::move(licences)));
+        }
+        // The plugin service of this process: it finds, checks, starts and
+        // stops plugins on threads of its own, never the GUI thread. The
+        // licence in use tells it whether an official plugin is licensed.
+        vss::gui::ServicePluginBackend* plugin_host = nullptr;
+        {
+            auto plugins = std::make_unique<vss::gui::ServicePluginBackend>(
+                vss::gui::default_service_plugin_options());
+            vss::gui::ServicePluginBackend* host = plugins.get();
+            plugin_host = host;
+            host->set_licence(backend.licence().status);
+            QObject::connect(&backend, &vss::gui::StudioBackend::licence_changed,
+                             host, [&backend, host]
+                             { host->set_licence(backend.licence().status); });
+            backend.set_plugin_backend(std::move(plugins));
         }
         if (parser.isSet(screenshot_option))
         {
@@ -331,7 +370,32 @@ try
                 QStringLiteral("ui/advanced"),
                 qEnvironmentVariableIsSet("VSS_SCREENSHOT_ADVANCED"));
         }
+        // The check for updates (docs/updates.md). It is made before the
+        // window so that it outlives it, and not at all for a run that shows
+        // no window to a person. Making it sends nothing: a request is made
+        // only when the person asks for a check or has turned the automatic
+        // check on.
+        std::unique_ptr<vss::gui::updates::ProgramUpdates> updates;
+        if (!headless)
+        {
+            updates = std::make_unique<vss::gui::updates::ProgramUpdates>(
+                vss::gui::support::current_build_info().version);
+        }
         vss::gui::ShellWindow window(backend);
+        if (updates)
+        {
+            window.set_update_service(&updates->service());
+            QObject::connect(&window,
+                             &vss::gui::ShellWindow::update_dialog_requested,
+                             &window,
+                             &vss::gui::ShellWindow::show_update_dialog);
+            // The installer has started: Studio closes as Quit does, which
+            // stops the running ports.
+            QObject::connect(&updates->service(),
+                             &vss::gui::updates::UpdateService::quit_requested,
+                             &window, &vss::gui::ShellWindow::quit_studio,
+                             Qt::QueuedConnection);
+        }
 
         // The probe plots every stretch in which the GUI thread did not return
         // to its event loop (see docs/profiling.md). It follows the profiler:
@@ -453,12 +517,21 @@ try
             window.show();
             VSS_PROFILE_MESSAGE("gui.window_shown");
         }
+        // From here the 60 seconds before the first automatic check run.
+        if (updates)
+            updates->service().start();
         // Writes a line to stalls.log in the local data folder when the
         // window stops answering for two seconds, naming the event it was
         // inside. Local only; see docs/profiling.md.
         const vss::gui::StallWatchdog stall_watchdog;
         const int exit_code = application.exec();
         VSS_PROFILE_MESSAGE("gui.shutdown");
+        // The window is gone from the screen: every plugin is asked to stop
+        // and ended, which takes at most a few seconds, and nothing the
+        // person sees waits for it.
+        window.hide();
+        if (plugin_host != nullptr)
+            plugin_host->shut_down();
         return exit_code;
     }
     catch (const std::exception& error)

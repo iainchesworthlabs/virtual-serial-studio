@@ -33,7 +33,10 @@ public:
         fixture,
         /// A plain fact: grey with a filled dot, where `closed` has a hollow
         /// one.
-        neutral
+        neutral,
+        /// Something to read or open, not a state: the accent tint and a
+        /// filled dot.
+        info
     };
 
     explicit StatusChip(QWidget* parent = nullptr);

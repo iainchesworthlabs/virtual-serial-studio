@@ -18,9 +18,17 @@
 //              same checks), flushed with fsync and renamed over the target;
 //              the temporary file is removed when anything fails.  Reading
 //              uses the same open flags and the same checks on the descriptor.
+//   claim      `claim_private_file`, for a file in a directory that is not
+//              this one: O_CREAT | O_EXCL | O_NOFOLLOW with mode 0600, so a
+//              name that is taken, a link included, is refused and nothing is
+//              followed; the same checks on the descriptor before the claim
+//              is handed out; the file is removed when the claim goes
+//              without `keep`.
 //
 
 #include "platform/private_storage_platform.hpp"
+
+#include <vss/control/private_file.hpp>
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -287,3 +295,86 @@ result<std::string> read_private_file(const std::filesystem::path& path,
 }
 
 } // namespace vss::control::platform
+
+namespace vss::control
+{
+namespace
+{
+
+/// The file that `claim_private_file` made, with its descriptor open.
+class posix_claim final : public private_file_claim
+{
+public:
+    posix_claim(platform::descriptor_owner descriptor, std::string path)
+        : descriptor_(std::move(descriptor)), path_(std::move(path))
+    {
+    }
+
+    ~posix_claim() override
+    {
+        // The file is this call's own: made with O_EXCL, so the name was
+        // free, and removed by that name.
+        if (!kept_)
+            static_cast<void>(::unlink(path_.c_str()));
+    }
+
+    posix_claim(const posix_claim&) = delete;
+    posix_claim& operator=(const posix_claim&) = delete;
+
+    error_code write(std::string_view bytes) override
+    {
+        if (const error_code failed =
+                platform::write_all(descriptor_.get(), bytes))
+            return failed;
+        if (::fsync(descriptor_.get()) != 0)
+            return platform::system_error(errno);
+        return {};
+    }
+
+    void keep() noexcept override { kept_ = true; }
+
+    const platform::descriptor_owner& descriptor() const noexcept
+    {
+        return descriptor_;
+    }
+
+private:
+    platform::descriptor_owner descriptor_;
+    std::string path_;
+    bool kept_ = false;
+};
+
+} // namespace
+
+result<std::unique_ptr<private_file_claim>>
+claim_private_file(const std::filesystem::path& path)
+{
+    std::string text = path.string();
+    // O_EXCL fails with EEXIST when the name is taken, and also when it is a
+    // link, whatever the link points to.  The mode is for a file that is made
+    // by this call, so it is 0600 (less what the umask takes away) from the
+    // first moment.
+    platform::descriptor_owner descriptor(::open(
+        text.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW,
+        S_IRUSR | S_IWUSR));
+    if (descriptor.get() < 0)
+    {
+        const int failed = errno;
+        if (failed == EEXIST)
+            return make_error_code(errc::already_exists);
+        return platform::system_error(failed);
+    }
+
+    // The file is there from here: the claim removes it unless it is kept,
+    // and it is not returned until the checks have passed.
+    auto claim =
+        std::make_unique<posix_claim>(std::move(descriptor), std::move(text));
+    struct stat info{};
+    if (::fstat(claim->descriptor().get(), &info) != 0)
+        return platform::system_error(errno);
+    if (const error_code refused = platform::check_private_file(info))
+        return refused;
+    return std::unique_ptr<private_file_claim>(std::move(claim));
+}
+
+} // namespace vss::control

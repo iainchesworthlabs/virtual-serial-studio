@@ -49,7 +49,7 @@ and TX. The language works with the system font and plain Qt widgets.
     warning, `okSoft` for success, `badSoft` for danger.
 13. **Act on what is selected.** An action sits next to the thing it acts on. Do not add a second picker for something
     already selected elsewhere.
-14. **Keep the accessibility rules.** Text 4.5:1, non-text 3:1, 2 px focus ring with 2 px offset in `focus`, targets
+14. **Keep the accessibility rules.** Text 4.5:1, non-text 3:1, 2 px focus ring just inside the control's edge in `focus`, targets
     of at least 24 px, layouts that survive 200 percent text, and state that is never shown by colour alone.
 
 ## Colour roles added or changed

@@ -249,8 +249,11 @@ were sent; requests of different clients run side by side. An error about the co
 `busy`) has id 0 and the connection closes after it. A request for an operation the agent does not have gets an
 error and the connection stays.
 
-The slice has: `hello`, `list`, `create_port` (loopback), `remove_port`, `connect` (both ways or one way), `write`,
-`subscribe`, `shutdown`.
+The slice has: `hello`, `list`, `create_port` (loopback), `remove_port`, `rename_port`, `connect` (both ways or one
+way), `disconnect`, `write`, `subscribe`, `shutdown`. `rename_port` takes an endpoint id and a name as long as the name
+of `create_port` may be, and `disconnect` takes a link id; each answers `done`, or the engine's error (`not_found`
+for an id nothing has, `invalid_argument` for an empty name, `already_exists` for a name another port has). A
+connection that said `read_only` in its `hello` is refused both, as it is refused `remove_port`.
 
 `create_port` makes an in-process loopback port and nothing else: a request for any other kind is refused with
 `unsupported`. A loopback port has no path that another program can open, the agent cannot attach a device, and the
@@ -331,13 +334,14 @@ take seconds, with progress and cancel; **bulk** bytes in the blob; **view** par
 | `set_com_number` | late | The port restarts |
 | `port_holder` | RR | The agent asks the driver and describes the process; it runs as the same user, so "own user" means the same |
 | `release_port` | RR | "End program" ends the process from the agent, with the agent's rights |
-| `rename_port`, `inject_fault`, `set_echo`, `set_line`, `refresh_lines`, `set_link_wiring` | RR | |
+| `rename_port` | RR | [slice] |
+| `inject_fault`, `set_echo`, `set_line`, `refresh_lines`, `set_link_wiring` | RR | |
 | `set_port_settings` | late | A device may reopen |
 | `ports`, `links`, `port`, `link` | view | One `snapshot` request returns the full views; the agent computes what the adapter computes today (peer state, driver flags, format conflicts, echo, wiring, lost ports). The client keeps the cache and the comparison that decides which signal to emit. [slice] as `list`, with fewer fields |
 | `devices`, `facts`, `check_driver`, `probe_cache_age` | local | Probes of the computer, not of the studio |
 | `other_program_ports` | local | Still the driver ports nobody in the agent holds (section 6) |
 | `traffic` | bulk | Pages of the hub's ring |
-| `connect_ports`, `split`, `join`, `redirect`, `monitor`, `bus`, `disconnect`, `set_owner`, `release_owner` | RR | [slice] for `connect_ports` and `redirect` |
+| `connect_ports`, `split`, `join`, `redirect`, `monitor`, `bus`, `disconnect`, `set_owner`, `release_owner` | RR | [slice] for `connect_ports`, `redirect` and `disconnect` |
 | `send` | RR, bulk | [slice] as `write`. The outcome arrives as events, as today |
 | `link_wiring`, `echo`, `lost_ports`, `hub_running` | view | |
 | `run_benchmark` | late | **Hard:** takes a progress callback and a cancel flag. The run happens in the agent, where the ports are; progress and cancel are the events and the request of section 4 |

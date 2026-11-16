@@ -18,6 +18,17 @@ add_library(vss_gui_backend STATIC
   licence_store.cpp
   licence_store.hpp
   licence_view.hpp
+  plugin_backend.cpp
+  plugin_backend.hpp
+  plugin_view.hpp
+  fake_plugin_backend.cpp
+  fake_plugin_backend.hpp
+  service_mapping.cpp
+  service_mapping.hpp
+  service_plugin_backend.cpp
+  service_plugin_backend.hpp
+  plugin_mapping.cpp
+  plugin_mapping.hpp
   studio_backend.hpp
   engine_studio_backend.hpp
   fake_studio_backend.hpp
@@ -34,7 +45,7 @@ add_library(vss_gui_backend STATIC
 target_include_directories(vss_gui_backend PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
-target_link_libraries(vss_gui_backend PUBLIC Vss::studio Vss::license Qt6::Core)
+target_link_libraries(vss_gui_backend PUBLIC Vss::studio Vss::license Vss::plugin Vss::plugin_host Vss::machine Qt6::Core)
 target_compile_features(vss_gui_backend PUBLIC cxx_std_23)
 target_compile_definitions(vss_gui_backend PRIVATE QT_NO_KEYWORDS)
 icl_platform_sources(vss_gui_backend
@@ -58,14 +69,30 @@ if(VSS_BUILD_TESTS)
     tests/test_canvas_edit.cpp
     tests/test_com_numbers.cpp
     tests/test_driver_error.cpp
-    tests/test_licence_store.cpp)
+    tests/test_licence_store.cpp
+    tests/test_plugin_backend.cpp
+    tests/test_service_mapping.cpp
+    tests/test_service_backend.cpp)
 
   target_include_directories(vss_gui_backend_tests PRIVATE
-    ${CMAKE_SOURCE_DIR}/tests/framework)
+    ${CMAKE_SOURCE_DIR}/tests/framework ${CMAKE_SOURCE_DIR}/tests/support)
   # The licence tests sign with the published test key. The program itself
-  # never links it.
+  # never links it. They share their folders and files with the library's.
   target_link_libraries(vss_gui_backend_tests PRIVATE
     vss_gui_backend Vss::license_test_keys Qt6::Core)
   target_compile_definitions(vss_gui_backend_tests PRIVATE QT_NO_KEYWORDS)
+  # The service test starts the test plugin program of the system tests. In a
+  # build with the address sanitiser of MSVC the plugin needs the runtime
+  # library that tests/CMakeLists.txt puts beside it, so the test is told its
+  # name and copies it with the program.
+  add_dependencies(vss_gui_backend_tests vss_test_plugin)
+  if(MSVC AND ICL_SANITIZERS MATCHES "address")
+    set(_vss_backend_plugin_runtime "clang_rt.asan_dynamic-x86_64.dll")
+  else()
+    set(_vss_backend_plugin_runtime "")
+  endif()
+  target_compile_definitions(vss_gui_backend_tests PRIVATE
+    VSS_TEST_PLUGIN_PROGRAM="$<TARGET_FILE:vss_test_plugin>"
+    VSS_TEST_PLUGIN_RUNTIME="${_vss_backend_plugin_runtime}")
   vss_set_warnings(vss_gui_backend_tests)
 endif()

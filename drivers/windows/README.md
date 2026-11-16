@@ -118,13 +118,24 @@ pnputil /add-driver vsscom_um.inf /install
 ./install-helper.ps1     # the helper service, from its own folder
 ```
 
-It reads the signer from the signature of the package, checks that it chains to the
-root you named, and only then adds it to Trusted Publishers, so a package signed by
-anyone else adds nothing. It refuses to run while test signing is on, because an
-install then proves nothing about the trust. `-WhatIf` shows what it would change;
-`-Uninstall` takes the three certificates out again. **Trusting a root means
-trusting everything that CA signs, for every program on the machine**, so use it
-only on machines you own. ARM64 is untried: Windows may insist on a Microsoft
+It reads the signer from the signature of the package and checks everything before it
+adds the first certificate: the root and the intermediate, that the signer chains to
+the root you named, and that the file the signature is read from (the catalog, for a
+folder) has not been changed since it was signed. A file signed by anyone else, or
+changed after signing, adds nothing. The other files of the package are not read here;
+`pnputil` checks them later. After the certificates are added it checks the signature
+again, and if that or a later step fails it takes out what that run added. A root that
+this version adds is trusted for code signing only, not for web sites or mail. A root
+that is already in the store is left as it is, and the script says whether it is limited
+to code signing or trusted for every purpose; to limit one that an earlier version
+added, run `-Uninstall -IncludeUnmarked` and then the script again. It refuses to run
+while test signing is on, because an install then proves nothing about the trust. `-WhatIf` shows what it would change. Each
+certificate it adds carries the friendly name "Virtual Serial Studio
+(install-trust.ps1)"; `-Uninstall` takes out the certificates with that name, so a root
+the machine trusted for another reason stays (`-IncludeUnmarked` removes a certificate
+that an earlier version of the script added without the name). **Trusting a root
+means trusting everything that CA signs for code signing, for every program on the
+machine**, so use it only on machines you own. ARM64 is untried: Windows may insist on a Microsoft
 signature for the catalog there. The script was run against the CI-signed package
 in the Windows 11 and Windows 10 22H2 guests with test signing off: `pnputil`
 refused the package before it, and the driver and helper installed and passed the
@@ -156,13 +167,20 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-driver.ps1 -PackageR
 ```
 
 Before it changes anything the script checks the signature of the driver DLL, its
-catalog and the helper. It never adds a certificate to the machine.
+catalog and the helper, and that the catalog is signed by Microsoft's hardware
+publisher (the name, and a chain that ends in one of Microsoft's three roots) or by a
+publisher in Trusted Publishers. It never adds a certificate to the machine. The helper
+service is registered with its path in quotes, and running the script again replaces a
+service that has the path without them. When `pnputil`
+answers that no device was updated (code 259: the devices already use this driver or a
+newer one), the script goes on if the driver store holds this version of the package,
+and then installs the helper.
 
 | Build | What the user sees |
 |---|---|
-| A release, signed with a certificate the machine trusts (a Microsoft-trusted publisher, or the owner's CA after `trust/install-trust.ps1`) | The Windows prompt names the publisher. Setup installs the driver and the helper and says "Virtual Serial Studio is set up." |
+| A release, signed by Microsoft's hardware publisher, or with a certificate the machine trusts and whose signer is in Trusted Publishers (the owner's CA after `trust/install-trust.ps1 -Package`) | The Windows prompt names the publisher. Setup installs the driver and the helper and says "Virtual Serial Studio is set up." |
 | A test-signed package (`SIGN_WINDOWS=test`) on a machine that does not trust the test CA | The prompt shows the publisher or "Unknown publisher". The script exits 6 before changing anything and Studio says "Windows does not trust the signature on the driver files, so nothing was installed." Run `trust/install-trust.ps1` with the CA's public certificates (it asks for administrator rights and prints the root's fingerprint to check), or turn on test signing (`prepare-test-signing.ps1`, in a guest or on a machine you own), then choose Set up again. |
-| An unsigned development build | The same as the line above: exit 6, nothing installed. A development machine either trusts the test certificate or runs in test signing mode. Test signing is not enough for this driver: a signed package whose signer is not in Trusted Publishers is refused the same way (exit 6), because Windows would otherwise ask "Would you like to install this device software?" on a desktop nobody may be at, and `pnputil` waits for ever. Run `trust/install-trust.ps1` first. Every `pnputil` call and the whole script have time limits (exit 7 and exit 124). |
+| An unsigned development build | The same as the line above: exit 6, nothing installed. A development machine either trusts the test certificate or runs in test signing mode. Test signing is not enough for this driver, and neither is a valid signature: a package that is not signed by Microsoft's hardware publisher and whose signer is not in Trusted Publishers is refused the same way (exit 6) before `pnputil` is started, because Windows would otherwise ask "Would you like to install this device software?" on a desktop nobody may be at, and `pnputil` waits for ever. Run `trust/install-trust.ps1` first. Every `pnputil` call and the whole script have time limits (exit 7 and exit 124). |
 | No `driver` folder beside the program | The Set up button is off and the dialog says the driver files are not with this copy, and shows how to run the script by hand. |
 
 The prompt always belongs to the PowerShell that runs the script; the script is
@@ -195,7 +213,7 @@ changed by you, which is as it should be.
 | `vsscom_helper/protocol.h` | what the studio, the helper and the user-mode driver share: the pipe, the messages, the owner property |
 | `vsscom_helper/install-helper.ps1` | installs or removes the service |
 | `setup-driver.ps1` | one elevated step that checks the signatures and installs or repairs the user-mode driver and the helper service; what Studio runs for "Set up Virtual Serial Studio" |
-| `remove-driver.ps1` | the reverse: stops and deletes the helper service (its ports go with it) and deletes the `vsscom_um` package from the driver store; what the Studio installer's uninstaller runs |
+| `remove-driver.ps1` | the reverse: stops and deletes the helper service (its ports go with it), removes the port devices that stay behind (`SWD\VSSCOMUM\*`, absent ones too, so their COM numbers are free again; SetupAPI `DIF_REMOVE`, as `test/uninstall-driver.ps1` does) and deletes the `vsscom_um` package from the driver store; a step that fails does not stop the others, because the uninstaller deletes the script afterwards: a device or the package that cannot be removed is reported last with exit code 7, a helper service that cannot be removed with exit code 8 (the devices and the package are still taken away), and when both fail the code is 7 and the message names both; what the Studio installer's uninstaller runs |
 | `stage-package.ps1` | puts the signed user-mode package, the helper and these scripts in the `driver` folder beside Studio, the layout `setup-driver.ps1` reads; the release workflow runs it before the zip and the installer are made |
 | `trust/install-trust.ps1` | makes a machine trust the owner's CA and the signer of a package, so a test-signed package installs with test signing off |
 | `build.ps1` | restore, build, `InfVerif`, `Inf2Cat`, for either driver, the helper or all |
@@ -313,6 +331,12 @@ device first, then the helper, then takes a free port that already exists.
 ./install-helper.ps1            # copies vsscom_helper.exe to Program Files, starts the service
 ./install-helper.ps1 -Uninstall # stops it, removes it and its folder
 ```
+
+The script ends with 0 when the service is installed and running (or removed), 2 when
+it is not run as an administrator and 1 for anything else, with the reason on the
+error stream. The service is registered with its path in quotes (the folder name has
+spaces). The script reads the stored path back from the registry and, if it has no
+quotes or cannot be read, removes the service again and ends with 1.
 
 | Rule | How it is kept |
 |---|---|
