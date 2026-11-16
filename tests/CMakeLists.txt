@@ -250,6 +250,7 @@ endif()
 # The control tests start vss_gate beside them.
 if(TARGET vss_agent AND TARGET vss_cli AND TARGET vss_gate)
   list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_control.cpp
+    system/test_system_plugin_control_point.cpp
     system/test_system_plugin_control_relay_gateway.cpp)
 endif()
 
