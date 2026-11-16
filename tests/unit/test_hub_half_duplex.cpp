@@ -985,7 +985,7 @@ TEST_CASE("half-duplex: what a member sends as it is taken off is never heard")
         const link_id bus = fixture.make_bus(half_duplex());
 
         fixture.ports[0].inject_read("gone");
-        if (round % 2 == 1)
+        if (round % 2 != 0)
             std::this_thread::yield();
         REQUIRE(fixture.hub->remove_member(bus, fixture.id(0)));
 

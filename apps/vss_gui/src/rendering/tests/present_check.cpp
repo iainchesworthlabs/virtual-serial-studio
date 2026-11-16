@@ -69,6 +69,10 @@ void pump(int milliseconds)
 
 } // namespace
 
+/// Opens a hardware-rendered window and measures how the frames are
+/// presented.  --old-present turns the swap interval off, as the earlier
+/// presentation did, so that the two can be compared.  Exits with kSkip when
+/// this platform has no display for the hardware renderer.
 int main(int argc, char* argv[])
 {
     bool old_present = false;

@@ -1620,7 +1620,11 @@ TEST_CASE("plugin protocol: an id and a re are written only within their range")
 
 TEST_CASE("plugin protocol: a body that could not be read back is not written")
 {
-    // hello
+    // Each kind of message has fields the reader would refuse.  The writer
+    // must refuse them too, so a peer is never sent a message that its own
+    // reader would reject.
+
+    // hello: the plugin id must be a dotted lower-case name
     for (const std::string_view bad_id :
          {""sv, "ab"sv, "nodots"sv, "Com.Example"sv, "com..example"sv,
           "com.exa mple"sv, "com.example\n"sv})
@@ -1629,6 +1633,7 @@ TEST_CASE("plugin protocol: a body that could not be read back is not written")
         body.plugin_id = std::string(bad_id);
         require_not_written(message_of(body, 1));
     }
+    // The version is printable UTF-8 of up to 64 bytes.
     for (const std::string_view bad_version :
          {""sv, "a\nb"sv, "a\tb"sv, "\x01"sv, "a\x7f"sv, "\xff"sv,
           "ab\xc3"sv, "\xc0\x80"sv, "\xed\xa0\x80"sv,
@@ -1639,6 +1644,7 @@ TEST_CASE("plugin protocol: a body that could not be read back is not written")
         body.version = std::string(bad_version);
         require_not_written(message_of(body, 1));
     }
+    // The edges of the version length and of the process id.
     {
         hello_message body = sample_hello();
         body.version = repeated('v', 65);
@@ -1658,6 +1664,7 @@ TEST_CASE("plugin protocol: a body that could not be read back is not written")
         body.granted = {permission::faults, permission::faults};
         require_not_written(message_of(body, 0, 1));
     }
+    // Capability names are lower-case words.
     for (const std::string_view bad_name :
          {""sv, "Engine"sv, "a-b"sv, "a.b"sv, "a b"sv, "a\n"sv, "\xff"sv})
     {
@@ -1665,6 +1672,8 @@ TEST_CASE("plugin protocol: a body that could not be read back is not written")
         body.capabilities = {std::string(bad_name)};
         require_not_written(message_of(body, 0, 1));
     }
+    // Repeats, the edges of the capability list and of the data directory,
+    // and limits that are zero.
     {
         hello_ack_message body = sample_hello_ack();
         body.capabilities = {"a", "b", "a"};
@@ -1697,6 +1706,7 @@ TEST_CASE("plugin protocol: a body that could not be read back is not written")
         body.limits.instances = 0;
         require_not_written(message_of(body, 0, 1));
     }
+    // The settings are one JSON object with no repeated name.
     for (const std::string_view bad_settings :
          {""sv, "[]"sv, "1"sv, "null"sv, "\"x\""sv, "{"sv, "{} x"sv,
           R"({"a":1,"a":2})"sv, "{'a':1}"sv, "not json"sv})
