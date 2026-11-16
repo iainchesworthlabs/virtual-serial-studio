@@ -544,7 +544,7 @@ TEST_CASE("plugin licence point: a licence.report with reason expired and a "
 
     REQUIRE_EQ(fixture.reports.size(), std::size_t{1});
     REQUIRE(fixture.reports.front() ==
-            plugin_licence_report{reason::expired, "LIC-2026-0042"});
+            (plugin_licence_report{reason::expired, "LIC-2026-0042"}));
     // A report is a notification, and the host sends nothing for it.
     REQUIRE(fixture.silent());
     REQUIRE_EQ(fixture.calls, std::size_t{0});
@@ -604,7 +604,7 @@ TEST_CASE("plugin licence point: a licence id of 64 bytes is kept")
 
     REQUIRE_EQ(fixture.reports.size(), std::size_t{1});
     REQUIRE(fixture.reports.front() ==
-            plugin_licence_report{reason::revoked, id});
+            (plugin_licence_report{reason::revoked, id}));
 }
 
 TEST_CASE("plugin licence point: a report from a plugin that is not official "
