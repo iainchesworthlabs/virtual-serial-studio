@@ -397,8 +397,9 @@ try
                                   vss::gui::licence_file_in_use(now));
             };
             tell_plugins_of_licence();
-            QObject::connect(&backend, &vss::gui::StudioBackend::licence_changed,
-                             host, tell_plugins_of_licence);
+            QObject::connect(&backend,
+                             &vss::gui::StudioBackend::licence_changed, host,
+                             tell_plugins_of_licence);
             backend.set_plugin_backend(std::move(plugins));
         }
         if (parser.isSet(screenshot_option))

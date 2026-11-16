@@ -576,14 +576,17 @@ void ServicePluginBackend::answer_all_prompts_no()
 }
 
 void ServicePluginBackend::set_licence(
-    const vss::license::status& status, const std::optional<licence_file_ref>& file)
+    const vss::license::status& status,
+    const std::optional<licence_file_ref>& file)
 {
     // What names the licence: its file, its judging and the licence's own id.
     // The days left change every day and are not part of it.
-    std::string key = file ? file->file_name + (file->machine_wide ? "|m" : "|u")
-                           : std::string("|none");
+    std::string key = file
+                          ? file->file_name + (file->machine_wide ? "|m" : "|u")
+                          : std::string("|none");
     key += "|" + std::to_string(static_cast<int>(status.state)) + "|" +
-           std::to_string(static_cast<int>(status.reason)) + "|" + status.key_id;
+           std::to_string(static_cast<int>(status.reason)) + "|" +
+           status.key_id;
     if (status.value.has_value())
         key += "|" + status.value->licence_id;
     bool changed = false;
@@ -602,12 +605,13 @@ void ServicePluginBackend::set_licence(
     std::optional<std::filesystem::path> path;
     if (file && status.state != vss::license::state::none)
     {
-        const std::filesystem::path& folder = file->machine_wide
-                                                  ? options_.licence_machine_directory
-                                                  : options_.licence_user_directory;
+        const std::filesystem::path& folder =
+            file->machine_wide ? options_.licence_machine_directory
+                               : options_.licence_user_directory;
         if (!folder.empty() && !file->file_name.empty())
-            path = folder / std::filesystem::path(std::u8string(file->file_name.begin(),
-                                                          file->file_name.end()));
+            path = folder /
+                   std::filesystem::path(std::u8string(file->file_name.begin(),
+                                                       file->file_name.end()));
     }
     boost::asio::post(
         slow_,
@@ -656,15 +660,15 @@ void ServicePluginBackend::set_licence(
                     const std::scoped_lock lock(mutex_);
                     restart_.insert(plugin.id);
                 }
-                boost::asio::post(
-                    io_,
-                    [this, id = plugin.id]
-                    {
-                        if (down_.load())
-                            return;
-                        if (const auto runner = service_->runner(id))
-                            runner->stop("The licence changed.");
-                    });
+                boost::asio::post(io_,
+                                  [this, id = plugin.id]
+                                  {
+                                      if (down_.load())
+                                          return;
+                                      if (const auto runner =
+                                              service_->runner(id))
+                                          runner->stop("The licence changed.");
+                                  });
             }
             restart_waiting_plugins();
         });
@@ -680,31 +684,31 @@ void ServicePluginBackend::restart_waiting_plugins()
     if (waiting.empty())
         return;
     // On the service's strand, where a runner may be asked for.
-    boost::asio::post(
-        io_,
-        [this, waiting]
-        {
-            if (down_.load())
-                return;
-            for (const std::string& id : waiting)
-            {
-                const auto runner = service_->runner(id);
-                if (!runner)
-                {
-                    const std::scoped_lock lock(mutex_);
-                    restart_.erase(id);
-                    continue;
-                }
-                // Started again once it has stopped; until then the change
-                // of state brings us back here.
-                if (runner->snapshot()->state == plug::run_state::stopped)
-                {
-                    runner->start();
-                    const std::scoped_lock lock(mutex_);
-                    restart_.erase(id);
-                }
-            }
-        });
+    boost::asio::post(io_,
+                      [this, waiting]
+                      {
+                          if (down_.load())
+                              return;
+                          for (const std::string& id : waiting)
+                          {
+                              const auto runner = service_->runner(id);
+                              if (!runner)
+                              {
+                                  const std::scoped_lock lock(mutex_);
+                                  restart_.erase(id);
+                                  continue;
+                              }
+                              // Started again once it has stopped; until then
+                              // the change of state brings us back here.
+                              if (runner->snapshot()->state ==
+                                  plug::run_state::stopped)
+                              {
+                                  runner->start();
+                                  const std::scoped_lock lock(mutex_);
+                                  restart_.erase(id);
+                              }
+                          }
+                      });
 }
 
 void ServicePluginBackend::after_change()

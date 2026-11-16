@@ -586,9 +586,9 @@ TEST_CASE("service backend: a plugin allowed to read the licence is handed the "
         ServicePluginBackend backend(std::move(options));
         backend.set_licence(a_valid_licence(),
                             licence_file_ref{"studio.vsslic", false});
-        decide_with(backend, id,
-                    {QStringLiteral("ports.read"),
-                     QStringLiteral("licence.read")});
+        decide_with(
+            backend, id,
+            {QStringLiteral("ports.read"), QStringLiteral("licence.read")});
         const bool answered = vss_test::wait_until(
             [&] { return log_has(backend, id, QStringLiteral("answer ")); },
             60000);
@@ -609,7 +609,8 @@ TEST_CASE("service backend: a plugin allowed to read the licence is handed the "
                             licence_file_ref{"studio.vsslic", false});
         decide_with(backend, id, {QStringLiteral("ports.read")});
         const bool answered = vss_test::wait_until(
-            [&] { return log_has(backend, id, QStringLiteral("answer error")); },
+            [&]
+            { return log_has(backend, id, QStringLiteral("answer error")); },
             60000);
         if (!answered)
             show_log(backend, id);
@@ -635,7 +636,8 @@ TEST_CASE("service backend: the licence is the same one until it changes")
         {
             const plugin_view* view =
                 find_view(backend.snapshot(), QString::fromLatin1(kPluginId));
-            return view != nullptr && view->state == plugin_state::needs_decision;
+            return view != nullptr &&
+                   view->state == plugin_state::needs_decision;
         },
         30000));
     backend.shut_down();

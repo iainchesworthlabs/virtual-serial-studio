@@ -14,17 +14,17 @@
 
 #pragma once
 
-#include "backend/plugin_backend.hpp"
 #include "backend/licence_view.hpp"
+#include "backend/plugin_backend.hpp"
 #include "backend/service_mapping.hpp"
 
 #include <vss/core/bytes.hpp>
 #include <vss/core/hub.hpp>
-#include <vss/plugin/host/licence_point.hpp>
 #include <vss/license/license.hpp>
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/host/capture_point.hpp>
 #include <vss/plugin/host/control_point.hpp>
+#include <vss/plugin/host/licence_point.hpp>
 #include <vss/plugin/host/secret_point.hpp>
 #include <vss/plugin/host/service.hpp>
 
