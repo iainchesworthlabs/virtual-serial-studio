@@ -30,6 +30,7 @@
 #pragma once
 
 #include <vss/core/error.hpp>
+#include <vss/license/license.hpp>
 #include <vss/plugin/host/instances.hpp>
 #include <vss/plugin/manifest.hpp>
 #include <vss/plugin/protocol.hpp>
@@ -64,6 +65,19 @@ struct plugin_link
         request;
 };
 
+/// What a plugin said its own check of the licence found.  The plugin's
+/// claim: it changes nothing the host does.
+struct plugin_licence_report
+{
+    license::reason reason = license::reason::ok;
+    /// The licence the plugin judged; empty when it named none.  Plain
+    /// text from the plugin, untrusted.
+    std::string licence_id;
+
+    friend bool operator==(const plugin_licence_report&,
+                           const plugin_licence_report&) = default;
+};
+
 /// What a handler knows of the plugin it serves.
 struct extension_context
 {
@@ -72,6 +86,8 @@ struct extension_context
     std::string plugin_name;
     /// The plugin's version from its manifest.
     std::string plugin_version;
+    /// True when the plugin is signed with an official key.
+    bool official = false;
     /// The permissions that were granted.  Never what was asked for.
     std::vector<permission> granted;
     /// The plugin's data directory.
@@ -83,6 +99,9 @@ struct extension_context
     /// The service's strand.
     boost::asio::any_io_executor executor;
     plugin_link link;
+    /// Keeps what the plugin reported of the licence, for the service's
+    /// snapshot.  Called on the service's strand; may be empty.
+    std::function<void(plugin_licence_report)> licence_reported;
 
     bool may(permission wanted) const noexcept;
 };
