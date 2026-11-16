@@ -567,9 +567,8 @@ TEST_CASE("plugin control point: a request that is not as it must be is "
     add("17 scopes", request_with(many));
     add("a scope that is not text", request_with(R"("scopes":[5])"));
     add("an empty scope name", request_with(R"("scopes":[""])"));
-    add("a peer of 65 bytes",
-        request_with(R"("scopes":["monitor"],"peer":")" + too_long_peer +
-                     R"(")"));
+    add("a peer of 65 bytes", request_with(R"("scopes":["monitor"],"peer":")" +
+                                           too_long_peer + R"(")"));
     add("a reason of 257 bytes",
         request_with(R"("scopes":["monitor"],"reason":")" + too_long_reason +
                      R"(")"));
@@ -742,8 +741,8 @@ TEST_CASE("plugin control point: a frame that says hello ends the session")
     point_rig rig(gateway.instance());
     const std::uint64_t session = open_session(rig, 7, {"monitor"});
 
-    REQUIRE(rig.offer(frame_with(
-        session, R"({"id":2,"op":"hello","api":1,"client":"x"})")));
+    REQUIRE(rig.offer(
+        frame_with(session, R"({"id":2,"op":"hello","api":1,"client":"x"})")));
     const json::object header = wait_closed(rig, session);
     REQUIRE_EQ(text_at(header, "op"), std::string(closed_op));
     REQUIRE_EQ(text_at(header, "code"), std::string("refused_frame"));
@@ -910,8 +909,8 @@ TEST_CASE("plugin control point: a second request while the first waits for "
 
     REQUIRE(rig.offer(session_request(7, {"monitor"})));
     REQUIRE(rig.wait_approvals(1));
-    REQUIRE(rig.offer(session_request(8, {"monitor", "control.ports"},
-                                      "another lab")));
+    REQUIRE(rig.offer(
+        session_request(8, {"monitor", "control.ports"}, "another lab")));
     const sent_message busy = rig.wait_answer(8);
     REQUIRE_EQ(code_of(busy), code_name(api_errc::busy));
     // The owner was not asked a second time, and the first is still open.
