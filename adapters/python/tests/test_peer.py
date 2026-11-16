@@ -10,7 +10,7 @@ import stat
 import struct
 import sys
 import unittest
-from unittest import mock
+import unittest.mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
 
@@ -35,7 +35,7 @@ class AsUser(unittest.TestCase):
     """Runs the test as the effective user OWN."""
 
     def setUp(self):
-        patch = mock.patch.object(os, "geteuid", create=True, return_value=OWN)
+        patch = unittest.mock.patch.object(os, "geteuid", create=True, return_value=OWN)
         patch.start()
         self.addCleanup(patch.stop)
 
@@ -47,7 +47,7 @@ class AsUser(unittest.TestCase):
 
 class DirectoryTests(AsUser):
     def check(self, result):
-        with mock.patch.object(os, "lstat", result if callable(result) else lambda _p: result):
+        with unittest.mock.patch.object(os, "lstat", result if callable(result) else lambda _p: result):
             _peer.check_unix_directory("/run/x")
 
     def test_a_private_directory_of_this_user_passes(self):
@@ -75,7 +75,7 @@ class DirectoryTests(AsUser):
 
 class SocketFileTests(AsUser):
     def check(self, result):
-        with mock.patch.object(os, "lstat", result if callable(result) else lambda _p: result):
+        with unittest.mock.patch.object(os, "lstat", result if callable(result) else lambda _p: result):
             _peer.check_unix_socket_file("/run/x/control.sock")
 
     def test_a_socket_of_this_user_passes(self):
@@ -107,8 +107,8 @@ class FakeSocket:
 
 class UnixPeerTests(AsUser):
     def linux(self):
-        platform = mock.patch.object(sys, "platform", "linux")
-        option = mock.patch.object(socket, "SO_PEERCRED", 17, create=True)
+        platform = unittest.mock.patch.object(sys, "platform", "linux")
+        option = unittest.mock.patch.object(socket, "SO_PEERCRED", 17, create=True)
         platform.start()
         option.start()
         self.addCleanup(platform.stop)
@@ -134,18 +134,18 @@ class UnixPeerTests(AsUser):
         self.refused("peer_check_failed", _peer.check_unix_peer, FakeSocket(error=RuntimeError("odd")))
 
     def test_macos_goes_through_getpeereid(self):
-        with mock.patch.object(sys, "platform", "darwin"):
-            with mock.patch.object(_peer, "_darwin_peer_uid", return_value=OWN):
+        with unittest.mock.patch.object(sys, "platform", "darwin"):
+            with unittest.mock.patch.object(_peer, "_darwin_peer_uid", return_value=OWN):
                 _peer.check_unix_peer(FakeSocket())
-            with mock.patch.object(_peer, "_darwin_peer_uid", return_value=0):
+            with unittest.mock.patch.object(_peer, "_darwin_peer_uid", return_value=0):
                 self.refused("not_same_user", _peer.check_unix_peer, FakeSocket())
-            with mock.patch.object(_peer, "_darwin_peer_uid", side_effect=AttributeError("no getpeereid")):
+            with unittest.mock.patch.object(_peer, "_darwin_peer_uid", side_effect=AttributeError("no getpeereid")):
                 self.refused("peer_check_failed", _peer.check_unix_peer, FakeSocket())
 
     def test_a_system_that_cannot_say_fails_closed(self):
         for platform in ("freebsd14", "sunos5", "aix", "cygwin"):
             with self.subTest(platform=platform):
-                with mock.patch.object(sys, "platform", platform):
+                with unittest.mock.patch.object(sys, "platform", platform):
                     self.refused("peer_check_failed", _peer.check_unix_peer, FakeSocket(raw=struct.pack("iII", 1, OWN, OWN)))
 
 
@@ -166,13 +166,13 @@ class PipeServerTests(unittest.TestCase):
         from vss_control import _win32
 
         user = _win32.own_user()
-        with mock.patch.object(_win32, "pipe_server_user", return_value=user):
+        with unittest.mock.patch.object(_win32, "pipe_server_user", return_value=user):
             _peer.check_pipe_server(0)
-            with mock.patch.object(_peer, "_same_user", return_value=False):
+            with unittest.mock.patch.object(_peer, "_same_user", return_value=False):
                 self.refused_handle(0, "not_same_user")
-            with mock.patch.object(_peer, "_same_user", side_effect=OSError("odd")):
+            with unittest.mock.patch.object(_peer, "_same_user", side_effect=OSError("odd")):
                 self.refused_handle(0)
-        with mock.patch.object(_win32, "pipe_server_user", side_effect=OSError("denied")):
+        with unittest.mock.patch.object(_win32, "pipe_server_user", side_effect=OSError("denied")):
             self.refused_handle(0)
 
     def test_own_sid_text_has_the_form_of_a_sid(self):

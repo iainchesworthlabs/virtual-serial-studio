@@ -1126,6 +1126,8 @@ def write_new_key_file(path: str, data: bytes) -> None:
         try:
             os.unlink(path)
         except OSError:
+            # The original failure is the one to report; a file that cannot
+            # be removed is left as it is.
             pass
         if isinstance(problem, OSError):
             raise Refusal(
@@ -1170,6 +1172,8 @@ def command_keygen(args: argparse.Namespace) -> int:
         try:
             os.unlink(args.out)
         except OSError:
+            # The original failure is the one to report; a file that cannot
+            # be removed is left as it is.
             pass
         raise
     print(public_key.hex())

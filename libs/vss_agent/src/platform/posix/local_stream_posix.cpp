@@ -103,13 +103,27 @@ std::string environment(const char* name)
     return value == nullptr ? std::string() : std::string(value);
 }
 
+/// True when `path` is absolute and has no `..` part, which is what a
+/// directory named by the environment has to be to be used.
+bool is_plain_absolute(const std::filesystem::path& path)
+{
+    if (!path.is_absolute())
+        return false;
+    for (const std::filesystem::path& part : path)
+    {
+        if (part == "..")
+            return false;
+    }
+    return true;
+}
+
 std::filesystem::path runtime_directory()
 {
     const std::string runtime = environment("XDG_RUNTIME_DIR");
-    if (!runtime.empty())
+    if (!runtime.empty() && is_plain_absolute(runtime))
         return std::filesystem::path(runtime) / "virtual-serial-studio";
     std::string base = environment("TMPDIR");
-    if (base.empty())
+    if (base.empty() || !is_plain_absolute(base))
         base = "/tmp";
     return std::filesystem::path(base) /
            ("virtual-serial-studio-" +

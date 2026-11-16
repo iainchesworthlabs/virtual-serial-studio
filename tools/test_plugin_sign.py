@@ -930,8 +930,8 @@ class SigningTests(ToolTestCase):
 
 # -- keygen and passphrases ----------------------------------------------------
 
-PASSPHRASE = "correct horse battery 7491"
-WRONG_PASSPHRASE = "incorrect horse battery 1234"
+LOCK_TEXT = "correct horse battery 7491"
+WRONG_LOCK_TEXT = "incorrect horse battery 1234"
 ENCRYPTED_HEADER = b"-----BEGIN ENCRYPTED PRIVATE KEY-----"
 
 
@@ -947,9 +947,16 @@ class KeygenTests(ToolTestCase):
         return self.run_tool("keygen", "--out", self.root / name, *more, **options)
 
     def passphrase_file(
-        self, text: str = PASSPHRASE + "\n", name: str = "pass.txt"
+        self, text: str = LOCK_TEXT + "\n", name: str = "pass.txt"
     ) -> Path:
-        return self.write(name, text.encode("utf-8"))
+        # Written as keygen writes a key file: for the owner
+        # alone (the mode has no effect on Windows).
+        path = self.root / name
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_BINARY", 0)
+        descriptor = os.open(path, flags, 0o600)
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(text.encode("utf-8"))
+        return path
 
     def call_main(self, *arguments: Any):
         """``plugin_sign.main`` in this process: (code, stdout, stderr)."""
@@ -976,7 +983,7 @@ class KeygenTests(ToolTestCase):
         folder = self.make_plugin("signed")
         done = self.run_tool(
             "plugin", "--key", key, "--key-id", "made-key", "--plugin", folder,
-            *options, secrets=[PASSPHRASE], **run,
+            *options, secrets=[LOCK_TEXT], **run,
         )
         self.assertEqual(done.returncode, 0, done.stderr)
         done = self.run_tool(
@@ -1153,10 +1160,10 @@ class KeygenTests(ToolTestCase):
     # -- a key that is encrypted
 
     def test_keygen_with_a_passphrase_from_the_environment(self) -> None:
-        env = dict(os.environ, TEST_PLUGIN_PASS=PASSPHRASE)
+        env = dict(os.environ, TEST_PLUGIN_PASS=LOCK_TEXT)
         done = self.keygen(
             "enc.key", "--key-id", "made-key", "--passphrase-env",
-            "TEST_PLUGIN_PASS", env=env, secrets=[PASSPHRASE],
+            "TEST_PLUGIN_PASS", env=env, secrets=[LOCK_TEXT],
         )
         self.assertEqual(done.returncode, 0, done.stderr)
         key = self.root / "enc.key"
@@ -1169,14 +1176,14 @@ class KeygenTests(ToolTestCase):
         # The same key gives the same public key.
         shown = self.run_tool(
             "public-key", "--key", key, "--passphrase-env", "TEST_PLUGIN_PASS",
-            env=env, secrets=[PASSPHRASE],
+            env=env, secrets=[LOCK_TEXT],
         )
         self.assertEqual(shown.stdout, public_key + "\n")
 
     def test_keygen_with_a_passphrase_from_a_file(self) -> None:
         pass_file = self.passphrase_file()
         done = self.keygen(
-            "enc.key", "--passphrase-file", pass_file, secrets=[PASSPHRASE]
+            "enc.key", "--passphrase-file", pass_file, secrets=[LOCK_TEXT]
         )
         self.assertEqual(done.returncode, 0, done.stderr)
         key = self.root / "enc.key"
@@ -1190,10 +1197,10 @@ class KeygenTests(ToolTestCase):
 
     def test_the_passphrase_is_the_first_line_without_its_ending(self) -> None:
         # A Windows line ending, and more lines that are not the passphrase.
-        pass_file = self.passphrase_file(PASSPHRASE + "\r\nsecond line\n")
+        pass_file = self.passphrase_file(LOCK_TEXT + "\r\nsecond line\n")
         done = self.keygen("enc.key", "--passphrase-file", pass_file)
         self.assertEqual(done.returncode, 0, done.stderr)
-        same = self.passphrase_file(PASSPHRASE, "plain.txt")  # no line ending
+        same = self.passphrase_file(LOCK_TEXT, "plain.txt")  # no line ending
         shown = self.run_tool(
             "public-key", "--key", self.root / "enc.key",
             "--passphrase-file", same,
@@ -1230,9 +1237,9 @@ class KeygenTests(ToolTestCase):
     def test_signing_with_what_cannot_open_the_key(self) -> None:
         key = self.encrypted_key()
         folder = self.make_plugin()
-        wrong = self.passphrase_file(WRONG_PASSPHRASE + "\n", "wrong.txt")
+        wrong = self.passphrase_file(WRONG_LOCK_TEXT + "\n", "wrong.txt")
         empty = self.passphrase_file("", "empty.txt")
-        env = dict(os.environ, TEST_PLUGIN_WRONG=WRONG_PASSPHRASE, TEST_PLUGIN_EMPTY="")
+        env = dict(os.environ, TEST_PLUGIN_WRONG=WRONG_LOCK_TEXT, TEST_PLUGIN_EMPTY="")
         env.pop("TEST_PLUGIN_UNSET", None)
         cases = (
             ("a wrong passphrase", 1, "passphrase", ["--passphrase-file", wrong]),
@@ -1254,7 +1261,7 @@ class KeygenTests(ToolTestCase):
             done = self.run_tool(
                 "plugin", "--key", key, "--key-id", "made-key", "--plugin",
                 folder, *options, env=env, timeout=60,
-                secrets=[PASSPHRASE, WRONG_PASSPHRASE],
+                secrets=[LOCK_TEXT, WRONG_LOCK_TEXT],
             )
             self.assertEqual(done.returncode, code, what + ": " + done.stderr)
             self.assertIn(text, done.stderr, what)
@@ -1283,7 +1290,7 @@ class KeygenTests(ToolTestCase):
 
     def test_keygen_refuses_what_gives_no_passphrase(self) -> None:
         empty = self.passphrase_file("", "empty.txt")
-        env = dict(os.environ, TEST_PLUGIN_EMPTY="", TEST_PLUGIN_PASS=PASSPHRASE)
+        env = dict(os.environ, TEST_PLUGIN_EMPTY="", TEST_PLUGIN_PASS=LOCK_TEXT)
         env.pop("TEST_PLUGIN_UNSET", None)
         cases = (
             (2, "not set", ["--passphrase-env", "TEST_PLUGIN_UNSET"]),
@@ -1296,7 +1303,7 @@ class KeygenTests(ToolTestCase):
         )
         for code, text, options in cases:
             done = self.keygen(
-                "new.key", *options, env=env, timeout=60, secrets=[PASSPHRASE]
+                "new.key", *options, env=env, timeout=60, secrets=[LOCK_TEXT]
             )
             self.assertEqual(done.returncode, code, done.stderr)
             self.assertIn(text, done.stderr)
@@ -1329,7 +1336,7 @@ class KeygenTests(ToolTestCase):
         key = self.root / "enc.key"
         folder = self.make_plugin()
         before = dict(os.environ)
-        with unittest.mock.patch.dict(os.environ, {"TEST_PLUGIN_PASS": PASSPHRASE}):
+        with unittest.mock.patch.dict(os.environ, {"TEST_PLUGIN_PASS": LOCK_TEXT}):
             with unittest.mock.patch.object(ps.subprocess, "run", side_effect=spy):
                 code, out, err = self.call_main(
                     "keygen", "--out", key, "--passphrase-env", "TEST_PLUGIN_PASS"
@@ -1344,12 +1351,12 @@ class KeygenTests(ToolTestCase):
             self.assertNotIn(ps.PASSPHRASE_VAR, os.environ)
         self.assertEqual(dict(os.environ), before)
         for text in (out, err, out2, err2):
-            self.assertNotIn(PASSPHRASE, text)
+            self.assertNotIn(LOCK_TEXT, text)
 
         used = 0
         for command, environment in calls:
             for argument in command:
-                self.assertNotIn(PASSPHRASE, argument)
+                self.assertNotIn(LOCK_TEXT, argument)
                 self.assertFalse(argument.startswith("pass:"), argument)
             for option in ("-passin", "-pass"):
                 if option in command:
@@ -1357,7 +1364,7 @@ class KeygenTests(ToolTestCase):
                         command[command.index(option) + 1],
                         "env:" + ps.PASSPHRASE_VAR,
                     )
-                    self.assertEqual(environment[ps.PASSPHRASE_VAR], PASSPHRASE)
+                    self.assertEqual(environment[ps.PASSPHRASE_VAR], LOCK_TEXT)
                     used += 1
         # genpkey, then the read back, the public key and the signature.
         self.assertGreaterEqual(used, 4)
@@ -1367,35 +1374,35 @@ class KeygenTests(ToolTestCase):
     def test_the_prompt_asks_twice_for_a_new_key_and_once_to_use_it(self) -> None:
         key = self.root / "enc.key"
         code, made, err, asked = self.call_with_prompt(
-            [PASSPHRASE, PASSPHRASE],
+            [LOCK_TEXT, LOCK_TEXT],
             "keygen", "--out", key, "--passphrase-prompt",
         )
         self.assertEqual(code, 0, err)
         self.assertEqual(asked, 2)
         self.assertTrue(key.read_bytes().startswith(ENCRYPTED_HEADER))
         code, shown, err, asked = self.call_with_prompt(
-            [PASSPHRASE], "public-key", "--key", key, "--passphrase-prompt",
+            [LOCK_TEXT], "public-key", "--key", key, "--passphrase-prompt",
         )
         self.assertEqual(code, 0, err)
         self.assertEqual(asked, 1)
         self.assertEqual(shown, made)
         code, shown, err, asked = self.call_with_prompt(
-            [WRONG_PASSPHRASE], "public-key", "--key", key, "--passphrase-prompt",
+            [WRONG_LOCK_TEXT], "public-key", "--key", key, "--passphrase-prompt",
         )
         self.assertEqual(code, 1)
-        self.assertNotIn(WRONG_PASSPHRASE, err)
+        self.assertNotIn(WRONG_LOCK_TEXT, err)
 
     def test_two_different_answers_at_the_prompt_are_an_error(self) -> None:
         key = self.root / "enc.key"
         code, out, err, asked = self.call_with_prompt(
-            [PASSPHRASE, WRONG_PASSPHRASE],
+            [LOCK_TEXT, WRONG_LOCK_TEXT],
             "keygen", "--out", key, "--passphrase-prompt",
         )
         self.assertEqual(code, 1)
         self.assertEqual(out, "")
         self.assertIn("not the same", err)
-        self.assertNotIn(PASSPHRASE, err)
-        self.assertNotIn(WRONG_PASSPHRASE, err)
+        self.assertNotIn(LOCK_TEXT, err)
+        self.assertNotIn(WRONG_LOCK_TEXT, err)
         self.assertFalse(key.exists())
 
     def test_an_empty_answer_at_the_prompt_is_refused(self) -> None:

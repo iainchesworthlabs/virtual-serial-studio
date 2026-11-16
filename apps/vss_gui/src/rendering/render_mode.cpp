@@ -64,13 +64,20 @@ QString render_argument(const QStringList& arguments)
 {
     const QString name = QStringLiteral("--render");
     QString value;
-    for (qsizetype index = 1; index < arguments.size(); ++index)
+    qsizetype index = 1;
+    while (index < arguments.size())
     {
         const QString& argument = arguments.at(index);
+        ++index;
         if (argument.startsWith(name + QLatin1Char('=')))
+        {
             value = argument.mid(name.size() + 1);
-        else if (argument == name && index + 1 < arguments.size())
-            value = arguments.at(++index);
+        }
+        else if (argument == name && index < arguments.size())
+        {
+            value = arguments.at(index);
+            ++index;
+        }
     }
     return value;
 }

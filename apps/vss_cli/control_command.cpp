@@ -1604,6 +1604,9 @@ std::optional<secret_string> read_token_file(const std::string& path)
 
 } // namespace
 
+/// The usage text of the `control` commands, one block for each command and
+/// in the order the commands are shown by `vss_cli --help`.  The text is a
+/// literal, so this never fails and never allocates.
 const char* control_usage() noexcept
 {
     return "  vss_cli control status [--instance=<name>] "
