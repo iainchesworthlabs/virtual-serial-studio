@@ -1720,3 +1720,96 @@ TEST_CASE("document: a direction that is not a monitor's is refused")
         REQUIRE(harmless);
     }
 }
+
+TEST_CASE("document: wire timing round trips and stays out when off")
+{
+    document value = bus_document();
+    // The join beside the bus carries it.
+    value.links[1].wire_timing.enabled = true;
+    value.links[1].wire_timing.bit_rate = 250000;
+    value.links[1].wire_timing.framing =
+        wire_framing{8, parity_mode::none, stop_bits_mode::two};
+    REQUIRE(!validate(value));
+
+    const auto text = to_json(value, false);
+    REQUIRE(text);
+    REQUIRE(text->find(R"("wire_timing":{"bit_rate":250000,"framing":"8N2"})") !=
+            std::string::npos);
+    // The version is still 1.
+    REQUIRE(text->find("\"version\":1") != std::string::npos);
+    const auto parsed = from_json(*text);
+    REQUIRE(parsed);
+    REQUIRE(*parsed == value);
+    REQUIRE(parsed->links[1].wire_timing == value.links[1].wire_timing);
+    REQUIRE(!parsed->links[0].wire_timing.enabled);
+
+    // A file written without the option does not mention it, and reads
+    // back with it off.
+    const auto plain = to_json(bus_document());
+    REQUIRE(plain);
+    REQUIRE(plain->find("wire_timing") == std::string::npos);
+    const auto again = from_json(*plain);
+    REQUIRE(again);
+    REQUIRE(!again->links[0].wire_timing.enabled);
+    REQUIRE(!again->links[1].wire_timing.enabled);
+
+    // Values of an option that is off are not written either.
+    document off = bus_document();
+    off.links[1].wire_timing.bit_rate = 300;
+    const auto silent = to_json(off);
+    REQUIRE(silent);
+    REQUIRE(silent->find("wire_timing") == std::string::npos);
+}
+
+TEST_CASE("document: wire timing in a hand written file")
+{
+    const auto parse = [](const std::string& link)
+    {
+        return from_json(
+            R"({"version":1,"ports":[{"name":"a","kind":"virtual"},)"
+            R"({"name":"b","kind":"virtual"}],"links":[)" +
+            link + "]}");
+    };
+    const std::string base = R"({"mode":"duplex","sources":["a"],"targets":["b"])";
+
+    // The object alone turns the option on, with nothing given.
+    const auto bare = parse(base + R"(,"wire_timing":{}})");
+    REQUIRE(bare);
+    REQUIRE(bare->links[0].wire_timing.enabled);
+    REQUIRE_EQ(bare->links[0].wire_timing.bit_rate, std::uint32_t{0});
+    REQUIRE(!bare->links[0].wire_timing.framing.has_value());
+
+    const auto full =
+        parse(base + R"(,"wire_timing":{"bit_rate":9600,"framing":"7E1"}})");
+    REQUIRE(full);
+    REQUIRE_EQ(full->links[0].wire_timing.bit_rate, std::uint32_t{9600});
+    REQUIRE(full->links[0].wire_timing.framing ==
+            (wire_framing{7, parity_mode::even, stop_bits_mode::one}));
+
+    // Absent is off.
+    const auto absent = parse(base + "}");
+    REQUIRE(absent);
+    REQUIRE(!absent->links[0].wire_timing.enabled);
+
+    const auto expect_invalid = [&](const std::string& member)
+    {
+        const auto parsed = parse(base + R"(,"wire_timing":)" + member + "}");
+        REQUIRE(!parsed);
+        REQUIRE(parsed.error() == make_error_code(errc::config_error));
+    };
+    expect_invalid("true");
+    expect_invalid(R"({"bit_rate":"fast"})");
+    expect_invalid(R"({"bit_rate":-1})");
+    expect_invalid(R"({"bit_rate":12000001})");
+    // Valid JSON, but under the limit of a rate and so not valid.
+    expect_invalid(R"({"bit_rate":10})");
+    expect_invalid(R"({"framing":"9N1"})");
+    expect_invalid(R"({"framing":8})");
+    expect_invalid(R"({"bitrate":9600})");
+
+    // A bus has a wire of its own.
+    const auto bus = parse(
+        R"({"mode":"bus","members":["a","b"],"wire_timing":{"bit_rate":9600}})");
+    REQUIRE(!bus);
+    REQUIRE(bus.error() == make_error_code(errc::config_error));
+}

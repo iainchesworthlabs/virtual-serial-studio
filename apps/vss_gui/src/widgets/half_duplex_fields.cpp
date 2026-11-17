@@ -71,8 +71,9 @@ HalfDuplexFields::HalfDuplexFields(QWidget* parent) : QWidget(parent)
     bit_rate_->findChild<QLineEdit*>()->setAccessibleName(tr("Line rate"));
     rows->addWidget(new FormRow(
         tr("Line rate"), bit_rate_,
-        tr("A byte takes ten bits. The others hear a message when its last "
-           "byte has left the line."),
+        tr("A byte takes as many bits as the sender's framing gives it, ten "
+           "for 8N1. The others hear a message when its last byte has left "
+           "the line."),
         rows_));
 
     turnaround_ = new QSpinBox(rows_);

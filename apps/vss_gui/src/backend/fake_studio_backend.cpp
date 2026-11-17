@@ -577,8 +577,12 @@ FakeStudioBackend::bus(const std::vector<vss::endpoint_id>& members,
     if (requested.half_duplex.enabled && !caps_.half_duplex_bus)
         return vss::make_error_code(vss::errc::unsupported);
     if (!vss::valid_half_duplex(requested.half_duplex) ||
-        !vss::valid_latency(requested))
+        !vss::valid_latency(requested) ||
+        !vss::valid_wire_timing(requested.wire_timing))
         return vss::make_error_code(vss::errc::invalid_argument);
+    // A bus has a wire of its own.
+    if (requested.wire_timing.enabled)
+        return vss::make_error_code(vss::errc::unsupported);
     if (members.size() < 2 || members.size() > vss::max_bus_members)
         return vss::make_error_code(vss::errc::invalid_argument);
     for (std::size_t index = 0; index < members.size(); ++index)
@@ -793,7 +797,8 @@ FakeStudioBackend::set_link_options(vss::link_id id,
         return *error;
     // The same rules as the engine, in the same order.
     if (!vss::valid_latency(options) ||
-        !vss::valid_half_duplex(options.half_duplex))
+        !vss::valid_half_duplex(options.half_duplex) ||
+        !vss::valid_wire_timing(options.wire_timing))
         return vss::make_error_code(vss::errc::invalid_argument);
     link_view* view = find_link(id);
     if (view == nullptr)
@@ -804,6 +809,9 @@ FakeStudioBackend::set_link_options(vss::link_id id,
         return vss::make_error_code(vss::errc::unsupported);
     const bool bus = view->mode == vss::link_mode::bus;
     if (bus && options.policy != vss::merge_policy::interleave)
+        return vss::make_error_code(vss::errc::unsupported);
+    // A bus has a wire of its own.
+    if (bus && options.wire_timing.enabled)
         return vss::make_error_code(vss::errc::unsupported);
     // Only a bus has a half-duplex line, and only where the backend has it.
     if (options.half_duplex.enabled && (!bus || !caps_.half_duplex_bus))
@@ -1127,6 +1135,8 @@ vss::config::document FakeStudioBackend::snapshot() const
         entry.jitter_ms = view.options.jitter_ms;
         if (view.shape == link_shape::bus)
             entry.half_duplex = view.options.half_duplex;
+        else
+            entry.wire_timing = view.options.wire_timing;
         document.links.push_back(std::move(entry));
     }
     return document;
@@ -1288,6 +1298,7 @@ FakeStudioBackend::build_document(const vss::config::document& document,
         view.options.direction = entry.direction;
         view.options.delay_ms = entry.delay_ms;
         view.options.jitter_ms = entry.jitter_ms;
+        view.options.wire_timing = entry.wire_timing;
         // Map the document's mode name to a shape.  Any other mode is
         // one-way.  A bus needs a backend that supports shared buses.
         if (entry.mode == "duplex")

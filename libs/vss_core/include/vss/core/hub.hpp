@@ -13,6 +13,7 @@
 #include <vss/core/error.hpp>
 #include <vss/core/event.hpp>
 #include <vss/core/link.hpp>
+#include <vss/core/pacing.hpp>
 #include <vss/core/profile.hpp>
 #include <vss/core/traffic_log.hpp>
 
@@ -447,6 +448,9 @@ private:
         std::atomic<std::uint64_t> messages{0};
         std::atomic<std::uint64_t> dropped{0};
         std::atomic<std::uint64_t> breaks{0};
+        /// What the delay lines of a paced link count.
+        std::shared_ptr<pacing_counters> pacing =
+            std::make_shared<pacing_counters>();
         /// Above zero while #set_link_options closes the delay lines it has
         /// replaced.  A chunk routed in that time is discarded, so none can
         /// take the new route and pass one that is still in an old line.
@@ -492,10 +496,12 @@ private:
     make_forwarder();
     route_entry make_route(const link_record& link, endpoint_id from,
                            endpoint_id to);
-    /// The delay line for a route to `to` under `options`; null when they
-    /// have no delay.  The caller holds the lock.
-    std::shared_ptr<delay_line> make_delay(endpoint_id to,
-                                           const link_options& options);
+    /// The delay line for a route from `from` to `to` under `options`; null
+    /// when they have no delay and no wire timing.  The caller holds the
+    /// lock.
+    std::shared_ptr<delay_line> make_delay(
+        const std::shared_ptr<pacing_counters>& pacing, endpoint_id from,
+        endpoint_id to, const link_options& options);
     void add_route(const link_record& link, endpoint_id from, endpoint_id to);
     /// Removes the routes of `link` that leave `from` for `to` (for any
     /// endpoint when `to` is 0) and hands their delay lines to `held`, to be
@@ -515,6 +521,8 @@ private:
     /// The request for fine timers (`hub_options::fine_timers`), held from
     /// start() to join().  Its type is the platform layer's.
     std::shared_ptr<void> timer_period_;
+    /// The spinning allowance of every paced route (see #spin_budget).
+    std::shared_ptr<spin_budget> spin_budget_ = std::make_shared<spin_budget>();
     std::atomic<bool> running_{false};
     // Shutdowns in flight, from remove_endpoint() and stop(). The io_context is
     // stopped only once stop() has been called and this reaches zero.
