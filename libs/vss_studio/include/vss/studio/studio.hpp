@@ -454,6 +454,42 @@ public:
     /// each failure; every step is logged as a `log_message` event on the
     /// endpoint.  Off by default.
     void set_reconnect_policy(const reconnect_policy& policy);
+
+    /// Where a network client is in connecting, for a window to show.  Only
+    /// a port made from an address has one; `nullopt` for any other port.
+    struct connection_status
+    {
+        /// The address the port was made from, as `snapshot()` writes it.
+        std::string uri;
+        /// The studio is waiting to try again.
+        bool retrying = false;
+        /// Tries that have failed in the running sequence.
+        unsigned attempts = 0;
+        /// Why the last try failed, or empty before one has.
+        std::string last_error;
+        /// The same error as category and number, such as "system:10061".
+        std::string last_error_code;
+        /// How long until the next try; zero when none is waiting.
+        std::chrono::milliseconds next_try_in{0};
+    };
+    std::optional<connection_status> connection(endpoint_id id) const;
+
+    /// Closes a port that was made from an address (a network client or
+    /// server, or a serial device) and keeps it: its name, id and links stay,
+    /// and no try to open it again is made until #start_port.  A client's
+    /// retries stop, a server lets go of its address and drops its clients.
+    /// `errc::unsupported` for a port with no address (a virtual port, a
+    /// fixture) and `errc::not_found` for an unknown one.  Not saved by
+    /// `snapshot()`: the setup file has no field for it.
+    result<void> stop_port(endpoint_id id);
+    /// Opens a stopped port again.  A client whose remote end refuses is left
+    /// retrying, as `attach_waiting` makes it; any other port that cannot
+    /// open returns the error and stays stopped.
+    result<void> start_port(endpoint_id id);
+    /// `nullopt` when the port cannot be stopped (see #stop_port), else
+    /// whether it is stopped now.  A port that was opened again by other
+    /// means is not stopped.
+    std::optional<bool> port_stopped(endpoint_id id) const;
     reconnect_policy current_reconnect_policy() const;
 
     /// The ports of the Windows driver whose endpoint has stopped: the helper
@@ -692,6 +728,8 @@ private:
         /// The port was opened with settings given apart from its address, so
         /// a reopen gives them again; otherwise the address alone describes it.
         bool settings_given = false;
+        /// Closed by #stop_port and not to be opened until #start_port.
+        bool stopped = false;
         /// Where the port is in the setup: `snapshot` writes ports in this
         /// order, then by id.  `register_port` gives the next number, and
         /// `apply` and `replace` set it from the place in the document.

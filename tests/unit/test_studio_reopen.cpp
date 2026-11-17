@@ -546,6 +546,66 @@ TEST_CASE("reconnect: a client made while the server refuses connects later")
                make_error_code(errc::invalid_uri));
 }
 
+TEST_CASE("stop_port: a stopped client stays closed and is not retried")
+{
+    tcp_server server;
+    studio app;
+    app.set_reconnect_policy(quick_policy());
+    const auto port = app.attach_serial("remote", uri_of(server));
+    REQUIRE(port);
+    REQUIRE(wait_until([&] { return server.accepted() == 1; }, 5000ms));
+    REQUIRE(app.port_stopped((*port)->id()).value_or(true) == false);
+    const auto status = app.connection((*port)->id());
+    REQUIRE(status);
+    REQUIRE(!status->retrying);
+
+    REQUIRE(app.stop_port((*port)->id()));
+    REQUIRE(wait_for_state(*port, endpoint_state::closed));
+    REQUIRE(app.port_stopped((*port)->id()).value_or(false) == true);
+    // The port and its record are kept, and nothing opens it again even
+    // though the retry policy is on.
+    REQUIRE_EQ(app.endpoint_infos().size(), std::size_t{1});
+    std::this_thread::sleep_for(500ms);
+    REQUIRE_EQ(server.accepted(), 1);
+    REQUIRE(!app.connection((*port)->id())->retrying);
+
+    REQUIRE(app.start_port((*port)->id()));
+    REQUIRE(wait_until([&] { return server.accepted() == 2; }, 5000ms));
+    REQUIRE(wait_for_state(*port, endpoint_state::open));
+    REQUIRE(app.port_stopped((*port)->id()).value_or(true) == false);
+}
+
+TEST_CASE("stop_port: a port with no address cannot be stopped")
+{
+    studio app;
+    const auto port = app.create_virtual_port("plain",
+                                              virtual_port_kind::loopback);
+    REQUIRE(port);
+    REQUIRE(!app.port_stopped((*port)->id()).has_value());
+    REQUIRE_EQ(app.stop_port((*port)->id()).error(),
+               make_error_code(errc::unsupported));
+    REQUIRE_EQ(app.stop_port(9999).error(), make_error_code(errc::not_found));
+}
+
+TEST_CASE("stop_port: starting a client whose server refuses keeps trying")
+{
+    tcp_server server;
+    studio app;
+    app.set_reconnect_policy(quick_policy());
+    const auto port = app.attach_serial("remote", uri_of(server));
+    REQUIRE(port);
+    REQUIRE(wait_until([&] { return server.accepted() == 1; }, 5000ms));
+    REQUIRE(app.stop_port((*port)->id()));
+
+    server.pause();
+    REQUIRE(app.start_port((*port)->id()));
+    REQUIRE(wait_until(
+        [&] { return app.connection((*port)->id())->retrying; }, 5000ms));
+    server.resume();
+    REQUIRE(wait_until([&] { return server.accepted() == 2; }, 5000ms));
+    REQUIRE(wait_for_state(*port, endpoint_state::open));
+}
+
 TEST_CASE("reconnect: it keeps trying while the server is down")
 {
     tcp_server server;
