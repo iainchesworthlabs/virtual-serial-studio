@@ -2409,11 +2409,6 @@
             <translation>イベントを検索</translation>
         </message>
         <message>
-            <location filename="../src/advanced/event_log.cpp" line="164" />
-            <source>Show %1 events</source>
-            <translation>%1 のイベントを表示</translation>
-        </message>
-        <message>
             <location filename="../src/advanced/event_log.cpp" line="498" />
             <source>No events match the filters.</source>
             <translation>フィルターに一致するイベントはありません。</translation>
@@ -2422,6 +2417,21 @@
             <location filename="../src/advanced/event_log.cpp" line="159" />
             <source>Other</source>
             <translation>その他</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="165" />
+            <source>Events</source>
+            <translation>イベント</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="166" />
+            <source>Event kinds</source>
+            <translation>イベントの種類</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="167" />
+            <source>Choose which kinds of event are shown.</source>
+            <translation>表示するイベントの種類を選びます。</translation>
         </message>
     </context>
     <context>

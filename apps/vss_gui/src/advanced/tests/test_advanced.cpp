@@ -34,6 +34,7 @@
 #include <QDir>
 #include <QDockWidget>
 #include <QLabel>
+#include <QMenu>
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QProgressBar>
@@ -1802,10 +1803,39 @@ TEST_CASE("event log: port, kind and search filters keep new rows arriving")
     REQUIRE(log.empty_label()->isVisibleTo(&log));
     search->clear();
 
-    for (QCheckBox* box : log.findChildren<QCheckBox*>())
+    auto* kinds = log.findChild<QToolButton*>();
+    REQUIRE(kinds != nullptr);
+    for (QAction* action : kinds->menu()->actions())
     {
-        if (box->text() == QStringLiteral("Errors"))
-            box->setChecked(false);
+        if (action->text() == QStringLiteral("Errors"))
+            action->setChecked(false);
     }
     REQUIRE_EQ(shown(), 3);
+}
+
+TEST_CASE("event log: in a narrow pane no control is squeezed")
+{
+    using namespace vss::gui;
+    for (const int width : {360, 388, 520, 900})
+    {
+        EventLogPanel log;
+        log.resize(width, 300);
+        log.show();
+        QApplication::processEvents();
+        for (QWidget* widget : log.findChildren<QWidget*>())
+        {
+            if (!widget->isVisible())
+                continue;
+            if (qobject_cast<QPushButton*>(widget) == nullptr &&
+                qobject_cast<QToolButton*>(widget) == nullptr &&
+                qobject_cast<QComboBox*>(widget) == nullptr)
+                continue;
+            REQUIRE(widget->width() >= widget->minimumSizeHint().width());
+            REQUIRE(widget->width() >= 24);
+            if (auto* button = qobject_cast<QAbstractButton*>(widget))
+            {
+                REQUIRE(button->width() >= button->sizeHint().width());
+            }
+        }
+    }
 }
