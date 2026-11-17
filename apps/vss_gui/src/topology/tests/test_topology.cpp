@@ -562,6 +562,16 @@ TEST_CASE("topology: double-click opens Settings while editing, for a port "
     REQUIRE_EQ(link_settings, vss::link_id{0});
     REQUIRE_EQ(inspected, 0);
 
+    // A monitor link has settings too (its direction).
+    const auto monitor = fixture.backend.monitor(fixture.terminal, fixture.logger);
+    REQUIRE(monitor.has_value());
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+    link_settings = 0;
+    double_click(view.viewport(),
+                 view.mapFromScene(view.link_anchor(*monitor)));
+    REQUIRE_EQ(link_settings, *monitor);
+
     // Not being edited, a double-click inspects, as the design had it.
     view.set_editing(false);
     double_click(view.viewport(),
