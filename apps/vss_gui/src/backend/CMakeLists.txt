@@ -14,6 +14,7 @@ add_library(vss_gui_backend STATIC
   share_edit.cpp
   canvas_edit.cpp
   com_numbers.cpp
+  com_number_uses.cpp
   driver_error.cpp
   licence_store.cpp
   licence_store.hpp
@@ -39,6 +40,7 @@ add_library(vss_gui_backend STATIC
   share_edit.hpp
   canvas_edit.hpp
   com_numbers.hpp
+  com_number_uses.hpp
   driver_error.hpp
   capabilities.hpp
   other_ports.hpp

@@ -1703,6 +1703,30 @@
             <source>Could not change the COM number</source>
             <translation>تعذر تغيير رقم COM</translation>
         </message>
+        <message>
+            <source>Windows restarts the port to change its number, so no program may have it open. The list holds free numbers. You can type another.</source>
+            <translation>يعيد Windows تشغيل المنفذ لتغيير رقمه، لذلك يجب ألا يكون أي برنامج قد فتحه. تحتوي القائمة على الأرقام الحرة. يمكنك كتابة رقم آخر.</translation>
+        </message>
+        <message>
+            <source>Numbers in use</source>
+            <translation>الأرقام المستخدمة</translation>
+        </message>
+        <message>
+            <source>%1: %2</source>
+            <translation>%1: %2</translation>
+        </message>
+        <message>
+            <source>%1: this port now</source>
+            <translation>%1: هذا المنفذ الآن</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255.</source>
+            <translation>اختر رقمًا من 1 إلى 255.</translation>
+        </message>
+        <message>
+            <source>%1 is used by %2. Choose a free number.</source>
+            <translation>الرقم %1 مستخدم من %2. اختر رقمًا حرًا.</translation>
+        </message>
     </context>
     <context>
         <name>CommandPalette</name>
@@ -20216,6 +20240,30 @@ Networks: %5</source>
             <source>%1 name</source>
             <translation>اسم %1</translation>
         </message>
+        <message>
+            <source>COM number</source>
+            <translation>رقم COM</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>تلقائي</translation>
+        </message>
+        <message>
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one. COM1 and COM2 are kept for real ports.</source>
+            <translation>يحتاج البرنامج الذي يفتح اسمًا ثابتًا مثل COM3 إلى الرقم نفسه في كل مرة. يختار الوضع التلقائي رقمًا حرًا. الرقمان COM1 وCOM2 محجوزان للمنافذ الحقيقية.</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255, or Automatic.</source>
+            <translation>اختر رقمًا من 1 إلى 255، أو تلقائي.</translation>
+        </message>
+        <message>
+            <source>COM%1 is used by %2. Choose a free number.</source>
+            <translation>COM%1 مستخدم من %2. اختر رقمًا حرًا.</translation>
+        </message>
+        <message>
+            <source>COM1 and COM2 are kept for real ports. Choose COM3 or higher.</source>
+            <translation>الرقمان COM1 وCOM2 محجوزان للمنافذ الحقيقية. اختر COM3 أو أعلى.</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -24501,6 +24549,21 @@ From the plugin %2
             <location filename="../src/support/plugin_dialogs.cpp" line="878" />
             <source>Add</source>
             <translation>إضافة</translation>
+        </message>
+    </context>
+    <context>
+        <name>com_use</name>
+        <message>
+            <source>Studio port %1</source>
+            <translation>منفذ Studio ‏%1</translation>
+        </message>
+        <message>
+            <source>Windows device %1</source>
+            <translation>جهاز Windows ‏%1</translation>
+        </message>
+        <message>
+            <source>Reserved by Windows</source>
+            <translation>محجوز من Windows</translation>
         </message>
     </context>
 </TS>

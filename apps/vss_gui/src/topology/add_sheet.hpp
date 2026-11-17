@@ -7,6 +7,7 @@
 #pragma once
 
 #include "backend/canvas_edit.hpp"
+#include "backend/com_number_uses.hpp"
 
 #include <QDialog>
 #include <QString>
@@ -14,6 +15,7 @@
 #include <QVector>
 
 #include <functional>
+#include <map>
 #include <utility>
 #include <vector>
 
@@ -28,6 +30,7 @@ class QWidget;
 
 namespace vss::gui
 {
+class FormRow;
 class NoteBanner;
 }
 
@@ -66,6 +69,15 @@ public:
     {
         setup_offered_ = std::move(offered);
     }
+
+    /// Offers a "COM number" row (Automatic, then the free numbers) on the
+    /// Port tile, where Windows can give a port a number.  `uses` are the
+    /// numbers that are taken and by what.
+    void set_com_numbers(std::map<unsigned, com_use> uses);
+    QComboBox* com_number_combo() const noexcept { return com_; }
+    FormRow* com_number_row() const noexcept { return com_row_; }
+    /// The COM number typed or chosen; 0 for Automatic or text that is not one.
+    unsigned com_number() const;
 
     bundle_request request() const;
     int count() const;
@@ -109,6 +121,9 @@ private:
     QToolButton* more_ = nullptr;
     QWidget* settings_ = nullptr;
     QComboBox* baud_ = nullptr;
+    QComboBox* com_ = nullptr;
+    FormRow* com_row_ = nullptr;
+    std::map<unsigned, com_use> com_uses_;
     QComboBox* framing_ = nullptr;
     NoteBanner* error_ = nullptr;
     attempt_function attempt_;

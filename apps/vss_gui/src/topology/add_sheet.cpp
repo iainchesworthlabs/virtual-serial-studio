@@ -8,6 +8,7 @@
 
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
+#include "backend/com_numbers.hpp"
 #include "topology/toolbox.hpp"
 #include "widgets/common.hpp"
 #include "widgets/controls.hpp"
@@ -24,6 +25,8 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QRegularExpressionValidator>
+#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -167,6 +170,22 @@ AddSheet::AddSheet(canvas_item item, const std::vector<port_view>& ports,
     grid_->setHorizontalSpacing(8);
     grid_->setVerticalSpacing(8);
     layout->addWidget(rows_host_);
+
+    // The COM number row stays hidden until set_com_numbers() offers it.
+    com_ = new QComboBox(this);
+    com_->setObjectName(QStringLiteral("addSheetCom"));
+    com_->setEditable(true);
+    com_->setInsertPolicy(QComboBox::NoInsert);
+    com_->setAccessibleName(tr("COM number"));
+    com_->setValidator(new QRegularExpressionValidator(
+        QRegularExpression(
+            QStringLiteral("(?:[Cc][Oo][Mm])?[0-9]{0,3}|Automatic")),
+        com_));
+    com_row_ = new FormRow(tr("COM number"), com_, {}, this);
+    com_row_->setVisible(false);
+    layout->addWidget(com_row_);
+    connect(com_, &QComboBox::currentTextChanged, this,
+            [this] { update_state(); });
 
     // Baud rate and framing are rarely needed, so they sit behind a toggle
     // that is closed at first.
@@ -345,6 +364,39 @@ void AddSheet::rebuild_rows(int slots)
         rows_.first().name->setFocus(Qt::OtherFocusReason);
 }
 
+void AddSheet::set_com_numbers(std::map<unsigned, com_use> uses)
+{
+    if (item_ != canvas_item::port)
+        return;
+    com_uses_ = std::move(uses);
+    const QSignalBlocker block(com_);
+    com_->clear();
+    com_->addItem(tr("Automatic"));
+    for (const unsigned candidate :
+         free_com_numbers(com_uses_, kFirstGuiComNumber, 48))
+        com_->addItem(QStringLiteral("COM%1").arg(candidate));
+    com_->setCurrentIndex(0);
+    com_row_->set_hint(
+        tr("A program that opens a fixed name such as COM3 needs the same "
+           "number every time. Automatic picks a free one. COM1 and COM2 "
+           "are kept for real ports."));
+    com_row_->setVisible(true);
+    update_state();
+    adjustSize();
+}
+
+unsigned AddSheet::com_number() const
+{
+    if (com_row_ == nullptr || com_row_->isHidden())
+        return 0;
+    QString text = com_->currentText().trimmed();
+    if (text.startsWith(QLatin1String("com"), Qt::CaseInsensitive))
+        text.remove(0, 3);
+    bool ok = false;
+    const unsigned value = text.toUInt(&ok);
+    return ok ? value : 0U;
+}
+
 void AddSheet::rename_default(int index)
 {
     if (index < 0 || index >= rows_.size())
@@ -400,6 +452,31 @@ void AddSheet::update_state()
                 ok = false;
         }
     }
+    if (com_row_ != nullptr && !com_row_->isHidden())
+    {
+        com_row_->clear_error();
+        const unsigned number = com_number();
+        const bool automatic =
+            com_->currentText().trimmed().compare(tr("Automatic"),
+                                                  Qt::CaseInsensitive) == 0 ||
+            com_->currentText().trimmed().isEmpty();
+        QString reason;
+        if (!automatic && (number < 1 || number > 255))
+            reason = tr("Choose a number from 1 to 255, or Automatic.");
+        else if (const auto found = com_uses_.find(number);
+                 !automatic && found != com_uses_.end())
+            reason = tr("COM%1 is used by %2. Choose a free number.")
+                         .arg(number)
+                         .arg(com_use_text(found->second));
+        else if (!automatic && number < kFirstGuiComNumber)
+            reason = tr("COM1 and COM2 are kept for real ports. Choose COM3 "
+                        "or higher.");
+        if (!reason.isEmpty())
+        {
+            com_row_->set_error(reason);
+            ok = false;
+        }
+    }
     if (add_ != nullptr)
         add_->setEnabled(ok);
 }
@@ -425,6 +502,8 @@ bundle_request AddSheet::request() const
         slot.name = slot.kind == slot_kind::existing
                         ? line.kind->currentText()
                         : line.name->text().trimmed();
+        if (slot.kind == slot_kind::new_port && single_kind(item_))
+            slot.com_number = com_number();
         value.slots.append(slot);
     }
     bool ok = false;

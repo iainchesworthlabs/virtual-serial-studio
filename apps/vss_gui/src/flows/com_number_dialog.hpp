@@ -7,13 +7,16 @@
 #pragma once
 
 #include "backend/studio_backend.hpp"
+#include "backend/com_number_uses.hpp"
 #include "flows/flow_dialog.hpp"
 
 #include <QString>
 
 #include <thread>
 
-class QSpinBox;
+class QComboBox;
+class QLabel;
+class QListWidget;
 
 namespace vss::gui
 {
@@ -36,7 +39,13 @@ public:
     /// Waits for a change in progress.
     ~ComNumberDialog() override;
 
-    QSpinBox* number_spin() const noexcept { return number_; }
+    /// The editable list of free numbers.
+    QComboBox* number_combo() const noexcept { return number_; }
+    /// The number typed or chosen, or 0 when the text is not a COM number.
+    unsigned number() const;
+    void set_number(unsigned number);
+    /// "Numbers in use": one row per number another port or device holds.
+    QListWidget* uses_list() const noexcept { return uses_; }
     FormRow* number_row() const noexcept { return number_row_; }
     /// True from the click on Change number until the answer is shown.
     bool changing() const noexcept { return busy_; }
@@ -51,6 +60,7 @@ private:
     /// Why the number cannot be used, or empty when it can.
     QString problem() const;
     void update_state();
+    void load_numbers();
     void change();
     void on_finished(unsigned number, const vss::result<QString>& outcome);
 
@@ -58,7 +68,9 @@ private:
     vss::endpoint_id port_ = 0;
     unsigned old_number_ = 0;
     bool busy_ = false;
-    QSpinBox* number_ = nullptr;
+    QComboBox* number_ = nullptr;
+    QListWidget* uses_ = nullptr;
+    std::map<unsigned, com_use> in_use_;
     FormRow* number_row_ = nullptr;
     std::thread worker_;
 };
