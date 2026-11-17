@@ -452,3 +452,213 @@ vsscom_bool vsscom_tx_sending(vsscom_u32 queued, vsscom_u64 now,
 {
     return queued != 0 || now < busy_until;
 }
+
+// -- Break and write marks -------------------------------------------------
+
+void vsscom_marks_init(vsscom_marks* marks)
+{
+    vsscom_u32 i;
+    marks->written = 0;
+    marks->read = 0;
+    marks->break_head = 0;
+    marks->break_count = 0;
+    marks->write_head = 0;
+    marks->write_count = 0;
+    marks->breaks_dropped = 0;
+    marks->writes_merged = 0;
+    marks->break_total = 0;
+    for (i = 0; i < VSSCOM_MARKS_MAX_BREAKS; ++i)
+    {
+        marks->breaks[i].on_time = 0;
+        marks->breaks[i].off_time = 0;
+        marks->breaks[i].on_offset = 0;
+        marks->breaks[i].off_offset = 0;
+        marks->breaks[i].flags = 0;
+        marks->breaks[i].reserved = 0;
+    }
+    for (i = 0; i < VSSCOM_MARKS_MAX_WRITES; ++i)
+    {
+        marks->writes[i].time = 0;
+        marks->writes[i].offset = 0;
+    }
+}
+
+static vsscom_break_record* break_at(vsscom_marks* marks, vsscom_u32 index)
+{
+    return &marks->breaks[(marks->break_head + index) % VSSCOM_MARKS_MAX_BREAKS];
+}
+
+static vsscom_write_record* write_at(vsscom_marks* marks, vsscom_u32 index)
+{
+    return &marks->writes[(marks->write_head + index) % VSSCOM_MARKS_MAX_WRITES];
+}
+
+vsscom_bool vsscom_marks_break_held(const vsscom_marks* marks)
+{
+    if (marks->break_count == 0)
+        return 0;
+    return (marks->breaks[(marks->break_head + marks->break_count - 1) %
+                          VSSCOM_MARKS_MAX_BREAKS].flags &
+            VSSCOM_BREAK_OPEN) != 0;
+}
+
+void vsscom_marks_reset(vsscom_marks* marks)
+{
+    marks->written = 0;
+    marks->read = 0;
+    marks->write_head = 0;
+    marks->write_count = 0;
+    marks->writes_merged = 0;
+    if (vsscom_marks_break_held(marks))
+    {
+        // Only the break that is held stays: it is the newest, so it moves to
+        // the front.
+        vsscom_break_record held = *break_at(marks, marks->break_count - 1);
+        held.on_offset = 0;
+        marks->break_head = 0;
+        marks->break_count = 1;
+        marks->breaks[0] = held;
+    }
+    else
+    {
+        marks->break_head = 0;
+        marks->break_count = 0;
+    }
+    marks->breaks_dropped = 0;
+}
+
+void vsscom_marks_stored(vsscom_marks* marks, vsscom_u32 count, vsscom_u64 now,
+                         vsscom_bool first)
+{
+    if (count == 0)
+        return;
+    if (first)
+    {
+        vsscom_write_record* record;
+        if (marks->write_count == VSSCOM_MARKS_MAX_WRITES)
+        {
+            // The oldest mark goes; its bytes join the chunk before them.
+            marks->write_head = (marks->write_head + 1) % VSSCOM_MARKS_MAX_WRITES;
+            marks->write_count--;
+            marks->writes_merged++;
+        }
+        record = write_at(marks, marks->write_count);
+        record->time = now;
+        record->offset = marks->written;
+        marks->write_count++;
+    }
+    marks->written += count;
+}
+
+void vsscom_marks_read(vsscom_marks* marks, vsscom_u32 count)
+{
+    marks->read += count;
+}
+
+void vsscom_marks_taken_back(vsscom_marks* marks, vsscom_u32 count)
+{
+    vsscom_u32 i;
+    const vsscom_u64 held = marks->written - marks->read;
+    const vsscom_u64 back = count < held ? count : held;
+
+    marks->written -= back;
+    // A write mark that points at or past the end has no byte left.
+    while (marks->write_count != 0 &&
+           write_at(marks, marks->write_count - 1)->offset >= marks->written)
+        marks->write_count--;
+    for (i = 0; i < marks->break_count; ++i)
+    {
+        vsscom_break_record* record = break_at(marks, i);
+        if (record->on_offset > marks->written)
+            record->on_offset = marks->written;
+        if (!(record->flags & VSSCOM_BREAK_OPEN) &&
+            record->off_offset > marks->written)
+            record->off_offset = marks->written;
+    }
+}
+
+void vsscom_marks_cleared(vsscom_marks* marks)
+{
+    const vsscom_u64 held = marks->written - marks->read;
+    // Larger than any count the ring holds; taken_back stops at what is there.
+    vsscom_marks_taken_back(marks, held > 0xFFFFFFFFull ? 0xFFFFFFFFu
+                                                        : (vsscom_u32)held);
+}
+
+vsscom_bool vsscom_marks_break_on(vsscom_marks* marks, vsscom_u64 now)
+{
+    vsscom_break_record* record;
+
+    if (vsscom_marks_break_held(marks))
+        return 0;
+    if (marks->break_count == VSSCOM_MARKS_MAX_BREAKS)
+    {
+        marks->break_head = (marks->break_head + 1) % VSSCOM_MARKS_MAX_BREAKS;
+        marks->break_count--;
+        marks->breaks_dropped++;
+    }
+    record = break_at(marks, marks->break_count);
+    record->on_time = now;
+    record->off_time = 0;
+    record->on_offset = marks->written;
+    record->off_offset = 0;
+    record->flags = VSSCOM_BREAK_OPEN;
+    record->reserved = 0;
+    marks->break_count++;
+    marks->break_total++;
+    return 1;
+}
+
+vsscom_bool vsscom_marks_break_off(vsscom_marks* marks, vsscom_u64 now)
+{
+    vsscom_break_record* record;
+
+    if (!vsscom_marks_break_held(marks))
+        return 0;
+    record = break_at(marks, marks->break_count - 1);
+    record->off_time = now;
+    record->off_offset = marks->written;
+    record->flags &= ~(vsscom_u32)VSSCOM_BREAK_OPEN;
+    return 1;
+}
+
+void vsscom_marks_take(vsscom_marks* marks, vsscom_break_record* breaks,
+                       vsscom_u32* break_count, vsscom_write_record* writes,
+                       vsscom_u32* write_count, vsscom_u32* breaks_dropped,
+                       vsscom_u32* writes_merged)
+{
+    vsscom_u32 i;
+    vsscom_u32 copied = 0;
+    const vsscom_bool held = vsscom_marks_break_held(marks);
+
+    // Every break that ended, then the one that is held (copied, kept).
+    for (i = 0; i < marks->break_count; ++i)
+        breaks[copied++] = *break_at(marks, i);
+    *break_count = copied;
+    if (held)
+    {
+        vsscom_break_record keep = *break_at(marks, marks->break_count - 1);
+        marks->break_head = 0;
+        marks->break_count = 1;
+        marks->breaks[0] = keep;
+    }
+    else
+    {
+        marks->break_head = 0;
+        marks->break_count = 0;
+    }
+
+    copied = 0;
+    while (marks->write_count != 0 && write_at(marks, 0)->offset < marks->read)
+    {
+        writes[copied++] = *write_at(marks, 0);
+        marks->write_head = (marks->write_head + 1) % VSSCOM_MARKS_MAX_WRITES;
+        marks->write_count--;
+    }
+    *write_count = copied;
+
+    *breaks_dropped = marks->breaks_dropped;
+    *writes_merged = marks->writes_merged;
+    marks->breaks_dropped = 0;
+    marks->writes_merged = 0;
+}
