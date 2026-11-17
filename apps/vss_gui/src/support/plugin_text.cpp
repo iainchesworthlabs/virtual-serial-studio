@@ -699,8 +699,9 @@ plugin_note_text note_for(const plugin_view& plugin)
         // general sentence.
         const QString problem = plain_text(plugin.detail).trimmed();
         if (!problem.isEmpty())
-            text += QCoreApplication::translate("PluginsDialog",
-                                                " What is wrong: %1")
+            text += QLatin1Char(' ') +
+                    QCoreApplication::translate("PluginsDialog",
+                                                "What is wrong: %1")
                         .arg(problem);
         set(kind::danger, text, {plugin_action::copy_details});
         break;
