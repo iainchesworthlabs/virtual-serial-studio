@@ -368,6 +368,7 @@ void TopologyView::set_topology(const std::vector<port_view>& ports,
     }
     std::sort(node_ids_.begin(), node_ids_.end());
 
+    QSet<QPair<vss::endpoint_id, vss::endpoint_id>> kept;
     for (const auto& link : links_)
     {
         topo_link_input input;
@@ -377,7 +378,31 @@ void TopologyView::set_topology(const std::vector<port_view>& ports,
         input.targets = link.targets;
         input.arrow = link.shape == link_shape::one_way ||
                       link.shape == link_shape::monitor;
+        // A link drawn from a connector keeps to it, as long as it joins just
+        // the two ports it was drawn between.
+        if (input.sources.size() == 1 && input.targets.size() == 1)
+        {
+            const vss::endpoint_id source = input.sources.first();
+            const vss::endpoint_id target = input.targets.first();
+            if (const auto it = drawn_sides_.constFind({source, target});
+                it != drawn_sides_.cend())
+                input.sides = sides_for_drag(it.value(), true);
+            else if (const auto back = drawn_sides_.constFind({target, source});
+                     back != drawn_sides_.cend())
+                input.sides = sides_for_drag(back.value(), false);
+            if (input.sides)
+                kept.insert({source, target});
+        }
         link_inputs_.append(input);
+    }
+    // Forget the wires whose link is gone.
+    for (auto it = drawn_sides_.begin(); it != drawn_sides_.end();)
+    {
+        if (kept.contains({it.key().first, it.key().second}) ||
+            kept.contains({it.key().second, it.key().first}))
+            ++it;
+        else
+            it = drawn_sides_.erase(it);
     }
     std::sort(link_inputs_.begin(), link_inputs_.end(),
               [](const topo_link_input& left, const topo_link_input& right)
@@ -1466,6 +1491,8 @@ void TopologyView::mousePressEvent(QMouseEvent* event)
             {
                 setFocus(Qt::MouseFocusReason);
                 begin_wire(handle->first);
+                wire_from_side_ =
+                    handle->second ? link_side::right : link_side::left;
                 const QRectF rect = node_rect(handle->first);
                 wire_start_ = handle->second
                                   ? QPointF(rect.right(), rect.center().y())
@@ -2634,6 +2661,7 @@ void TopologyView::begin_wire(vss::endpoint_id from)
 void TopologyView::cancel_wire()
 {
     wire_from_ = 0;
+    wire_from_side_.reset();
     delete wire_item_;
     wire_item_ = nullptr;
     for (const vss::endpoint_id id : node_order_)
@@ -2741,9 +2769,21 @@ bool TopologyView::would_loop(vss::endpoint_id from, vss::endpoint_id to,
 void TopologyView::finish_wire(vss::endpoint_id to, wire_kind kind)
 {
     const vss::endpoint_id from = wire_from_;
+    const std::optional<link_side> side = wire_from_side_;
     cancel_wire();
     if (from != 0 && to != 0 && from != to)
-        Q_EMIT wire_requested(from, to, kind);
+        request_wire(from, to, kind, side);
+}
+
+void TopologyView::request_wire(vss::endpoint_id from, vss::endpoint_id to,
+                                wire_kind kind, std::optional<link_side> side)
+{
+    const auto key = qMakePair(from, to);
+    if (side)
+        drawn_sides_.insert(key, *side);
+    else
+        drawn_sides_.remove(key);
+    Q_EMIT wire_requested(from, to, kind);
 }
 
 void TopologyView::finish_wire_new(slot_kind kind, wire_kind wire,
@@ -2784,6 +2824,7 @@ void TopologyView::open_wire_menu(vss::endpoint_id to,
     menu->setAccessibleName(
         tr("Link %1 and %2").arg(names_.value(from), names_.value(to)));
     const QStringList labels = wire_menu_labels(from, to);
+    const std::optional<link_side> side = wire_from_side_;
     const wire_kind kinds[] = {wire_kind::two_way, wire_kind::one_way,
                                wire_kind::monitor};
     QAction* first = nullptr;
@@ -2791,8 +2832,8 @@ void TopologyView::open_wire_menu(vss::endpoint_id to,
     {
         const wire_kind kind = kinds[index];
         QAction* action =
-            menu->addAction(labels.value(index), this, [this, from, to, kind]
-                            { Q_EMIT wire_requested(from, to, kind); });
+            menu->addAction(labels.value(index), this, [this, from, to, kind, side]
+                            { request_wire(from, to, kind, side); });
         if (would_loop(from, to, kind))
         {
             action->setEnabled(false);

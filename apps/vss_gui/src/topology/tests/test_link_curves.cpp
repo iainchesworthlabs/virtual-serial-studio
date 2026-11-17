@@ -637,3 +637,35 @@ TEST_CASE("link anchors: a leftward link goes round a node in its way")
     REQUIRE_NEAR(topo::end_direction(link.stroke).x(), -1.0, 1e-6);
     REQUIRE_EQ(link.arrows.size(), 1);
 }
+
+TEST_CASE("link anchors: a drag from a connector gives that side and its opposite")
+{
+    using topo::link_side;
+    const auto from_right = topo::sides_for_drag(link_side::right, true);
+    REQUIRE(from_right.from == link_side::right);
+    REQUIRE(from_right.to == link_side::left);
+    const auto from_left = topo::sides_for_drag(link_side::left, true);
+    REQUIRE(from_left.from == link_side::left);
+    REQUIRE(from_left.to == link_side::right);
+    // The dragged node is the link's target: its side is the `to` side.
+    const auto as_target = topo::sides_for_drag(link_side::left, false);
+    REQUIRE(as_target.from == link_side::right);
+    REQUIRE(as_target.to == link_side::left);
+}
+
+TEST_CASE("link anchors: stored sides win over the facing ones")
+{
+    QHash<vss::endpoint_id, QRectF> rects;
+    rects.insert(1, node(0.0, 0.0));
+    rects.insert(2, node(600.0, 120.0));
+    topo::topo_link_input link{1, vss::gui::link_shape::two_way, {1}, {2},
+                               false};
+    // Facing: out of the right of 1.  Stored left: out of the left of 1.
+    link.sides = topo::link_sides{topo::link_side::left,
+                                  topo::link_side::right};
+    const auto placements = topo::compute_link_geometry({link}, rects);
+    REQUIRE_EQ(placements.size(), 1);
+    const QPainterPath& stroke = placements.first().stroke;
+    REQUIRE_NEAR(stroke.pointAtPercent(0.0).x(), rects.value(1).left(), 1e-6);
+    REQUIRE_NEAR(stroke.pointAtPercent(1.0).x(), rects.value(2).right(), 1e-6);
+}
