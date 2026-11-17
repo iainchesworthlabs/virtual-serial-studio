@@ -257,6 +257,37 @@ void press_ctrl_alt(QTableView* table, int key)
 
 } // namespace
 
+TEST_CASE("monitor panel: a break is a row between the data rows with no bytes")
+{
+    using namespace std::chrono_literals;
+    vss::gui::MonitorModel model;
+    vss::gui::gui_event brk;
+    brk.kind = vss::event_kind::line_break;
+    brk.endpoint = 1;
+    brk.name = QStringLiteral("COM9");
+    brk.direction = vss::data_direction::tx;
+    brk.duration = 2ms;
+    brk.measured = true;
+    brk.phase = vss::break_phase::complete;
+    model.append_events({data_event(1, QStringLiteral("COM9"),
+                                    vss::data_direction::tx, QByteArray("AB")),
+                         brk,
+                         data_event(1, QStringLiteral("COM9"),
+                                    vss::data_direction::tx, QByteArray("CD"))});
+    REQUIRE_EQ(model.rowCount(), 3);
+    REQUIRE_EQ(model.data(model.index(0, 4)).toString(), QStringLiteral("AB"));
+    REQUIRE_EQ(model.data(model.index(1, 2)).toString(), QStringLiteral("TX"));
+    REQUIRE(model.data(model.index(1, 3)).toString().isEmpty());
+    REQUIRE(model.data(model.index(1, 4)).toString().startsWith(
+        QStringLiteral("Break")));
+    REQUIRE(model.data(model.index(1, 4)).toString().contains(
+        QStringLiteral("2")));
+    REQUIRE_EQ(model.data(model.index(2, 4)).toString(), QStringLiteral("CD"));
+    REQUIRE(model.data(model.index(1, 0), Qt::AccessibleTextRole)
+                .toString()
+                .contains(QStringLiteral("Break")));
+}
+
 TEST_CASE("monitor panel: review pictures in both themes and both densities")
 {
     // For a person to look at, never committed: written beside the build, in
