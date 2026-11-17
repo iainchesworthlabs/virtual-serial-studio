@@ -132,6 +132,9 @@ QHeaderView::section { background: %panel%; color: %ink3%; border: 0; border-bot
 QHeaderView#monitorColumns::section { padding: 0 %space.1%; min-height: 0; }
 QTableView#monitorTable::item { padding: 0 %space.1%; }
 QTableView#monitorTable[compact="true"]::item { padding: 0 %space.0%; }
+QHeaderView#logColumns::section { padding: 0 %space.1%; min-height: 0; }
+QTableView#logTable::item { padding: 0 %space.1%; }
+QTableView#logTable[compact="true"]::item { padding: 0 %space.0%; }
 QTableCornerButton::section { background: %panel%; border: 0; }
 QScrollBar:vertical { width: 10px; background: transparent; margin: 0; }
 QScrollBar:horizontal { height: 10px; background: transparent; margin: 0; }

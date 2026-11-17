@@ -10,19 +10,30 @@
 #include "backend/view_types.hpp"
 
 #include <QString>
+#include <QStringList>
 #include <QWidget>
 
+class QCheckBox;
+class QComboBox;
+class QEvent;
+class QLineEdit;
 class QLabel;
+class QPushButton;
 class QTableWidget;
 
 namespace vss::gui
 {
+
+class PaneHeader;
 
 /// The Advanced Log tab: state changes and errors since the setup was opened.
 ///
 /// It is fed by the backend's coalesced batch on the GUI thread and keeps a
 /// fixed row cap.  Traffic rows live in the Monitor, not here; the engine
 /// publishes no drop event, so this log makes no claim about owner drops.
+///
+/// Its table is laid out as the Monitor's is: rows, heading, cell fonts and
+/// padding follow the density (through `dense_table.hpp`) and the text size.
 class EventLogPanel final : public QWidget
 {
     Q_OBJECT
@@ -34,18 +45,49 @@ public:
     /// A GUI-side event, for example "Applied the topology JSON.".
     void add_local(const QString& text);
     void clear();
+
+    /// Puts the filters and Clear on the pane's title row while it is wide
+    /// enough, as the Monitor does, and in a bar under it when it is not.
+    /// Without a header they stay in a slim bar above the table.
+    void attach_header(PaneHeader* header);
+
     int row_count() const;
 
     QTableWidget* table() const noexcept { return table_; }
     QLabel* empty_label() const noexcept { return empty_; }
+    QPushButton* clear_button() const noexcept { return clear_; }
+
+protected:
+    void changeEvent(QEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     void add_row(const QString& time, const QString& port, const QString& event,
-                 const QString& detail);
+                 const QString& detail, int category);
     void update_empty();
+    void place_controls();
+    /// Shows the rows the port, the kinds and the search leave in.
+    void apply_filters();
+    bool row_shown(int row) const;
+    void note_port(const QString& port);
+    /// Row height, heading height, fonts, padding and column widths from the
+    /// theme's density and the text size; runs when either changes.
+    void apply_metrics();
 
     QTableWidget* table_ = nullptr;
     QLabel* empty_ = nullptr;
+    QWidget* bar_ = nullptr;
+    QPushButton* clear_ = nullptr;
+    QComboBox* port_filter_ = nullptr;
+    QCheckBox* errors_ = nullptr;
+    QCheckBox* started_ = nullptr;
+    QCheckBox* stopped_ = nullptr;
+    QCheckBox* other_ = nullptr;
+    QLineEdit* search_ = nullptr;
+    PaneHeader* header_ = nullptr;
+    bool in_header_ = false;
+    QStringList ports_;
+    bool applying_ = false;
 };
 
 } // namespace vss::gui
