@@ -270,6 +270,8 @@ void read_timeline(reading& state, const json::object& object,
                    "is a number that does not read back the same");
     out.seed =
         number_of(state, object, where, "seed", 0, max_api_number, false);
+    out.include_sent =
+        bool_of(state, object, where, "include_sent", false).value_or(false);
 }
 
 bool write_timeline(json::object& header, const timeline_load_message& body)
@@ -282,6 +284,8 @@ bool write_timeline(json::object& header, const timeline_load_message& body)
     header.emplace("time_scale", body.time_scale);
     if (body.seed)
         header.emplace("seed", *body.seed);
+    if (body.include_sent)
+        header.emplace("include_sent", true);
     return true;
 }
 

@@ -120,9 +120,10 @@ fs::path write_recording(const fs::path& folder, std::string place,
 
 api_message load_of(std::string recording, std::string place, double scale,
                     std::uint64_t instance = instance_number,
-                    std::uint64_t id = 1)
+                    std::uint64_t id = 1, bool include_sent = false)
 {
     timeline_load_message body;
+    body.include_sent = include_sent;
     body.instance = instance;
     body.recording = std::move(recording);
     body.place = std::move(place);
@@ -462,6 +463,44 @@ TEST_CASE("a replay is read as it plays, so a recording larger than the read "
         20000ms));
     REQUIRE_EQ(r.handler->counts().chunks, std::uint64_t{3000});
     REQUIRE_EQ(r.handler->counts().read_errors, std::uint64_t{0});
+}
+
+TEST_CASE("a replay plays the bytes the place sent when asked to")
+{
+    rig r;
+    const fs::path folder = r.data / "recordings" / "both-ways";
+    recording_options options;
+    options.origin_utc = std::chrono::floor<std::chrono::seconds>(
+        std::chrono::system_clock::now());
+    vss::plugin::host::place_spec spec;
+    spec.name = std::string(port_name);
+    options.places.push_back(std::move(spec));
+    options.made_by.plugin = "com.example.replay";
+    options.made_by.version = "1.0.0";
+    auto writer = recording_writer::open(folder, std::move(options));
+    REQUIRE(writer.has_value());
+    const std::string in = "in";
+    const std::string out = "out";
+    REQUIRE(writer->add_data(0, 1'000, vss::data_direction::rx,
+                             vss::byte_buffer(in.begin(), in.end())));
+    REQUIRE(writer->add_data(0, 2'000, vss::data_direction::tx,
+                             vss::byte_buffer(out.begin(), out.end())));
+    REQUIRE(writer->finish().has_value());
+    r.have(rig::replay_instance());
+    REQUIRE(rig::is_ok(r.ask(load_of("recordings/both-ways",
+                                     std::string(port_name), 1.0,
+                                     instance_number, 1, true))));
+    REQUIRE(wait_until(
+        [&]
+        {
+            r.pump();
+            return r.handler->counts().finished == 1;
+        },
+        20000ms));
+    const auto counts = r.handler->counts();
+    REQUIRE_EQ(r.first.written(), in + out);
+    REQUIRE_EQ(counts.chunks, std::uint64_t{2});
+    REQUIRE_EQ(counts.sent_skipped, std::uint64_t{0});
 }
 
 TEST_CASE("a replay counts what it does not play")
