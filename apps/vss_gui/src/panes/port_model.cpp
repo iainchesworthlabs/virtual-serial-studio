@@ -142,8 +142,8 @@ QStringList PortModel::row_signature(const port_view& port) const
 {
     QStringList signature;
     signature.reserve(column_count + 1);
-    for (int column = 0; column < column_count; ++column)
-        signature << cell_text(port, column);
+    for (int each = 0; each < column_count; ++each)
+        signature << cell_text(port, each);
     // What the row delegate and the tooltip read besides the cell texts.
     signature << port.path + QLatin1Char('\n') +
                      role_text(port, ports_, links_) + QLatin1Char('\n') +
@@ -164,20 +164,20 @@ void PortModel::publish_changes(const std::vector<QStringList>& before)
             Q_EMIT dataChanged(index(row, 0), index(row, column_count - 1));
             continue;
         }
-        int column = 0;
-        while (column < column_count)
+        int first = 0;
+        while (first < column_count)
         {
-            if (after.at(column) == old.at(column))
+            if (after.at(first) == old.at(first))
             {
-                ++column;
+                ++first;
                 continue;
             }
-            int last = column;
+            int last = first;
             while (last + 1 < column_count &&
                    after.at(last + 1) != old.at(last + 1))
                 ++last;
-            Q_EMIT dataChanged(index(row, column), index(row, last));
-            column = last + 1;
+            Q_EMIT dataChanged(index(row, first), index(row, last));
+            first = last + 1;
         }
     }
 }
@@ -395,6 +395,8 @@ port_state_kind PortModel::state_kind(const port_view& port)
         case connect_phase::connecting:
         case connect_phase::retrying:
             return port_state_kind::waiting;
+        case connect_phase::stopped:
+            return port_state_kind::closed;
         }
     }
     if (port.state == vss::endpoint_state::failed)
