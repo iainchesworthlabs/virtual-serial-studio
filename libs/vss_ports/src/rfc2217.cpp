@@ -712,8 +712,35 @@ void client_session::subnegotiate(const std::string& payload,
     {
         server_signature_ = value;
     }
-    // The answers to the SET commands say what the server now uses. Studio
-    // keeps what it asked for, so they are read and not acted on.
+    else if (code == cmd_set_baudrate + server_offset && value.size() >= 4)
+    {
+        unsigned rate = 0;
+        for (std::size_t i = 0; i < 4; ++i)
+            rate = (rate << 8) | static_cast<unsigned char>(value[i]);
+        if (rate != 0)
+            result.answers.baud_rate = rate;
+    }
+    else if (code == cmd_set_datasize + server_offset)
+    {
+        if (first >= 5 && first <= 8)
+            result.answers.data_bits = first;
+    }
+    else if (code == cmd_set_parity + server_offset)
+    {
+        static constexpr parity_mode modes[] = {
+            parity_mode::none, parity_mode::odd, parity_mode::even,
+            parity_mode::mark, parity_mode::space};
+        if (first >= 1 && first <= 5)
+            result.answers.parity = modes[first - 1];
+    }
+    else if (code == cmd_set_stopsize + server_offset)
+    {
+        static constexpr stop_bits_mode modes[] = {
+            stop_bits_mode::one, stop_bits_mode::two,
+            stop_bits_mode::one_point_five};
+        if (first >= 1 && first <= 3)
+            result.answers.stop_bits = modes[first - 1];
+    }
 }
 
 std::string client_session::set_baud_rate(unsigned rate) const
@@ -739,6 +766,31 @@ std::string client_session::set_stop_size(stop_bits_mode stop) const
 std::string client_session::set_flow_control(flow_control_mode flow) const
 {
     return request(cmd_set_control, one_byte(flow_code(flow)));
+}
+
+std::string client_session::ask_baud_rate() const
+{
+    return request(cmd_set_baudrate, baud_bytes(0));
+}
+
+std::string client_session::ask_data_size() const
+{
+    return request(cmd_set_datasize, one_byte(0));
+}
+
+std::string client_session::ask_parity() const
+{
+    return request(cmd_set_parity, one_byte(0));
+}
+
+std::string client_session::ask_stop_size() const
+{
+    return request(cmd_set_stopsize, one_byte(0));
+}
+
+std::string client_session::ask_flow_control() const
+{
+    return request(cmd_set_control, one_byte(0));
 }
 
 std::string client_session::set_dtr(bool on) const

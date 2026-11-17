@@ -143,6 +143,16 @@ struct client_feed
     /// The server agreed to the COM-PORT option, or refused it, in this
     /// chunk.
     bool com_port_changed = false;
+    /// What the server said its port is set to, in answer to a request to set
+    /// it or to ask for it (a value of zero).  Only the fields it answered.
+    struct setting_answers
+    {
+        std::optional<unsigned> baud_rate;
+        std::optional<unsigned> data_bits;
+        std::optional<parity_mode> parity;
+        std::optional<stop_bits_mode> stop_bits;
+    };
+    setting_answers answers;
 };
 
 /// The client side of one RFC 2217 connection: what Studio sends to a
@@ -176,6 +186,13 @@ public:
     std::string set_parity(parity_mode parity) const;
     std::string set_stop_size(stop_bits_mode stop) const;
     std::string set_flow_control(flow_control_mode flow) const;
+    /// The request forms (RFC 2217 value zero): ask the server what its port
+    /// is set to, and change nothing.  The port belongs to the server.
+    std::string ask_baud_rate() const;
+    std::string ask_data_size() const;
+    std::string ask_parity() const;
+    std::string ask_stop_size() const;
+    std::string ask_flow_control() const;
     std::string set_dtr(bool on) const;
     std::string set_rts(bool on) const;
     std::string set_break(bool on) const;
