@@ -2409,11 +2409,6 @@
             <translation>Rechercher des événements</translation>
         </message>
         <message>
-            <location filename="../src/advanced/event_log.cpp" line="164" />
-            <source>Show %1 events</source>
-            <translation>Afficher les événements : %1</translation>
-        </message>
-        <message>
             <location filename="../src/advanced/event_log.cpp" line="498" />
             <source>No events match the filters.</source>
             <translation>Aucun événement ne correspond aux filtres.</translation>
@@ -2422,6 +2417,21 @@
             <location filename="../src/advanced/event_log.cpp" line="159" />
             <source>Other</source>
             <translation>Autres</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="165" />
+            <source>Events</source>
+            <translation>Événements</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="166" />
+            <source>Event kinds</source>
+            <translation>Types d'événement</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="167" />
+            <source>Choose which kinds of event are shown.</source>
+            <translation>Choisissez les types d'événement affichés.</translation>
         </message>
     </context>
     <context>

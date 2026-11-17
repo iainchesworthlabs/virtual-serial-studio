@@ -13,7 +13,9 @@
 #include <QStringList>
 #include <QWidget>
 
-class QCheckBox;
+class QAction;
+class QGridLayout;
+class QToolButton;
 class QComboBox;
 class QEvent;
 class QLineEdit;
@@ -66,6 +68,10 @@ private:
                  const QString& detail, int category);
     void update_empty();
     void place_controls();
+    /// The width the controls need on one row.
+    int single_row_width() const;
+    /// One row, or the search box on a second row of its own.
+    void arrange(bool two_rows);
     /// Shows the rows the port, the kinds and the search leave in.
     void apply_filters();
     bool row_shown(int row) const;
@@ -79,10 +85,13 @@ private:
     QWidget* bar_ = nullptr;
     QPushButton* clear_ = nullptr;
     QComboBox* port_filter_ = nullptr;
-    QCheckBox* errors_ = nullptr;
-    QCheckBox* started_ = nullptr;
-    QCheckBox* stopped_ = nullptr;
-    QCheckBox* other_ = nullptr;
+    QToolButton* kinds_ = nullptr;
+    QAction* errors_ = nullptr;
+    QAction* started_ = nullptr;
+    QAction* stopped_ = nullptr;
+    QAction* other_ = nullptr;
+    QGridLayout* bar_layout_ = nullptr;
+    bool two_rows_ = false;
     QLineEdit* search_ = nullptr;
     PaneHeader* header_ = nullptr;
     bool in_header_ = false;
