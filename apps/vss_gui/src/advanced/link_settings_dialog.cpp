@@ -12,6 +12,7 @@
 #include "widgets/controls.hpp"
 #include "widgets/half_duplex_fields.hpp"
 #include "widgets/monitor_direction.hpp"
+#include "widgets/wire_timing_fields.hpp"
 
 #include <vss/core/profile.hpp>
 
@@ -76,6 +77,11 @@ LinkSettingsDialog::LinkSettingsDialog(const link_view& link,
     jitter_row->setVisible(!monitor);
     layout->addWidget(delay_row);
     layout->addWidget(jitter_row);
+
+    wire_timing_ = new WireTimingFields(this);
+    wire_timing_->set_options(link.options.wire_timing);
+    wire_timing_->setVisible(link.shape != link_shape::bus);
+    layout->addWidget(wire_timing_);
 
     direction_ = new QComboBox(this);
     direction_->setObjectName(QStringLiteral("linkDirection"));
@@ -150,6 +156,8 @@ LinkSettingsDialog::LinkSettingsDialog(const link_view& link,
     connect(jitter_, &QSpinBox::valueChanged, this, [this] { update_state(); });
     connect(half_duplex_, &HalfDuplexFields::changed, this,
             [this] { update_state(); });
+    connect(wire_timing_, &WireTimingFields::changed, this,
+            [this] { update_state(); });
     update_state();
     (direction_shown() ? static_cast<QWidget*>(direction_)
                        : static_cast<QWidget*>(delay_))
@@ -171,6 +179,8 @@ vss::link_options LinkSettingsDialog::options() const
         out.emulate_modem_lines = modem_lines_->isChecked();
     if (half_duplex_shown())
         out.half_duplex = half_duplex_->options();
+    if (wire_timing_shown())
+        out.wire_timing = wire_timing_->options();
     return out;
 }
 
@@ -199,6 +209,11 @@ bool LinkSettingsDialog::direction_shown() const
     return link_.shape == link_shape::monitor;
 }
 
+bool LinkSettingsDialog::wire_timing_shown() const
+{
+    return link_.shape != link_shape::bus;
+}
+
 bool LinkSettingsDialog::half_duplex_shown() const
 {
     return link_.shape == link_shape::bus;
@@ -208,8 +223,9 @@ void LinkSettingsDialog::update_state()
 {
     VSS_PROFILE_ZONE("gui.advanced.link_settings.update_state");
     const vss::link_options now = options();
-    const bool valid =
-        vss::valid_latency(now) && vss::valid_half_duplex(now.half_duplex);
+    const bool valid = vss::valid_latency(now) &&
+                       vss::valid_half_duplex(now.half_duplex) &&
+                       vss::valid_wire_timing(now.wire_timing);
     error_->setText(valid ? QString()
                           : tr("The jitter can be no more than the delay."));
     apply_->setEnabled(valid);

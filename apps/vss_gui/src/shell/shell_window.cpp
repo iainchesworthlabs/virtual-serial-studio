@@ -2071,7 +2071,7 @@ QString ShellWindow::document_signature() const
                      .arg(static_cast<qulonglong>(link.owner))
                      .arg(sources.join(QLatin1Char(',')),
                           targets.join(QLatin1Char(',')))
-                     .arg(QStringLiteral("%1/%2/%3/%4/%5/%6/%7/%8/%9")
+                     .arg(QStringLiteral("%1/%2/%3/%4/%5/%6/%7/%8/%9/%10/%11/%12")
                               .arg(options.delay_ms)
                               .arg(options.jitter_ms)
                               .arg(static_cast<int>(options.policy))
@@ -2080,7 +2080,13 @@ QString ShellWindow::document_signature() const
                               .arg(line.bit_rate)
                               .arg(line.turnaround_ms)
                               .arg(static_cast<int>(line.on_collision))
-                              .arg(line.rts_gating ? 1 : 0));
+                              .arg(line.rts_gating ? 1 : 0)
+                              .arg(options.wire_timing.enabled ? 1 : 0)
+                              .arg(options.wire_timing.bit_rate)
+                              .arg(options.wire_timing.framing
+                                       ? QString::fromStdString(vss::to_text(
+                                             *options.wire_timing.framing))
+                                       : QString()));
     }
     parts.sort();
     return parts.join(QLatin1Char('|'));

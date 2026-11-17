@@ -334,6 +334,53 @@ bool half_duplex_from_json(const member_reader& reader, link_entry& link)
     return true;
 }
 
+/// Writes the wire timing of a link, and nothing when it is off.
+void wire_timing_to_json(const link_entry& link, json::object& object)
+{
+    if (!link.wire_timing.enabled)
+        return;
+    json::object timing;
+    if (link.wire_timing.bit_rate != 0)
+        timing["bit_rate"] = link.wire_timing.bit_rate;
+    if (link.wire_timing.framing)
+        timing["framing"] = to_text(*link.wire_timing.framing);
+    object["wire_timing"] = std::move(timing);
+}
+
+/// Reads the `wire_timing` object of a link.  Its presence turns the option
+/// on; each member is optional.  Which links may have one, and the limits of
+/// the numbers, are checked in validate().
+bool wire_timing_from_json(const member_reader& reader, link_entry& link)
+{
+    const json::object* timing = nullptr;
+    if (!reader.object("wire_timing", timing))
+        return false;
+    if (timing == nullptr)
+        return true;
+
+    const member_reader fields = reader.sub(*timing, reader.path("wire_timing"));
+    wire_timing_options options;
+    options.enabled = true;
+    std::string framing;
+    if (!fields.whole("bit_rate", 0,
+                      static_cast<std::int64_t>(max_bus_bit_rate),
+                      options.bit_rate) ||
+        !fields.text("framing", framing))
+        return false;
+    if (fields.has("framing"))
+    {
+        options.framing = parse_framing(framing);
+        if (!options.framing)
+            return fields.fail("framing",
+                               "must be like \"8N1\", \"7E2\" or \"5N1.5\"");
+    }
+    if (!fields.done())
+        return false;
+
+    link.wire_timing = options;
+    return true;
+}
+
 /// Writes the `direction` of a monitor, and nothing when it is `both`.
 void direction_to_json(const link_entry& link, json::object& object)
 {
@@ -821,6 +868,10 @@ error_code validate(const document& value)
         // Only a monitor chooses which bytes of its port it copies.
         if (link.direction != monitor_direction::both && link.mode != "monitor")
             return make_error_code(errc::config_error);
+        // A bus has a wire of its own.
+        if (link.wire_timing.enabled &&
+            (link.mode == "bus" || !valid_wire_timing(link.wire_timing)))
+            return make_error_code(errc::config_error);
 
         if (link.mode == "bus")
         {
@@ -952,6 +1003,7 @@ result<std::string> to_json(const document& value, bool pretty)
         object["emulate_modem_lines"] = link.emulate_modem_lines;
         object["policy"] = to_string(link.policy);
         latency_to_json(link, object);
+        wire_timing_to_json(link, object);
         direction_to_json(link, object);
         bindings_to_json(link.plugins, object);
         links.push_back(std::move(object));
@@ -1115,6 +1167,7 @@ result<document> from_json(std::string_view text, std::string& problem)
 
             if (!latency_from_json(entry, link) ||
                 !half_duplex_from_json(entry, link) ||
+                !wire_timing_from_json(entry, link) ||
                 !direction_from_json(entry, link) ||
                 !bindings_from_json(entry, link.plugins) || !entry.done())
                 return refused();

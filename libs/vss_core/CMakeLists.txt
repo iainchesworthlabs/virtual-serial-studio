@@ -9,6 +9,8 @@ add_library(vss_core
   src/bytes.cpp
   src/control_lines.cpp
   src/delay_line.cpp
+  src/pacing.cpp
+  src/wire_time.cpp
   src/endpoint.cpp
   src/error.cpp
   src/hub.cpp
@@ -30,12 +32,14 @@ target_include_directories(vss_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 if(WIN32)
   target_sources(vss_core PRIVATE
     src/platform/windows/environment_windows.cpp
+    src/platform/windows/precise_timer_windows.cpp
     src/platform/windows/timer_period_windows.cpp)
   # timeBeginPeriod and timeEndPeriod.
   target_link_libraries(vss_core PUBLIC winmm)
 else()
   target_sources(vss_core PRIVATE
     src/platform/posix/environment_posix.cpp
+    src/platform/posix/precise_timer_posix.cpp
     src/platform/posix/timer_period_posix.cpp)
 endif()
 

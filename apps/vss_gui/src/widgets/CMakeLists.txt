@@ -22,6 +22,8 @@ add_library(vss_gui_widgets STATIC
   monitor_direction.hpp
   half_duplex_fields.cpp
   half_duplex_fields.hpp
+  wire_timing_fields.cpp
+  wire_timing_fields.hpp
   pick_row.cpp
   pick_row.hpp
   surfaces.cpp

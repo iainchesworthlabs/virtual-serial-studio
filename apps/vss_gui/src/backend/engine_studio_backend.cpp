@@ -208,6 +208,7 @@ bool same_link_shape(const link_view& left, const link_view& right)
            left.options.delay_ms == right.options.delay_ms &&
            left.options.jitter_ms == right.options.jitter_ms &&
            left.options.half_duplex == right.options.half_duplex &&
+           left.options.wire_timing == right.options.wire_timing &&
            left.sources == right.sources && left.targets == right.targets &&
            left.owner == right.owner;
 }

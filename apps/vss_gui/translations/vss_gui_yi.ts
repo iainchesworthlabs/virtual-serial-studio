@@ -20051,8 +20051,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="74" />
-            <source>A byte takes ten bits. The others hear a message when its last byte has left the line.</source>
-            <translation>אַ בײַט נעמט צען ביטן. די אַנדערע הערן אַ מעלדונג ווען איר לעצטער בײַט האָט פֿאַרלאָזט די ליניע.</translation>
+            <source>A byte takes as many bits as the sender's framing gives it, ten for 8N1. The others hear a message when its last byte has left the line.</source>
+            <translation>אַ בייט נעמט אַזוי פֿיל ביטן ווי דער פֿאָרמאַט פֿון דעם שיקער גיט עס, צען פֿאַר 8N1. די אַנדערע הערן אַ מעלדונג ווען איר לעצטער בייט האָט פֿאַרלאָזט די ליניע.</translation>
         </message>
         <message>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="81" />
@@ -24485,6 +24485,89 @@ From the plugin %2
             <location filename="../src/topology/topology_view.cpp" line="3259" />
             <source>Decode as...</source>
             <translation>דעקאדירן ווי…</translation>
+        </message>
+    </context>
+    <context>
+        <name>WireTimingFields</name>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="54" />
+            <source>Wire timing</source>
+            <translation>ליניע־טיימינג</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="50" />
+            <source>Bytes and breaks arrive as slowly as a serial line would carry them. A long write takes as long as it would on a wire, and a break holds back what follows it. Gaps under a millisecond use a little more of the processor.</source>
+            <translation>בייטס און Break קומען אָן אַזוי לאַנגזאַם ווי אַ סעריעלע ליניע וואָלט זיי געטראָגן. אַ לאַנגע שרײַבונג נעמט אַזוי לאַנג ווי אויף אַ דראָט, און אַ Break האַלט אָפּ דאָס וואָס קומט נאָך אים. אָפּשטאַנדן אונטער אַ מיליסעקונדע נוצן אַביסל מער פֿון דעם פּראָצעסאָר.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="75" />
+            <source>Bit rate</source>
+            <translation>ביט־גיכקייט</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="71" />
+            <source> bit/s</source>
+            <translation> ביט/סעק</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="72" />
+            <source>From the port</source>
+            <translation>פֿונעם פּאָרט</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="78" />
+            <source>Used when the sending port has no rate of its own. The rate the program set on the port is used first. With neither, the link is not paced.</source>
+            <translation>ווערט גענוצט ווען דער שיקנדיקער פּאָרט האָט נישט קיין אייגענע גיכקייט. ערשט ווערט גענוצט די גיכקייט וואָס דאָס פּראָגראַם האָט אײַנגעשטעלט אויפֿן פּאָרט. אָן קיינעם פֿון זיי ווערט די פֿאַרבינדונג נישט געטאַקטירט.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="84" />
+            <source>Framing</source>
+            <translation>פֿרײַמינג</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="120" />
+            <source>Data bits, parity and stop bits, used with the bit rate.</source>
+            <translation>דאַטן־ביטן, פּאַריטעט און שטאָפּ־ביטן, גענוצט מיט דער ביט־גיכקייט.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="91" />
+            <source>Data bits</source>
+            <translation>דאַטן־ביטן</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="97" />
+            <source>Parity</source>
+            <translation>פּאַריטעט</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="99" />
+            <source>None</source>
+            <translation>קיין</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="100" />
+            <source>Odd</source>
+            <translation>אומגראַד</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="101" />
+            <source>Even</source>
+            <translation>גראַד</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="102" />
+            <source>Mark</source>
+            <translation>מאַרק</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="103" />
+            <source>Space</source>
+            <translation>ספּייס</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
+            <source>Stop bits</source>
+            <translation>שטאָפּ־ביטן</translation>
         </message>
     </context>
 </TS>

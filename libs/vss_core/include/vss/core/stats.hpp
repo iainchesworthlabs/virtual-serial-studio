@@ -49,6 +49,15 @@ struct link_stats
     /// Breaks carried, counted once for each receiving port, as `messages`
     /// is.
     std::uint64_t breaks = 0;
+    /// Wire timing only: the releases the link paced, the ones that left
+    /// more than 250 microseconds after their time, the longest of those
+    /// delays in microseconds, and the releases that wanted to spin for
+    /// the last part of a gap and were refused because the spin budget was
+    /// used up (they were released from the timer instead).
+    std::uint64_t paced_releases = 0;
+    std::uint64_t late_releases = 0;
+    std::uint64_t max_late_us = 0;
+    std::uint64_t spin_refused = 0;
 };
 
 } // namespace vss
