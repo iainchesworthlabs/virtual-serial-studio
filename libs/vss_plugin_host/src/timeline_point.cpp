@@ -7,6 +7,7 @@
 #include <vss/plugin/host/timeline_point.hpp>
 
 #include <vss/core/bytes.hpp>
+#include <vss/core/control_lines.hpp>
 #include <vss/core/endpoint.hpp>
 #include <vss/plugin/api_capture.hpp>
 #include <vss/plugin/api_message.hpp>
@@ -24,6 +25,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -41,28 +43,115 @@ namespace
 
 using clock_type = std::chrono::steady_clock;
 
-/// What is read from a recording: the chunks the place received.
-struct loaded_timeline
+/// The most items one read takes, besides the bytes.
+constexpr std::size_t read_items = 8192;
+
+/// One thing to play, at a recorded time.
+struct item
 {
-    /// Why it could not be loaded; empty when it could.
-    std::string problem;
-    std::vector<std::uint64_t> times;
-    std::vector<std::size_t> ends;
+    std::uint64_t t_ns = 0;
+    /// Empty for a change of the control lines.
     byte_buffer bytes;
+    bool is_lines = false;
+    control_lines inputs;
 };
 
-/// Reads the recording and keeps the `R` lines of one place.  Runs on the
-/// slow executor and touches no shared state.
-loaded_timeline load_timeline(const std::filesystem::path& folder,
-                              const std::string& place)
+/// What one read of the recording found.
+struct batch
 {
-    loaded_timeline out;
+    /// Why the read failed; empty when it did not.
+    std::string problem;
+    std::vector<item> items;
+    std::uint64_t bytes = 0;
+    bool at_end = false;
+    /// What the read passed over.
+    std::uint64_t faults = 0;
+    std::uint64_t sent = 0;
+};
+
+/// The reader of one place.  Only the slow executor touches it, one read at a
+/// time.
+struct source
+{
+    place_reader reader;
+};
+
+batch read_some(source& from)
+{
+    batch out;
+    while (out.items.size() < read_items &&
+           out.bytes < timeline_read_ahead_bytes)
+    {
+        auto next = from.reader.next();
+        if (!next)
+        {
+            out.problem = std::string(from.reader.detail());
+            if (out.problem.empty())
+                out.problem = "the recording could not be read";
+            return out;
+        }
+        if (!next->has_value())
+        {
+            out.at_end = true;
+            return out;
+        }
+        recording_event& event = **next;
+        switch (event.kind)
+        {
+        case recording_event_kind::data:
+        {
+            if (event.direction != data_direction::rx)
+            {
+                ++out.sent;
+                break;
+            }
+            item made;
+            made.t_ns = event.t_ns;
+            made.bytes = std::move(event.bytes);
+            out.bytes += made.bytes.size();
+            out.items.push_back(std::move(made));
+            break;
+        }
+        case recording_event_kind::line:
+        {
+            item made;
+            made.t_ns = event.t_ns;
+            made.is_lines = true;
+            made.inputs = control_lines{event.lines.inputs()};
+            out.items.push_back(std::move(made));
+            break;
+        }
+        case recording_event_kind::fault:
+            ++out.faults;
+            break;
+        case recording_event_kind::dropped:
+            break;
+        }
+    }
+    return out;
+}
+
+/// What opening a recording gave: a reader and its first read, or why not.
+struct opened
+{
+    std::string problem;
+    std::shared_ptr<source> from;
+    batch first;
+};
+
+/// Checks the recording whole, as `read_recording` does, then opens the place
+/// that is to be played and reads the first block.  Runs on the slow
+/// executor and touches no shared state.
+opened open_timeline(const std::filesystem::path& folder,
+                     const std::string& place)
+{
+    opened out;
     std::string detail;
     const auto found = read_recording(folder, &detail);
     if (!found)
     {
-        out.problem = detail.empty() ? "the recording could not be read"
-                                     : detail;
+        out.problem =
+            detail.empty() ? "the recording could not be read" : detail;
         return out;
     }
     const recording_index& index = found->index;
@@ -79,43 +168,18 @@ loaded_timeline load_timeline(const std::filesystem::path& folder,
         out.problem = "the recording has no place named " + place;
         return out;
     }
-    if (index.places[*chosen].bytes > max_timeline_bytes)
-    {
-        out.problem = "the recording holds more traffic than a replay keeps";
-        return out;
-    }
     auto reader = found->open_place(*chosen);
     if (!reader)
     {
         out.problem = "the recording could not be read";
         return out;
     }
-    for (;;)
+    out.from = std::make_shared<source>(source{std::move(*reader)});
+    out.first = read_some(*out.from);
+    if (!out.first.problem.empty())
     {
-        auto next = reader->next();
-        if (!next)
-        {
-            out.problem = std::string(reader->detail());
-            if (out.problem.empty())
-                out.problem = "the recording could not be read";
-            return out;
-        }
-        if (!next->has_value())
-            break;
-        const recording_event& event = **next;
-        if (event.kind != recording_event_kind::data ||
-            event.direction != data_direction::rx)
-            continue;
-        if (out.times.size() >= max_timeline_items ||
-            out.bytes.size() + event.bytes.size() > max_timeline_bytes)
-        {
-            out.problem = "the recording is larger than a replay keeps";
-            return out;
-        }
-        out.times.push_back(event.t_ns);
-        out.bytes.insert(out.bytes.end(), event.bytes.begin(),
-                         event.bytes.end());
-        out.ends.push_back(out.bytes.size());
+        out.problem = out.first.problem;
+        out.from.reset();
     }
     return out;
 }
@@ -171,22 +235,27 @@ private:
     struct run
     {
         run(const boost::asio::any_io_executor& executor,
-            std::shared_ptr<endpoint> port_, loaded_timeline data_,
+            std::shared_ptr<endpoint> port_, std::shared_ptr<source> from_,
             double scale_, std::uint64_t id_)
-            : timer(executor), port(std::move(port_)), data(std::move(data_)),
+            : timer(executor), port(std::move(port_)), from(std::move(from_)),
               scale(scale_), id(id_)
         {
         }
 
         boost::asio::steady_timer timer;
         std::shared_ptr<endpoint> port;
-        loaded_timeline data;
+        std::shared_ptr<source> from;
         double scale;
         std::uint64_t id;
         clock_type::time_point origin;
-        std::size_t next = 0;
-        std::uint64_t outstanding = 0;
+        std::deque<item> queue;
+        std::uint64_t queued_bytes = 0;
+        bool at_end = false;
+        bool reading = false;
+        bool follows_lines = false;
+        bool waiting_for_data = false;
         bool waiting_for_port = false;
+        std::uint64_t outstanding = 0;
     };
 
     void answer(std::uint64_t id, api_message message)
@@ -261,30 +330,31 @@ private:
              scale = asked->time_scale, folder, place = asked->place,
              port = std::move(port)]() mutable
             {
-                loaded_timeline data;
+                opened result;
                 try
                 {
-                    data = load_timeline(folder, place);
+                    result = open_timeline(folder, place);
                 }
                 catch (...)
                 {
-                    data.problem = "the recording could not be read";
+                    result = opened{};
+                    result.problem = "the recording could not be read";
                 }
                 boost::asio::post(
                     executor,
                     [alive, this, id, instance, scale, port = std::move(port),
-                     data = std::move(data)]() mutable
+                     result = std::move(result)]() mutable
                     {
                         if (!*alive)
                             return;
                         loaded(id, instance, scale, std::move(port),
-                               std::move(data));
+                               std::move(result));
                     });
             });
     }
 
     void loaded(std::uint64_t id, std::uint64_t instance, double scale,
-                std::shared_ptr<endpoint> port, loaded_timeline data)
+                std::shared_ptr<endpoint> port, opened result)
     {
         loading_.erase(instance);
         if (!context_.instances || !context_.instances->running(instance))
@@ -293,20 +363,89 @@ private:
                    "the instance stopped before the recording was read");
             return;
         }
-        if (!data.problem.empty())
+        if (!result.problem.empty())
         {
-            refuse(id, api_errc::refused, data.problem);
+            refuse(id, api_errc::refused, result.problem);
             return;
         }
         auto made = std::make_unique<run>(context_.executor, std::move(port),
-                                          std::move(data), scale, ++numbers_);
+                                          std::move(result.from), scale,
+                                          ++numbers_);
         run* const current = made.get();
+        current->follows_lines = current->port->info().supports_control_lines;
         runs_.emplace(instance, std::move(made));
         ++counts_.started;
+        take_batch(*current, std::move(result.first));
         answer(id, ok_answer());
         // The times count from the answer.
         current->origin = clock_type::now();
         step(instance, current->id);
+    }
+
+    /// Adds what a read found to the replay's queue.
+    void take_batch(run& current, batch got)
+    {
+        counts_.faults_skipped += got.faults;
+        counts_.sent_skipped += got.sent;
+        current.at_end = got.at_end;
+        current.queued_bytes += got.bytes;
+        for (item& each : got.items)
+            current.queue.push_back(std::move(each));
+    }
+
+    /// Asks for the next block when the queue is running low.
+    void read_ahead(std::uint64_t instance, run& current)
+    {
+        if (current.reading || current.at_end ||
+            current.queued_bytes >= timeline_read_ahead_bytes / 2)
+            return;
+        current.reading = true;
+        boost::asio::post(
+            slow_,
+            [alive = alive_, this, executor = context_.executor, instance,
+             number = current.id, from = current.from]
+            {
+                batch got;
+                try
+                {
+                    got = read_some(*from);
+                }
+                catch (...)
+                {
+                    got.problem = "the recording could not be read";
+                }
+                boost::asio::post(
+                    executor,
+                    [alive, this, instance, number, got = std::move(got)]() mutable
+                    {
+                        if (*alive)
+                            read_done(instance, number, std::move(got));
+                    });
+            });
+    }
+
+    void read_done(std::uint64_t instance, std::uint64_t number, batch got)
+    {
+        const auto found = runs_.find(instance);
+        if (found == runs_.end() || found->second->id != number)
+            return;
+        run& current = *found->second;
+        current.reading = false;
+        if (!got.problem.empty())
+        {
+            // The file changed or failed part way: what was queued is played,
+            // and nothing more.
+            ++counts_.read_errors;
+            current.at_end = true;
+            got = batch{};
+            got.at_end = true;
+        }
+        take_batch(current, std::move(got));
+        if (current.waiting_for_data)
+        {
+            current.waiting_for_data = false;
+            step(instance, number);
+        }
     }
 
     void on_taken(std::uint64_t instance, std::uint64_t number,
@@ -333,21 +472,28 @@ private:
         runs_.erase(instance);
     }
 
-    /// Writes every chunk that is due, then waits for the next.
+    /// Plays every item that is due, then waits for the next.
     void step(std::uint64_t instance, std::uint64_t number)
     {
         const auto found = runs_.find(instance);
         if (found == runs_.end() || found->second->id != number)
             return;
         run& current = *found->second;
-        const loaded_timeline& data = current.data;
-        while (current.next < data.times.size())
+        for (;;)
         {
+            read_ahead(instance, current);
+            if (current.queue.empty())
+            {
+                if (current.at_end)
+                    break;
+                // The next block is not here yet: whatever comes is late.
+                current.waiting_for_data = true;
+                return;
+            }
+            const item& next = current.queue.front();
             const auto scaled = static_cast<std::uint64_t>(
-                std::floor(static_cast<double>(data.times[current.next]) *
-                           current.scale));
-            const auto due =
-                current.origin + std::chrono::nanoseconds(scaled);
+                std::floor(static_cast<double>(next.t_ns) * current.scale));
+            const auto due = current.origin + std::chrono::nanoseconds(scaled);
             const auto now = clock_type::now();
             if (now < due)
             {
@@ -361,34 +507,44 @@ private:
                     });
                 return;
             }
-            if (current.outstanding >= max_timeline_window)
+            if (!next.is_lines && current.outstanding >= max_timeline_window)
             {
                 // The port has not taken what it was given: the chunk goes
                 // when it has, and is late.
                 current.waiting_for_port = true;
                 return;
             }
-            const std::size_t from =
-                current.next == 0 ? 0 : data.ends[current.next - 1];
-            const std::size_t to = data.ends[current.next];
             const auto late = static_cast<std::uint64_t>(
                 std::chrono::duration_cast<std::chrono::nanoseconds>(now - due)
                     .count());
             counts_.latest_ns = std::max(counts_.latest_ns, late);
-            ++counts_.chunks;
-            counts_.bytes += to - from;
-            ++current.next;
-            if (to == from)
+            item played = std::move(current.queue.front());
+            current.queue.pop_front();
+            if (played.is_lines)
+            {
+                if (current.follows_lines)
+                {
+                    current.port->set_peer_inputs(played.inputs);
+                    ++counts_.line_changes;
+                }
+                else
+                {
+                    ++counts_.lines_skipped;
+                }
                 continue;
-            current.outstanding += to - from;
-            byte_buffer copy(
-                data.bytes.begin() + static_cast<std::ptrdiff_t>(from),
-                data.bytes.begin() + static_cast<std::ptrdiff_t>(to));
+            }
+            current.queued_bytes -= std::min<std::uint64_t>(
+                current.queued_bytes, played.bytes.size());
+            ++counts_.chunks;
+            counts_.bytes += played.bytes.size();
+            if (played.bytes.empty())
+                continue;
+            current.outstanding += played.bytes.size();
+            const std::size_t count = played.bytes.size();
             current.port->write(
-                std::move(copy),
+                std::move(played.bytes),
                 [alive = alive_, this, executor = context_.executor, instance,
-                 number, count = to - from](boost::system::error_code ec,
-                                            std::size_t)
+                 number, count](boost::system::error_code ec, std::size_t)
                 {
                     const bool failed =
                         ec && ec != boost::asio::error::operation_aborted;
