@@ -91,7 +91,10 @@ CheckRowWidget::CheckRowWidget(const spec& row, QWidget* parent)
 
     if (!row_.chip.isEmpty())
     {
-        chip_ = new StatusChip(row_.chip, colours_for(row_.tone).chip, this);
+        auto* chip =
+            new StatusChip(row_.chip, colours_for(row_.tone).chip, this);
+        chip->set_small(true);
+        chip_ = chip;
         chip_->setAccessibleName(row_.chip);
         layout->addWidget(chip_, 0, 2, Qt::AlignRight | Qt::AlignVCenter);
     }

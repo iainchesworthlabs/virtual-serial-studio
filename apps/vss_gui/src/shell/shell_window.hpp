@@ -238,6 +238,8 @@ private:
     void add_program_port();
     vss::link_id share_link_of_selection() const;
     void show_rename(vss::endpoint_id id);
+    /// Stops or starts a port that was made from an address.
+    void set_port_running(vss::endpoint_id id, bool run);
     void show_com_number(vss::endpoint_id id);
     void show_release_port(vss::endpoint_id id);
     void show_links_dock(bool shown);
@@ -331,6 +333,7 @@ private:
     void hide_all_docks();
     QAction* pane_action(const QDockWidget* dock) const;
     void show_pane(QDockWidget* dock);
+    bool raise_if_behind(QDockWidget* dock);
     void apply_theme_setting();
     void apply_density_setting();
     void sync_density_actions();

@@ -211,6 +211,10 @@ struct timeline_load_message
     /// The seed of the replay, 0 to `max_api_number`.  None keeps the one
     /// the recording has.
     std::optional<std::uint64_t> seed;
+    /// Whether the bytes the recorded place sent (`W` lines) are played too,
+    /// in the order they were recorded, each at its time.  False plays only
+    /// what the place received.
+    bool include_sent = false;
 
     friend bool operator==(const timeline_load_message&,
                            const timeline_load_message&) = default;

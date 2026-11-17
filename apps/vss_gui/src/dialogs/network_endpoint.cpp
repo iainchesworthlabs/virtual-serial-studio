@@ -807,11 +807,16 @@ bool NetworkEndpointDialog::edit_port(vss::endpoint_id id)
     const auto port = backend_.port(id);
     if (!port)
         return false;
-    QString text;
-    for (const auto& entry : backend_.snapshot().ports)
+    // The address a client was made from is on the port itself, whatever
+    // state its connection is in; the saved setup is the fallback.
+    QString text = port->connection ? port->connection->target : QString();
+    if (text.isEmpty())
     {
-        if (QString::fromStdString(entry.name) == port->name)
-            text = QString::fromStdString(entry.uri);
+        for (const auto& entry : backend_.snapshot().ports)
+        {
+            if (QString::fromStdString(entry.name) == port->name)
+                text = QString::fromStdString(entry.uri);
+        }
     }
     auto parsed = parse_network_uri(text);
     // A port that failed or is waiting may be missing from the snapshot; its

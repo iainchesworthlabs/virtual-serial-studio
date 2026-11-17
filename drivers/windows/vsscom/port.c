@@ -149,6 +149,7 @@ NTSTATUS VssComCreatePort(_Inout_ PWDFDEVICE_INIT DeviceInit,
     context->LineControl.WordLength = 8;
     vsscom_ring_init(&context->Rx, context->RxStorage, VSSCOM_RX_SIZE);
     vsscom_ring_init(&context->Tx, context->TxStorage, VSSCOM_TX_SIZE);
+    vsscom_marks_init(&context->Marks);
     vsscom_events_init(&context->Events);
 
     // Child of the device, so that it goes when the device does. Ports now come

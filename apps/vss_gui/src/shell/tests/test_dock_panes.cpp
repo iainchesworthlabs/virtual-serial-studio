@@ -19,6 +19,7 @@
 #include <QDockWidget>
 #include <QMainWindow>
 #include <QMenu>
+#include <QMouseEvent>
 #include <QSettings>
 #include <QTabBar>
 #include <QToolButton>
@@ -428,7 +429,11 @@ TEST_CASE("dock panes: the layout is saved, restored and reset")
                                           drop_zone::right);
         QAction* json_action =
             window.findChild<QAction*>(QStringLiteral("view.json"));
-        json_action->setChecked(false);
+        // Behind a tab, the first choice brings the pane forward and the
+        // second closes it.
+        json_action->trigger();
+        QApplication::processEvents();
+        json_action->trigger();
         QApplication::processEvents();
         REQUIRE(!panes.json->isVisible());
         REQUIRE(!window.layout_state().isEmpty());
@@ -630,5 +635,133 @@ TEST_CASE("dock panes: Ports, Inspector and Send move, close and reset too")
         REQUIRE(send->isVisible());
         REQUIRE(rect_in(window, send).top() > rect_in(window, inspector).top());
         window.close();
+    }
+}
+
+TEST_CASE("dock panes: dragging a tab of Qt's tab bar shows the guides too")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::ShellWindow window(backend);
+    const Panes panes = find_panes(window);
+    show_advanced(window, panes);
+    vss::gui::DockPanes* docks = window.dock_panes();
+    auto* ports = window.findChild<QDockWidget*>(QStringLiteral("portsDock"));
+    REQUIRE(ports != nullptr);
+
+    // Find the tab of the Log in the bottom tab bar.
+    QTabBar* bar = nullptr;
+    int index = -1;
+    for (QTabBar* candidate : window.findChildren<QTabBar*>())
+    {
+        if (!candidate->isVisible())
+            continue;
+        for (int tab = 0; tab < candidate->count(); ++tab)
+        {
+            if (candidate->tabText(tab) == QStringLiteral("Log"))
+            {
+                bar = candidate;
+                index = tab;
+            }
+        }
+    }
+    REQUIRE(bar != nullptr);
+    const QPoint local = bar->tabRect(index).center();
+    const QPoint press = bar->mapToGlobal(local);
+    const auto send_mouse = [&](QEvent::Type type, const QPoint& global)
+    {
+        QMouseEvent event(type, bar->mapFromGlobal(global), global,
+                          Qt::LeftButton,
+                          type == QEvent::MouseButtonRelease ? Qt::NoButton
+                                                             : Qt::LeftButton,
+                          Qt::NoModifier);
+        QApplication::sendEvent(bar, &event);
+    };
+    send_mouse(QEvent::MouseButtonPress, press);
+    send_mouse(QEvent::MouseMove, press + QPoint(0, -40));
+    REQUIRE(docks->dragging());
+    REQUIRE(docks->overlay()->isVisible());
+
+    // Over the right guide of the Ports pane.
+    const QRect rect = rect_in(window, ports);
+    QRect right_guide;
+    for (const auto& guide : vss::gui::pane_guides(
+             rect, vss::gui::DockDropOverlay::guide_size(),
+             vss::gui::DockDropOverlay::guide_gap()))
+    {
+        if (guide.zone == drop_zone::right)
+            right_guide = guide.rect;
+    }
+    REQUIRE(right_guide.isValid());
+    const QPoint target = centre_of(window, right_guide);
+    send_mouse(QEvent::MouseMove, target);
+    REQUIRE_EQ(docks->current_zone(), drop_zone::right);
+    send_mouse(QEvent::MouseButtonRelease, target);
+    QApplication::processEvents();
+    REQUIRE(!docks->dragging());
+    REQUIRE(panes.log->isVisible());
+    REQUIRE(!window.tabifiedDockWidgets(ports).contains(panes.log));
+    REQUIRE(rect_in(window, panes.log).left() > rect_in(window, ports).left());
+}
+
+TEST_CASE("dock panes: choosing a pane behind a tab brings it forward")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::ShellWindow window(backend);
+    const Panes panes = find_panes(window);
+    show_advanced(window, panes);
+    window.dock_panes()->tab_with(panes.log, panes.monitor);
+    panes.monitor->raise();
+    QApplication::processEvents();
+    QAction* log_action = window.findChild<QAction*>(QStringLiteral("view.log"));
+    REQUIRE(log_action->isChecked());
+    REQUIRE(panes.log->visibleRegion().isEmpty());
+    // It is open but behind the Monitor: the entry brings it forward.
+    log_action->trigger();
+    QApplication::processEvents();
+    REQUIRE(log_action->isChecked());
+    REQUIRE(!panes.log->visibleRegion().isEmpty());
+    // Now it is showing, so the same entry closes it.
+    log_action->trigger();
+    QApplication::processEvents();
+    REQUIRE(!log_action->isChecked());
+    REQUIRE(!panes.log->isVisible());
+}
+
+TEST_CASE("dock panes: no pane is squeezed below what its controls need")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::ShellWindow window(backend);
+    const Panes panes = find_panes(window);
+    for (const QSize size : {QSize(1280, 800), QSize(960, 640)})
+    {
+        window.resize(size);
+        window.show();
+        QApplication::processEvents();
+        if (!panes.advanced->isChecked())
+            panes.advanced->trigger();
+        QApplication::processEvents();
+        // A dock given less room than its minimum spills over its neighbour,
+        // which is how a title bar once covered the Stop repeat button.
+        for (const char* name :
+             {"portsDock", "inspectorDock", "sendDock", "monitorDock"})
+        {
+            auto* dock = window.findChild<QDockWidget*>(QString::fromLatin1(name));
+            REQUIRE(dock != nullptr);
+            REQUIRE(dock->isVisible());
+            REQUIRE(dock->height() >= dock->minimumSizeHint().height());
+            REQUIRE(dock->width() >= dock->minimumSizeHint().width());
+        }
+        // The docks in the right column do not overlap each other or the
+        // Monitor.
+        const QRect inspector =
+            rect_in(window, window.findChild<QDockWidget*>(
+                                QStringLiteral("inspectorDock")));
+        const QRect send = rect_in(window, window.findChild<QDockWidget*>(
+                                               QStringLiteral("sendDock")));
+        REQUIRE(!inspector.intersects(send));
+        REQUIRE(!send.intersects(rect_in(window, panes.monitor)));
     }
 }

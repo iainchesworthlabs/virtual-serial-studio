@@ -122,11 +122,6 @@
             <translation>com0com</translation>
         </message>
         <message>
-            <location filename="../src/support/about_dialog.cpp" line="267" />
-            <source>GNU General Public License, version 3.</source>
-            <translation>GNU General Public License, ווערסיע 3.</translation>
-        </message>
-        <message>
             <location filename="../src/support/about_dialog.cpp" line="269" />
             <source>An optional driver for Windows, installed separately by you.</source>
             <translation>אַן אָפּציאָנעלער דרײַווער פֿאַר Windows, באַזונדער אינסטאַלירט דורך אײַך.</translation>
@@ -451,26 +446,6 @@
             <location filename="../src/support/update_text.cpp" line="107" />
             <source>Never</source>
             <translation>קיינמאָל</translation>
-        </message>
-        <message>
-            <location filename="../src/support/about_dialog.cpp" line="285" />
-            <source>Copy this into a bug report. It answers "what is this running on?"</source>
-            <translation>קאָפּירט דאָס אין אַ באַריכט וועגן אַ טעות. עס ענטפֿערט אויף "אויף וואָס לויפֿט דאָס?"</translation>
-        </message>
-        <message>
-            <location filename="../src/support/about_dialog.cpp" line="324" />
-            <source>No fonts are bundled. Studio uses your system's UI font.</source>
-            <translation>קיין שריפֿטן זענען נישט אײַנגעשלאָסן. Studio ניצט די אינטערפֿייס־שריפֿט פֿון אײַער סיסטעם.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/about_dialog.cpp" line="285" />
-            <source>Copy this into a bug report. It answers "what is this running on?"</source>
-            <translation>קאָפּירט דאָס אין אַ באַריכט וועגן אַ טעות. עס ענטפֿערט אויף "אויף וואָס לויפֿט דאָס?"</translation>
-        </message>
-        <message>
-            <location filename="../src/support/about_dialog.cpp" line="324" />
-            <source>No fonts are bundled. Studio uses your system's UI font.</source>
-            <translation>קיין שריפֿטן זענען נישט אײַנגעשלאָסן. Studio ניצט די אינטערפֿייס־שריפֿט פֿון אײַער סיסטעם.</translation>
         </message>
     </context>
     <context>
@@ -1190,19 +1165,9 @@
             <translation>קלײַבט אויס אַן אַנדערן</translation>
         </message>
         <message>
-            <location filename="../src/flows/attach_dialog.cpp" line="388" />
-            <source>Most devices use these settings. If you see garbled text, check the device's manual.</source>
-            <translation>די מערסטע אַפּאַראַטן נוצן די דאָזיקע פּאַראַמעטערס. אויב איר זעט פֿאַרדרייטן טעקסט, קוקט אין דעם אַפּאַראַטס האַנדבוך.</translation>
-        </message>
-        <message>
             <location filename="../src/flows/attach_dialog.cpp" line="902" />
             <source>Attaching</source>
             <translation>פֿאַרבינדט</translation>
-        </message>
-        <message>
-            <location filename="../src/flows/attach_dialog.cpp" line="388" />
-            <source>Most devices use these settings. If you see garbled text, check the device's manual.</source>
-            <translation>די מערסטע אַפּאַראַטן נוצן די דאָזיקע פּאַראַמעטערס. אויב איר זעט פֿאַרדרייטן טעקסט, קוקט אין דעם אַפּאַראַטס האַנדבוך.</translation>
         </message>
     </context>
     <context>
@@ -1797,16 +1762,6 @@
             <location filename="../src/shell/command_palette.cpp" line="372" />
             <source>ADVANCED</source>
             <translation>אַוואַנסירט</translation>
-        </message>
-        <message>
-            <location filename="../src/shell/command_palette.cpp" line="315" />
-            <source>Nothing in %1 matches "%2".</source>
-            <translation>גאָרנישט אין %1 שטימט מיט "%2".</translation>
-        </message>
-        <message>
-            <location filename="../src/shell/command_palette.cpp" line="315" />
-            <source>Nothing in %1 matches "%2".</source>
-            <translation>גאָרנישט אין %1 שטימט מיט "%2".</translation>
         </message>
     </context>
     <context>
@@ -2433,6 +2388,36 @@
             <source>Choose which kinds of event are shown.</source>
             <translation>קלײַבט וועלכע סאָרטן געשעענישן ווערן געוויזן.</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="412" />
+            <source>Control lines</source>
+            <translation>קאָנטראָל־ליניעס</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="412" />
+            <source>Error</source>
+            <translation>טעות</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="413" />
+            <source>Counters</source>
+            <translation>ציילער</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="413" />
+            <source>Message</source>
+            <translation>מעלדונג</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="413" />
+            <source>Traffic</source>
+            <translation>טראַפֿיק</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="413" />
+            <source>Bus</source>
+            <translation>באַס</translation>
+        </message>
     </context>
     <context>
         <name>ExportCommandDialog</name>
@@ -2850,16 +2835,6 @@ Networks: %5</source>
             <source>Close</source>
             <translation>פֿאַרמאַכן</translation>
         </message>
-        <message>
-            <location filename="../src/support/help_contents_dialog.cpp" line="99" />
-            <source>See every action's shortcut in one list.</source>
-            <translation>זעט יעדער אַקציע איר שאָרטקאַט אין איין ליסטע.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/help_contents_dialog.cpp" line="99" />
-            <source>See every action's shortcut in one list.</source>
-            <translation>זעט יעדער אַקציע איר שאָרטקאַט אין איין ליסטע.</translation>
-        </message>
     </context>
     <context>
         <name>HelpContentsDialog</name>
@@ -3063,31 +3038,9 @@ Networks: %5</source>
             <translation>גאַנצער טראַפֿיק</translation>
         </message>
         <message>
-            <location filename="../src/panes/inspector_panel.cpp" line="334" />
-            <location filename="../src/panes/inspector_panel.cpp" line="571" />
-            <source>&lt;a href="troubleshoot"&gt;Why is nothing arriving?&lt;/a&gt;</source>
-            <translation>&lt;a href="troubleshoot"&gt;פֿאַרוואָס קומט גאָרנישט אָן?&lt;/a&gt;</translation>
-        </message>
-        <message>
-            <location filename="../src/panes/inspector_panel.cpp" line="409" />
-            <source>&lt;a href="faults"&gt;Open line matrix and faults&lt;/a&gt;</source>
-            <translation>&lt;a href="faults"&gt;עפֿענען ליניע־מאַטריץ און דעפֿעקטן&lt;/a&gt;</translation>
-        </message>
-        <message>
             <location filename="../src/panes/inspector_panel.cpp" line="553" />
             <source>Bytes received and sent in total. The status bar shows the current rate.</source>
             <translation>גאַנצע ביטעס באקומען און געשיקט. די סטאַטוס־שטאַנג ווײַזט די איצטיקע גיכקייט.</translation>
-        </message>
-        <message>
-            <location filename="../src/panes/inspector_panel.cpp" line="334" />
-            <location filename="../src/panes/inspector_panel.cpp" line="571" />
-            <source>&lt;a href="troubleshoot"&gt;Why is nothing arriving?&lt;/a&gt;</source>
-            <translation>&lt;a href="troubleshoot"&gt;פֿאַרוואָס קומט גאָרנישט אָן?&lt;/a&gt;</translation>
-        </message>
-        <message>
-            <location filename="../src/panes/inspector_panel.cpp" line="409" />
-            <source>&lt;a href="faults"&gt;Open line matrix and faults&lt;/a&gt;</source>
-            <translation>&lt;a href="faults"&gt;עפֿענען ליניע־מאַטריץ און דעפֿעקטן&lt;/a&gt;</translation>
         </message>
         <message>
             <location filename="../src/panes/inspector_panel.cpp" line="263" />
@@ -3108,6 +3061,104 @@ Networks: %5</source>
             <location filename="../src/panes/inspector_panel.cpp" line="639" />
             <source>Open %1 in the Monitor</source>
             <translation>עפענען %1 אין דעם מאניטאר</translation>
+        </message>
+        <message>
+            <source>%1  %2</source>
+            <translation>%1  %2</translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n read(s)</source>
+            <translation>
+                <numerusform>%1, לעזונגען: %n</numerusform>
+                <numerusform>%1, לעזונגען: %n</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n write(s)</source>
+            <translation>
+                <numerusform>%1, שרײַבונגען: %n</numerusform>
+                <numerusform>%1, שרײַבונגען: %n</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>%1, port %2</source>
+            <translation>%1, פּאָרט %2</translation>
+        </message>
+        <message>
+            <source>Connected at</source>
+            <translation>פֿאַרבונדן אום</translation>
+        </message>
+        <message>
+            <source>Connection</source>
+            <translation>פֿאַרבינדונג</translation>
+        </message>
+        <message>
+            <source>Last error</source>
+            <translation>לעצטער טעות</translation>
+        </message>
+        <message>
+            <source>Local</source>
+            <translation>לאָקאַל</translation>
+        </message>
+        <message>
+            <source>Next try</source>
+            <translation>ווייטערדיקער פּרוּוו</translation>
+        </message>
+        <message>
+            <source>None</source>
+            <translation>קײן</translation>
+        </message>
+        <message>
+            <source>None planned</source>
+            <translation>קײנער נישט פּלאַנירט</translation>
+        </message>
+        <message>
+            <source>None yet</source>
+            <translation>נאָך קײנע</translation>
+        </message>
+        <message>
+            <source>Not connected</source>
+            <translation>נישט פֿאַרבונדן</translation>
+        </message>
+        <message>
+            <source>Not reported</source>
+            <translation>נישט געמאָלדן</translation>
+        </message>
+        <message>
+            <source>Received</source>
+            <translation>באַקומען</translation>
+        </message>
+        <message>
+            <source>Recent events</source>
+            <translation>לעצטע געשעענישן</translation>
+        </message>
+        <message>
+            <source>Reconnects</source>
+            <translation>ווידער־פֿאַרבינדונגען</translation>
+        </message>
+        <message>
+            <source>Remote</source>
+            <translation>װײַטער</translation>
+        </message>
+        <message>
+            <source>Sent</source>
+            <translation>געשיקט</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>אָנהייבן</translation>
+        </message>
+        <message>
+            <source>Start %1</source>
+            <translation>אָנהייבן %1</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>אָפּשטעלן</translation>
+        </message>
+        <message>
+            <source>Stop %1</source>
+            <translation>אָפּשטעלן %1</translation>
         </message>
     </context>
     <context>
@@ -3660,34 +3711,9 @@ Networks: %5</source>
             <translation>פּראָגרעס פֿון דער אײַנשטעלונג</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="608" />
-            <source>I'll type to it from this window</source>
-            <translation>איך וועל צו אים שרײַבן פֿון דעם פֿענצטער</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/job_form.cpp" line="664" />
-            <source>Other computers connect to this PC's address on this port. 4001 is common for serial over the network.</source>
-            <translation>אַנדערע קאָמפּיוטערס פֿאַרבינדן זיך צו דעם אַדרעס פֿון דעם קאָמפּיוטער אויף דעם דאָזיקן פּאָרט. 4001 איז געוויינלעך פֿאַר סעריעל איבערן נעץ.</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/job_form.cpp" line="688" />
-            <source>Check the device's manual. A wrong rate usually shows as garbled text.</source>
-            <translation>קוקט אין דעם מאַנועל פֿון דעם אַפּאַראַט. אַ פֿאַלשע גיך־קייט ווײַזט זיך געוויינטלעך ווי צעמישטער טעקסט.</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/job_form.cpp" line="787" />
-            <source>Lists the data sent in each direction on the setup's page. It does not change the data. You can turn it on later.</source>
-            <translation>ווײַזט די דאַטן וואָס ווערן געשיקט אין יעדער ריכטונג אויף דער זײַט פֿון דער אָנשטעל. עס ענדערט נישט די דאַטן. איר קענט עס אײַנשאַלטן שפּעטער.</translation>
-        </message>
-        <message>
             <location filename="../src/simple/job_form.cpp" line="926" />
             <source>Automatic</source>
             <translation>אויטאָמאַטיש</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/job_form.cpp" line="1517" />
-            <source>Enter the device's network address.</source>
-            <translation>שרײַבט אַרײַן די נעץ־אַדרעס פֿון דעם אַפּאַראַט.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1541" />
@@ -3708,31 +3734,6 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1554" />
             <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
             <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז א מינוט.</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/job_form.cpp" line="608" />
-            <source>I'll type to it from this window</source>
-            <translation>איך וועל צו אים שרײַבן פֿון דעם פֿענצטער</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/job_form.cpp" line="664" />
-            <source>Other computers connect to this PC's address on this port. 4001 is common for serial over the network.</source>
-            <translation>אַנדערע קאָמפּיוטערס פֿאַרבינדן זיך צו דעם אַדרעס פֿון דעם קאָמפּיוטער אויף דעם דאָזיקן פּאָרט. 4001 איז געוויינלעך פֿאַר סעריעל איבערן נעץ.</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/job_form.cpp" line="688" />
-            <source>Check the device's manual. A wrong rate usually shows as garbled text.</source>
-            <translation>קוקט אין דעם מאַנועל פֿון דעם אַפּאַראַט. אַ פֿאַלשע גיך־קייט ווײַזט זיך געוויינטלעך ווי צעמישטער טעקסט.</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/job_form.cpp" line="787" />
-            <source>Lists the data sent in each direction on the setup's page. It does not change the data. You can turn it on later.</source>
-            <translation>ווײַזט די דאַטן וואָס ווערן געשיקט אין יעדער ריכטונג אויף דער זײַט פֿון דער אָנשטעל. עס ענדערט נישט די דאַטן. איר קענט עס אײַנשאַלטן שפּעטער.</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/job_form.cpp" line="1517" />
-            <source>Enter the device's network address.</source>
-            <translation>שרײַבט אַרײַן די נעץ־אַדרעס פֿון דעם אַפּאַראַט.</translation>
         </message>
     </context>
     <context>
@@ -3993,16 +3994,6 @@ Networks: %5</source>
             <location filename="../src/shell/launcher.cpp" line="344" />
             <source>Set up Virtual Serial Studio</source>
             <translation>אײַנשטעלן Virtual Serial Studio</translation>
-        </message>
-        <message>
-            <location filename="../src/shell/launcher.cpp" line="283" />
-            <source>&lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds addresses, fault injection and port ownership to this window. Nothing you have built changes.</source>
-            <translation>&lt;a href="advanced"&gt;דער אַוואַנסירטער מאָדע&lt;/a&gt; לייגט צו צו דעם פֿענצטער אַדרעסן, גרײַז־אײַנשפּריצונג און פּאָרט־אײגנטומ. גאָרנישט וואָס איר האָט געבויט ענדערט זיך נישט.</translation>
-        </message>
-        <message>
-            <location filename="../src/shell/launcher.cpp" line="283" />
-            <source>&lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds addresses, fault injection and port ownership to this window. Nothing you have built changes.</source>
-            <translation>&lt;a href="advanced"&gt;דער אַוואַנסירטער מאָדע&lt;/a&gt; לייגט צו צו דעם פֿענצטער אַדרעסן, גרײַז־אײַנשפּריצונג און פּאָרט־אײגנטומ. גאָרנישט וואָס איר האָט געבויט ענדערט זיך נישט.</translation>
         </message>
     </context>
     <context>
@@ -5632,36 +5623,6 @@ Networks: %5</source>
             <source>Close</source>
             <translation>פֿאַרמאַכן</translation>
         </message>
-        <message>
-            <location filename="../src/support/permission_dialog.cpp" line="144" />
-            <source>The profile may refuse serial devices, pseudo terminals or Studio's link folder. If a program is refused, add the lines below to the local override of the profile and reload it. Studio never edits a profile.</source>
-            <translation>דער פּראָפֿיל קען אָפּוואַרפֿן סעריעלע מכשירים, פּסעוודאָ־טערמינאַלן אָדער Studio׳ס לינק־פּאַפּקע. אויב אַ פּראָגראַם ווערט אָפּגעוואָרפֿן, לייגט צו די שורות אונטן צו דער לאָקאַלער איבערשרײַבונג פֿון דעם פּראָפֿיל און לאָדט אים נאָך אַ מאָל. Studio רעדאַקטירט קיינמאָל נישט קיין פּראָפֿיל.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/permission_dialog.cpp" line="218" />
-            <source>With the firewall on, macOS asks whether the program may accept incoming connections, once for each program. Choose Allow. If you chose Don't Allow, open System Settings, Network, Firewall, Options, and set the program to Allow incoming connections, or run the commands below in a terminal. Studio never changes the firewall.</source>
-            <translation>ווען דער פֿײַערוואָל איז אָנגעשטעלט, פֿרעגט macOS איין מאָל פֿאַר יעדן פּראָגראַם צי עס מעג אָננעמען אײַנקומענדיקע פֿאַרבינדונגען. קלײַבט אויס Allow. אויב איר האָט אויסגעקליבן Don't Allow, עפֿנט System Settings, Network, Firewall, Options, און שטעלט דאָס פּראָגראַם אויף Allow incoming connections, אָדער לויפֿט די באַפֿעלן אונטן אין אַ טערמינאַל. Studio ענדערט קיינמאָל נישט דעם פֿײַערוואָל.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/permission_dialog.cpp" line="277" />
-            <source>From macOS 15, an app needs your permission to find and connect to devices on the local network. Studio cannot check the answer. If you chose Don't Allow and other computers cannot connect, open System Settings, Privacy &amp; Security, Local Network, and turn Virtual Serial Studio on.</source>
-            <translation>פֿון macOS 15 אָן דאַרף אַן אַפּ אײַער דערלויבעניש צו געפֿינען מכשירים אין דעם לאָקאַלן נעץ און זיך פֿאַרבינדן צו זיי. Studio קען נישט קאָנטראָלירן די תּשובֿה. אויב איר האָט אויסגעקליבן Don't Allow און אַנדערע קאָמפּיוטערס קענען זיך נישט פֿאַרבינדן, עפֿנט System Settings, Privacy &amp; Security, Local Network, און שטעלט אָן Virtual Serial Studio.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/permission_dialog.cpp" line="144" />
-            <source>The profile may refuse serial devices, pseudo terminals or Studio's link folder. If a program is refused, add the lines below to the local override of the profile and reload it. Studio never edits a profile.</source>
-            <translation>דער פּראָפֿיל קען אָפּוואַרפֿן סעריעלע מכשירים, פּסעוודאָ־טערמינאַלן אָדער Studio׳ס לינק־פּאַפּקע. אויב אַ פּראָגראַם ווערט אָפּגעוואָרפֿן, לייגט צו די שורות אונטן צו דער לאָקאַלער איבערשרײַבונג פֿון דעם פּראָפֿיל און לאָדט אים נאָך אַ מאָל. Studio רעדאַקטירט קיינמאָל נישט קיין פּראָפֿיל.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/permission_dialog.cpp" line="218" />
-            <source>With the firewall on, macOS asks whether the program may accept incoming connections, once for each program. Choose Allow. If you chose Don't Allow, open System Settings, Network, Firewall, Options, and set the program to Allow incoming connections, or run the commands below in a terminal. Studio never changes the firewall.</source>
-            <translation>ווען דער פֿײַערוואָל איז אָנגעשטעלט, פֿרעגט macOS איין מאָל פֿאַר יעדן פּראָגראַם צי עס מעג אָננעמען אײַנקומענדיקע פֿאַרבינדונגען. קלײַבט אויס Allow. אויב איר האָט אויסגעקליבן Don't Allow, עפֿנט System Settings, Network, Firewall, Options, און שטעלט דאָס פּראָגראַם אויף Allow incoming connections, אָדער לויפֿט די באַפֿעלן אונטן אין אַ טערמינאַל. Studio ענדערט קיינמאָל נישט דעם פֿײַערוואָל.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/permission_dialog.cpp" line="277" />
-            <source>From macOS 15, an app needs your permission to find and connect to devices on the local network. Studio cannot check the answer. If you chose Don't Allow and other computers cannot connect, open System Settings, Privacy &amp; Security, Local Network, and turn Virtual Serial Studio on.</source>
-            <translation>פֿון macOS 15 אָן דאַרף אַן אַפּ אײַער דערלויבעניש צו געפֿינען מכשירים אין דעם לאָקאַלן נעץ און זיך פֿאַרבינדן צו זיי. Studio קען נישט קאָנטראָלירן די תּשובֿה. אויב איר האָט אויסגעקליבן Don't Allow און אַנדערע קאָמפּיוטערס קענען זיך נישט פֿאַרבינדן, עפֿנט System Settings, Privacy &amp; Security, Local Network, און שטעלט אָן Virtual Serial Studio.</translation>
-        </message>
     </context>
     <context>
         <name>PickCard</name>
@@ -5796,6 +5757,111 @@ Networks: %5</source>
             <location filename="../src/panes/port_model.cpp" line="343" />
             <source>Virtual port</source>
             <translation>ווירטועלער פּאָרט</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="306" />
+            <source>Kind</source>
+            <translation>סאָרט</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="308" />
+            <source>Address</source>
+            <translation>אַדרעס</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="310" />
+            <source>Settings</source>
+            <translation>פּרעפֿערענצן</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="312" />
+            <source>Baud rate</source>
+            <translation>באָד־גיכקייט</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="314" />
+            <source>Data bits</source>
+            <translation>דאַטן־ביטן</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="316" />
+            <source>Parity</source>
+            <translation>פּאַריטעט</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="318" />
+            <source>Stop bits</source>
+            <translation>שטאָפּ־ביטן</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="320" />
+            <source>Flow control</source>
+            <translation>פֿלוס־קאָנטראָל</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="322" />
+            <source>Errors</source>
+            <translation>טעותן</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="462" />
+            <source>Serial port</source>
+            <translation>סעריעלער פּאָרט</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="465" />
+            <source>Network server (TCP)</source>
+            <translation>נעץ־סערווער (TCP)</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="466" />
+            <source>Network client (TCP)</source>
+            <translation>נעץ־קליענט (TCP)</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="468" />
+            <source>Network client (UDP)</source>
+            <translation>נעץ־קליענט (UDP)</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="470" />
+            <source>Network client (RFC 2217)</source>
+            <translation>נעץ־קליענט (RFC 2217)</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="510" />
+            <source>None</source>
+            <translation>קיין</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="512" />
+            <source>Odd</source>
+            <translation>אומגראַד</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="514" />
+            <source>Even</source>
+            <translation>גראַד</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="516" />
+            <source>Mark</source>
+            <translation>מאַרק</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="518" />
+            <source>Space</source>
+            <translation>ספּייס</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="543" />
+            <source>XON/XOFF</source>
+            <translation>XON/XOFF</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="545" />
+            <source>RTS/CTS</source>
+            <translation>RTS/CTS</translation>
         </message>
     </context>
     <context>
@@ -6010,28 +6076,6 @@ Networks: %5</source>
             <source>Auto</source>
             <translation>אויטאָמאַטיש</translation>
         </message>
-        <message>
-            <location filename="../src/flows/port_ready_dialog.cpp" line="91" />
-            <source>The port "%1" was created. Only Studio can open it.</source>
-            <translation>דער פּאָרט "%1" איז געשאַפֿן געוואָרן. נאָר Studio קען אים עפֿענען.</translation>
-        </message>
-        <message>
-            <location filename="../src/flows/port_ready_dialog.cpp" line="98" />
-            <location filename="../src/flows/port_ready_dialog.cpp" line="105" />
-            <source>The port "%1" was created. Other programs can open it.</source>
-            <translation>דער פּאָרט "%1" איז געשאַפֿן געוואָרן. אַנדערע פּראָגראַמען קענען אים עפֿענען.</translation>
-        </message>
-        <message>
-            <location filename="../src/flows/port_ready_dialog.cpp" line="91" />
-            <source>The port "%1" was created. Only Studio can open it.</source>
-            <translation>דער פּאָרט "%1" איז געשאַפֿן געוואָרן. נאָר Studio קען אים עפֿענען.</translation>
-        </message>
-        <message>
-            <location filename="../src/flows/port_ready_dialog.cpp" line="98" />
-            <location filename="../src/flows/port_ready_dialog.cpp" line="105" />
-            <source>The port "%1" was created. Other programs can open it.</source>
-            <translation>דער פּאָרט "%1" איז געשאַפֿן געוואָרן. אַנדערע פּראָגראַמען קענען אים עפֿענען.</translation>
-        </message>
     </context>
     <context>
         <name>PortWarnings</name>
@@ -6103,6 +6147,21 @@ Networks: %5</source>
             <location filename="../src/panes/ports_panel.cpp" line="235" />
             <source>%1 column is %2 px wide.</source>
             <translation>שפּאַלט %1 איז %2 px ברייט.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="382" />
+            <source>%1 column moved.</source>
+            <translation>קאָלאָנע %1 איז באַוועגט געוואָרן.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="390" />
+            <source>Columns</source>
+            <translation>קאָלאָנעס</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="407" />
+            <source>Reset columns</source>
+            <translation>צוריקשטעלן קאָלאָנעס</translation>
         </message>
     </context>
     <context>
@@ -7208,16 +7267,6 @@ Networks: %5</source>
             <source>This build cannot check for updates.</source>
             <translation>מיט דעם דאָזיקן בילד קען מען נישט קאָנטראָלירן אויף דערהײַנטיקונגען.</translation>
         </message>
-        <message>
-            <location filename="../src/support/settings_dialog.cpp" line="491" />
-            <source>Open your operating system's display or accessibility settings yourself.</source>
-            <translation>עפֿנט אַליין די אָנווײַז־ אָדער צוטריטלעכקייט־פּרעפֿערענצן פֿון אײַער אָפּעראַציע־סיסטעם.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/settings_dialog.cpp" line="491" />
-            <source>Open your operating system's display or accessibility settings yourself.</source>
-            <translation>עפֿנט אַליין די אָנווײַז־ אָדער צוטריטלעכקייט־פּרעפֿערענצן פֿון אײַער אָפּעראַציע־סיסטעם.</translation>
-        </message>
     </context>
     <context>
         <name>SetupCheck</name>
@@ -7886,36 +7935,6 @@ Networks: %5</source>
             <source>Set up Virtual Serial Studio</source>
             <translation>אײַנשטעלן Virtual Serial Studio</translation>
         </message>
-        <message>
-            <location filename="../src/support/permission_rows.cpp" line="327" />
-            <source>If you chose Don't Allow</source>
-            <translation>אויב איר האָט אויסגעקליבן Don't Allow</translation>
-        </message>
-        <message>
-            <location filename="../src/support/permission_rows.cpp" line="366" />
-            <source>macOS 15 and later asks once whether apps may connect to devices on your local network. It cannot be checked from here; if you chose Don't Allow, turn it on again.</source>
-            <translation>פֿון macOS 15 אָן פֿרעגט macOS איין מאָל צי אַפּס מעגן זיך פֿאַרבינדן צו מכשירים אין אײַער לאָקאַלן נעץ. מען קען דאָס נישט קאָנטראָלירן פֿון דאָ; אויב איר האָט אויסגעקליבן Don't Allow, שטעלט עס װידער אָן.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/permission_rows.cpp" line="461" />
-            <source>Your account is not an administrator, so Windows will ask for an administrator's password.</source>
-            <translation>אײַער קאָנטאָ איז נישט אַ אַדמיניסטראַטאָר, דעריבער וועט Windows פֿרעגן וועגן אַ אַדמיניסטראַטאָרס פּאַראָל.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/permission_rows.cpp" line="327" />
-            <source>If you chose Don't Allow</source>
-            <translation>אויב איר האָט אויסגעקליבן Don't Allow</translation>
-        </message>
-        <message>
-            <location filename="../src/support/permission_rows.cpp" line="366" />
-            <source>macOS 15 and later asks once whether apps may connect to devices on your local network. It cannot be checked from here; if you chose Don't Allow, turn it on again.</source>
-            <translation>פֿון macOS 15 אָן פֿרעגט macOS איין מאָל צי אַפּס מעגן זיך פֿאַרבינדן צו מכשירים אין אײַער לאָקאַלן נעץ. מען קען דאָס נישט קאָנטראָלירן פֿון דאָ; אויב איר האָט אויסגעקליבן Don't Allow, שטעלט עס װידער אָן.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/permission_rows.cpp" line="461" />
-            <source>Your account is not an administrator, so Windows will ask for an administrator's password.</source>
-            <translation>אײַער קאָנטאָ איז נישט אַ אַדמיניסטראַטאָר, דעריבער וועט Windows פֿרעגן וועגן אַ אַדמיניסטראַטאָרס פּאַראָל.</translation>
-        </message>
     </context>
     <context>
         <name>SetupCheckDialog</name>
@@ -8239,16 +8258,6 @@ Networks: %5</source>
             <location filename="../src/simple/setup_page.cpp" line="703" />
             <source>Could not send to %1. %2</source>
             <translation>ס׳האָט נישט געקענט שיקן צו %1. %2</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/setup_page.cpp" line="485" />
-            <source>No program has opened %1 yet. In %2, choose exactly %1. This changes as soon as one does. &lt;a href="help"&gt;Nothing arriving?&lt;/a&gt;</source>
-            <translation>קיין פּראָגראַם האָט נאָך נישט געעפֿנט %1. אין %2, קלײַבט גענוי %1. דאָס ענדערט זיך ווי נאָר איינע טוט עס. &lt;a href="help"&gt;קומט גאָרנישט אָן?&lt;/a&gt;</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/setup_page.cpp" line="485" />
-            <source>No program has opened %1 yet. In %2, choose exactly %1. This changes as soon as one does. &lt;a href="help"&gt;Nothing arriving?&lt;/a&gt;</source>
-            <translation>קיין פּראָגראַם האָט נאָך נישט געעפֿנט %1. אין %2, קלײַבט גענוי %1. דאָס ענדערט זיך ווי נאָר איינע טוט עס. &lt;a href="help"&gt;קומט גאָרנישט אָן?&lt;/a&gt;</translation>
         </message>
     </context>
     <context>
@@ -8806,36 +8815,6 @@ Networks: %5</source>
             <location filename="../src/dialogs/share_wizard.cpp" line="1627" />
             <source>The Waiting labels change to Program connected as each program opens their port.</source>
             <translation>די סימנים "וואַרט" ענדערן זיך אויף "פּראָגראַם פֿאַרבונדן" ווי יעדע פּראָגראַם עפֿנט איר פּאָרט.</translation>
-        </message>
-        <message>
-            <location filename="../src/dialogs/share_wizard.cpp" line="557" />
-            <source>You can add another program after sharing, and remove any program's port later with Remove port.</source>
-            <translation>איר קענט צולייגן נאָך אַ פּראָגראַם נאָכן טיילן, און שפּעטער אַוועקנעמען דעם פּאָרט פֿון יעדן פּראָגראַם מיט אַוועקנעמען פּאָרט.</translation>
-        </message>
-        <message>
-            <location filename="../src/dialogs/share_wizard.cpp" line="1005" />
-            <source>Each program gets its own port. Studio copies the device's data to all of them.</source>
-            <translation>יעדע פּראָגראַם באַקומט איר אייגענעם פּאָרט. Studio קאָפּירט די דאַטן פֿון דעם אַפּאַראַט צו אַלע פֿון זיי.</translation>
-        </message>
-        <message>
-            <location filename="../src/dialogs/share_wizard.cpp" line="1479" />
-            <source>Remove a program's port first if you need a different one.</source>
-            <translation>נעמט צוערשט אַוועק דעם פּאָרט פֿון אַ פּראָגראַם אויב איר דאַרפֿט אַן אַנדער צאָל.</translation>
-        </message>
-        <message>
-            <location filename="../src/dialogs/share_wizard.cpp" line="557" />
-            <source>You can add another program after sharing, and remove any program's port later with Remove port.</source>
-            <translation>איר קענט צולייגן נאָך אַ פּראָגראַם נאָכן טיילן, און שפּעטער אַוועקנעמען דעם פּאָרט פֿון יעדן פּראָגראַם מיט אַוועקנעמען פּאָרט.</translation>
-        </message>
-        <message>
-            <location filename="../src/dialogs/share_wizard.cpp" line="1005" />
-            <source>Each program gets its own port. Studio copies the device's data to all of them.</source>
-            <translation>יעדע פּראָגראַם באַקומט איר אייגענעם פּאָרט. Studio קאָפּירט די דאַטן פֿון דעם אַפּאַראַט צו אַלע פֿון זיי.</translation>
-        </message>
-        <message>
-            <location filename="../src/dialogs/share_wizard.cpp" line="1479" />
-            <source>Remove a program's port first if you need a different one.</source>
-            <translation>נעמט צוערשט אַוועק דעם פּאָרט פֿון אַ פּראָגראַם אויב איר דאַרפֿט אַן אַנדער צאָל.</translation>
         </message>
     </context>
     <context>
@@ -10177,16 +10156,6 @@ Networks: %5</source>
             <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז א מינוט.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3551" />
-            <source>Don't save</source>
-            <translation>נישט אָפּהיטן</translation>
-        </message>
-        <message>
-            <location filename="../src/shell/shell_window.cpp" line="3551" />
-            <source>Don't save</source>
-            <translation>נישט אָפּהיטן</translation>
-        </message>
-        <message>
             <location filename="../src/shell/shell_window.cpp" line="2487" />
             <source>The Monitor shows only %1. Choose All ports in its port filter to see every port.</source>
             <translation>דער מאניטאר ווייזט נאר %1. קלויבט אויס „אלע פארטן“ אין זיין פילטער צו זען יעדן פארט.</translation>
@@ -10210,6 +10179,50 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2518" />
             <source>Decoding %1 as %2. What it finds is in Decoded traffic, under Tools.</source>
             <translation>דעקאדירט %1 ווי %2. וואס עס געפינט זיך אין געצייג, אונטער „דעקאדירטער טראפיק“.</translation>
+        </message>
+        <message>
+            <source>Panes</source>
+            <translation>פּאַנעלן</translation>
+        </message>
+        <message>
+            <source>Next pane</source>
+            <translation>דער קומענדיקער פּאַנעל</translation>
+        </message>
+        <message>
+            <source>Previous pane</source>
+            <translation>דער פֿריִערדיקער פּאַנעל</translation>
+        </message>
+        <message>
+            <source>ports list</source>
+            <translation>פּאָרץ ליסטע</translation>
+        </message>
+        <message>
+            <source>port settings</source>
+            <translation>פּאָרט סעטינגס</translation>
+        </message>
+        <message>
+            <source>send bytes</source>
+            <translation>שיקן בײַטן</translation>
+        </message>
+        <message>
+            <source>panes switch cycle monitor log</source>
+            <translation>פּאַנעלן וועקסלען מאָניטאָר לאָג</translation>
+        </message>
+        <message>
+            <source>Could not start %1.</source>
+            <translation>קען נישט אָנהייבן %1.</translation>
+        </message>
+        <message>
+            <source>Could not stop %1.</source>
+            <translation>קען נישט אָפּשטעלן %1.</translation>
+        </message>
+        <message>
+            <source>Started %1.</source>
+            <translation>%1 אָנגעהויבן.</translation>
+        </message>
+        <message>
+            <source>Stopped %1.</source>
+            <translation>%1 אָפּגעשטעלט.</translation>
         </message>
     </context>
     <context>
@@ -10959,6 +10972,14 @@ Networks: %5</source>
             <source>Selected %1.</source>
             <translation>אויסגעקליבן %1.</translation>
         </message>
+        <message>
+            <source>Start</source>
+            <translation>אָנהייבן</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>אָפּשטעלן</translation>
+        </message>
     </context>
     <context>
         <name>TopologyJson</name>
@@ -11402,268 +11423,6 @@ Networks: %5</source>
             <source>Use true or false.</source>
             <translation>ניצט true אָדער false.</translation>
         </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="332" />
-            <source>This build cannot run a bus as a half-duplex line. Remove "half_duplex" from the link.</source>
-            <translation>די דאָזיקע ווערסיע קען נישט לאָזן אַ באַס אַרבעטן ווי אַ האַלב־דופּלעקס־ליניע. נעמט אַראָפּ "half_duplex" פֿון דער פֿאַרבינדונג.</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="343" />
-            <source>Remove "half_duplex", or make the link a bus.</source>
-            <translation>נעמט אַראָפּ "half_duplex", אָדער מאַכט די פֿאַרבינדונג צו אַ באַס.</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="352" />
-            <source>"half_duplex" must be an object</source>
-            <translation>"half_duplex" מוז זײַן אַן אָביעקט</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="385" />
-            <source>Set "bit_rate" to a whole number in that range.</source>
-            <translation>שטעלט "bit_rate" אויף אַ גאַנצער צאָל אין דעם באַרייך.</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="397" />
-            <source>Set "turnaround_ms" to a whole number in that range.</source>
-            <translation>שטעלט "turnaround_ms" אויף אַ גאַנצער צאָל אין דעם באַרייך.</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="412" />
-            <source>"collisions" must be report or garble</source>
-            <translation>"collisions" מוז זײַן report אָדער garble</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="423" />
-            <source>"rts_gating" must be true or false</source>
-            <translation>"rts_gating" מוז זײַן true אָדער false</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="666" />
-            <source>The document needs "version": 1</source>
-            <translation>דער דאָקומענט דאַרף "version": 1</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="699" />
-            <source>"ports" must be a list</source>
-            <translation>"ports" מוז זײַן אַ ליסטע</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="784" />
-            <source>Line %1: the name "%2" is used twice</source>
-            <translation>שורה %1: דער נאָמען "%2" ווערט צוויי מאָל גענוצט</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="789" />
-            <source>The name "%1" is used twice</source>
-            <translation>דער נאָמען "%1" ווערט צוויי מאָל גענוצט</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="828" />
-            <source>Line %1: unknown port kind "%2"</source>
-            <translation>שורה %1: אומבאַקאַנטער פּאָרט־סאָרט "%2"</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="832" />
-            <source>Unknown port kind "%1"</source>
-            <translation>אומבאַקאַנטער פּאָרט־סאָרט "%1"</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="872" />
-            <source>Line %1: unknown virtual kind "%2"</source>
-            <translation>שורה %1: אומבאַקאַנטער ווירטועלער סאָרט "%2"</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="877" />
-            <source>Unknown virtual kind "%1"</source>
-            <translation>אומבאַקאַנטער ווירטועלער סאָרט "%1"</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="909" />
-            <source>Line %1: port "%2" has no address</source>
-            <translation>שורה %1: פּאָרט "%2" האָט קיין אַדרעס נישט</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="914" />
-            <source>Port "%1" has no address</source>
-            <translation>פּאָרט "%1" האָט קיין אַדרעס נישט</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="943" />
-            <source>"links" must be a list</source>
-            <translation>"links" מוז זײַן אַ ליסטע</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="1019" />
-            <source>Line %1: unknown link mode "%2"</source>
-            <translation>שורה %1: אומבאַקאַנטע פֿאַרבינדונג־מאָדע "%2"</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="1023" />
-            <source>Unknown link mode "%1"</source>
-            <translation>אומבאַקאַנטע פֿאַרבינדונג־מאָדע "%1"</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="1032" />
-            <source>Did you mean "%1"? The line is highlighted and nothing was applied.</source>
-            <translation>צי האָט איר געמיינט "%1"? די שורה איז אַרויסגעהויבן און גאָרנישט איז אָנגעווענדט געוואָרן.</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="1140" />
-            <source>List the ports of the bus in "members". Nothing was applied.</source>
-            <translation>שרײַבט די פּאָרטן פֿון באַס אין "members". גאָרנישט איז אָנגעווענדט געוואָרן.</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="1157" />
-            <location filename="../src/advanced/json_validation.cpp" line="1338" />
-            <source>No port is called "%1"</source>
-            <translation>קיין פּאָרט הייסט נישט "%1"</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="1287" />
-            <source>Line %1: "%2" has the wrong number of ports</source>
-            <translation>שורה %1: "%2" האָט אַ פֿאַלשע צאָל פּאָרטן</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="1292" />
-            <source>"%1" has the wrong number of ports</source>
-            <translation>"%1" האָט אַ פֿאַלשע צאָל פּאָרטן</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="1333" />
-            <source>Line %1: no port is called "%2"</source>
-            <translation>שורה %1: קיין פּאָרט הייסט נישט "%2"</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="332" />
-            <source>This build cannot run a bus as a half-duplex line. Remove "half_duplex" from the link.</source>
-            <translation>די דאָזיקע ווערסיע קען נישט לאָזן אַ באַס אַרבעטן ווי אַ האַלב־דופּלעקס־ליניע. נעמט אַראָפּ "half_duplex" פֿון דער פֿאַרבינדונג.</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="343" />
-            <source>Remove "half_duplex", or make the link a bus.</source>
-            <translation>נעמט אַראָפּ "half_duplex", אָדער מאַכט די פֿאַרבינדונג צו אַ באַס.</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="352" />
-            <source>"half_duplex" must be an object</source>
-            <translation>"half_duplex" מוז זײַן אַן אָביעקט</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="385" />
-            <source>Set "bit_rate" to a whole number in that range.</source>
-            <translation>שטעלט "bit_rate" אויף אַ גאַנצער צאָל אין דעם באַרייך.</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="397" />
-            <source>Set "turnaround_ms" to a whole number in that range.</source>
-            <translation>שטעלט "turnaround_ms" אויף אַ גאַנצער צאָל אין דעם באַרייך.</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="412" />
-            <source>"collisions" must be report or garble</source>
-            <translation>"collisions" מוז זײַן report אָדער garble</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="423" />
-            <source>"rts_gating" must be true or false</source>
-            <translation>"rts_gating" מוז זײַן true אָדער false</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="666" />
-            <source>The document needs "version": 1</source>
-            <translation>דער דאָקומענט דאַרף "version": 1</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="699" />
-            <source>"ports" must be a list</source>
-            <translation>"ports" מוז זײַן אַ ליסטע</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="784" />
-            <source>Line %1: the name "%2" is used twice</source>
-            <translation>שורה %1: דער נאָמען "%2" ווערט צוויי מאָל גענוצט</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="789" />
-            <source>The name "%1" is used twice</source>
-            <translation>דער נאָמען "%1" ווערט צוויי מאָל גענוצט</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="828" />
-            <source>Line %1: unknown port kind "%2"</source>
-            <translation>שורה %1: אומבאַקאַנטער פּאָרט־סאָרט "%2"</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="832" />
-            <source>Unknown port kind "%1"</source>
-            <translation>אומבאַקאַנטער פּאָרט־סאָרט "%1"</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="872" />
-            <source>Line %1: unknown virtual kind "%2"</source>
-            <translation>שורה %1: אומבאַקאַנטער ווירטועלער סאָרט "%2"</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="877" />
-            <source>Unknown virtual kind "%1"</source>
-            <translation>אומבאַקאַנטער ווירטועלער סאָרט "%1"</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="909" />
-            <source>Line %1: port "%2" has no address</source>
-            <translation>שורה %1: פּאָרט "%2" האָט קיין אַדרעס נישט</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="914" />
-            <source>Port "%1" has no address</source>
-            <translation>פּאָרט "%1" האָט קיין אַדרעס נישט</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="943" />
-            <source>"links" must be a list</source>
-            <translation>"links" מוז זײַן אַ ליסטע</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="1019" />
-            <source>Line %1: unknown link mode "%2"</source>
-            <translation>שורה %1: אומבאַקאַנטע פֿאַרבינדונג־מאָדע "%2"</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="1023" />
-            <source>Unknown link mode "%1"</source>
-            <translation>אומבאַקאַנטע פֿאַרבינדונג־מאָדע "%1"</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="1032" />
-            <source>Did you mean "%1"? The line is highlighted and nothing was applied.</source>
-            <translation>צי האָט איר געמיינט "%1"? די שורה איז אַרויסגעהויבן און גאָרנישט איז אָנגעווענדט געוואָרן.</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="1140" />
-            <source>List the ports of the bus in "members". Nothing was applied.</source>
-            <translation>שרײַבט די פּאָרטן פֿון באַס אין "members". גאָרנישט איז אָנגעווענדט געוואָרן.</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="1157" />
-            <location filename="../src/advanced/json_validation.cpp" line="1338" />
-            <source>No port is called "%1"</source>
-            <translation>קיין פּאָרט הייסט נישט "%1"</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="1287" />
-            <source>Line %1: "%2" has the wrong number of ports</source>
-            <translation>שורה %1: "%2" האָט אַ פֿאַלשע צאָל פּאָרטן</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="1292" />
-            <source>"%1" has the wrong number of ports</source>
-            <translation>"%1" האָט אַ פֿאַלשע צאָל פּאָרטן</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_validation.cpp" line="1333" />
-            <source>Line %1: no port is called "%2"</source>
-            <translation>שורה %1: קיין פּאָרט הייסט נישט "%2"</translation>
-        </message>
     </context>
     <context>
         <name>TopologyJsonEditor</name>
@@ -11794,16 +11553,6 @@ Networks: %5</source>
             <location filename="../src/advanced/json_editor.cpp" line="503" />
             <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
             <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז א מינוט.</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_editor.cpp" line="674" />
-            <source>Use "%1"</source>
-            <translation>ניצן "%1"</translation>
-        </message>
-        <message>
-            <location filename="../src/advanced/json_editor.cpp" line="674" />
-            <source>Use "%1"</source>
-            <translation>ניצן "%1"</translation>
         </message>
     </context>
     <context>
@@ -12072,16 +11821,6 @@ Networks: %5</source>
             <location filename="../src/support/troubleshoot_dialog.cpp" line="1" />
             <source>Still stuck? A support bundle gathers the setup, the log and the environment for whoever helps you. The bytes your ports sent and received are never included.</source>
             <translation>נאָך אַלץ פֿאַרהאַקט? אַ שטיצע־פּעקל זאַמלט די אײַנשטעלונג, דעם לאָג און די סבֿיבֿה פֿאַר דעם וואָס העלפֿט אײַך. די בײַטן וואָס אײַערע פּאָרטן האָבן געשיקט און באַקומען ווערן קיינמאָל נישט אײַנגעשלאָסן.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/troubleshoot.cpp" line="308" />
-            <source>%1 has not sent anything in the last minute. Check the cable and the device's power.</source>
-            <translation>%1 האָט גאָרנישט געשיקט אין דער לעצטער מינוט. קאָנטראָלירט דעם קאַבל און דעם שטראָם פֿון דעם אַפּאַראַט.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/troubleshoot.cpp" line="308" />
-            <source>%1 has not sent anything in the last minute. Check the cable and the device's power.</source>
-            <translation>%1 האָט גאָרנישט געשיקט אין דער לעצטער מינוט. קאָנטראָלירט דעם קאַבל און דעם שטראָם פֿון דעם אַפּאַראַט.</translation>
         </message>
     </context>
     <context>
@@ -19464,16 +19203,6 @@ Networks: %5</source>
             <source>%1 and %2 more</source>
             <translation>%1 און %2 נאָך</translation>
         </message>
-        <message>
-            <location filename="../src/simple/setup_kinds.cpp" line="435" />
-            <source>Several programs send to one device, but only one at a time, so their bytes never mix. You choose which. All of them get the device's replies.</source>
-            <translation>עטלעכע פּראָגראַמען שיקן צו איין אַפּאַראַט, נאָר איינס אין אַ צײַט, אַזוי אַז זייערע בײַטן פֿאַרמישן זיך קיינמאָל. איר קלײַבט וועלכע. אַלע באַקומען די ענטפֿערס פֿון אַפּאַראַט.</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/setup_kinds.cpp" line="435" />
-            <source>Several programs send to one device, but only one at a time, so their bytes never mix. You choose which. All of them get the device's replies.</source>
-            <translation>עטלעכע פּראָגראַמען שיקן צו איין אַפּאַראַט, נאָר איינס אין אַ צײַט, אַזוי אַז זייערע בײַטן פֿאַרמישן זיך קיינמאָל. איר קלײַבט וועלכע. אַלע באַקומען די ענטפֿערס פֿון אַפּאַראַט.</translation>
-        </message>
     </context>
     <context>
         <name>vss::gui::simple::SetupPage</name>
@@ -20114,16 +19843,6 @@ Networks: %5</source>
             <location filename="../src/support/driver_setup_dialog.cpp" line="273" />
             <source>Setup finished, but this PC still cannot make ports: %1. Copy the details if you ask for help.</source>
             <translation>די אײַנשטעלונג איז פֿאַרענדיקט, אָבער דער דאָזיקער קאָמפּיוטער קען נאָך אַלץ נישט שאַפֿן פּאָרטן: %1. קאָפּירט די פּרטים אויב איר בעט הילף.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/elevated_step.cpp" line="302" />
-            <source>Windows could not install the driver, and nothing else was changed. Copy the details, or run the command shown in a terminal opened as administrator to see Windows' own message.</source>
-            <translation>Windows האָט נישט געקענט אינסטאַלירן דעם דרייווער, און גאָרנישט אַנדערש איז געענדערט געוואָרן. קאָפּירט די פּרטים, אָדער לויפֿט די באַוויזענע קאָמאַנדע אין אַ טערמינאַל וואָס איז געעפֿנט ווי אַדמיניסטראַטאָר כּדי צו זען Windows׳ אייגענע מעלדונג.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/elevated_step.cpp" line="302" />
-            <source>Windows could not install the driver, and nothing else was changed. Copy the details, or run the command shown in a terminal opened as administrator to see Windows' own message.</source>
-            <translation>Windows האָט נישט געקענט אינסטאַלירן דעם דרייווער, און גאָרנישט אַנדערש איז געענדערט געוואָרן. קאָפּירט די פּרטים, אָדער לויפֿט די באַוויזענע קאָמאַנדע אין אַ טערמינאַל וואָס איז געעפֿנט ווי אַדמיניסטראַטאָר כּדי צו זען Windows׳ אייגענע מעלדונג.</translation>
         </message>
     </context>
     <context>
@@ -21011,16 +20730,6 @@ Networks: %5</source>
             <location filename="../src/topology/toolbox.cpp" line="1" />
             <source>Show in Plugins</source>
             <translation>ווײַזן אין פּלאַגינס</translation>
-        </message>
-        <message>
-            <location filename="../src/topology/toolbox.cpp" line="153" />
-            <source>A passive copy of one port's traffic</source>
-            <translation>אַ פּאַסיווע קאָפּיע פֿון דעם פֿאַרקער פֿון איין פּאָרט</translation>
-        </message>
-        <message>
-            <location filename="../src/topology/toolbox.cpp" line="153" />
-            <source>A passive copy of one port's traffic</source>
-            <translation>אַ פּאַסיווע קאָפּיע פֿון דעם פֿאַרקער פֿון איין פּאָרט</translation>
         </message>
     </context>
     <context>
@@ -22046,26 +21755,6 @@ Networks: %5</source>
                 <numerusform>%n טעקעס</numerusform>
             </translation>
         </message>
-        <message>
-            <location filename="../src/support/support_bundle_dialog.cpp" line="398" />
-            <source>Whether the Studio driver and com0com are present, their versions, how the driver is signed, the helper service's state and the results of the setup check.</source>
-            <translation>צי דער Studio דרײַווער און com0com זענען פֿאַראַנען, זייערע ווערסיעס, ווי אַזוי דער דרײַווער איז אונטערגעשריבן, דער צושטאַנד פֿון דער הילף־סערוויס, און די רעזולטאַטן פֿון דער אײַנשטעלונג־קאָנטראָלע.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/support_bundle_dialog.cpp" line="460" />
-            <source>This computer's name</source>
-            <translation>דער נאָמען פֿון דעם קאָמפּיוטער</translation>
-        </message>
-        <message>
-            <location filename="../src/support/support_bundle_dialog.cpp" line="398" />
-            <source>Whether the Studio driver and com0com are present, their versions, how the driver is signed, the helper service's state and the results of the setup check.</source>
-            <translation>צי דער Studio דרײַווער און com0com זענען פֿאַראַנען, זייערע ווערסיעס, ווי אַזוי דער דרײַווער איז אונטערגעשריבן, דער צושטאַנד פֿון דער הילף־סערוויס, און די רעזולטאַטן פֿון דער אײַנשטעלונג־קאָנטראָלע.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/support_bundle_dialog.cpp" line="460" />
-            <source>This computer's name</source>
-            <translation>דער נאָמען פֿון דעם קאָמפּיוטער</translation>
-        </message>
     </context>
     <context>
         <name>SupportDialog</name>
@@ -22634,19 +22323,9 @@ Networks: %5</source>
             <translation>באַשליסן טראָץ דעם</translation>
         </message>
         <message>
-            <location filename="../src/support/plugin_dialogs.cpp" line="174" />
-            <source>Import the author's key...</source>
-            <translation>אימפּאָרטירן דעם שליסל פֿון דעם מחבר...</translation>
-        </message>
-        <message>
             <location filename="../src/support/plugin_dialogs.cpp" line="193" />
             <source>You allowed an earlier version of this plugin. Look at what changed before you allow this one.</source>
             <translation>איר האָט דערלויבט אַן עלטערע ווערסיע פֿון דעם פּלאַגין. קוקט אויף וואָס איז געביטן געוואָרן איידער איר דערלויבט דעם דאָזיקן.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugin_dialogs.cpp" line="176" />
-            <source>Import the author's key...</source>
-            <translation>אימפּאָרטירן דעם שליסל פֿון דעם מחבר...</translation>
         </message>
     </context>
     <context>
@@ -23868,30 +23547,9 @@ Networks: %5</source>
             <translation>דער פּלאַגין האָט דאָס אָפּגעזאָגט.</translation>
         </message>
         <message>
-            <location filename="../src/support/plugin_dialogs.cpp" line="630" />
-            <location filename="../src/support/plugins_dialog.cpp" line="1880" />
-            <source>That folder is not a plugin. A plugin's folder holds a file named plugin.json.</source>
-            <translation>יענע פּאַפּקע איז נישט קיין פּלאַגין. די פּאַפּקע פֿון אַ פּלאַגין האַלט אַ טעקע מיטן נאָמען plugin.json.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugin_dialogs.cpp" line="775" />
-            <source>Studio deletes the plugin's folder. Setups that use it keep their parts, which stop working until the plugin is installed again. Its saved data is kept unless you tick the box.</source>
-            <translation>Studio מעקט אויס די פּאַפּקע פֿון דעם פּלאַגין. אײַנשטעלונגען וואָס נוצן אים האַלטן זייערע טיילן, וואָס הערן אויף צו אַרבעטן ביז דער פּלאַגין ווערט ווידער אינסטאַלירט. זײַנע געראַטעוועטע דאַטן בלײַבן, סײַדן איר צייכנט אָן דעם קעסטל.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugin_text.cpp" line="158" />
-            <source>Can't be used</source>
-            <translation>קען נישט גענוצט ווערן</translation>
-        </message>
-        <message>
             <location filename="../src/support/plugin_text.cpp" line="269" />
             <source>Read your licence file. The file holds your name.</source>
             <translation>לייענט אײַער דערלויבעניש־טעקע. די טעקע האַלט אײַער נאָמען.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugin_text.cpp" line="395" />
-            <source>Studio carries out this plugin's rules itself, so its timing is exact and it keeps working if the plugin stops.</source>
-            <translation>Studio פֿירט אויס די כּללים פֿון דעם פּלאַגין אַליין, דעריבער איז זײַן צײַט־מעסטונג גענוי און ער האַלט אָן צו אַרבעטן אויב דער פּלאַגין שטעלט זיך אָפּ.</translation>
         </message>
         <message>
             <location filename="../src/support/plugins_dialog.cpp" line="61" />
@@ -23917,11 +23575,6 @@ Networks: %5</source>
             <location filename="../src/support/plugins_dialog.cpp" line="71" />
             <source>Refused</source>
             <translation>אָפּגעזאָגט</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugins_dialog.cpp" line="1091" />
-            <source>Import the author's key...</source>
-            <translation>אימפּאָרטירן דעם שליסל פֿון דעם מחבר...</translation>
         </message>
         <message>
             <location filename="../src/support/plugins_dialog.cpp" line="1339" />
@@ -23967,16 +23620,6 @@ Networks: %5</source>
             <location filename="../src/support/plugins_dialog.cpp" line="1447" />
             <source>This needs settings that Studio cannot ask for yet.</source>
             <translation>דאָס דאַרף פּרעפֿערענצן וואָס Studio קען נאָך נישט פֿרעגן.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugins_dialog.cpp" line="1711" />
-            <source>Choose a plugin's folder</source>
-            <translation>קלײַבט אויס די פּאַפּקע פֿון אַ פּלאַגין</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugins_dialog.cpp" line="1748" />
-            <source>Choose an author's public key file</source>
-            <translation>קלײַבט אויס דעם עפֿנטלעכן שליסל־טעקע פֿון אַן מחבר</translation>
         </message>
         <message>
             <location filename="../src/backend/service_mapping.cpp" line="730" />
@@ -24029,27 +23672,6 @@ Networks: %5</source>
             <translation>דעקאָדער פֿאַרלוירן</translation>
         </message>
         <message>
-            <location filename="../src/support/plugin_dialogs.cpp" line="632" />
-            <location filename="../src/support/plugins_dialog.cpp" line="2021" />
-            <source>That folder is not a plugin. A plugin's folder holds a file named plugin.json.</source>
-            <translation>יענע פּאַפּקע איז נישט קיין פּלאַגין. די פּאַפּקע פֿון אַ פּלאַגין האַלט אַ טעקע מיטן נאָמען plugin.json.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugin_dialogs.cpp" line="777" />
-            <source>Studio deletes the plugin's folder. Setups that use it keep their parts, which stop working until the plugin is installed again. Its saved data is kept unless you tick the box.</source>
-            <translation>Studio מעקט אויס די פּאַפּקע פֿון דעם פּלאַגין. אײַנשטעלונגען וואָס נוצן אים האַלטן זייערע טיילן, וואָס הערן אויף צו אַרבעטן ביז דער פּלאַגין ווערט ווידער אינסטאַלירט. זײַנע געראַטעוועטע דאַטן בלײַבן, סײַדן איר צייכנט אָן דעם קעסטל.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugin_text.cpp" line="158" />
-            <source>Can't be used</source>
-            <translation>קען נישט גענוצט ווערן</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugin_text.cpp" line="396" />
-            <source>Studio carries out this plugin's rules itself, so its timing is exact and it keeps working if the plugin stops.</source>
-            <translation>Studio פֿירט אויס די כּללים פֿון דעם פּלאַגין אַליין, דעריבער איז זײַן צײַט־מעסטונג גענוי און ער האַלט אָן צו אַרבעטן אויב דער פּלאַגין שטעלט זיך אָפּ.</translation>
-        </message>
-        <message>
             <location filename="../src/support/plugins_dialog.cpp" line="912" />
             <source>%1 s</source>
             <translation>%1 סעק</translation>
@@ -24073,11 +23695,6 @@ Networks: %5</source>
             <location filename="../src/support/plugins_dialog.cpp" line="939" />
             <source>Showing the newest %1 of %2.</source>
             <translation>ווײַזט די נײַסטע %1 פֿון %2.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugins_dialog.cpp" line="1185" />
-            <source>Import the author's key...</source>
-            <translation>אימפּאָרטירן דעם שליסל פֿון דעם מחבר...</translation>
         </message>
         <message>
             <location filename="../src/support/plugins_dialog.cpp" line="1525" />
@@ -24123,16 +23740,6 @@ Networks: %5</source>
             <location filename="../src/support/plugins_dialog.cpp" line="1562" />
             <source>What %1 found</source>
             <translation>וואָס %1 האָט געפֿונען</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugins_dialog.cpp" line="1852" />
-            <source>Choose a plugin's folder</source>
-            <translation>קלײַבט אויס די פּאַפּקע פֿון אַ פּלאַגין</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugins_dialog.cpp" line="1889" />
-            <source>Choose an author's public key file</source>
-            <translation>קלײַבט אויס דעם עפֿנטלעכן שליסל־טעקע פֿון אַן מחבר</translation>
         </message>
     </context>
     <context>
@@ -24420,16 +24027,6 @@ From the plugin %2
             <source>Allow</source>
             <translation>דערלויבן</translation>
         </message>
-        <message>
-            <location filename="../src/support/plugin_dialogs.cpp" line="1219" />
-            <source>%1 asks to use this computer's ports for another computer.</source>
-            <translation>%1 בעט צו ניצן די פּאָרטן פֿון דעם קאָמפּיוטער פֿאַר אַן אַנדערן קאָמפּיוטער.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugin_dialogs.cpp" line="1244" />
-            <source>The plugin's own words</source>
-            <translation>דער פּלאַגין׳ס אייגענע ווערטער</translation>
-        </message>
     </context>
     <context>
         <name>PluginSecretDialog</name>
@@ -24715,6 +24312,179 @@ From the plugin %2
             <location filename="../src/support/decoded_dialog.cpp" line="194" />
             <source>%1 left out to stay within the limits.</source>
             <translation>%1 אויסגעלאזט צו בלייבן אין די גרענעצן.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockDropOverlay</name>
+        <message>
+            <source>Drop guides</source>
+            <translation>אַראָפּלאָזן־גידעס</translation>
+        </message>
+        <message>
+            <source>Shows where the pane will go. Use the pane menu to move a pane without the mouse.</source>
+            <translation>ווײַזט וווּהין דער פּאַנעל גייט. ניצט דעם פּאַנעל־מעניו כדי אים צו באַוועגן אָן דער מויז.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockPanes</name>
+        <message>
+            <source>Dock</source>
+            <translation>אָנדאַקן</translation>
+        </message>
+        <message>
+            <source>Float</source>
+            <translation>שוועבן</translation>
+        </message>
+        <message>
+            <source>Move to the window edge</source>
+            <translation>באַוועגן צום ראַנד פֿון פֿענצטער</translation>
+        </message>
+        <message>
+            <source>Left</source>
+            <translation>לינקס</translation>
+        </message>
+        <message>
+            <source>Right</source>
+            <translation>רעכטס</translation>
+        </message>
+        <message>
+            <source>Top</source>
+            <translation>אויבן</translation>
+        </message>
+        <message>
+            <source>Bottom</source>
+            <translation>אונטן</translation>
+        </message>
+        <message>
+            <source>Beside %1</source>
+            <translation>לעבן %1</translation>
+        </message>
+        <message>
+            <source>Tab with %1</source>
+            <translation>טאַב מיט %1</translation>
+        </message>
+        <message>
+            <source>Left of %1</source>
+            <translation>לינקס פֿון %1</translation>
+        </message>
+        <message>
+            <source>Right of %1</source>
+            <translation>רעכטס פֿון %1</translation>
+        </message>
+        <message>
+            <source>Above %1</source>
+            <translation>איבער %1</translation>
+        </message>
+        <message>
+            <source>Below %1</source>
+            <translation>אונטער %1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>פֿאַרמאַכן</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockTitleBar</name>
+        <message>
+            <source>%1 title bar</source>
+            <translation>טיטל־באַר פֿון %1</translation>
+        </message>
+        <message>
+            <source>Drag to move the pane. The menu has every move command.</source>
+            <translation>שלעפּט צו באַוועגן דעם פּאַנעל. אין מעניו זענען אַלע באַוועגונג־באַפֿעלן.</translation>
+        </message>
+        <message>
+            <source>Pane menu</source>
+            <translation>פּאַנעל־מעניו</translation>
+        </message>
+        <message>
+            <source>%1 pane menu</source>
+            <translation>פּאַנעל־מעניו פֿון %1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>פֿאַרמאַכן</translation>
+        </message>
+        <message>
+            <source>Close %1</source>
+            <translation>פֿאַרמאַכן %1</translation>
+        </message>
+    </context>
+    <context>
+        <name>Connection</name>
+        <message>
+            <source>%1 (%2)</source>
+            <translation>%1 (%2)</translation>
+        </message>
+        <message>
+            <source>Connected</source>
+            <translation>פֿאַרבונדן</translation>
+        </message>
+        <message>
+            <source>Connected to %1.</source>
+            <translation>פֿאַרבונדן מיט %1.</translation>
+        </message>
+        <message>
+            <source>Connecting</source>
+            <translation>פֿאַרבינדט זיך</translation>
+        </message>
+        <message>
+            <source>Connecting to %1.</source>
+            <translation>פֿאַרבינדט זיך מיט %1.</translation>
+        </message>
+        <message>
+            <source>Connection lost</source>
+            <translation>די פֿאַרבינדונג איז פֿאַרלוירן</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2.</source>
+            <translation>קען נישט פֿאַרבינדן מיט %1: %2.</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2. Trying again.</source>
+            <translation>קען נישט פֿאַרבינדן מיט %1: %2. פּרובירט נאָכאַמאָל.</translation>
+        </message>
+        <message>
+            <source>Failed</source>
+            <translation>דורכגעפֿאַלן</translation>
+        </message>
+        <message>
+            <source>Not connected to %1.</source>
+            <translation>נישט פֿאַרבונדן מיט %1.</translation>
+        </message>
+        <message>
+            <source>Retrying</source>
+            <translation>פּרובירט נאָכאַמאָל</translation>
+        </message>
+        <message>
+            <source>Started</source>
+            <translation>אָנגעהויבן</translation>
+        </message>
+        <message>
+            <source>Stopped</source>
+            <translation>אָפּגעשטעלט</translation>
+        </message>
+        <message>
+            <source>Stopped. Not connecting to %1.</source>
+            <translation>אָפּגעשטעלט. פֿאַרבינדט זיך נישט מיט %1.</translation>
+        </message>
+        <message>
+            <source>Trying to connect to %1.</source>
+            <translation>פּרובירט זיך צו פֿאַרבינדן מיט %1.</translation>
+        </message>
+    </context>
+    <context>
+        <name>PortMenu</name>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="3247" />
+            <source>Open in monitor</source>
+            <translation>עפֿענען אין מאָניטאָר</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="3259" />
+            <source>Decode as...</source>
+            <translation>דעקאדירן ווי…</translation>
         </message>
     </context>
     <context>

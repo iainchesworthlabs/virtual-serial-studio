@@ -20,6 +20,7 @@
 class QDockWidget;
 class QMainWindow;
 class QMenu;
+class QTabBar;
 class QToolButton;
 class QLabel;
 
@@ -170,6 +171,7 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
+    bool tab_bar_event(QTabBar* bar, QEvent* event);
     void fill_menu(QDockWidget* dock, QMenu* menu);
     QVector<QDockWidget*> targets_for(QDockWidget* dragged) const;
     QDockWidget* target_at(const QPoint& window_point,
@@ -184,6 +186,11 @@ private:
     QDockWidget* dragged_ = nullptr;
     QDockWidget* hover_target_ = nullptr;
     QPoint grab_offset_;
+    // A drag that began on a tab of Qt's tab bar.
+    QPointer<QTabBar> tab_bar_;
+    QPointer<QDockWidget> tab_dock_;
+    QPoint tab_press_;
+    bool tab_dragging_ = false;
 };
 
 } // namespace vss::gui

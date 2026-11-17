@@ -288,6 +288,11 @@ against `serial.sys`, are in
 version 4 of the interface; the studio opens a port only of the version it was
 built for.
 
+`IOCTL_VSSCOM_HUB_READ_BREAKS` (version 5) gives the hub the time and the byte offset
+of each `SetCommBreak`, `ClearCommBreak` and `WriteFile` the program made, so a break
+keeps its place among the bytes and a write keeps its time. See
+[docs/windows-com-driver.md](../../docs/windows-com-driver.md#break-and-write-marks).
+
 
 ## Ports on demand
 

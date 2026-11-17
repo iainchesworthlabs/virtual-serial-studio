@@ -65,6 +65,8 @@ static VOID VssComCompleteOpen(_In_ PVSSCOM_DEVICE_CONTEXT context,
             context->HubLines = 0;
             vsscom_ring_clear(&context->Rx);
             vsscom_ring_clear(&context->Tx);
+            // The offsets of the marks count from this handle.
+            vsscom_marks_reset(&context->Marks);
         }
     }
     VssComLockRelease(context->Lock);
@@ -144,7 +146,8 @@ VOID VssComEvtFileCleanup(_In_ WDFFILEOBJECT FileObject)
         context->AppOpen = FALSE;
         context->AppFile = NULL;
         context->AppProcessId = 0;
-        context->Break = FALSE;
+        // A break that is held ends with the handle.
+        VssComEndBreakLocked(context);
         VssComLockRelease(context->Lock);
     }
     else
@@ -155,6 +158,7 @@ VOID VssComEvtFileCleanup(_In_ WDFFILEOBJECT FileObject)
         context->HubLines = 0;
         vsscom_ring_clear(&context->Rx);
         vsscom_ring_clear(&context->Tx);
+        vsscom_marks_reset(&context->Marks);
         VssComLockRelease(context->Lock);
         VssComApplyLines(context);
     }
@@ -184,7 +188,15 @@ static VOID VssComFillState(_In_ PVSSCOM_DEVICE_CONTEXT Context,
     State->Lines = Context->HubLines;
     State->TxQueued = vsscom_ring_count(&Context->Tx);
     State->AppProcessId = Context->AppOpen ? Context->AppProcessId : 0;
+    State->BreakCount = Context->Marks.break_total;
     VssComLockRelease(Context->Lock);
+}
+
+VOID VssComEndBreakLocked(_In_ PVSSCOM_DEVICE_CONTEXT Context)
+{
+    if (Context->Break)
+        (void)vsscom_marks_break_off(&Context->Marks, VssComQpc(NULL));
+    Context->Break = FALSE;
 }
 
 static VOID VssComCompleteStateWaiters(_In_ PVSSCOM_DEVICE_CONTEXT Context)
@@ -230,6 +242,7 @@ static NTSTATUS VssComParkPipe(_In_ WDFREQUEST Request, _In_ WDFQUEUE Queue,
     pipe->Buffer = (PUCHAR)Buffer;
     pipe->Length = Length;
     pipe->Done = 0;
+    pipe->CallTime = VssComQpc(NULL);
     return WdfRequestForwardToIoQueue(Request, Queue);
 }
 
@@ -385,6 +398,43 @@ VOID VssComHubIoControl(_In_ PVSSCOM_DEVICE_CONTEXT Context,
         VssComApplyLines(Context);
         VssComBumpState(Context);
         WdfRequestComplete(Request, STATUS_SUCCESS);
+        return;
+    }
+
+    case IOCTL_VSSCOM_HUB_READ_BREAKS:
+    {
+        PVOID output = NULL;
+        PVSSCOM_HUB_MARKS marks;
+        vsscom_u32 breaks = 0;
+        vsscom_u32 writes = 0;
+        vsscom_u32 dropped = 0;
+        vsscom_u32 merged = 0;
+        ULONGLONG frequency = 0;
+
+        // The output holds every mark that can be given, so that one call takes
+        // all there is.
+        if (!NT_SUCCESS(WdfRequestRetrieveOutputBuffer(
+                Request, sizeof(VSSCOM_HUB_MARKS), &output, NULL)))
+        {
+            WdfRequestComplete(Request, STATUS_BUFFER_TOO_SMALL);
+            return;
+        }
+        marks = (PVSSCOM_HUB_MARKS)output;
+        RtlZeroMemory(marks, sizeof(*marks));
+        (void)VssComQpc(&frequency);
+
+        VssComLockAcquire(Context->Lock);
+        vsscom_marks_take(&Context->Marks, (vsscom_break_record*)marks->Breaks,
+                          &breaks, (vsscom_write_record*)marks->Writes, &writes,
+                          &dropped, &merged);
+        VssComLockRelease(Context->Lock);
+
+        marks->QpcFrequency = frequency;
+        marks->BreakCount = breaks;
+        marks->WriteCount = writes;
+        marks->BreaksDropped = dropped;
+        marks->WritesMerged = merged;
+        WdfRequestCompleteWithInformation(Request, STATUS_SUCCESS, sizeof(*marks));
         return;
     }
 
@@ -621,6 +671,7 @@ BOOLEAN VssComServiceHubReads(_In_ PVSSCOM_DEVICE_CONTEXT Context)
         pipe = VssComPipeContext(request);
         VssComLockAcquire(Context->Lock);
         got = vsscom_ring_read(&Context->Tx, pipe->Buffer, pipe->Length);
+        vsscom_marks_read(&Context->Marks, got);
         empty = vsscom_ring_count(&Context->Tx) == 0;
         pending = Context->AppWritesPending;
         VssComLockRelease(Context->Lock);
@@ -692,6 +743,10 @@ BOOLEAN VssComServiceAppWrites(_In_ PVSSCOM_DEVICE_CONTEXT Context)
         {
             stored = vsscom_ring_write(&Context->Tx, pipe->Buffer + pipe->Done,
                                        pipe->Length - pipe->Done);
+            // A write mark for the first bytes of the call, with the time of
+            // the call and not of the moment there was room.
+            vsscom_marks_stored(&Context->Marks, stored, pipe->CallTime,
+                                pipe->Done == 0);
             pipe->Done += stored;
         }
         finished = !hub || pipe->Done == pipe->Length;
@@ -753,7 +808,11 @@ static VOID VssComFinishAbortedWrite(_In_ PVSSCOM_DEVICE_CONTEXT Context,
     VssComLockAcquire(Context->Lock);
     // This write's bytes are the newest in Tx: nothing is queued behind the
     // write at the head, and the hub reads from the oldest end.
-    pipe->Done -= vsscom_ring_drop_newest(&Context->Tx, pipe->Done);
+    {
+        const ULONG dropped = vsscom_ring_drop_newest(&Context->Tx, pipe->Done);
+        vsscom_marks_taken_back(&Context->Marks, dropped);
+        pipe->Done -= dropped;
+    }
     Context->AppWritesPending--;
     VssComLockRelease(Context->Lock);
     VssComFinishPipe(Request, STATUS_CANCELLED);

@@ -125,6 +125,16 @@ public:
     // NOLINTNEXTLINE(performance-unnecessary-value-param)
     virtual void set_break_sink(break_sink) {}
 
+    /// The time, on the hub clock, at which the sender made the bytes of the
+    /// read that just completed, when the transport knows it (the driver port
+    /// stamps each WriteFile).  The endpoint asks once, in the task that
+    /// carries the completion, and uses it as the chunk's time in place of the
+    /// time of the read, never later than that.  Empty means the read time.
+    virtual std::optional<time_point> read_stamp() const noexcept
+    {
+        return std::nullopt;
+    }
+
     /// True when the transport can show a break to the program or device on
     /// its far side.  False means a break written to it is not delivered:
     /// the endpoint says so once in the log and counts it as dropped.  A

@@ -107,6 +107,25 @@ std::size_t reconnector::pending() const
     return waiting_.size();
 }
 
+reconnector::progress reconnector::status(endpoint_id id) const
+{
+    std::lock_guard lock(mutex_);
+    progress out;
+    if (const auto waiting = waiting_.find(id); waiting != waiting_.end())
+    {
+        out.retrying = true;
+        out.attempts = waiting->second.attempts;
+        const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(
+            waiting->second.due - std::chrono::steady_clock::now());
+        out.next_in = std::max(left, std::chrono::milliseconds{0});
+    }
+    if (const auto code = last_codes_.find(id); code != last_codes_.end())
+        out.last_error_code = code->second;
+    if (const auto error = last_errors_.find(id); error != last_errors_.end())
+        out.last_error = error->second;
+    return out;
+}
+
 void reconnector::announce(endpoint_id id, const std::string& text) const
 {
     if (note_)
@@ -155,6 +174,8 @@ void reconnector::run()
         if (outcome)
         {
             waiting_.erase(found);
+            last_errors_.erase(id);
+            last_codes_.erase(id);
             VSS_PROFILE_PLOT("studio.reconnect_pending", waiting_.size());
             VSS_PROFILE_MESSAGE("studio.reconnect.succeeded");
             announce(id, "reconnected after " + std::to_string(attempt + 1) +
@@ -170,6 +191,10 @@ void reconnector::run()
             continue;
         }
 
+        last_errors_[id] = error.message();
+        last_codes_[id] =
+            std::string(error.category().name()) + ":" +
+            std::to_string(error.value());
         const unsigned made = attempt + 1;
         if (policy_.max_attempts != 0 && made >= policy_.max_attempts)
         {

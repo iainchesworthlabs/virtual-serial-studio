@@ -17,6 +17,7 @@
 
 #include <QByteArray>
 #include <QByteArrayView>
+#include <QDateTime>
 #include <QMetaType>
 #include <QString>
 #include <QStringList>
@@ -65,6 +66,67 @@ enum class link_style
     elbow
 };
 
+/// Where a network client is in reaching the other computer.
+enum class connect_phase
+{
+    /// A try is under way.
+    connecting,
+    connected,
+    /// The last try failed and none is planned.
+    failed,
+    /// The last try failed and the studio will try again.
+    retrying,
+    /// Closed on purpose: no try is made until it is started.
+    stopped
+};
+
+/// One thing that happened to a connection, for the short history the
+/// Inspector shows.
+struct connection_event
+{
+    QDateTime when;
+    QString text;
+
+    friend bool operator==(const connection_event&,
+                           const connection_event&) = default;
+};
+
+/// What a network client knows about its connection.  Empty on a port that
+/// is not a client, and on a backend that cannot say (capability
+/// `network_status`).
+struct connection_view
+{
+    /// The address it connects to, for example `tcp://192.168.1.50:4001`.
+    QString target;
+    connect_phase phase = connect_phase::connecting;
+    /// Tries that have failed in the running sequence.
+    unsigned attempts = 0;
+    /// Why the last try failed, in the engine's words, or empty.  Kept after
+    /// the connection comes up, so it is also the last error.
+    QString reason;
+    /// When this connection came up, as Studio saw it; invalid unless the
+    /// phase is `connected`.
+    QDateTime connected_at;
+    /// The last error as category and number, such as "system:10061".
+    QString error_code;
+    /// When Studio will try again; invalid unless the phase is `retrying`.
+    QDateTime next_try_at;
+    /// How many times the connection has come up again after the first.
+    unsigned reconnects = 0;
+    /// The last events of the connection, oldest first.
+    QVector<connection_event> history;
+    /// The port's counters when this connection came up.  What it has moved
+    /// since is the port's counters less these, so a counter that changes
+    /// does not change the connection.
+    quint64 base_bytes_rx = 0;
+    quint64 base_bytes_tx = 0;
+    quint64 base_reads = 0;
+    quint64 base_writes = 0;
+
+    friend bool operator==(const connection_view&,
+                           const connection_view&) = default;
+};
+
 /// One endpoint as the GUI needs it.  Engine snapshots are converted here,
 /// once, so no screen includes a core header for display data.
 struct port_view
@@ -90,6 +152,14 @@ struct port_view
     /// Connected remote clients of a listening endpoint; empty for any other
     /// kind of port, so "none connected" and "not a listener" differ.
     std::optional<std::size_t> clients;
+    /// The target and state of a network client; see #connection_view.
+    std::optional<connection_view> connection;
+    /// The port was made from an address, so it can be stopped and started
+    /// again (capability `port_stop`): a network client or server, or a
+    /// serial device.  A virtual port or a fixture cannot.
+    bool can_stop = false;
+    /// Closed on purpose, with its links kept and no retry running.
+    bool stopped = false;
     /// The names of the ports on a shared link that run at a different baud
     /// rate or framing from this one.  Empty when they all agree or the
     /// formats are not known.
@@ -297,6 +367,8 @@ struct gui_event
     vss::control_lines lines;
     QString message;
     QString error;
+    /// The error as category and number, such as "system:10061", or empty.
+    QString error_code;
     vss::time_point when{};
     /// For a `line_break`: which part, how long (zero for a begin) and
     /// whether the length was measured.

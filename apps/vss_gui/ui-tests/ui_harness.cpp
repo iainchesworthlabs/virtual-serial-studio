@@ -1263,6 +1263,38 @@ QMenu* open_submenu(QMenu* menu, const QString& text)
         menu_labels(menu).join(QStringLiteral(" | ")).toStdString());
 }
 
+void choose_menu_path(Session& session, const QStringList& path)
+{
+    if (path.size() < 2)
+        throw vss_test::failure("a menu path needs a menu and an entry");
+    if (path.size() == 2)
+    {
+        choose_menu(session, path.front(), path.back());
+        return;
+    }
+    auto* bar = session.window().menuBar();
+    QAction* title = nullptr;
+    for (QAction* candidate : bar->actions())
+    {
+        if (plain(candidate->text()) == path.front())
+            title = candidate;
+    }
+    if (title == nullptr || title->menu() == nullptr)
+        throw vss_test::failure("the menu bar has no " +
+                                path.front().toStdString() + " menu");
+    Probe::instance().beat();
+    QTest::mouseClick(bar, Qt::LeftButton, {},
+                      bar->actionGeometry(title).center());
+    QApplication::processEvents();
+    QMenu* menu = title->menu();
+    if (!menu->isVisible())
+        throw vss_test::failure("clicking " + path.front().toStdString() +
+                                " did not open its menu");
+    for (qsizetype level = 1; level + 1 < path.size(); ++level)
+        menu = open_submenu(menu, path[level]);
+    choose_entry(menu, path.back());
+}
+
 void require_entry(const QMenu* menu, const QString& text)
 {
     if (!menu_has(menu, text))

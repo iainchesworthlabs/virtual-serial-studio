@@ -113,6 +113,21 @@ struct capabilities
     /// (`vss::studio::attach_waiting`).  A backend without it never offers
     /// "Create anyway and keep trying".
     bool network_waiting = false;
+    /// A network client can say where it connects to and how the connection
+    /// stands: connecting, connected, failed with a reason, or retrying
+    /// (`vss::studio::connection`).  A backend without it leaves
+    /// `port_view::connection` empty and the window shows no connection
+    /// state, which is not the same as showing a good one.
+    bool network_status = false;
+    /// A network client can say which local address and port its connection
+    /// uses.  The engine's client transport does not report it, so no backend
+    /// sets this yet; the Inspector says "Not reported" instead of leaving
+    /// the row out.
+    bool network_local_address = false;
+    /// A port made from an address can be stopped and started again, with
+    /// its links kept (`vss::studio::stop_port` and `start_port`).  A
+    /// backend without it shows no Stop or Start.
+    bool port_stop = false;
     /// A shared multi-drop bus link: every member hears every other and none
     /// hears itself (`vss::hub::bus`).  The engine backend provides it.  A
     /// backend without it keeps the star (a split with a join tap): the

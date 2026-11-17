@@ -46,6 +46,12 @@ public:
     PluginBackend* plugin_backend() const override;
     FakePluginBackend& fake_plugins();
     void set_peer_state(vss::endpoint_id id, peer_state state);
+    /// Lets a port be stopped and started, as a port made from an address
+    /// can be.
+    void set_stoppable(vss::endpoint_id id, bool stoppable);
+    vss::result<void> set_port_running(vss::endpoint_id id, bool run) override;
+    /// Makes a port a network client in this state.
+    void set_connection(vss::endpoint_id id, const connection_view& connection);
     /// COM numbers that another device has, so a driver port cannot take them.
     void set_taken_com_numbers(QSet<unsigned> numbers)
     {

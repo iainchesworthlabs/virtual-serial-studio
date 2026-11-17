@@ -21,6 +21,18 @@ static FORCEINLINE ULONGLONG VssComInterruptTime(VOID)
     return KeQueryInterruptTime();
 }
 
+// The performance counter, for the break and write marks. The kernel clock that
+// QueryPerformanceCounter reads in user mode: the helper's steady_clock is the
+// same counter. `Frequency` may be NULL.
+static FORCEINLINE ULONGLONG VssComQpc(_Out_opt_ PULONGLONG Frequency)
+{
+    LARGE_INTEGER frequency;
+    const LARGE_INTEGER count = KeQueryPerformanceCounter(&frequency);
+    if (Frequency != NULL)
+        *Frequency = (ULONGLONG)frequency.QuadPart;
+    return (ULONGLONG)count.QuadPart;
+}
+
 // The lock that guards a port's state. The ends run at DISPATCH_LEVEL here, so
 // it is a spin lock.
 typedef WDFSPINLOCK VSSCOM_LOCK;

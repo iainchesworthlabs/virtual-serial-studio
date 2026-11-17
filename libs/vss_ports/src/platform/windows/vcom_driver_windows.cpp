@@ -14,6 +14,7 @@
 #include <vss/core/profile.hpp>
 
 #include "../vcom_driver_platform.hpp"
+#include "../../tx_order.hpp"
 
 #include <vss/core/error.hpp>
 
@@ -36,15 +37,21 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <array>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <ctime>
 #include <cwchar>
+#include <deque>
+#include <functional>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <span>
 #include <string>
 #include <thread>
 #include <utility>
@@ -585,10 +592,55 @@ public:
 
     bool is_open() const override { return open_.load(); }
 
+    /// The endpoint's read waits here. What it gets is made from what the driver
+    /// gave, in order: bytes, the break calls among them, and the bytes written
+    /// while a break was held after its end (tx_order.hpp). A break is reported
+    /// to the sink straight after the completion that carried the bytes before it.
     void async_read_some(boost::asio::mutable_buffer buffer,
                          io_handler handler) override
     {
-        start_read(buffer, std::move(handler));
+        {
+            const std::lock_guard lock(rx_mutex_);
+            parked_ = flight::read_slot{buffer, std::move(handler)};
+        }
+        pump_reads();
+    }
+
+    void set_break_sink(break_sink sink) override
+    {
+        const std::lock_guard lock(rx_mutex_);
+        break_sink_ = std::move(sink);
+    }
+
+    /// The time the program called WriteFile for the bytes of the read that
+    /// just completed.
+    std::optional<time_point> read_stamp() const noexcept override
+    {
+        const auto nanos = stamp_nanos_.load();
+        if (nanos == no_stamp)
+            return std::nullopt;
+        return time_point(clock_type::duration(
+            std::chrono::duration_cast<clock_type::duration>(
+                std::chrono::nanoseconds(nanos))));
+    }
+
+    /// A break from a link or a device reaches the program as a break at its
+    /// end, in order with the bytes written before it.
+    bool can_deliver_break() const noexcept override { return true; }
+
+    void async_write_break(const line_break& item, io_handler handler) override
+    {
+        boost::system::error_code ec;
+        if (item.ends_break())
+        {
+            const auto raised =
+                raise_line_error(driver_line_error::break_condition, std::nullopt);
+            if (!raised)
+                ec = raised.error();
+        }
+        boost::asio::post(executor_,
+                          [handler = std::move(handler), ec]() mutable
+                          { handler(ec, 0); });
     }
 
     void async_write_some(boost::asio::const_buffer buffer,
@@ -618,6 +670,7 @@ public:
             write.swap(flight_->held_write);
         }
         abort_held(std::move(read), std::move(write));
+        abort_parked();
 
         {
             std::lock_guard lock(mutex_);
@@ -635,6 +688,7 @@ public:
     {
         boost::system::error_code ignored;
         handle_.cancel(ignored);
+        abort_parked();
     }
 
     bool supports_control_lines() const noexcept override { return true; }
@@ -884,6 +938,295 @@ public:
     }
 
 private:
+    // -- What the program wrote, in order ---------------------------------
+
+    /// One run of bytes or one break, ready for the endpoint.
+    struct ready_item
+    {
+        bool is_break = false;
+        std::vector<std::uint8_t> bytes;
+        std::size_t used = 0;
+        std::optional<time_point> stamp;
+        line_break brk;
+    };
+
+    static constexpr std::int64_t no_stamp =
+        (std::numeric_limits<std::int64_t>::min)();
+
+    time_point ticks_to_time(std::uint64_t ticks) const
+    {
+        // steady_clock is the performance counter on Windows, with the same
+        // zero, so a count converts to it by the frequency alone.
+        const std::uint64_t frequency = frequency_ != 0 ? frequency_ : 1;
+        const std::uint64_t whole = ticks / frequency;
+        const std::uint64_t part = ticks % frequency;
+        const std::uint64_t nanos =
+            whole * 1'000'000'000ull + part * 1'000'000'000ull / frequency;
+        return time_point(std::chrono::duration_cast<clock_type::duration>(
+            std::chrono::nanoseconds(static_cast<std::int64_t>(nanos))));
+    }
+
+    /// Turns what tx_order made into items for the endpoint. Call with rx_mutex_.
+    void queue_pieces(std::vector<detail::tx_piece> pieces)
+    {
+        for (auto& piece : pieces)
+        {
+            ready_item item;
+            if (piece.what == detail::tx_piece::kind::bytes)
+            {
+                item.bytes = std::move(piece.bytes);
+                if (piece.stamp)
+                    item.stamp = ticks_to_time(*piece.stamp);
+                queue_.push_back(std::move(item));
+                continue;
+            }
+            item.is_break = true;
+            const time_point start = ticks_to_time(piece.on_time);
+            switch (piece.what)
+            {
+            case detail::tx_piece::kind::break_begin:
+                item.brk.phase = break_phase::begin;
+                item.brk.start = start;
+                break;
+            case detail::tx_piece::kind::break_end:
+                item.brk.phase = break_phase::end;
+                item.brk.start = start;
+                item.brk.duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    ticks_to_time(piece.off_time) - start);
+                item.brk.measured = true;
+                break;
+            default:
+                item.brk.phase = break_phase::complete;
+                item.brk.start = start;
+                item.brk.duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    ticks_to_time(piece.off_time) - start);
+                item.brk.measured = true;
+                break;
+            }
+            queue_.push_back(std::move(item));
+        }
+    }
+
+    /// Reads the marks the driver keeps and gives them to tx_order. Call with
+    /// rx_mutex_, after the bytes the marks go with were read, and before they
+    /// are given to tx_order. Returns a notice to log, or nothing.
+    std::string fetch_marks_locked()
+    {
+        if (!marks_)
+            marks_ = std::make_unique<VSSCOM_HUB_MARKS>();
+        bool ok = false;
+        {
+            const std::lock_guard lock(mutex_);
+            DWORD returned = 0;
+            ok = raw_ != INVALID_HANDLE_VALUE &&
+                 control(raw_, static_cast<DWORD>(IOCTL_VSSCOM_HUB_READ_BREAKS),
+                         nullptr, 0, marks_.get(), sizeof(*marks_), &returned) &&
+                 returned == sizeof(*marks_);
+        }
+        if (!ok)
+            return {};
+
+        frequency_ = marks_->QpcFrequency;
+        std::vector<detail::tx_break_mark> breaks;
+        breaks.reserve(marks_->BreakCount);
+        for (ULONG i = 0; i < marks_->BreakCount && i < VSSCOM_MAX_BREAK_MARKS; ++i)
+        {
+            const auto& from = marks_->Breaks[i];
+            detail::tx_break_mark mark;
+            mark.on_time = from.OnTime;
+            mark.off_time = from.OffTime;
+            mark.on_offset = from.OnOffset;
+            mark.off_offset = from.OffOffset;
+            mark.open = (from.Flags & VSSCOM_BREAK_MARK_OPEN) != 0;
+            breaks.push_back(mark);
+        }
+        std::vector<detail::tx_write_mark> writes;
+        writes.reserve(marks_->WriteCount);
+        for (ULONG i = 0; i < marks_->WriteCount && i < VSSCOM_MAX_WRITE_MARKS; ++i)
+            writes.push_back({marks_->Writes[i].Time, marks_->Writes[i].Offset});
+        order_.add_marks(breaks, writes);
+
+        if (marks_->BreaksDropped == 0)
+            return {};
+        std::string port;
+        {
+            const std::lock_guard lock(mutex_);
+            port = port_;
+        }
+        return port + ": the driver lost " +
+               std::to_string(marks_->BreaksDropped) +
+               " break records because they were not read in time";
+    }
+
+    void send_notice(const std::string& text)
+    {
+        if (text.empty())
+            return;
+        notice_sink sink;
+        {
+            const std::lock_guard lock(mutex_);
+            sink = notice_;
+        }
+        if (sink)
+            sink(text);
+    }
+
+    /// The raw read of the hub end finished.
+    void on_raw_read(boost::system::error_code ec, std::size_t count)
+    {
+        std::string notice;
+        {
+            const std::lock_guard lock(rx_mutex_);
+            raw_reading_ = false;
+            if (ec)
+            {
+                // An abort is a cancel or a close: the endpoint's read was ended
+                // there, and the next one starts a new raw read.
+                if (ec != boost::asio::error::operation_aborted)
+                    pending_error_ = ec;
+            }
+            else
+            {
+                notice = fetch_marks_locked();
+                order_.add_bytes(std::span<const std::uint8_t>(
+                    raw_buffer_.data(), count));
+                queue_pieces(order_.take());
+            }
+        }
+        send_notice(notice);
+        pump_reads();
+    }
+
+    /// The watch thread saw the driver announce a change: a break may have
+    /// begun or ended with no byte to carry it.
+    void poll_marks()
+    {
+        std::string notice;
+        {
+            const std::lock_guard lock(rx_mutex_);
+            if (!open_.load())
+                return;
+            notice = fetch_marks_locked();
+            queue_pieces(order_.take());
+        }
+        send_notice(notice);
+        pump_reads();
+    }
+
+    /// The hub end has a new handle: the driver counts from 0 again.
+    void restart_order()
+    {
+        std::string notice;
+        {
+            const std::lock_guard lock(rx_mutex_);
+            order_.restart();
+            notice = fetch_marks_locked();
+            LARGE_INTEGER now{};
+            ::QueryPerformanceCounter(&now);
+            order_.settle(static_cast<std::uint64_t>(now.QuadPart));
+            queue_pieces(order_.take());
+        }
+        send_notice(notice);
+    }
+
+    /// Gives the endpoint's waiting read what is ready, or starts the raw read
+    /// that will bring something.
+    void pump_reads()
+    {
+        std::optional<flight::read_slot> slot;
+        std::size_t count = 0;
+        boost::system::error_code ec;
+        std::vector<line_break> after;
+        break_sink sink;
+        bool start = false;
+        {
+            const std::lock_guard lock(rx_mutex_);
+            if (!parked_)
+                return;
+            if (!queue_.empty())
+            {
+                slot = std::move(parked_);
+                parked_.reset();
+                bool whole = true;
+                auto& front = queue_.front();
+                if (!front.is_break)
+                {
+                    const std::size_t room = slot->buffer.size();
+                    count = std::min(room, front.bytes.size() - front.used);
+                    std::memcpy(slot->buffer.data(), front.bytes.data() + front.used,
+                                count);
+                    front.used += count;
+                    stamp_nanos_ = front.stamp
+                        ? std::chrono::duration_cast<std::chrono::nanoseconds>(
+                              front.stamp->time_since_epoch()).count()
+                        : no_stamp;
+                    whole = front.used == front.bytes.size();
+                    if (whole)
+                        queue_.pop_front();
+                }
+                if (whole)
+                {
+                    while (!queue_.empty() && queue_.front().is_break)
+                    {
+                        after.push_back(queue_.front().brk);
+                        queue_.pop_front();
+                    }
+                }
+                sink = break_sink_;
+            }
+            else if (pending_error_)
+            {
+                ec = *pending_error_;
+                pending_error_.reset();
+                slot = std::move(parked_);
+                parked_.reset();
+            }
+            else if (!raw_reading_ && open_.load())
+            {
+                raw_reading_ = true;
+                start = true;
+            }
+        }
+        if (slot)
+        {
+            boost::asio::post(
+                executor_,
+                [handler = std::move(slot->handler), ec, count, sink,
+                 after = std::move(after)]() mutable
+                {
+                    handler(ec, count);
+                    if (sink)
+                        for (const auto& item : after)
+                            sink(item);
+                });
+        }
+        if (start)
+        {
+            std::weak_ptr<driver_transport> weak = weak_from_this();
+            start_read(boost::asio::buffer(raw_buffer_),
+                       [weak](boost::system::error_code error, std::size_t bytes)
+                       {
+                           if (auto self = weak.lock())
+                               self->on_raw_read(error, bytes);
+                       });
+        }
+    }
+
+    /// Ends the endpoint's waiting read as cancelled.
+    void abort_parked()
+    {
+        std::optional<flight::read_slot> slot;
+        {
+            const std::lock_guard lock(rx_mutex_);
+            slot = std::move(parked_);
+            parked_.reset();
+        }
+        if (slot)
+            boost::asio::post(executor_,
+                              [handler = std::move(slot->handler)]
+                              { handler(boost::asio::error::operation_aborted, 0); });
+    }
+
     // -- Reads and writes -------------------------------------------------
 
     void start_read(const boost::asio::mutable_buffer& buffer,
@@ -1025,6 +1368,8 @@ private:
             }
             known = state.Generation;
             apply_state(state);
+            // A break that began or ended may have no byte to travel with.
+            poll_marks();
         }
     }
 
@@ -1150,6 +1495,7 @@ private:
             }
         }
         apply_state(state);
+        restart_order();
         start_watch(handle);
 
         std::optional<flight::read_slot> read;
@@ -1210,6 +1556,20 @@ private:
     unique_handle lease_;
     port_origin origin_;
     std::shared_ptr<flight> flight_;
+
+    // What the program wrote, in order. Guarded by rx_mutex_, which is taken
+    // before mutex_ and never while the endpoint's handler runs.
+    std::mutex rx_mutex_;
+    detail::tx_order order_;
+    std::deque<ready_item> queue_;
+    std::optional<flight::read_slot> parked_;
+    bool raw_reading_ = false;
+    std::optional<boost::system::error_code> pending_error_;
+    std::vector<std::uint8_t> raw_buffer_ = std::vector<std::uint8_t>(64 * 1024);
+    std::unique_ptr<VSSCOM_HUB_MARKS> marks_;
+    std::uint64_t frequency_ = 0;
+    break_sink break_sink_;
+    std::atomic<std::int64_t> stamp_nanos_{no_stamp};
 };
 
 // -- The transports this process holds ---------------------------------------

@@ -163,7 +163,7 @@ the path of the file the host writes and how large it is so far.
 | `capture.stop` | plugin | request | `ok` | none | 19.4 |
 | `capture.status` | plugin | request | `capture.result` | none | 19.4 |
 | `capture.result` | host | answer | none | `running` (true or false); `bytes`, `seconds`, `dropped` (0 or more); `ring` (true or false); `recording` (a path inside the data directory, 1 to 240 bytes); `size` (0 or more: the bytes of the recording on disk so far); `failed` (optional, true when the recording ended because it could not be written, such as a full disk: what it holds may be incomplete) | 19.4, 19.6 |
-| `timeline.load` | plugin | request | `ok` | `instance`; `recording` (a path inside the data directory, 1 to 240 bytes); `place` (a name); `time_scale` (0.01 to 100, default 1; a number that does not read back as itself is refused); `seed` (optional, 0 or more) | 19.4 |
+| `timeline.load` | plugin | request | `ok` | `instance`; `recording` (a path inside the data directory, 1 to 240 bytes); `place` (a name); `time_scale` (0.01 to 100, default 1; a number that does not read back as itself is refused); `seed` (optional, 0 or more); `include_sent` (optional, default false: whether the bytes the recorded place sent are played too) | 19.4 |
 | `bundle.prepare` | host | request | `bundle.result` | `section` (token of 1 to 128 bytes); `settings` (JSON object, default `{}`) | 19.5 |
 | `bundle.result` | plugin | answer | none | `files` (list of 0 to 16): each `name` (a path inside the section's folder, by the rules of a manifest path, 1 to 128 bytes) and `size` (0 to 268435456); the sizes add up to at most 268435456 bytes | 19.5 |
 
@@ -271,9 +271,10 @@ its recorded time multiplied by `time_scale`, counted from the `ok`. It is never
 counted. Where the port follows control lines it also sets CTS, DSR, DCD and RI as the recording has them after each
 recorded line change. The recorded place is the one named like the port, or the only place of a recording that has one.
 It answers `refused` for a recording that is missing, breaks the format or has no fitting place, and for a port the
-plugin may not write to; `busy` while the instance plays another. Not played, and counted by the host: faults, line
-changes on a port that does not follow control lines, and the bytes the recorded place sent (`W`), which the program
-wrote and not the device. A read that fails part way ends the replay after what was read. `seed` has no effect, since a
+plugin may not write to; `busy` while the instance plays another. Not played, and counted by the host: faults, and line
+changes on a port that does not follow control lines. The bytes the recorded place sent (`W`) are the program's, not the
+device's, so they are counted and not played unless the request has `include_sent` true, which plays them too in recorded
+order. A read that fails part way ends the replay after what was read. `seed` has no effect, since a
 replay has no random choice.
 
 ## Not built yet

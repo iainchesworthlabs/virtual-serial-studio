@@ -35,7 +35,8 @@
 //   after each recorded change.  Not played, and counted: faults, line
 //   changes on a port that does not follow control lines, and the bytes the
 //   recorded place sent (`W` lines), which the program wrote and not the
-//   device.
+//   device.  A request with `include_sent` true plays the `W` lines too, in
+//   recorded order, and counts none of them as skipped.
 //
 // Nothing here blocks the service's strand: the file is read on the slow
 // executor, and a write is queued on the endpoint, no more than a window of

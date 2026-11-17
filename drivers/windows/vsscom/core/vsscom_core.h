@@ -329,4 +329,101 @@ vsscom_u64 vsscom_tx_busy_until(vsscom_u64 now, vsscom_u64 busy_until,
 vsscom_bool vsscom_tx_sending(vsscom_u32 queued, vsscom_u64 now,
                               vsscom_u64 busy_until);
 
+// -- Break and write marks (the hub reads where the program's calls fell) ----
+//
+// The hub reads the bytes the program wrote as one stream. Two things about the
+// program's calls are lost in that stream: where it called SetCommBreak and
+// ClearCommBreak among the bytes, and where each WriteFile began. The marks keep
+// them. Every mark is a time (the raw count of the performance counter, the
+// driver does not convert it) and an offset: how many bytes the program had put
+// into Tx before the call, counted from the start of the hub's handle.
+//
+// The offsets are exact because the caller takes the same lock for the ring and
+// for the marks. `written` is the bytes the ring has taken in and not given back;
+// `read` is the bytes the hub has read. Written minus read is what Tx holds.
+
+enum
+{
+    VSSCOM_MARKS_MAX_BREAKS = 64,
+    VSSCOM_MARKS_MAX_WRITES = 256,
+    // vsscom_break_record.flags
+    VSSCOM_BREAK_OPEN = 1 // still held: off_time and off_offset mean nothing
+};
+
+typedef struct vsscom_break_record
+{
+    vsscom_u64 on_time;
+    vsscom_u64 off_time;
+    vsscom_u64 on_offset;
+    vsscom_u64 off_offset;
+    vsscom_u32 flags;
+    vsscom_u32 reserved;
+} vsscom_break_record;
+
+typedef struct vsscom_write_record
+{
+    vsscom_u64 time;   // when the program called WriteFile
+    vsscom_u64 offset; // Tx offset of the first byte this call put in
+} vsscom_write_record;
+
+typedef struct vsscom_marks
+{
+    vsscom_u64 written;
+    vsscom_u64 read;
+    // Oldest first. A break that is still held is the last one, with
+    // VSSCOM_BREAK_OPEN set.
+    vsscom_break_record breaks[VSSCOM_MARKS_MAX_BREAKS];
+    vsscom_u32 break_head;
+    vsscom_u32 break_count;
+    vsscom_write_record writes[VSSCOM_MARKS_MAX_WRITES];
+    vsscom_u32 write_head;
+    vsscom_u32 write_count;
+    // Since the last take.
+    vsscom_u32 breaks_dropped;
+    vsscom_u32 writes_merged;
+    // Breaks begun since the port was made; wraps.
+    vsscom_u32 break_total;
+} vsscom_marks;
+
+void vsscom_marks_init(vsscom_marks* marks);
+
+/// The hub handle opened or closed: Tx is empty and the offsets start again at 0.
+/// Closed breaks and the writes are forgotten, since nobody read them; a break
+/// that is held stays, at offset 0, and its time is kept.
+void vsscom_marks_reset(vsscom_marks* marks);
+
+/// `count` bytes went into Tx. `now` is the time of the call that brought them;
+/// `first` is true for the first bytes of that call, which makes a write mark.
+/// A full set of write marks drops the oldest and counts it as merged.
+void vsscom_marks_stored(vsscom_marks* marks, vsscom_u32 count, vsscom_u64 now,
+                         vsscom_bool first);
+
+/// The hub read `count` bytes.
+void vsscom_marks_read(vsscom_marks* marks, vsscom_u32 count);
+
+/// `count` of the newest bytes left Tx without being read (a purge, an abort).
+/// Marks that pointed past the new end are removed or moved back to it.
+void vsscom_marks_taken_back(vsscom_marks* marks, vsscom_u32 count);
+
+/// Tx was emptied.
+void vsscom_marks_cleared(vsscom_marks* marks);
+
+/// SetCommBreak. Returns false when a break is already held.
+vsscom_bool vsscom_marks_break_on(vsscom_marks* marks, vsscom_u64 now);
+
+/// ClearCommBreak. Returns false when none is held.
+vsscom_bool vsscom_marks_break_off(vsscom_marks* marks, vsscom_u64 now);
+
+vsscom_bool vsscom_marks_break_held(const vsscom_marks* marks);
+
+/// Copies what the hub has not been given into the arrays, which hold
+/// VSSCOM_MARKS_MAX_BREAKS and VSSCOM_MARKS_MAX_WRITES records, and takes it out
+/// of the marks: every break that ended, and every write mark that points at a
+/// byte the hub has read. A break that is held is copied and stays. The drop and
+/// merge counts are returned and start again from 0.
+void vsscom_marks_take(vsscom_marks* marks, vsscom_break_record* breaks,
+                       vsscom_u32* break_count, vsscom_write_record* writes,
+                       vsscom_u32* write_count, vsscom_u32* breaks_dropped,
+                       vsscom_u32* writes_merged);
+
 #endif // VSSCOM_CORE_H
