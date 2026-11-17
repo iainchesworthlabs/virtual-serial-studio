@@ -9,9 +9,11 @@
 #include "backend/plugin_mapping.hpp"
 
 #include <vss/machine/folders.hpp>
+#include <vss/plugin/api_capture.hpp>
 #include <vss/plugin/api_licence.hpp>
 #include <vss/plugin/host/bundle_point.hpp>
 #include <vss/plugin/host/sandbox.hpp>
+#include <vss/plugin/host/timeline_point.hpp>
 #include <vss/plugin/install.hpp>
 #include <vss/plugin/locations.hpp>
 #include <vss/plugin/parameters.hpp>
@@ -181,7 +183,14 @@ ServicePluginBackend::ServicePluginBackend(service_plugin_options options,
     // This program hands a plugin the licence file it uses.
     service.plan.capabilities.push_back(
         std::string(plug::licence_file_capability));
-    // Studio's own engine capabilities are not offered to plugins yet.
+    // The host plays a recording onto a port (`timeline.load`) when it has a
+    // hub to find the ports in; the handler is made for that case only.
+    if (options_.hub != nullptr)
+    {
+        service.plan.capabilities.push_back(
+            std::string(plug::timeline_capability));
+    }
+    // Studio's other engine capabilities are not offered to plugins yet.
     service.licence = [this]
     {
         const std::scoped_lock lock(mutex_);
@@ -593,6 +602,10 @@ ServicePluginBackend::make_handlers(const host::extension_context& context)
             }
             return host::feed_timing::async;
         };
+        // Replay of a recording onto a port (`timeline.load`) writes to the
+        // same ports a generator does.
+        handlers.push_back(host::make_timeline_point(
+            context, owner.find_port, slow_.get_executor()));
         handlers.push_back(
             host::make_generator_point(context, std::move(owner)));
     }
