@@ -30,13 +30,14 @@ constexpr std::chrono::milliseconds foreign_clock_poll{1};
 delay_line::delay_line(const boost::asio::any_io_executor& executor,
                        std::shared_ptr<endpoint> target,
                        std::uint32_t delay_ms, std::uint32_t jitter_ms,
-                       clock_function clock)
+                       clock_function clock, forward_function forward)
     : strand_(boost::asio::make_strand(executor))
     , timer_(strand_)
     , target_(std::move(target))
     , delay_ms_(delay_ms)
     , jitter_ms_(std::min(jitter_ms, delay_ms))
     , clock_(std::move(clock))
+    , forward_(std::move(forward))
     , random_(std::random_device{}())
 {
 }
@@ -46,7 +47,7 @@ time_point delay_line::now() const
     return clock_ ? clock_() : clock_type::now();
 }
 
-void delay_line::push(bytes_view data)
+void delay_line::push(bytes_view data, visited_set visited)
 {
     if (data.empty())
         return;
@@ -74,7 +75,8 @@ void delay_line::push(bytes_view data)
             now() + std::chrono::milliseconds(latency), last_due_);
         last_due_ = due;
         was_empty = queue_.empty();
-        queue_.push_back(item{due, byte_buffer(data.begin(), data.end())});
+        queue_.push_back(item{due, byte_buffer(data.begin(), data.end()),
+                              std::move(visited)});
         VSS_PROFILE_PLOT("link.delay_queue", queue_.size());
     }
 
@@ -124,19 +126,26 @@ void delay_line::fire()
     // Only this strand and close() take it, so it is free unless the route
     // is being removed.
     std::lock_guard delivering(deliver_mutex_);
-    std::vector<byte_buffer> ready;
+    std::vector<item> ready;
     {
         std::lock_guard lock(mutex_);
         const time_point current = now();
         while (!queue_.empty() && queue_.front().due <= current)
         {
-            ready.push_back(std::move(queue_.front().data));
+            ready.push_back(std::move(queue_.front()));
             queue_.pop_front();
         }
     }
 
     for (auto& chunk : ready)
-        target_->write(std::move(chunk));
+    {
+        // The write takes the bytes, so the forward goes first and reads
+        // them from here; the endpoint's queue is where order is kept.
+        if (chunk.visited && forward_)
+            forward_(target_->id(), bytes_view(chunk.data), chunk.visited,
+                     now());
+        target_->write(std::move(chunk.data));
+    }
 
     arm();
 }

@@ -29,9 +29,11 @@ constexpr std::chrono::milliseconds foreign_clock_poll{1};
 
 bus_wire::bus_wire(const boost::asio::any_io_executor& executor,
                    clock_function clock,
-                   std::shared_ptr<std::atomic<std::uint64_t>> garbled)
+                   std::shared_ptr<std::atomic<std::uint64_t>> garbled,
+                   forward_function forward)
     : strand_(boost::asio::make_strand(executor)), timer_(strand_),
-      clock_(std::move(clock)), garbled_(std::move(garbled))
+      clock_(std::move(clock)), garbled_(std::move(garbled)),
+      forward_(std::move(forward))
 {
 }
 
@@ -42,7 +44,7 @@ time_point bus_wire::now() const
 
 void bus_wire::push(endpoint_id sender, time_point due, bytes_view data,
                     std::shared_ptr<bus_transmission> transmission,
-                    std::vector<delivery> receivers)
+                    std::vector<delivery> receivers, visited_set visited)
 {
     if (data.empty() || receivers.empty())
         return;
@@ -56,7 +58,8 @@ void bus_wire::push(endpoint_id sender, time_point due, bytes_view data,
             return;
         const auto placed = queue_.emplace(
             due, item{sender, byte_buffer(data.begin(), data.end()),
-                      std::move(transmission), std::move(receivers)});
+                      std::move(transmission), std::move(receivers),
+                      std::move(visited)});
         first = placed == queue_.begin();
         VSS_PROFILE_PLOT("link.wire_queue", queue_.size());
     }
@@ -166,9 +169,14 @@ void bus_wire::deliver(std::vector<item>& ready)
         for (const delivery& entry : chunk.receivers)
         {
             if (entry.delay)
-                entry.delay->push(chunk.data);
-            else
-                entry.target->write(bytes_view(chunk.data));
+            {
+                entry.delay->push(chunk.data, chunk.visited);
+                continue;
+            }
+            if (chunk.visited && forward_)
+                forward_(entry.target->id(), bytes_view(chunk.data),
+                         chunk.visited, now());
+            entry.target->write(bytes_view(chunk.data));
         }
     }
 }

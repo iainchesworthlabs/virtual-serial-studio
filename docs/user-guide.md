@@ -916,20 +916,21 @@ Inspector is an Advanced pane.
 Some of these depend on what the engine can do; see
 [what this build cannot do](#what-this-build-cannot-do).
 
-## Links do not pass data on
+## Data passes through a port
 
-A link copies what its first port **reads** to its second port. What it writes
-into a port is not read from that port again, so two links that meet at one port
-do not make a path between their far ends. If port 1 has a two-way link to port
-4, and port 4 has a two-way link to a network server, bytes from port 1 are
-written to port 4 and stop there. They do not reach the server. The same holds
-when port 4 is also on a bus: the bus carries what a program reads from port 4,
-not what the link to port 1 wrote into it.
+When a link writes bytes into a port, Studio sends them on along that port's
+other links. If port 1 has a two-way link to port 4, port 4 has a two-way link to
+a network server and port 4 is on a bus, the bytes from port 1 reach the server
+and the other ports on the bus, and the bytes from the server reach port 1 and
+the bus.
 
-To send one port's bytes to several places, link that port to each place: a
-**split** from port 1 to the server and to the other ports, or one two-way link
-for each. To watch the traffic, add a monitor link from the port, and the
-monitor port gets a copy of everything the link carries.
+- A port never gets the same bytes twice, and bytes never go back to the port
+  they came from, so a two-way link or a bus does not echo.
+- A one-way link passes bytes on in its own direction only.
+- A monitor on a port shows what the port reads and what is written into it,
+  each once.
+- The listeners of a split still do not hear each other.
+- A delay on a link is added to the delay of the next link.
 
 ## Choosing a COM number (Windows)
 

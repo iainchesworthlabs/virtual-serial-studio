@@ -7,6 +7,7 @@
 #pragma once
 
 #include "delay_line.hpp"
+#include "forwarding.hpp"
 
 #include <vss/core/bus_line.hpp>
 #include <vss/core/bytes.hpp>
@@ -51,7 +52,8 @@ public:
     /// `clock` is the hub's clock, empty for the steady clock.  `garbled`
     /// counts the bytes delivered inverted, once for each receiver.
     bus_wire(const boost::asio::any_io_executor& executor, clock_function clock,
-             std::shared_ptr<std::atomic<std::uint64_t>> garbled);
+             std::shared_ptr<std::atomic<std::uint64_t>> garbled,
+             forward_function forward = {});
 
     bus_wire(const bus_wire&) = delete;
     bus_wire& operator=(const bus_wire&) = delete;
@@ -59,7 +61,7 @@ public:
     /// Copies `data` and delivers it at `due`.  Safe to call from any thread.
     void push(endpoint_id sender, time_point due, bytes_view data,
               std::shared_ptr<bus_transmission> transmission,
-              std::vector<delivery> receivers);
+              std::vector<delivery> receivers, visited_set visited = {});
 
     /// Drops what `member` still has on the wire and stops delivering to it.
     void forget(endpoint_id member);
@@ -77,6 +79,7 @@ private:
         byte_buffer data;
         std::shared_ptr<bus_transmission> transmission;
         std::vector<delivery> receivers;
+        visited_set visited;
     };
 
     time_point now() const;
@@ -91,6 +94,7 @@ private:
     boost::asio::steady_timer timer_;
     const clock_function clock_;
     const std::shared_ptr<std::atomic<std::uint64_t>> garbled_;
+    const forward_function forward_;
 
     /// Held while chunks are handed to their receivers, and by #close, so
     /// that a close waits for a delivery under way.  Always taken before
