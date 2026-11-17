@@ -20,12 +20,15 @@
 #include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/io_context.hpp>
 
+#include <array>
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
 #include <cwchar>
+#include <functional>
 #include <future>
 #include <memory>
 #include <mutex>
@@ -726,6 +729,125 @@ TEST_CASE("driver client: COM numbers with the helper service")
         hub.close();
         REQUIRE(wait_gone(name2));
         REQUIRE(wait_gone(name1));
+    }
+    catch (...)
+    {
+        stop();
+        throw;
+    }
+    stop();
+}
+
+TEST_CASE("driver client: against the real driver, a break falls between the bytes written around it")
+{
+    char enabled[8]{};
+    const DWORD length = ::GetEnvironmentVariableA("VSS_TEST_DRIVER", enabled,
+                                                   sizeof(enabled));
+    if (length != 1 || enabled[0] != '1')
+        VSS_SKIP("needs the driver: set VSS_TEST_DRIVER=1 in a guest that has it");
+
+    boost::asio::io_context io;
+    auto guard = boost::asio::make_work_guard(io);
+    std::thread runner([&io] { io.run(); });
+    auto stop = [&]
+    {
+        guard.reset();
+        io.stop();
+        runner.join();
+    };
+
+    // What the hub saw, in order: the bytes, and a letter for each break item.
+    struct seen
+    {
+        std::mutex mutex;
+        std::string log;
+        std::vector<line_break> breaks;
+        std::vector<time_point> stamps;
+    };
+    auto record = std::make_shared<seen>();
+
+    try
+    {
+        auto made = create_driver_port(io.get_executor(), "guest break test");
+        REQUIRE(made.has_value());
+        transport& hub = *made->port;
+        const auto app = open_com(made->path);
+        REQUIRE(app != INVALID_HANDLE_VALUE);
+
+        hub.set_break_sink(
+            [record](const line_break& item)
+            {
+                const std::lock_guard lock(record->mutex);
+                record->log += item.phase == break_phase::begin ? "[b]"
+                               : item.phase == break_phase::end ? "[e]"
+                                                                : "[c]";
+                record->breaks.push_back(item);
+            });
+
+        // A read that is always waiting, as the endpoint's is.
+        auto buffer = std::make_shared<std::array<char, 256>>();
+        std::function<void()> arm;
+        std::atomic<bool> running{true};
+        arm = [&]
+        {
+            if (!running.load())
+                return;
+            hub.async_read_some(
+                boost::asio::buffer(*buffer),
+                [&, record, buffer](boost::system::error_code ec, std::size_t n)
+                {
+                    if (ec)
+                        return;
+                    {
+                        const std::lock_guard lock(record->mutex);
+                        record->log.append(buffer->data(), n);
+                    }
+                    arm();
+                });
+        };
+        arm();
+
+        DWORD done = 0;
+        REQUIRE(::WriteFile(app, "AB", 2, &done, nullptr) != FALSE);
+        const auto before = clock_type::now();
+        REQUIRE(::EscapeCommFunction(app, SETBREAK) != FALSE);
+        const auto begun = clock_type::now();
+        std::this_thread::sleep_for(5ms);
+        REQUIRE(::EscapeCommFunction(app, CLRBREAK) != FALSE);
+        const auto ended = clock_type::now();
+        REQUIRE(::WriteFile(app, "CD", 2, &done, nullptr) != FALSE);
+
+        const auto until = clock_type::now() + 10s;
+        for (;;)
+        {
+            {
+                const std::lock_guard lock(record->mutex);
+                if (record->log == "AB[c]CD" || record->log == "AB[b][e]CD")
+                    break;
+            }
+            REQUIRE(clock_type::now() < until);
+            std::this_thread::sleep_for(10ms);
+        }
+
+        {
+            const std::lock_guard lock(record->mutex);
+            const line_break& last = record->breaks.back();
+            REQUIRE(last.measured);
+            // steady_clock and the driver's counter share a base: the start is
+            // between the two readings of the clock around the call.
+            REQUIRE(record->breaks.front().start >= before);
+            REQUIRE(record->breaks.front().start <= begun);
+            REQUIRE(last.when() >= begun + 4ms);
+            REQUIRE(last.when() <= ended);
+            REQUIRE(last.duration >= 4ms);
+            REQUIRE(last.duration < 100ms);
+        }
+
+        running = false;
+        hub.cancel();
+        ::CloseHandle(app);
+        hub.close();
+        REQUIRE(wait_gone(made->path));
     }
     catch (...)
     {
