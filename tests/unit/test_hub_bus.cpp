@@ -523,3 +523,67 @@ TEST_CASE("bus: a plain bus forwards two senders at once and reports nothing")
                        5000ms));
     REQUIRE_EQ(events.count(event_kind::error), std::size_t{0});
 }
+
+// A link only copies what its source endpoint reads.  What a link writes into
+// an endpoint is never read from it again, so two links that meet at an
+// endpoint do not form a path between their far ends.  This is the shape of a
+// polled client behind a bus member that is also linked to a server.
+TEST_CASE("bus: a link into a member does not carry data on to the member's "
+          "other links")
+{
+    // 0 client, 1 member that is also linked both ways to the client and to
+    // the server, 2 and 3 other members, 4 server, 5 monitor of the client.
+    bus_fixture fixture(6);
+    REQUIRE(fixture.hub->bus({fixture.id(1), fixture.id(2), fixture.id(3)}));
+    REQUIRE(fixture.hub->connect(fixture.id(0), fixture.id(1)));
+    REQUIRE(fixture.hub->connect(fixture.id(1), fixture.id(4)));
+    REQUIRE(fixture.hub->monitor(fixture.id(0), fixture.id(5)));
+
+    // The client's request reaches the member and the monitor, and nothing
+    // else: not the server, not the other members.
+    fixture.ports[0].inject_read("REQ");
+    REQUIRE(wait_until([&] { return fixture.ports[1].written() == "REQ"; },
+                       5000ms));
+    REQUIRE(wait_until([&] { return fixture.ports[5].written() == "REQ"; },
+                       5000ms));
+    std::this_thread::sleep_for(200ms);
+    REQUIRE_EQ(fixture.ports[4].written(), std::string());
+    REQUIRE_EQ(fixture.ports[2].written(), std::string());
+    REQUIRE_EQ(fixture.ports[3].written(), std::string());
+
+    // The server's bytes reach the member and not the client.
+    fixture.ports[4].inject_read("SRV");
+    REQUIRE(wait_until([&] { return fixture.ports[1].written() == "REQSRV"; },
+                       5000ms));
+    std::this_thread::sleep_for(200ms);
+    REQUIRE_EQ(fixture.ports[0].written(), std::string());
+
+    // What the member itself reads goes to everything it is linked to.
+    fixture.ports[1].inject_read("RSP");
+    REQUIRE(wait_until([&] { return fixture.ports[0].written() == "RSP"; },
+                       5000ms));
+    REQUIRE(wait_until([&] { return fixture.ports[4].written() == "RSP"; },
+                       5000ms));
+    REQUIRE(wait_until([&] { return fixture.ports[2].written() == "RSP"; },
+                       5000ms));
+    REQUIRE(wait_until([&] { return fixture.ports[3].written() == "RSP"; },
+                       5000ms));
+}
+
+TEST_CASE("bus: a client reaches a server and the bus through a split")
+{
+    // 0 client, 1 server, 2 and 3 members of a bus with the client's feed.
+    bus_fixture fixture(4);
+    REQUIRE(fixture.hub->bus({fixture.id(2), fixture.id(3)}));
+    REQUIRE(fixture.hub->split(fixture.id(0), {fixture.id(1), fixture.id(2)}));
+
+    fixture.ports[0].inject_read("REQ");
+    REQUIRE(wait_until([&] { return fixture.ports[1].written() == "REQ"; },
+                       5000ms));
+    REQUIRE(wait_until([&] { return fixture.ports[2].written() == "REQ"; },
+                       5000ms));
+    // The split forwards only what the client reads, so the second member
+    // of the bus hears it only if member 2 reads it.  It does not.
+    std::this_thread::sleep_for(200ms);
+    REQUIRE_EQ(fixture.ports[3].written(), std::string());
+}
