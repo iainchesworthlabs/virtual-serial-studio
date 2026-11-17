@@ -42,7 +42,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    uses: iainchesworthlabs/icl-common-infra/.github/workflows/policy.yml@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
+    uses: iainchesworthlabs/icl-common-infra/.github/workflows/policy.yml@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
 
   plan:
     name: Plan
@@ -70,7 +70,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Check out the shared scripts
-        uses: iainchesworthlabs/icl-common-infra/actions/checkout-infra@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
+        uses: iainchesworthlabs/icl-common-infra/actions/checkout-infra@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
       - name: Check the vendored CMake modules
         run: python3 tools/sync_cmake.py --infra .icl-infra --check
       - name: Decide scope
@@ -111,7 +111,7 @@ jobs:
           persist-credentials: false
       # tools/ci/test_plan_legs.py runs the shared planner over .github/ci/plan.json, and fails here when it is missing.
       - name: Check out the shared scripts
-        uses: iainchesworthlabs/icl-common-infra/actions/checkout-infra@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
+        uses: iainchesworthlabs/icl-common-infra/actions/checkout-infra@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
       - name: Validate the changelog
         run: |
           python3 tools/changelog.py --check
@@ -496,7 +496,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev
 
       - name: Set up vcpkg
-        uses: iainchesworthlabs/icl-common-infra/actions/setup-vcpkg@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
+        uses: iainchesworthlabs/icl-common-infra/actions/setup-vcpkg@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
 
       # Tracy's tools fetch CPM.cmake and their own sources from GitHub when they are
       # configured, and a refused download fails the job before any of this project builds.
@@ -631,7 +631,7 @@ jobs:
       - name: Save caches
         if: always()
         continue-on-error: true
-        uses: iainchesworthlabs/icl-common-infra/actions/save-vcpkg-cache@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
+        uses: iainchesworthlabs/icl-common-infra/actions/save-vcpkg-cache@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
 
       - name: Save ccache
         if: always()
@@ -857,7 +857,7 @@ jobs:
     permissions:
       contents: read
       security-events: write
-    uses: iainchesworthlabs/icl-common-infra/.github/workflows/zizmor.yml@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
+    uses: iainchesworthlabs/icl-common-infra/.github/workflows/zizmor.yml@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
 
   dependency-scan:
     name: Scan dependency diff
@@ -874,7 +874,7 @@ jobs:
           persist-credentials: false
       - name: Dependency review
         if: github.event_name == 'pull_request'
-        uses: iainchesworthlabs/icl-common-infra/actions/dependency-review@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
+        uses: iainchesworthlabs/icl-common-infra/actions/dependency-review@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
 
   ci-status:
     name: CI Status
@@ -886,7 +886,7 @@ jobs:
       contents: read
     steps:
       - name: Aggregate
-        uses: iainchesworthlabs/icl-common-infra/actions/ci-status@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
+        uses: iainchesworthlabs/icl-common-infra/actions/ci-status@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
         with:
           needs: ${{ toJSON(needs) }}
           expected: >-

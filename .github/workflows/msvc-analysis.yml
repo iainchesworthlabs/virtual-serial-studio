@@ -63,7 +63,7 @@ jobs:
           ignoredPaths: .cache;build
 
       - name: Upload SARIF to GitHub
-        uses: github/codeql-action/upload-sarif@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           sarif_file: ${{ steps.run-analysis.outputs.sarif }}
           category: msvc-prefast
@@ -104,7 +104,7 @@ jobs:
 
       - name: Report the failure
         if: ${{ failure() || (cancelled() && github.event_name == 'schedule') }}
-        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
+        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
         with:
           engine: PREfast
           detail: New PREfast alerts since the previous night, or the analysis itself failed. See the run log, then Security > Code scanning filtered to the develop branch and the tool PREfast.
