@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef VSS_GUI_FLOWS_DECODE_DIALOG_HPP
-#define VSS_GUI_FLOWS_DECODE_DIALOG_HPP
+#pragma once
 
 #include "flows/flow_dialog.hpp"
 #include "support/plugin_parts.hpp"
@@ -50,5 +49,3 @@ private:
 };
 
 } // namespace vss::gui
-
-#endif

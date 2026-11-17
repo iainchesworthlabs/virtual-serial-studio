@@ -1,1 +1,1 @@
-`vss_cli plugin list`, `plugin verify` and `plugin install` no longer end with "This build does not run plugins": this build runs them.
+**The plugin commands no longer say this build does not run plugins.** `vss_cli plugin list`, `plugin verify` and `plugin install` no longer end with "This build does not run plugins": this build runs them.

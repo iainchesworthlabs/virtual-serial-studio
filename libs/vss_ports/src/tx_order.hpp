@@ -18,8 +18,7 @@
 // the driver's raw counts; the caller converts them.
 //
 
-#ifndef VSS_PORTS_TX_ORDER_HPP
-#define VSS_PORTS_TX_ORDER_HPP
+#pragma once
 
 #include <cstddef>
 #include <cstdint>
@@ -115,5 +114,3 @@ private:
 };
 
 } // namespace vss::detail
-
-#endif // VSS_PORTS_TX_ORDER_HPP

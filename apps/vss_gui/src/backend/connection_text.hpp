@@ -8,8 +8,7 @@
 // context is "Connection".
 //
 
-#ifndef VSS_GUI_BACKEND_CONNECTION_TEXT_HPP
-#define VSS_GUI_BACKEND_CONNECTION_TEXT_HPP
+#pragma once
 
 #include "backend/view_types.hpp"
 
@@ -38,5 +37,3 @@ QString event_error(const QString& text, const QString& code);
 QString error_with_code(const connection_view& connection);
 
 } // namespace vss::gui::connection_text
-
-#endif // VSS_GUI_BACKEND_CONNECTION_TEXT_HPP

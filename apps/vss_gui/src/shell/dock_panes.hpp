@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef VSS_GUI_SHELL_DOCK_PANES_HPP
-#define VSS_GUI_SHELL_DOCK_PANES_HPP
+#pragma once
 
 #include "shell/dock_zones.hpp"
 
@@ -194,5 +193,3 @@ private:
 };
 
 } // namespace vss::gui
-
-#endif // VSS_GUI_SHELL_DOCK_PANES_HPP

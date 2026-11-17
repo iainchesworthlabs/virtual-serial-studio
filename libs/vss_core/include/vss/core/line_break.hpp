@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef VSS_CORE_LINE_BREAK_HPP
-#define VSS_CORE_LINE_BREAK_HPP
+#pragma once
 
 #include <vss/core/bytes.hpp>
 #include <vss/core/stats.hpp>
@@ -71,5 +70,3 @@ using stream_item = std::variant<bytes_view, line_break>;
 const char* to_string(break_phase value) noexcept;
 
 } // namespace vss
-
-#endif // VSS_CORE_LINE_BREAK_HPP

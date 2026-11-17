@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef VSS_GUI_SHELL_DOCK_ZONES_HPP
-#define VSS_GUI_SHELL_DOCK_ZONES_HPP
+#pragma once
 
 #include <QPoint>
 #include <QRect>
@@ -67,5 +66,3 @@ struct drop_guide
                                  const QRect& area);
 
 } // namespace vss::gui
-
-#endif // VSS_GUI_SHELL_DOCK_ZONES_HPP
