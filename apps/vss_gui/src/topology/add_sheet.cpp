@@ -197,6 +197,13 @@ AddSheet::AddSheet(canvas_item item, const std::vector<port_view>& ports,
     settings_layout->addWidget(new FormRow(tr("Framing"), framing_, {}, this));
     settings_->setVisible(false);
     layout->addWidget(settings_);
+    settings_note_ = new QLabel(this);
+    settings_note_->setObjectName(QStringLiteral("addSheetSettingsNote"));
+    settings_note_->setWordWrap(true);
+    settings_note_->setFont(Theme::instance().font(text_style::caption));
+    settings_note_->setProperty("muted", true);
+    settings_note_->hide();
+    layout->addWidget(settings_note_);
     connect(more_, &QToolButton::toggled, this,
             [this](bool on)
             {
@@ -402,6 +409,64 @@ void AddSheet::update_state()
     }
     if (add_ != nullptr)
         add_->setEnabled(ok);
+    update_source_settings();
+}
+
+void AddSheet::update_source_settings()
+{
+    if (item_ != canvas_item::monitor || settings_note_ == nullptr ||
+        rows_.isEmpty())
+        return;
+    const row& watched = rows_.first();
+    const bool existing = watched.kind->currentData().toInt() == kKindExisting;
+    const QString name = existing ? watched.kind->currentText() : QString();
+    if (name == source_name_)
+        return;
+    source_name_ = name;
+    const auto port =
+        std::find_if(ports_.begin(), ports_.end(),
+                     [&name](const port_view& view) { return view.name == name; });
+    const bool follow = existing && port != ports_.end();
+    baud_->setEnabled(!follow);
+    framing_->setEnabled(!follow);
+    settings_note_->setVisible(follow);
+    if (!follow)
+        return;
+    // Show what the port really has, in the open, so it is not a hidden
+    // default that differs from the port.
+    const vss::serial_settings& have = port->serial;
+    baud_->setCurrentText(QString::number(have.baud_rate));
+    int index = -1;
+    for (std::size_t each = 0; each < std::size(kFramings); ++each)
+    {
+        if (kFramings[each].data_bits == have.data_bits &&
+            kFramings[each].parity == have.parity &&
+            kFramings[each].stop_bits == have.stop_bits)
+            index = static_cast<int>(each);
+    }
+    if (index < 0)
+    {
+        // A framing the list does not have is shown as it is.
+        framing_->addItem(QString::fromStdString(vss::to_label(have)));
+        index = framing_->count() - 1;
+    }
+    framing_->setCurrentIndex(index);
+    settings_note_->setText(
+        tr("Taken from %1. A monitor runs at the speed of the port it "
+           "watches.")
+            .arg(name));
+    if (!more_->isChecked())
+        more_->setChecked(true);
+}
+
+bool AddSheet::settings_editable() const
+{
+    return baud_->isEnabled() && framing_->isEnabled();
+}
+
+QString AddSheet::settings_note() const
+{
+    return settings_note_->isHidden() ? QString() : settings_note_->text();
 }
 
 bundle_request AddSheet::request() const

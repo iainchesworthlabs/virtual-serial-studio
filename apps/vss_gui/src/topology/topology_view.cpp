@@ -3047,8 +3047,42 @@ void TopologyView::populate_link_menu(QMenu* menu, vss::link_id id)
     settings->setShortcutVisibleInContextMenu(true);
     if (link != links_.end() && link->shape == link_shape::monitor)
     {
+        // A monitor link only copies; its choices belong to the port it
+        // watches, so the menu offers those.
+        const vss::endpoint_id watched =
+            link->sources.isEmpty() ? 0 : link->sources.front();
         settings->setEnabled(false);
-        settings->setToolTip(tr("A monitor link has no settings."));
+        settings->setToolTip(
+            tr("A monitor link has no settings. It copies the traffic of %1. "
+               "Open that port in the Monitor to read it.")
+                .arg(names_.value(watched)));
+        if (watched != 0)
+        {
+            menu->addAction(
+                QCoreApplication::translate("PortMenu", "Open in monitor"),
+                this,
+                [this, watched]
+                {
+                    Q_EMIT port_action_requested(
+                        watched, port_menu_action::open_monitor);
+                });
+            const port_menu_state state =
+                menu_state_ ? menu_state_(watched) : port_menu_state{};
+            if (state.advanced && state.decode_shown)
+            {
+                QAction* decode = menu->addAction(
+                    QCoreApplication::translate("PortMenu", "Decode as..."),
+                    this,
+                    [this, watched]
+                    {
+                        Q_EMIT port_action_requested(
+                            watched, port_menu_action::decode_as);
+                    });
+                decode->setEnabled(state.decode_enabled);
+                if (!state.decode_enabled)
+                    decode->setToolTip(state.decode_reason);
+            }
+        }
     }
     if (link != links_.end() && link->shape == link_shape::one_way)
     {
