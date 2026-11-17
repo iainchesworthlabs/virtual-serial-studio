@@ -112,7 +112,7 @@ void PortModel::set_snapshot(std::vector<port_view> ports,
         beginResetModel();
         ports_ = std::move(ports);
         links_ = std::move(links);
-        rebuild_visible();
+        visible_ = compute_visible(ports_, links_);
         endResetModel();
         return;
     }
@@ -125,17 +125,74 @@ void PortModel::set_snapshot(std::vector<port_view> ports,
     for (const int index : visible_)
         before.push_back(
             row_signature(ports_[static_cast<std::size_t>(index)]));
-    ports_ = std::move(ports);
-    links_ = std::move(links);
-    const QVector<int> previous = visible_;
-    rebuild_visible();
-    if (visible_ != previous)
+    const QVector<qulonglong> previous_ids = visible_ids();
+    QVector<int> next = compute_visible(ports, links);
+
+    // Which ports show, in which order, with the new data.
+    QVector<qulonglong> next_ids;
+    next_ids.reserve(next.size());
+    for (const int index : next)
+        next_ids.push_back(ports[static_cast<std::size_t>(index)].id);
+    if (next_ids == previous_ids)
     {
+        ports_ = std::move(ports);
+        links_ = std::move(links);
+        visible_ = std::move(next);
+        publish_changes(before);
+        return;
+    }
+    QVector<qulonglong> sorted_previous = previous_ids;
+    QVector<qulonglong> sorted_next = next_ids;
+    std::sort(sorted_previous.begin(), sorted_previous.end());
+    std::sort(sorted_next.begin(), sorted_next.end());
+    if (sorted_previous != sorted_next)
+    {
+        // The filter now shows other ports.
         beginResetModel();
+        ports_ = std::move(ports);
+        links_ = std::move(links);
+        visible_ = std::move(next);
         endResetModel();
         return;
     }
-    publish_changes(before);
+    // The same rows in another order (a sorted counter overtook another).
+    ports_ = std::move(ports);
+    links_ = std::move(links);
+    reorder_visible(std::move(next));
+}
+
+QVector<qulonglong> PortModel::visible_ids() const
+{
+    QVector<qulonglong> ids;
+    ids.reserve(visible_.size());
+    for (const int index : visible_)
+        ids.push_back(ports_[static_cast<std::size_t>(index)].id);
+    return ids;
+}
+
+void PortModel::reorder_visible(QVector<int> next)
+{
+    // The ports are already the new ones, so the old order is read by the
+    // ids it held, and every persistent index follows its port.
+    const QVector<qulonglong> old_ids = visible_ids();
+    Q_EMIT layoutAboutToBeChanged();
+    const QModelIndexList old_indexes = persistentIndexList();
+    QVector<qulonglong> held;
+    held.reserve(old_indexes.size());
+    for (const QModelIndex& index : old_indexes)
+        held.push_back(old_ids.value(index.row(), 0));
+    visible_ = std::move(next);
+    QModelIndexList new_indexes;
+    new_indexes.reserve(old_indexes.size());
+    for (qsizetype i = 0; i < old_indexes.size(); ++i)
+    {
+        const int row = row_for_id(held.at(i));
+        new_indexes.push_back(
+            row < 0 ? QModelIndex()
+                    : index(row, old_indexes.at(i).column()));
+    }
+    changePersistentIndexList(old_indexes, new_indexes);
+    Q_EMIT layoutChanged();
 }
 
 QStringList PortModel::row_signature(const port_view& port) const
@@ -188,23 +245,139 @@ void PortModel::set_filter(const QString& filter)
         return;
     beginResetModel();
     filter_ = filter;
-    rebuild_visible();
+    visible_ = compute_visible(ports_, links_);
     endResetModel();
 }
 
-void PortModel::rebuild_visible()
+void PortModel::set_sort(int column, Qt::SortOrder order)
+{
+    if (column < 0 || column >= column_count)
+        column = -1;
+    if (sort_column_ == column && (column < 0 || sort_order_ == order))
+        return;
+    sort_column_ = column;
+    sort_order_ = order;
+    reorder_visible(compute_visible(ports_, links_));
+}
+
+QVector<int> PortModel::compute_visible(
+    const std::vector<port_view>& ports,
+    const std::vector<link_view>& links) const
 {
     VSS_PROFILE_ZONE("gui.panes.port_model.filter");
-    visible_.clear();
-    visible_.reserve(static_cast<qsizetype>(ports_.size()));
-    for (int index = 0; index < static_cast<int>(ports_.size()); ++index)
+    QVector<int> rows;
+    rows.reserve(static_cast<qsizetype>(ports.size()));
+    for (int index = 0; index < static_cast<int>(ports.size()); ++index)
     {
-        if (matches(ports_[static_cast<std::size_t>(index)]))
-            visible_.push_back(index);
+        if (matches(ports[static_cast<std::size_t>(index)], ports, links))
+            rows.push_back(index);
+    }
+    if (sort_column_ >= 0)
+    {
+        // Stable, so equal values keep the engine's order.
+        std::stable_sort(
+            rows.begin(), rows.end(),
+            [this, &ports](int left, int right)
+            {
+                return sorts_before(ports[static_cast<std::size_t>(left)],
+                                    ports[static_cast<std::size_t>(right)]);
+            });
+    }
+    return rows;
+}
+
+int PortModel::state_rank(const port_view& port)
+{
+    // Stopped on purpose is a closed chip, but it sorts after the ports that
+    // are merely closed.
+    if (port.stopped)
+        return 7;
+    switch (state_kind(port))
+    {
+    case port_state_kind::failed:
+        return 0;
+    case port_state_kind::waiting:
+        return 1;
+    case port_state_kind::open:
+        return 2;
+    case port_state_kind::connected:
+        return 3;
+    case port_state_kind::studio_only:
+        return 4;
+    case port_state_kind::fixture:
+        return 5;
+    case port_state_kind::closed:
+        return 6;
+    }
+    return 6;
+}
+
+QVariant PortModel::sort_key(const port_view& port, int column) const
+{
+    // An invalid variant is a value the engine does not know.
+    const auto known_text = [&port, column]() -> QVariant
+    {
+        const QString text = cell_text(port, column);
+        return text == dash() ? QVariant() : QVariant(text);
+    };
+    const auto known_number = [&port, column]() -> QVariant
+    {
+        bool ok = false;
+        const qulonglong number = cell_text(port, column).toULongLong(&ok);
+        return ok ? QVariant::fromValue(number) : QVariant();
+    };
+    switch (column)
+    {
+    case port_column:
+        return port.name;
+    case state_column:
+        return state_rank(port);
+    case rx_column:
+        return QVariant::fromValue<qulonglong>(port.stats.bytes_rx);
+    case tx_column:
+        return QVariant::fromValue<qulonglong>(port.stats.bytes_tx);
+    case dropped_column:
+        return QVariant::fromValue<qulonglong>(port.stats.dropped);
+    case errors_column:
+        return QVariant::fromValue<qulonglong>(port.stats.errors);
+    case baud_column:
+    case data_bits_column:
+        return known_number();
+    case settings_column:
+    {
+        // By speed, as the number leads the text.
+        const auto format = known_format(port);
+        return format ? QVariant::fromValue<qulonglong>(format->baud_rate)
+                      : QVariant();
+    }
+    default:
+        return known_text();
     }
 }
 
-bool PortModel::matches(const port_view& port) const
+bool PortModel::sorts_before(const port_view& left,
+                             const port_view& right) const
+{
+    const QVariant a = sort_key(left, sort_column_);
+    const QVariant b = sort_key(right, sort_column_);
+    // Unknown values go last, ascending or descending.
+    if (!a.isValid() || !b.isValid())
+        return a.isValid() && !b.isValid();
+    int order = 0;
+    if (a.userType() == QMetaType::QString)
+        order = QString::localeAwareCompare(a.toString(), b.toString());
+    else if (a.userType() == QMetaType::Int)
+        order = a.toInt() - b.toInt();
+    else
+        order = a.toULongLong() < b.toULongLong()   ? -1
+                : a.toULongLong() > b.toULongLong() ? 1
+                                                    : 0;
+    return sort_order_ == Qt::AscendingOrder ? order < 0 : order > 0;
+}
+
+bool PortModel::matches(const port_view& port,
+                        const std::vector<port_view>& ports,
+                        const std::vector<link_view>& links) const
 {
     if (filter_.trimmed().isEmpty())
         return true;
@@ -212,8 +385,7 @@ bool PortModel::matches(const port_view& port) const
     return port.name.contains(needle, Qt::CaseInsensitive) ||
            port.path.contains(needle, Qt::CaseInsensitive) ||
            state_text(port).contains(needle, Qt::CaseInsensitive) ||
-           role_text(port, ports_, links_)
-               .contains(needle, Qt::CaseInsensitive);
+           role_text(port, ports, links).contains(needle, Qt::CaseInsensitive);
 }
 
 int PortModel::rowCount(const QModelIndex& parent) const
