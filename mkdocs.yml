@@ -43,6 +43,7 @@ nav:
       - The plugin API, message by message: plugin-api-reference.md
       - Online updates (design): updates.md
       - Response timing rules (design): response-timing.md
+      - 9-bit serial and multi-drop addressing (design): nine-bit-serial.md
       - POSIX virtual ports: posix-virtual-ports.md
       - Windows COM port driver: windows-com-driver.md
       - Platforms: platforms.md
