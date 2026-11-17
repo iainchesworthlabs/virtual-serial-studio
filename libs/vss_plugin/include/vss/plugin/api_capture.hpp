@@ -62,6 +62,11 @@ inline constexpr std::size_t max_snapshot_kinds = 16;
 /// The most seconds of `before_s` and of `after_s`.  A choice: ten minutes.
 inline constexpr std::uint64_t max_snapshot_seconds = 600;
 
+/// The name of the capability a host offers when it plays a recording as a
+/// timeline (`timeline.load`).  A host that does not offer it answers
+/// `timeline.load` with `unsupported`.
+inline constexpr std::string_view timeline_capability = "timeline";
+
 /// The least and the most `time_scale` of `timeline.load`.  A choice: a
 /// replay a hundred times slower or faster.
 inline constexpr double min_time_scale = 0.01;
