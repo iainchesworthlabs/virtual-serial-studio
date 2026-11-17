@@ -47,6 +47,7 @@
 #include <cwchar>
 #include <deque>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -611,6 +612,37 @@ public:
         break_sink_ = std::move(sink);
     }
 
+    /// The time the program called WriteFile for the bytes of the read that
+    /// just completed.
+    std::optional<time_point> read_stamp() const noexcept override
+    {
+        const auto nanos = stamp_nanos_.load();
+        if (nanos == no_stamp)
+            return std::nullopt;
+        return time_point(clock_type::duration(
+            std::chrono::duration_cast<clock_type::duration>(
+                std::chrono::nanoseconds(nanos))));
+    }
+
+    /// A break from a link or a device reaches the program as a break at its
+    /// end, in order with the bytes written before it.
+    bool can_deliver_break() const noexcept override { return true; }
+
+    void async_write_break(const line_break& item, io_handler handler) override
+    {
+        boost::system::error_code ec;
+        if (item.ends_break())
+        {
+            const auto raised =
+                raise_line_error(driver_line_error::break_condition, std::nullopt);
+            if (!raised)
+                ec = raised.error();
+        }
+        boost::asio::post(executor_,
+                          [handler = std::move(handler), ec]() mutable
+                          { handler(ec, 0); });
+    }
+
     void async_write_some(boost::asio::const_buffer buffer,
                           io_handler handler) override
     {
@@ -914,8 +946,12 @@ private:
         bool is_break = false;
         std::vector<std::uint8_t> bytes;
         std::size_t used = 0;
+        std::optional<time_point> stamp;
         line_break brk;
     };
+
+    static constexpr std::int64_t no_stamp =
+        (std::numeric_limits<std::int64_t>::min)();
 
     time_point ticks_to_time(std::uint64_t ticks) const
     {
@@ -939,6 +975,8 @@ private:
             if (piece.what == detail::tx_piece::kind::bytes)
             {
                 item.bytes = std::move(piece.bytes);
+                if (piece.stamp)
+                    item.stamp = ticks_to_time(*piece.stamp);
                 queue_.push_back(std::move(item));
                 continue;
             }
@@ -1118,6 +1156,10 @@ private:
                     std::memcpy(slot->buffer.data(), front.bytes.data() + front.used,
                                 count);
                     front.used += count;
+                    stamp_nanos_ = front.stamp
+                        ? std::chrono::duration_cast<std::chrono::nanoseconds>(
+                              front.stamp->time_since_epoch()).count()
+                        : no_stamp;
                     whole = front.used == front.bytes.size();
                     if (whole)
                         queue_.pop_front();
@@ -1527,6 +1569,7 @@ private:
     std::unique_ptr<VSSCOM_HUB_MARKS> marks_;
     std::uint64_t frequency_ = 0;
     break_sink break_sink_;
+    std::atomic<std::int64_t> stamp_nanos_{no_stamp};
 };
 
 // -- The transports this process holds ---------------------------------------
