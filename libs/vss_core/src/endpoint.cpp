@@ -446,7 +446,10 @@ void endpoint::on_read(std::uint64_t generation, boost::system::error_code ec,
         // when only its lines changed (an RFC 2217 client set DTR).
         if (const auto current = active_transport();
             current && current->supports_control_lines())
+        {
             refresh_lines();
+            forward_format();
+        }
         do_read();
         return;
     }
@@ -892,6 +895,27 @@ error_code endpoint::set_line(control_line line, bool state)
     emit_lines();
     owner_.route_lines(id_, snapshot);
     return {};
+}
+
+std::optional<line_format> endpoint::peer_format() const
+{
+    const auto current = active_transport();
+    return current ? current->peer_format() : std::nullopt;
+}
+
+void endpoint::set_peer_format(const line_format& format)
+{
+    if (const auto current = active_transport())
+        current->apply_peer_format(format);
+}
+
+void endpoint::forward_format()
+{
+    const auto format = peer_format();
+    if (!format || format == forwarded_format_)
+        return;
+    forwarded_format_ = format;
+    owner_.route_format(id_);
 }
 
 void endpoint::set_peer_inputs(control_lines inputs)

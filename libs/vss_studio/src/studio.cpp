@@ -9,6 +9,7 @@
 #include <vss/studio/studio.hpp>
 
 #include <vss/ports/listen_transport.hpp>
+#include <vss/ports/rfc2217_client.hpp>
 #include <vss/ports/serial_transport.hpp>
 #include <vss/ports/vcom_driver.hpp>
 #include <vss/ports/waiting_transport.hpp>
@@ -80,6 +81,18 @@ open_transport(const transport::executor_type& executor, const std::string& uri,
         if (ec)
             return nullptr;
         return listening;
+    }
+
+    if (is_rfc2217_client_uri(uri))
+    {
+        auto client =
+            settings != nullptr
+                ? std::make_shared<rfc2217_client_transport>(executor, uri,
+                                                             *settings, ec)
+                : std::make_shared<rfc2217_client_transport>(executor, uri, ec);
+        if (ec)
+            return nullptr;
+        return client;
     }
 
     auto serial =

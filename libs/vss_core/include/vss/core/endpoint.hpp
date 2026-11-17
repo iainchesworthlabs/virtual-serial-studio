@@ -184,6 +184,14 @@ public:
     /// Applies the modem inputs a peer drives (CTS/DSR/DCD/RI).
     void set_peer_inputs(control_lines inputs);
 
+    /// The baud rate and framing the transport says its program has set
+    /// (#transport::peer_format), if it can tell.
+    std::optional<line_format> peer_format() const;
+
+    /// Gives the transport the format of the program on the far side of a
+    /// link (#transport::apply_peer_format).
+    void set_peer_format(const line_format& format);
+
     /// Puts `stage` where it is shown every chunk the endpoint reads (see
     /// #read_stage), in place of the one there; null removes it.  The change
     /// is made on the endpoint's strand, so between two chunks: the old stage
@@ -233,6 +241,9 @@ private:
                   std::uint64_t generation, boost::system::error_code ec,
                   std::size_t count);
     void on_line_error(const boost::system::error_code& ec);
+    /// Passes the format of the transport's program on to the linked endpoints
+    /// when it has changed (on the strand only).
+    void forward_format();
     /// A break read from the transport, or made by #receive_break, on the
     /// strand.  \p generation is that of the transport that reported it.
     void on_break_read(std::uint64_t generation, const line_break& item);
@@ -278,6 +289,9 @@ private:
     /// (on the strand only), so a line that errs on every byte logs once a
     /// second and not once a byte.
     bool break_drop_logged_ = false;
+    /// The format last passed on to the endpoints this one is linked to (on
+    /// the strand only).
+    std::optional<line_format> forwarded_format_;
     time_point line_error_logged_{};
     std::uint64_t line_errors_unlogged_ = 0;
     /// Read and written on the strand only, so a read costs one test of it.

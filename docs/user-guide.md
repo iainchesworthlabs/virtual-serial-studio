@@ -1186,6 +1186,31 @@ DTR and RTS are the endpoint's output lines, so a linked port sees them as
 DSR, CTS and DCD, and the CTS, DSR, DCD and RI that reach the endpoint are
 sent to the client as modem state.
 
+### An RFC 2217 client
+
+`rfc2217://host:port` is Studio's own RFC 2217 client. It makes the connection
+when the port is made, and it reports an address that cannot be reached when
+you add the port. The settings go in the address after the port:
+`rfc2217://lab:7001?baud=115200&data=8&parity=none&stop=1&flow=none`. Studio asks
+the server to use the COM-PORT option, and once it agrees:
+
+- The speed, data bits, parity, stop bits and flow control are sent, and sent
+  again when the port's settings change.
+- DTR and RTS follow the port's. CTS, DSR, DCD and RI that the server reports
+  are the port's inputs.
+- A break that arrives at the port is sent as break on, a wait of the break's
+  length and break off. The length on the wire is only as accurate as the
+  network, so a short break can arrive longer or shorter, and a device that
+  times a break closely should not be driven this way. The log says this the
+  first time.
+- A server that reports a break (the break bit of the line state) gives a break
+  in the stream, in order with the bytes around it. RFC 2217 has no length for
+  it, so it is one character time and is marked as not measured.
+
+A server that does not offer RFC 2217 is used as a plain byte stream, and the
+log says so. If the connection is lost the port stops, and a reconnect policy
+opens the address again, as it does for `tcp://`.
+
 To let other computers connect, allow the port through the host firewall and
 listen on an interface they can reach (`0.0.0.0` for all interfaces). Try
 `127.0.0.1` first. Apart from the check for updates (see [Updates](#updates)),

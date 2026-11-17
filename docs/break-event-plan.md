@@ -174,9 +174,11 @@ RFC 2217 limits what is possible, so the plan says what each direction can carry
   length or a time better than the time the read returned. The serial transport is changed to turn this into a
   `complete` item with `measured` false, in order with the bytes read before it, and to drop the stray `0x00` that goes
   with it (decision 5). A device that does not report a break gives nothing, and the plan cannot add it.
-* **Studio has no RFC 2217 client.** Sending a break to a remote device through RFC 2217 (SET_CONTROL 5, a timer, then 6) is
-  possible only when Studio has a client transport. It is not planned here. The engine's item already carries what such a
-  client needs, so adding it later changes the transport only.
+* **The RFC 2217 client.** Studio's own client (`rfc2217://host:port`, `libs/vss_ports/src/rfc2217_client.cpp`, wire timing
+  plan G5) sends a break item as SET_CONTROL 5, a timer of the item's length (one character time when it was not
+  measured) and SET_CONTROL 6, and says in the log that the length on the wire is accurate to the network. A
+  NOTIFY_LINESTATE with the break bit from the server is one `complete` item with `measured` false. The Boost.VirtualSerial
+  backend of the same scheme is no longer used by Studio.
 * **Sending to a real port.** A `begin` item arriving at a real serial port calls `platform_set_break(true)`, and the
   `end` calls it with false. A `complete` item is made into the same two calls with a timer of `duration`, which is
   accurate to the system's timer (about a millisecond on Windows). The log says the length on the wire may differ.

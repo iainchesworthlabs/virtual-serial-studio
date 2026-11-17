@@ -54,6 +54,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_loopback_transport.cpp
   unit/test_machine.cpp
   unit/test_rfc2217.cpp
+  unit/test_rfc2217_client.cpp
   unit/test_native_and_com0com.cpp
   unit/test_permissions.cpp
   unit/test_permissions_linux.cpp
@@ -241,6 +242,7 @@ set(VSS_SYSTEM_TEST_SOURCES
   framework/main.cpp
   system/test_system_bus.cpp
   system/test_system_listen.cpp
+  system/test_system_rfc2217_client.cpp
   system/test_system_proxy_latency.cpp
   system/test_system_serial.cpp
   system/test_system_tcp.cpp
