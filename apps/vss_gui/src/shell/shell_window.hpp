@@ -195,6 +195,12 @@ private:
     void show_monitor();
     /// Shows the Send dock and puts the cursor in its input.
     void show_send();
+    /// "Inspect": selects the port and shows its Inspector, in any state.
+    void inspect_port(vss::endpoint_id id);
+    /// Shows the Monitor with only this port's traffic.
+    void open_in_monitor(vss::endpoint_id id);
+    /// "Decode as..." for a port: chooses a decoder and starts it.
+    void show_decode(vss::endpoint_id id);
     port_menu_state port_menu_state_for(vss::endpoint_id id) const;
     void run_port_action(vss::endpoint_id id, port_menu_action action);
     void run_job(const QString& job);

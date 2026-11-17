@@ -81,6 +81,74 @@ QString licence_sentence()
 
 // -- toolbox ------------------------------------------------------------------
 
+TEST_CASE("plugin tiles: without the engine timeline a fixture tile is "
+          "disabled and says why")
+{
+    const std::vector<plugin_tile_text> tiles =
+        plugin_toolbox_tiles(all_samples(), false);
+    REQUIRE(!tiles.empty());
+    for (const plugin_tile_text& each : tiles)
+    {
+        REQUIRE(!each.enabled);
+        REQUIRE(!each.reason.isEmpty());
+        REQUIRE_EQ(each.tooltip, each.reason);
+        REQUIRE_EQ(each.accessible_description, each.reason);
+    }
+    // The one that would have been enabled names the missing timeline.
+    bool timeline = false;
+    for (const plugin_tile_text& each : tiles)
+        timeline = timeline || each.reason.contains(QStringLiteral("timeline"));
+    REQUIRE(timeline);
+}
+
+TEST_CASE("decoders: a decoder is offered with its place and a plugin that "
+          "cannot run now is listed with the reason")
+{
+    plugin_snapshot snapshot = all_samples();
+    plugin_view decoder = snapshot.plugins.front();
+    decoder.state = plugin_state::available;
+    decoder.adds.clear();
+    plugin_addition one;
+    one.kind = plugin_addition_kind::link_behaviour;
+    one.type_name = QStringLiteral("Modbus RTU");
+    one.type_id = QStringLiteral("modbus-rtu");
+    one.decoder = true;
+    plugin_parameter_ask place;
+    place.id = QStringLiteral("place");
+    place.label = QStringLiteral("Place");
+    place.place_name = true;
+    one.asks.push_back(place);
+    decoder.adds.push_back(one);
+    plugin_addition other = one;
+    other.type_name = QStringLiteral("Needs more");
+    other.type_id = QStringLiteral("more");
+    plugin_parameter_ask extra;
+    extra.id = QStringLiteral("file");
+    extra.label = QStringLiteral("File");
+    other.asks.push_back(extra);
+    decoder.adds.push_back(other);
+    snapshot.plugins = {decoder};
+
+    const auto choices = decoder_choices(snapshot);
+    REQUIRE_EQ(choices.size(), std::size_t{2});
+    REQUIRE_EQ(choices[0].type_name, QStringLiteral("Modbus RTU"));
+    REQUIRE(choices[0].usable);
+    REQUIRE_EQ(choices[0].place_setting, QStringLiteral("place"));
+    // An extra setting cannot be asked here: it is set up in Plugins.
+    REQUIRE_EQ(choices[1].type_name, QStringLiteral("Needs more"));
+    REQUIRE(!choices[1].usable);
+    REQUIRE(choices[1].reason.contains(QStringLiteral("Plugins")));
+
+    snapshot.plugins[0].state = plugin_state::starting;
+    const auto starting = decoder_choices(snapshot);
+    REQUIRE_EQ(starting.size(), std::size_t{2});
+    REQUIRE(!starting[0].usable);
+    REQUIRE(starting[0].reason.contains(QStringLiteral("starting")));
+
+    snapshot.plugins[0].state = plugin_state::off;
+    REQUIRE(decoder_choices(snapshot).empty());
+}
+
 TEST_CASE("plugin tiles: only what the user switched on shows, enabled only "
           "while it runs, and a disabled tile says why")
 {

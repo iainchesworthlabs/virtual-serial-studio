@@ -21,6 +21,8 @@ add_library(vss_gui_flows STATIC
   port_ready_dialog.hpp
   attach_dialog.cpp
   attach_dialog.hpp
+  decode_dialog.cpp
+  decode_dialog.hpp
   watch_dialog.cpp
   watch_dialog.hpp
   rename_dialog.cpp
@@ -35,6 +37,7 @@ target_link_libraries(vss_gui_flows PUBLIC
   vss_gui_backend
   vss_gui_widgets
   vss_gui_theme
+  vss_gui_support
   Qt6::Widgets)
 
 target_compile_features(vss_gui_flows PUBLIC cxx_std_23)

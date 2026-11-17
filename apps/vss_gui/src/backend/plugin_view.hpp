@@ -145,6 +145,10 @@ struct plugin_addition
     /// It has another setting with no default, which Studio cannot ask for
     /// yet, so Studio cannot make an instance of it.
     bool needs_settings = false;
+    /// The point is a decoder: it reads the data of a port or a link and
+    /// reports what it found. It is a link behaviour in `kind`, as the
+    /// plugin's manifest has no separate word for it in the page.
+    bool decoder = false;
 };
 
 /// What the plugin's instances are doing, in the words of the page.
