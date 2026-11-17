@@ -536,3 +536,99 @@ TEST_CASE("dock panes: pictures in both themes")
     }
     vss::gui::Theme::instance().set_mode(vss::gui::theme_mode::system);
 }
+
+TEST_CASE("dock panes: Ports, Inspector and Send move, close and reset too")
+{
+    clear_settings();
+    {
+        vss::gui::FakeStudioBackend backend;
+        vss::gui::ShellWindow window(backend);
+        const Panes panes = find_panes(window);
+        show_advanced(window, panes);
+        auto* ports = window.findChild<QDockWidget*>(QStringLiteral("portsDock"));
+        auto* inspector =
+            window.findChild<QDockWidget*>(QStringLiteral("inspectorDock"));
+        auto* send = window.findChild<QDockWidget*>(QStringLiteral("sendDock"));
+        REQUIRE(ports != nullptr);
+        REQUIRE(inspector != nullptr);
+        REQUIRE(send != nullptr);
+        vss::gui::DockPanes* docks = window.dock_panes();
+        for (QDockWidget* dock : {ports, inspector, send})
+        {
+            REQUIRE(dock->features().testFlag(QDockWidget::DockWidgetMovable));
+            auto* bar =
+                qobject_cast<vss::gui::DockTitleBar*>(dock->titleBarWidget());
+            REQUIRE(bar != nullptr);
+            REQUIRE(!bar->accessibleName().isEmpty());
+            REQUIRE(docks->docks().contains(dock));
+        }
+        // The View menu lists them, checked.
+        for (const char* name : {"view.ports", "view.inspector", "view.send"})
+        {
+            QAction* action =
+                window.findChild<QAction*>(QString::fromLatin1(name));
+            REQUIRE(action != nullptr);
+            REQUIRE(action->isChecked());
+        }
+
+        // Close Ports from its title bar; it stays closed, then comes back.
+        auto* bar = qobject_cast<vss::gui::DockTitleBar*>(ports->titleBarWidget());
+        bar->close_button()->click();
+        QApplication::processEvents();
+        QAction* ports_action =
+            window.findChild<QAction*>(QStringLiteral("view.ports"));
+        REQUIRE(!ports->isVisible());
+        REQUIRE(!ports_action->isChecked());
+        window.resize(1200, 760);
+        QApplication::processEvents();
+        REQUIRE(!ports->isVisible());
+        ports_action->trigger();
+        QApplication::processEvents();
+        REQUIRE(ports->isVisible());
+
+        // Send goes to the left of the Monitor; the compact window no longer
+        // tabs it with the Inspector.
+        docks->split_beside(send, panes.monitor, drop_zone::left);
+        QApplication::processEvents();
+        REQUIRE(!window.tabifiedDockWidgets(inspector).contains(send));
+        window.resize(980, 660);
+        QApplication::processEvents();
+        window.resize(1280, 800);
+        QApplication::processEvents();
+        REQUIRE(!window.tabifiedDockWidgets(inspector).contains(send));
+        REQUIRE(rect_in(window, send).bottom() > rect_in(window, ports).bottom() -
+                                                     10);
+
+        // Inspector tabs with Ports.
+        docks->tab_with(inspector, ports);
+        QApplication::processEvents();
+        REQUIRE(window.tabifiedDockWidgets(ports).contains(inspector));
+        save_shot(window, QStringLiteral("all-panes-light.png"));
+        window.close();
+    }
+    {
+        // The arrangement comes back, and Reset layout restores the default.
+        vss::gui::FakeStudioBackend backend;
+        vss::gui::ShellWindow window(backend);
+        const Panes panes = find_panes(window);
+        show_advanced(window, panes);
+        auto* ports = window.findChild<QDockWidget*>(QStringLiteral("portsDock"));
+        auto* inspector =
+            window.findChild<QDockWidget*>(QStringLiteral("inspectorDock"));
+        auto* send = window.findChild<QDockWidget*>(QStringLiteral("sendDock"));
+        REQUIRE(window.tabifiedDockWidgets(ports).contains(inspector));
+        QAction* reset =
+            window.findChild<QAction*>(QStringLiteral("view.resetLayout"));
+        reset->trigger();
+        QApplication::processEvents();
+        REQUIRE(!window.tabifiedDockWidgets(ports).contains(inspector));
+        REQUIRE_EQ(window.dockWidgetArea(ports), Qt::LeftDockWidgetArea);
+        REQUIRE_EQ(window.dockWidgetArea(inspector), Qt::RightDockWidgetArea);
+        REQUIRE_EQ(window.dockWidgetArea(send), Qt::RightDockWidgetArea);
+        REQUIRE(ports->isVisible());
+        REQUIRE(inspector->isVisible());
+        REQUIRE(send->isVisible());
+        REQUIRE(rect_in(window, send).top() > rect_in(window, inspector).top());
+        window.close();
+    }
+}

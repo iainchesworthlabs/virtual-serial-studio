@@ -163,6 +163,8 @@ Q_SIGNALS:
     /// The user closed a pane (its close button, its menu, or the window
     /// system). Hiding a pane for another reason does not send this.
     void pane_closed(QDockWidget* dock);
+    /// A pane was moved, tabbed, split or floated by the user.
+    void layout_changed();
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;

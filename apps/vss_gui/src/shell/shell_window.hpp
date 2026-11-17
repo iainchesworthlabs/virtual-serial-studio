@@ -319,6 +319,8 @@ private:
     void restore_layout();
     void apply_dock_sizes();
     void hide_all_docks();
+    QAction* pane_action(const QDockWidget* dock) const;
+    void show_pane(QDockWidget* dock);
     void apply_theme_setting();
     void apply_density_setting();
     void apply_menu_palette();
@@ -383,6 +385,12 @@ private:
     QAction* links_action_ = nullptr;
     QAction* log_action_ = nullptr;
     QAction* json_action_ = nullptr;
+    QAction* ports_action_ = nullptr;
+    QAction* inspector_action_ = nullptr;
+    QAction* send_action_ = nullptr;
+    /// True once the user has moved a pane; the compact window then leaves
+    /// the arrangement alone.
+    bool layout_customised_ = false;
 
     QString document_path_;
     QString last_signature_;
