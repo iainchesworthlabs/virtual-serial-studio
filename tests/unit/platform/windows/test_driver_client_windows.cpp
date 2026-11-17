@@ -55,7 +55,9 @@ TEST_CASE("driver client: the control codes are the ones the guest scripts use")
     REQUIRE_EQ(static_cast<unsigned long>(IOCTL_VSSCOM_HUB_REVOKE), 0x80002010ul);
     REQUIRE_EQ(static_cast<unsigned long>(IOCTL_VSSCOM_HUB_LINE_ERROR),
                0x80002014ul);
-    REQUIRE_EQ(static_cast<int>(VSSCOM_VERSION), 4);
+    REQUIRE_EQ(static_cast<unsigned long>(IOCTL_VSSCOM_HUB_READ_BREAKS),
+               0x80002018ul);
+    REQUIRE_EQ(static_cast<int>(VSSCOM_VERSION), 5);
 }
 
 TEST_CASE("driver client: a line error has the layout and the bits the driver reads")
@@ -88,16 +90,40 @@ TEST_CASE("driver client: a line error for a transport that is not a driver port
     REQUIRE_EQ(raised.error(), make_error_code(errc::invalid_argument));
 }
 
+TEST_CASE("driver client: the break and write marks have the layout the driver fills")
+{
+    // The driver copies its own records over these structures, so the sizes and
+    // places must be the ones vsscom_core.h has.
+    REQUIRE_EQ(sizeof(VSSCOM_BREAK_MARK), std::size_t{40});
+    REQUIRE_EQ(offsetof(VSSCOM_BREAK_MARK, OnTime), std::size_t{0});
+    REQUIRE_EQ(offsetof(VSSCOM_BREAK_MARK, OffTime), std::size_t{8});
+    REQUIRE_EQ(offsetof(VSSCOM_BREAK_MARK, OnOffset), std::size_t{16});
+    REQUIRE_EQ(offsetof(VSSCOM_BREAK_MARK, OffOffset), std::size_t{24});
+    REQUIRE_EQ(offsetof(VSSCOM_BREAK_MARK, Flags), std::size_t{32});
+    REQUIRE_EQ(sizeof(VSSCOM_WRITE_MARK), std::size_t{16});
+    REQUIRE_EQ(offsetof(VSSCOM_WRITE_MARK, Offset), std::size_t{8});
+    REQUIRE_EQ(offsetof(VSSCOM_HUB_MARKS, QpcFrequency), std::size_t{0});
+    REQUIRE_EQ(offsetof(VSSCOM_HUB_MARKS, BreakCount), std::size_t{8});
+    REQUIRE_EQ(offsetof(VSSCOM_HUB_MARKS, WriteCount), std::size_t{12});
+    REQUIRE_EQ(offsetof(VSSCOM_HUB_MARKS, BreaksDropped), std::size_t{16});
+    REQUIRE_EQ(offsetof(VSSCOM_HUB_MARKS, WritesMerged), std::size_t{20});
+    REQUIRE_EQ(offsetof(VSSCOM_HUB_MARKS, Breaks), std::size_t{24});
+    REQUIRE_EQ(sizeof(VSSCOM_HUB_MARKS),
+               std::size_t{24 + 40 * 64 + 16 * 256});
+    REQUIRE_EQ(static_cast<unsigned>(VSSCOM_BREAK_MARK_OPEN), 1u);
+}
+
 TEST_CASE("driver client: the hub state has the layout the driver fills")
 {
-    // Twelve 32-bit words, in the order the guest script reads them.
-    REQUIRE_EQ(sizeof(VSSCOM_HUB_STATE), std::size_t{48});
+    // Thirteen 32-bit words, in the order the guest script reads them.
+    REQUIRE_EQ(sizeof(VSSCOM_HUB_STATE), std::size_t{52});
     REQUIRE_EQ(offsetof(VSSCOM_HUB_STATE, Generation), std::size_t{0});
     REQUIRE_EQ(offsetof(VSSCOM_HUB_STATE, AppOpen), std::size_t{4});
     REQUIRE_EQ(offsetof(VSSCOM_HUB_STATE, Dtr), std::size_t{24});
     REQUIRE_EQ(offsetof(VSSCOM_HUB_STATE, Lines), std::size_t{36});
     REQUIRE_EQ(offsetof(VSSCOM_HUB_STATE, TxQueued), std::size_t{40});
     REQUIRE_EQ(offsetof(VSSCOM_HUB_STATE, AppProcessId), std::size_t{44});
+    REQUIRE_EQ(offsetof(VSSCOM_HUB_STATE, BreakCount), std::size_t{48});
     REQUIRE_EQ(sizeof(VSSCOM_VERSION_INFO), std::size_t{8});
 
     // The line bits are the modem status bits Windows uses.

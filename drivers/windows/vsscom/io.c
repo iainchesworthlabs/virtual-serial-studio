@@ -623,7 +623,7 @@ ULONG VssComRevokeApplication(_In_ PVSSCOM_DEVICE_CONTEXT Context)
         Context->AppFile = NULL;
         Context->AppProcessId = 0;
         Context->AppOpen = FALSE;
-        Context->Break = FALSE;
+        VssComEndBreakLocked(Context);
         Context->RevokeCount++;
     }
     VssComLockRelease(Context->Lock);
@@ -1156,6 +1156,10 @@ static VOID VssComEvtIoDeviceControl(_In_ WDFQUEUE Queue,
         const BOOLEAN on = IoControlCode == IOCTL_SERIAL_SET_BREAK_ON;
         VssComLockAcquire(context->Lock);
         changed = context->Break != on;
+        if (on)
+            (void)vsscom_marks_break_on(&context->Marks, VssComQpc(NULL));
+        else
+            (void)vsscom_marks_break_off(&context->Marks, VssComQpc(NULL));
         context->Break = on;
         VssComLockRelease(context->Lock);
         if (changed)
@@ -1278,6 +1282,7 @@ static VOID VssComEvtIoDeviceControl(_In_ WDFQUEUE Queue,
         {
             VssComLockAcquire(context->Lock);
             vsscom_ring_clear(&context->Tx);
+            vsscom_marks_cleared(&context->Marks);
             VssComLockRelease(context->Lock);
         }
         // Aborting writes ends those that are waiting for the hub.
@@ -1311,6 +1316,8 @@ static VOID VssComEvtIoDeviceControl(_In_ WDFQUEUE Queue,
         VssComLockAcquire(context->Lock);
         hub = context->HubOpen;
         stored = vsscom_ring_write(hub ? &context->Tx : &context->Rx, &byte, 1);
+        if (hub)
+            vsscom_marks_stored(&context->Marks, stored, VssComQpc(NULL), 1);
         VssComLockRelease(context->Lock);
         WdfRequestComplete(Request, STATUS_SUCCESS);
         if (stored != 0)

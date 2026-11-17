@@ -20,6 +20,9 @@
 #   D23-D25 flow       SetCommState drives DTR and RTS: enable and disable, handshake, toggle
 #   D26-D27 revoke     the hub takes the port back from a program; the program's process id
 #   D28-D31 COM number the helper gives a port the COM number asked for, and refuses what it should
+#   D42-D47 break marks  when the program called SetCommBreak and ClearCommBreak and WriteFile, as raw performance
+#                       counts and byte offsets that the hub reads (driver version 5): order with the bytes, lengths, a
+#                       thousand breaks, a break held at close and across a new hub handle, write marks, a burst
 #   D32-D41 line errors the hub raises a break or a framing, parity or overrun error (driver version 4): what
 #                       ClearCommError reports, EV_ERR and EV_BREAK, the error and break characters, a request
 #                       that waits behind the bytes before it, fAbortOnError, EV_RXFLAG, cancel and close races, special characters
@@ -293,8 +296,11 @@ public sealed class HubIo : IDisposable
     const uint IOCTL_REVOKE = 0x80002010;
     // Version 4 of the driver: VSSCOM_HUB_LINE_ERROR { Errors, HasByte, Byte }, three 32-bit values.
     const uint IOCTL_LINE_ERROR = 0x80002014;
-    // Version 3 of the driver adds AppProcessId to the state: twelve words.
-    const int StateWords = 12;
+    // Version 3 of the driver added AppProcessId to the state and version 5 BreakCount: thirteen words.
+    const int StateWords = 13;
+    // IOCTL_VSSCOM_HUB_READ_BREAKS (version 5): VSSCOM_HUB_MARKS, 6680 bytes.
+    const uint IOCTL_READ_BREAKS = 0x80002018;
+    public const int MarksSize = 6680;
     public const int TimedOut = 258;
 
     IntPtr handle;
@@ -418,11 +424,30 @@ public sealed class HubIo : IDisposable
     }
 
     /// Generation, AppOpen, BaudRate, DataBits, Parity, StopBits, Dtr, Rts, Break, Lines, TxQueued,
-    /// AppProcessId.
+    /// AppProcessId, BreakCount.
     public uint[] GetState() { return StateCall(IOCTL_GET_STATE, 0, false, 5000); }
 
     /// Waits until the generation is not `known`; null when `ms` passes first.
     public uint[] WaitState(uint known, int ms) { return StateCall(IOCTL_WAIT_STATE, known, true, ms); }
+
+    /// Takes the break and write marks the driver keeps (version 5) as the raw VSSCOM_HUB_MARKS bytes.
+    /// Null on error.
+    public byte[] ReadBreaks(out int error)
+    {
+        IntPtr signal;
+        IntPtr ov = NewOverlapped(out signal);
+        IntPtr output = Marshal.AllocHGlobal(MarksSize);
+        try
+        {
+            bool started = DeviceIoControl(handle, IOCTL_READ_BREAKS, IntPtr.Zero, 0, output, (uint)MarksSize, IntPtr.Zero, ov);
+            int n = Finish(ov, signal, started, 5000, out error);
+            if (n != MarksSize) return null;
+            var bytes = new byte[n];
+            Marshal.Copy(output, bytes, 0, n);
+            return bytes;
+        }
+        finally { CloseHandle(signal); Marshal.FreeHGlobal(ov); Marshal.FreeHGlobal(output); }
+    }
 
     public void Dispose()
     {
@@ -2995,6 +3020,233 @@ Add-Test 'D41' 'abort on error takes back the bytes a waiting write had put in t
         $left = $hub.Read(65536, 500, [ref]$e)
         Assert ($null -eq $left -and $e -eq [HubIo]::TimedOut) 'the second aborted write left bytes for the hub'
         'an aborted write takes back its bytes that the hub has not read, reports the ones it has, and leaves the earlier writes alone'
+    } finally { [VssComm]::Close($app); $hub.Dispose() }
+}
+
+# ---------------------------------------------------------------------------
+# D42 to D47: break and write marks (driver version 5). The driver stamps each SetCommBreak,
+# ClearCommBreak and WriteFile with the performance counter and the number of bytes the program
+# had written, and the hub reads the stamps with IOCTL_VSSCOM_HUB_READ_BREAKS.
+# ---------------------------------------------------------------------------
+
+$ESCAPE_SETBREAK = 8
+$ESCAPE_CLRBREAK = 9
+$MARK_OPEN = 1
+
+# Takes the marks and returns them as objects. Times are performance counter counts, the same counter
+# as [Diagnostics.Stopwatch]::GetTimestamp().
+function Get-Marks($Hub) {
+    $e = 0
+    $raw = $Hub.ReadBreaks([ref]$e)
+    if (-not $raw) { throw "IOCTL_VSSCOM_HUB_READ_BREAKS failed with error $e" }
+    $breakCount = [BitConverter]::ToUInt32($raw, 8)
+    $writeCount = [BitConverter]::ToUInt32($raw, 12)
+    $breaks = @()
+    for ($i = 0; $i -lt $breakCount; $i++) {
+        $at = 24 + 40 * $i
+        $breaks += [pscustomobject]@{
+            OnTime = [BitConverter]::ToUInt64($raw, $at); OffTime = [BitConverter]::ToUInt64($raw, $at + 8)
+            OnOffset = [BitConverter]::ToUInt64($raw, $at + 16); OffOffset = [BitConverter]::ToUInt64($raw, $at + 24)
+            Open = (([BitConverter]::ToUInt32($raw, $at + 32)) -band $MARK_OPEN) -ne 0 }
+    }
+    $writes = @()
+    for ($i = 0; $i -lt $writeCount; $i++) {
+        $at = 24 + 40 * 64 + 16 * $i
+        $writes += [pscustomobject]@{ Time = [BitConverter]::ToUInt64($raw, $at); Offset = [BitConverter]::ToUInt64($raw, $at + 8) }
+    }
+    [pscustomobject]@{ Frequency = [BitConverter]::ToUInt64($raw, 0); Breaks = $breaks; Writes = $writes
+                       Dropped = [BitConverter]::ToUInt32($raw, 16); Merged = [BitConverter]::ToUInt32($raw, 20) }
+}
+
+# Reads and forgets the bytes the hub has waiting, so that offsets start from what a test writes.
+function Clear-HubBytes($Hub) {
+    $e = 0
+    while ($null -ne $Hub.Read(65536, 200, [ref]$e)) { }
+}
+
+Add-Test 'D42' 'a break is stamped with the bytes written before it, and the counter is the one the program reads' {
+    $hub = Open-Hub $hubPath
+    $app = Open-Port $port
+    try {
+        Clear-HubBytes $hub
+        Get-Marks $hub | Out-Null
+        Assert ([VssComm]::Write($app, [Text.Encoding]::ASCII.GetBytes('AB')) -eq 2) 'the first write failed'
+        $before = [Diagnostics.Stopwatch]::GetTimestamp()
+        Assert ([VssComm]::Escape($app, $ESCAPE_SETBREAK)) 'SetCommBreak failed'
+        $mid = [Diagnostics.Stopwatch]::GetTimestamp()
+        Start-Sleep -Milliseconds 5
+        $mid2 = [Diagnostics.Stopwatch]::GetTimestamp()
+        Assert ([VssComm]::Escape($app, $ESCAPE_CLRBREAK)) 'ClearCommBreak failed'
+        $after = [Diagnostics.Stopwatch]::GetTimestamp()
+        Assert ([VssComm]::Write($app, [Text.Encoding]::ASCII.GetBytes('CD')) -eq 2) 'the second write failed'
+        $bytes = Read-Hub $hub 4
+        Assert ([Text.Encoding]::ASCII.GetString($bytes) -ceq 'ABCD') 'the hub did not read ABCD'
+
+        $m = Get-Marks $hub
+        Assert ($m.Frequency -eq [Diagnostics.Stopwatch]::Frequency) "the driver counts $($m.Frequency) a second, the program's counter $([Diagnostics.Stopwatch]::Frequency)"
+        Assert ($m.Breaks.Count -eq 1) "the driver gave $($m.Breaks.Count) breaks, not 1"
+        $b = $m.Breaks[0]
+        Assert (-not $b.Open) 'the break is still marked as held'
+        Assert ($b.OnOffset -eq 2 -and $b.OffOffset -eq 2) "the break fell at offsets $($b.OnOffset) and $($b.OffOffset), not 2 and 2"
+        Assert ($b.OnTime -ge $before -and $b.OnTime -le $mid) 'the start of the break is outside the two readings of the counter around the call'
+        Assert ($b.OffTime -ge $mid2 -and $b.OffTime -le $after) 'the end of the break is outside the two readings of the counter around the call'
+        $ms = ($b.OffTime - $b.OnTime) * 1000.0 / $m.Frequency
+        Assert ($ms -ge 4 -and $ms -le 60) "the break lasted $ms ms for a 5 ms sleep"
+        Assert ($m.Writes.Count -eq 2 -and $m.Writes[0].Offset -eq 0 -and $m.Writes[1].Offset -eq 2) 'the two writes were not marked at offsets 0 and 2'
+        Assert ($m.Dropped -eq 0 -and $m.Merged -eq 0) 'something was dropped'
+        'order A B break C D; the break lasted {0:N1} ms; the counter matches the program''s' -f $ms
+    } finally { [VssComm]::Close($app); $hub.Dispose() }
+}
+
+Add-Test 'D43' 'a very short break is still a record with a length' {
+    $hub = Open-Hub $hubPath
+    $app = Open-Port $port
+    try {
+        Clear-HubBytes $hub
+        Get-Marks $hub | Out-Null
+        $spins = 0, 1, 100
+        foreach ($us in $spins) {
+            Assert ([VssComm]::Escape($app, $ESCAPE_SETBREAK)) 'SetCommBreak failed'
+            $until = [Diagnostics.Stopwatch]::GetTimestamp() + ($us * [Diagnostics.Stopwatch]::Frequency / 1000000)
+            while ([Diagnostics.Stopwatch]::GetTimestamp() -lt $until) { }
+            Assert ([VssComm]::Escape($app, $ESCAPE_CLRBREAK)) 'ClearCommBreak failed'
+        }
+        $m = Get-Marks $hub
+        Assert ($m.Breaks.Count -eq 3) "the driver gave $($m.Breaks.Count) breaks, not 3"
+        $lengths = foreach ($b in $m.Breaks) {
+            Assert ($b.OffTime -gt $b.OnTime) 'a break has no length'
+            [math]::Round(($b.OffTime - $b.OnTime) * 1000000.0 / $m.Frequency, 1)
+        }
+        Assert ($m.Breaks[2].OffTime - $m.Breaks[2].OnTime -ge (100 * $m.Frequency / 1000000)) 'the 100 us break is shorter than 100 us'
+        'lengths in us: ' + ($lengths -join ', ')
+    } finally { [VssComm]::Close($app); $hub.Dispose() }
+}
+
+Add-Test 'D44' 'a thousand breaks in a tight loop are all given or counted as dropped' {
+    $hub = Open-Hub $hubPath
+    $app = Open-Port $port
+    try {
+        Clear-HubBytes $hub
+        Get-Marks $hub | Out-Null
+        # A reader that does not keep up: only the newest 64 fit, and the rest are counted.
+        for ($i = 0; $i -lt 1000; $i++) {
+            [VssComm]::Escape($app, $ESCAPE_SETBREAK) | Out-Null
+            [VssComm]::Escape($app, $ESCAPE_CLRBREAK) | Out-Null
+        }
+        $m = Get-Marks $hub
+        Assert ($m.Breaks.Count + $m.Dropped -eq 1000) "gave $($m.Breaks.Count) and dropped $($m.Dropped), which is not 1000"
+        Assert ($m.Breaks.Count -le 64) 'more than 64 breaks given'
+        for ($i = 1; $i -lt $m.Breaks.Count; $i++) {
+            Assert ($m.Breaks[$i].OnTime -gt $m.Breaks[$i - 1].OnTime) 'the breaks are not in order'
+        }
+        $lost = $m.Dropped
+
+        # A reader that does: every record arrives.
+        $seen = 0
+        $dropped = 0
+        for ($round = 0; $round -lt 20; $round++) {
+            for ($i = 0; $i -lt 50; $i++) {
+                [VssComm]::Escape($app, $ESCAPE_SETBREAK) | Out-Null
+                [VssComm]::Escape($app, $ESCAPE_CLRBREAK) | Out-Null
+            }
+            $m = Get-Marks $hub
+            $seen += $m.Breaks.Count
+            $dropped += $m.Dropped
+        }
+        Assert ($seen -eq 1000 -and $dropped -eq 0) "a reader that kept up saw $seen breaks and $dropped dropped, not 1000 and 0"
+        "a reader that did not keep up lost $lost of 1000 and was told; one that did lost none"
+    } finally { [VssComm]::Close($app); $hub.Dispose() }
+}
+
+Add-Test 'D45' 'a break that is held is given as held, and ends when the program closes the port' {
+    $hub = Open-Hub $hubPath
+    $app = Open-Port $port
+    $closed = $false
+    try {
+        Clear-HubBytes $hub
+        Get-Marks $hub | Out-Null
+        $count = $hub.GetState()[12]
+        Assert ([VssComm]::Write($app, [Text.Encoding]::ASCII.GetBytes('X')) -eq 1) 'the write failed'
+        Assert ([VssComm]::Escape($app, $ESCAPE_SETBREAK)) 'SetCommBreak failed'
+        Assert (($hub.GetState()[12]) -eq (($count + 1) -band 0xFFFFFFFF)) 'BreakCount did not rise by one'
+        Assert ((Read-Hub $hub 1)[0] -eq 0x58) 'the hub did not read X'
+
+        $m = Get-Marks $hub
+        Assert ($m.Breaks.Count -eq 1 -and $m.Breaks[0].Open) 'the break was not given as held'
+        Assert ($m.Breaks[0].OnOffset -eq 1) 'the held break is not at offset 1'
+        $m = Get-Marks $hub
+        Assert ($m.Breaks.Count -eq 1 -and $m.Breaks[0].Open) 'the held break was not given again'
+        $on = $m.Breaks[0].OnTime
+
+        [VssComm]::Close($app)
+        $closed = $true
+        $m = Get-Marks $hub
+        Assert ($m.Breaks.Count -eq 1 -and -not $m.Breaks[0].Open) 'the break did not end when the program closed the port'
+        Assert ($m.Breaks[0].OnTime -eq $on -and $m.Breaks[0].OffTime -gt $on) 'the ended break has the wrong times'
+        Assert ((Get-Marks $hub).Breaks.Count -eq 0) 'an ended break was given twice'
+        'the held break was reported, and ended at the close'
+    } finally { if (-not $closed) { [VssComm]::Close($app) }; $hub.Dispose() }
+}
+
+Add-Test 'D46' 'a break held while the hub handle is closed and opened again is still held, with the same start' {
+    $hub = Open-Hub $hubPath
+    $app = Open-Port $port
+    try {
+        Clear-HubBytes $hub
+        Get-Marks $hub | Out-Null
+        Assert ([VssComm]::Write($app, [Text.Encoding]::ASCII.GetBytes('XYZ')) -eq 3) 'the write failed'
+        Assert ([VssComm]::Escape($app, $ESCAPE_SETBREAK)) 'SetCommBreak failed'
+        $on = (Get-Marks $hub).Breaks[0].OnTime
+        $hub.Dispose()
+
+        $hub = Open-Hub $hubPath
+        $m = Get-Marks $hub
+        Assert ($m.Breaks.Count -eq 1 -and $m.Breaks[0].Open) 'the new hub handle was not told the break is held'
+        Assert ($m.Breaks[0].OnTime -eq $on) 'the start of the break changed'
+        Assert ($m.Breaks[0].OnOffset -eq 0) 'the offset did not start again from 0'
+        Assert ($m.Writes.Count -eq 0) 'write marks of the old handle came across'
+
+        Assert ([VssComm]::Write($app, [Text.Encoding]::ASCII.GetBytes('Q')) -eq 1) 'the write after the new handle failed'
+        Assert ([VssComm]::Escape($app, $ESCAPE_CLRBREAK)) 'ClearCommBreak failed'
+        Assert ((Read-Hub $hub 1)[0] -eq 0x51) 'the hub did not read Q'
+        $m = Get-Marks $hub
+        Assert ($m.Breaks.Count -eq 1 -and -not $m.Breaks[0].Open) 'the break did not end'
+        Assert ($m.Breaks[0].OnTime -eq $on -and $m.Breaks[0].OnOffset -eq 0 -and $m.Breaks[0].OffOffset -eq 1) 'the ended break has the wrong times or offsets'
+        'the break was still held across the new handle, from offset 0 to offset 1'
+    } finally { [VssComm]::Close($app); $hub.Dispose() }
+}
+
+Add-Test 'D47' 'each write has a mark with the time of its call, and a burst past the limit is merged and counted' {
+    $hub = Open-Hub $hubPath
+    $app = Open-Port $port
+    try {
+        Clear-HubBytes $hub
+        Get-Marks $hub | Out-Null
+
+        $before = @(); $after = @()
+        for ($i = 0; $i -lt 100; $i++) {
+            $before += [Diagnostics.Stopwatch]::GetTimestamp()
+            Assert ([VssComm]::Write($app, [byte[]]@($i)) -eq 1) "write $i failed"
+            $after += [Diagnostics.Stopwatch]::GetTimestamp()
+            Start-Sleep -Milliseconds 1
+        }
+        Assert ((Read-Hub $hub 100).Length -eq 100) 'the hub did not read 100 bytes'
+        $m = Get-Marks $hub
+        Assert ($m.Writes.Count -eq 100) "the driver gave $($m.Writes.Count) write marks, not 100"
+        $worst = 0
+        for ($i = 0; $i -lt 100; $i++) {
+            Assert ($m.Writes[$i].Offset -eq $i) "write $i is marked at offset $($m.Writes[$i].Offset)"
+            Assert ($m.Writes[$i].Time -ge $before[$i] -and $m.Writes[$i].Time -le $after[$i]) "write $i is stamped outside the two readings of the counter around it"
+            $worst = [math]::Max($worst, ($after[$i] - $before[$i]) * 1000.0 / $m.Frequency)
+        }
+
+        # A burst faster than the hub reads: the oldest marks go, and are counted.
+        for ($i = 0; $i -lt 10000; $i++) { [VssComm]::Write($app, [byte[]]@(1)) | Out-Null }
+        Assert ((Read-Hub $hub 10000).Length -eq 10000) 'the hub did not read the burst'
+        $m = Get-Marks $hub
+        Assert ($m.Writes.Count + $m.Merged -eq 10000) "gave $($m.Writes.Count) marks and merged $($m.Merged), which is not 10000"
+        Assert ($m.Writes.Count -le 256 -and $m.Merged -gt 0) 'the burst was not limited and counted'
+        '100 writes marked within the call (the longest call took {0:N2} ms); a burst of 10000 gave {1} marks and merged {2}' -f $worst, $m.Writes.Count, $m.Merged
     } finally { [VssComm]::Close($app); $hub.Dispose() }
 }
 

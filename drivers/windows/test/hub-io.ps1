@@ -53,13 +53,13 @@ public sealed class WowHub : IDisposable
     const uint IOCTL_SET_LINES = 0x8000200C;
     // VSSCOM_HUB_LINE_ERROR { Errors, HasByte, Byte } (driver version 4), three 32-bit values.
     const uint IOCTL_LINE_ERROR = 0x80002014;
-    // VSSCOM_HUB_STATE as of VSSCOM_VERSION 3: twelve words, AppProcessId last.
-    const int StateWords = 12;
+    // VSSCOM_HUB_STATE as of VSSCOM_VERSION 5: thirteen words, BreakCount last.
+    const int StateWords = 13;
     public const int TimedOut = 258;
 
     // Indexes into the state words.
     public const int Generation = 0, AppOpen = 1, BaudRate = 2, DataBits = 3, Parity = 4, StopBits = 5,
-                     Dtr = 6, Rts = 7, Break = 8, Lines = 9, TxQueued = 10, AppProcessId = 11;
+                     Dtr = 6, Rts = 7, Break = 8, Lines = 9, TxQueued = 10, AppProcessId = 11, BreakCount = 12;
 
     IntPtr handle;
     WowHub(IntPtr h) { handle = h; }
@@ -210,7 +210,7 @@ public sealed class WowHub : IDisposable
         finally { CloseHandle(signal); Marshal.FreeHGlobal(ov); Marshal.FreeHGlobal(input); Marshal.FreeHGlobal(output); }
     }
 
-    /// Generation, AppOpen, BaudRate, DataBits, Parity, StopBits, Dtr, Rts, Break, Lines, TxQueued, AppProcessId.
+    /// Generation, AppOpen, BaudRate, DataBits, Parity, StopBits, Dtr, Rts, Break, Lines, TxQueued, AppProcessId, BreakCount.
     public uint[] GetState() { return StateCall(IOCTL_GET_STATE, 0, false, 5000); }
 
     /// Waits until the generation is not `known`; null when `ms` passes first.
