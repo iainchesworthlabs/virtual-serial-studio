@@ -9,6 +9,7 @@
 
 #include "panes/monitor_cell_delegate.hpp"
 #include "panes/monitor_model.hpp"
+#include "panes/port_model.hpp"
 #include "panes/ports_panel.hpp"
 #include "theme/dense_table.hpp"
 #include "widgets/filter_controls.hpp"
@@ -941,6 +942,21 @@ void MonitorPanel::set_selected_port(vss::endpoint_id id)
     model_->set_selected_port(id);
 }
 
+bool MonitorPanel::show_only_port(vss::endpoint_id id)
+{
+    model_->set_selected_port(id);
+    if (!advanced_ || port_filter_ == nullptr)
+        return false;
+    // The list of ports may be a moment behind a port just made.
+    refresh_ports();
+    const int index =
+        port_filter_->findData(QVariant::fromValue<qulonglong>(id));
+    if (index < 0)
+        return false;
+    port_filter_->setCurrentIndex(index);
+    return true;
+}
+
 void MonitorPanel::refresh_ports()
 {
     QStringList signature;
@@ -1096,7 +1112,27 @@ void MonitorPanel::update_empty()
         content_->setCurrentWidget(table_);
         return;
     }
-    if (model_->total_rows() > 0)
+    // One port chosen, with no search: say what the port is doing, so that a
+    // port that is connecting or has failed shows why nothing is here.
+    const vss::endpoint_id chosen =
+        advanced_ && port_filter_ != nullptr && port_filter_->currentIndex() >= 0
+            ? static_cast<vss::endpoint_id>(
+                  port_filter_->currentData().toULongLong())
+            : 0;
+    const auto chosen_port = chosen != 0 && search_->text().isEmpty()
+                                 ? backend_.port(chosen)
+                                 : std::optional<port_view>{};
+    if (chosen_port)
+    {
+        QString text = tr("No traffic on %1 yet. %2.")
+                           .arg(chosen_port->name,
+                                PortModel::state_text(*chosen_port));
+        const QString why = PortModel::status_text(*chosen_port);
+        if (!why.isEmpty())
+            text += QLatin1Char(' ') + why;
+        empty_->setText(text);
+    }
+    else if (model_->total_rows() > 0)
     {
         empty_->setText(tr("No traffic matches these filters."));
     }

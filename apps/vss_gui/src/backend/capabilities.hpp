@@ -156,6 +156,11 @@ struct capabilities
     /// in this build". A build that has the host and cannot yet start a
     /// plugin has this on and shows every plugin that may run as Off.
     bool plugins = false;
+    /// A fixture type of a plugin can be placed on the canvas and run. This
+    /// needs the engine timeline (`docs/response-timing.md`), which a plugin
+    /// hands to the engine to stand in for a device. False: the tile of such a
+    /// type in the toolbox is disabled with the reason, and nothing is made.
+    bool plugin_fixtures = false;
     /// Name the driver behind each serial device in the support bundle. No
     /// backend can yet, so the bundle writes "not known" and never guesses.
     bool device_driver_names = false;

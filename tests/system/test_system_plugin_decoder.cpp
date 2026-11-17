@@ -1024,3 +1024,159 @@ TEST_CASE("plugin decoder: the store is read from other threads while the "
     REQUIRE_EQ(fixture.store->snapshot()->frames->items.size(),
                std::size_t{200});
 }
+
+namespace
+{
+
+/// A reference framer for a DLE protocol such as Jandy: a frame starts with
+/// 0x10 0x02 and ends with 0x10 0x03, and 0x10 0x00 inside it stands for a
+/// data 0x10. It is fed item by item, as a decoder reads the stream, and keeps
+/// its state across items, so it holds whatever the chunking is.
+struct dle_framer
+{
+    std::vector<std::string> frames;
+
+    void feed(const std::string& chunk)
+    {
+        for (const char each : chunk)
+            take(static_cast<unsigned char>(each));
+    }
+
+private:
+    enum class mode
+    {
+        idle,
+        idle_dle,
+        body,
+        body_dle
+    };
+
+    void take(unsigned char byte)
+    {
+        switch (mode_)
+        {
+        case mode::idle:
+            mode_ = byte == 0x10 ? mode::idle_dle : mode::idle;
+            break;
+        case mode::idle_dle:
+            if (byte == 0x02)
+            {
+                current_.clear();
+                mode_ = mode::body;
+            }
+            else
+                mode_ = byte == 0x10 ? mode::idle_dle : mode::idle;
+            break;
+        case mode::body:
+            if (byte == 0x10)
+                mode_ = mode::body_dle;
+            else
+                current_.push_back(static_cast<char>(byte));
+            break;
+        case mode::body_dle:
+            if (byte == 0x03)
+            {
+                frames.push_back(current_);
+                mode_ = mode::idle;
+            }
+            else
+            {
+                if (byte == 0x00)
+                    current_.push_back(static_cast<char>(0x10));
+                mode_ = mode::body;
+            }
+            break;
+        }
+    }
+
+    mode mode_ = mode::idle;
+    std::string current_;
+};
+
+/// Frames with noise between them and a data 0x10 inside one.
+std::string jandy_like_traffic()
+{
+    std::string out;
+    const auto frame = [&out](const std::string& body)
+    {
+        out += std::string("\x10\x02", 2);
+        for (const char each : body)
+        {
+            out.push_back(each);
+            if (each == '\x10')
+                out.push_back('\0');
+        }
+        out += std::string("\x10\x03", 2);
+    };
+    out += "xx";
+    frame(std::string("\x00\x01\x02", 3));
+    frame(std::string("\x10\x20\x30", 3));
+    out += std::string("\x10\x10", 2);
+    frame("hello");
+    frame("\x7f");
+    return out;
+}
+
+/// The frames a reference framer finds in what the host sent for the bytes
+/// written in these chunk sizes, and the bytes and offsets the host sent.
+std::vector<std::string> frames_for(const std::string& traffic,
+                                    const std::vector<std::size_t>& sizes)
+{
+    rig fixture;
+    fixture.start_decoder();
+    std::size_t at = 0;
+    std::size_t step = 0;
+    while (at < traffic.size())
+    {
+        const std::size_t size =
+            std::min(sizes[step++ % sizes.size()], traffic.size() - at);
+        fixture.serial.inject_read(traffic.substr(at, size));
+        at += size;
+        REQUIRE(fixture.until_accounted(at, true));
+    }
+    const stream got = fixture.sent();
+    // The host never changes the bytes, and offsets add up whatever the
+    // chunks were: a decoder can rely on both.
+    REQUIRE_EQ(got.blob, traffic);
+    std::uint64_t offset = 0;
+    std::size_t blob_at = 0;
+    dle_framer framer;
+    for (const decoder_data_item& item : got.data)
+    {
+        REQUIRE_EQ(item.offset, offset);
+        offset += item.length;
+        framer.feed(got.blob.substr(blob_at, item.length));
+        blob_at += item.length;
+    }
+    REQUIRE_EQ(offset, std::uint64_t{traffic.size()});
+    return framer.frames;
+}
+
+} // namespace
+
+TEST_CASE("plugin decoder: the same frames come out whether the bytes arrive "
+          "one at a time, in random chunks or in one lump")
+{
+    const std::string traffic = jandy_like_traffic();
+    const std::vector<std::string> expected = {
+        std::string("\x00\x01\x02", 3), std::string("\x10\x20\x30", 3),
+        std::string("hello"), std::string("\x7f")};
+
+    const auto one_at_a_time = frames_for(traffic, {1});
+    const auto lump = frames_for(traffic, {traffic.size()});
+    REQUIRE_EQ(one_at_a_time, expected);
+    REQUIRE_EQ(lump, expected);
+
+    // Random sizes from 1 to 7, from a fixed seed, so a failure repeats.
+    std::uint32_t state = 12345;
+    for (int round = 0; round < 3; ++round)
+    {
+        std::vector<std::size_t> sizes;
+        for (int index = 0; index < 16; ++index)
+        {
+            state = state * 1664525u + 1013904223u;
+            sizes.push_back(1 + (state >> 16) % 7);
+        }
+        REQUIRE_EQ(frames_for(traffic, sizes), expected);
+    }
+}

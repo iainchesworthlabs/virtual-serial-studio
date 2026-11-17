@@ -70,6 +70,10 @@ public:
     /// The settings the fields describe.
     vss::serial_settings settings() const;
     void set_settings(const vss::serial_settings& settings);
+    /// For the end of a monitor link that copies `source`: the speed and
+    /// framing are the watched port's, shown as they are and not editable.
+    void follow_port(const QString& source_name,
+                     const vss::serial_settings& settings);
     /// The settings each port had when the dialog opened, by port name, for
     /// the undo step.
     QVector<QPair<QString, vss::serial_settings>> before() const

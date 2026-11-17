@@ -28,6 +28,7 @@
 #include "flows/port_ready_dialog.hpp"
 #include "flows/release_port_dialog.hpp"
 #include "flows/rename_dialog.hpp"
+#include "flows/decode_dialog.hpp"
 #include "flows/watch_dialog.hpp"
 #include "panes/fixture_behaviour.hpp"
 #include "panes/inspector_panel.hpp"
@@ -1036,7 +1037,7 @@ void ShellWindow::build_central()
                 }
             });
     connect(topology_, &topology::TopologyView::inspect_requested, this,
-            [this](vss::endpoint_id) { focus_inspector(); });
+            [this](vss::endpoint_id id) { inspect_port(id); });
     connect(topology_, &topology::TopologyView::copy_name_requested, this,
             [this](vss::endpoint_id id) { copy_port_name(id); });
     connect(topology_, &topology::TopologyView::connect_requested, this,
@@ -1171,11 +1172,7 @@ void ShellWindow::build_docks()
     connect(ports_panel_, &PortsPanel::count_changed, this,
             [this](int) { update_dock_titles(); });
     connect(ports_panel_, &PortsPanel::inspect_requested, this,
-            [this](vss::endpoint_id id)
-            {
-                selection_.select_port(id);
-                focus_inspector();
-            });
+            [this](vss::endpoint_id id) { inspect_port(id); });
     connect(ports_panel_, &PortsPanel::remove_requested, this,
             [this](vss::endpoint_id id)
             {
@@ -1481,6 +1478,8 @@ void ShellWindow::connect_plugins()
             [this](const QString&, const QString&)
             { status_->showMessage(tr("Not available in this build"), 4000); });
     }
+    connect(inspector_panel_, &InspectorPanel::monitor_requested, this,
+            [this](vss::endpoint_id id) { open_in_monitor(id); });
     connect(inspector_panel_, &InspectorPanel::plugin_action_requested, this,
             [this](const QString& id, int action)
             { handle_part_action(id, action); });
@@ -1500,7 +1499,8 @@ void ShellWindow::update_plugin_surfaces()
     {
         std::vector<topology::plugin_tile> tiles;
         for (const support::plugin_tile_text& each :
-             support::plugin_toolbox_tiles(*snapshot))
+             support::plugin_toolbox_tiles(
+                 *snapshot, backend_.caps().plugin_fixtures))
         {
             topology::plugin_tile tile;
             tile.plugin_id = each.plugin_id;
@@ -1970,6 +1970,16 @@ void ShellWindow::copy_selected_port()
     status_->showMessage(tr("Copied %1.").arg(port->path), 2500);
 }
 
+void ShellWindow::inspect_port(vss::endpoint_id id)
+{
+    // The same port chosen again changes nothing in the selection, so the
+    // Inspector is read again here: it shows the port in whatever state it is
+    // in, connecting, open or failed, and is brought forward.
+    selection_.select_port(id);
+    inspector_panel_->set_selected_port(id);
+    focus_inspector();
+}
+
 void ShellWindow::focus_inspector()
 {
     if (inspector_dock_ == nullptr)
@@ -2353,7 +2363,69 @@ port_menu_state ShellWindow::port_menu_state_for(vss::endpoint_id id) const
         state.echoing = behaviours_->echoing(id);
         state.echo_available = behaviours_->echo_available();
     }
+    // "Decode as..." is shown while a plugin with a decoder is on. When none
+    // can be used now it is disabled and says why.
+    if (state.advanced)
+    {
+        if (PluginBackend* host = backend_.plugin_backend(); host != nullptr)
+        {
+            if (const plugin_snapshot_ptr snapshot = host->snapshot())
+            {
+                const auto choices = support::decoder_choices(*snapshot);
+                state.decode_shown = !choices.empty();
+                for (const support::decoder_choice& each : choices)
+                {
+                    if (each.usable)
+                        state.decode_enabled = true;
+                }
+                if (state.decode_shown && !state.decode_enabled)
+                    state.decode_reason = choices.front().reason;
+            }
+        }
+    }
     return state;
+}
+
+void ShellWindow::open_in_monitor(vss::endpoint_id id)
+{
+    const auto port = backend_.port(id);
+    show_monitor();
+    const bool only = monitor_panel_->show_only_port(id);
+    if (!port)
+        return;
+    status_->showMessage(
+        only ? tr("The Monitor shows only %1. Choose All ports in its port "
+                  "filter to see every port.")
+                   .arg(port->name)
+             : tr("The Monitor shows %1.").arg(port->name),
+        6000);
+}
+
+void ShellWindow::show_decode(vss::endpoint_id id)
+{
+    PluginBackend* host = backend_.plugin_backend();
+    const auto port = backend_.port(id);
+    if (host == nullptr || !port)
+        return;
+    const plugin_snapshot_ptr snapshot = host->snapshot();
+    if (!snapshot)
+        return;
+    DecodeDialog dialog(port->name, support::decoder_choices(*snapshot), this);
+    if (dialog.exec() != QDialog::Accepted || dialog.chosen() == nullptr)
+        return;
+    const support::decoder_choice choice = *dialog.chosen();
+    QMap<QString, QString> values;
+    if (!choice.place_setting.isEmpty())
+        values.insert(choice.place_setting, port->name);
+    host->add_instance(choice.plugin_id, choice.type_id, values);
+    status_->showMessage(tr("Decoding %1 as %2. What it finds is in Plugins, "
+                            "under %3.")
+                             .arg(port->name, choice.type_name,
+                                  choice.plugin_name),
+                         8000);
+    QTimer::singleShot(0, this,
+                       [this, plugin = choice.plugin_id]
+                       { open_plugins(plugin); });
 }
 
 void ShellWindow::run_port_action(vss::endpoint_id id, port_menu_action action)
@@ -2370,8 +2442,10 @@ void ShellWindow::run_port_action(vss::endpoint_id id, port_menu_action action)
         send_panel_->toggle_repeat(id);
         break;
     case port_menu_action::open_monitor:
-        monitor_panel_->set_selected_port(id);
-        show_monitor();
+        open_in_monitor(id);
+        break;
+    case port_menu_action::decode_as:
+        show_decode(id);
         break;
     case port_menu_action::toggle_generator:
         behaviours_->toggle_generator(id);

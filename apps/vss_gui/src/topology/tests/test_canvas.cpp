@@ -27,6 +27,7 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QComboBox>
 #include <QCheckBox>
 #include <QContextMenuEvent>
 #include <QDialog>
@@ -1038,6 +1039,37 @@ TEST_CASE("canvas: link Settings change the link in place and undo it in place")
     REQUIRE(!refused.change_link(before.id, options));
     REQUIRE(!other.can_undo());
     REQUIRE_EQ(fixture.backend.links().front().options.jitter_ms, 5u);
+}
+
+TEST_CASE("canvas: a monitor of an existing port shows that port's settings "
+          "and cannot change them")
+{
+    vss::gui::FakeStudioBackend backend;
+    const auto slow = backend.create_virtual_port(
+        QStringLiteral("slow"), vss::virtual_port_kind::pty, true);
+    REQUIRE(slow.has_value());
+    vss::serial_settings nine_six;
+    nine_six.baud_rate = 9600;
+    nine_six.parity = vss::parity_mode::even;
+    REQUIRE(backend.set_port_settings(*slow, nine_six).has_value());
+
+    topo::AddSheet sheet(canvas_item::monitor, backend.ports());
+    // No source port yet: the settings are the user's to set.
+    sheet.set_slot_kind(0, slot_kind::new_port);
+    REQUIRE(sheet.settings_editable());
+    REQUIRE(sheet.settings_note().isEmpty());
+
+    sheet.set_slot_kind(0, slot_kind::existing, QStringLiteral("slow"));
+    REQUIRE(!sheet.settings_editable());
+    REQUIRE(sheet.settings_note().contains(QStringLiteral("slow")));
+    REQUIRE_EQ(sheet.baud_combo()->currentText(), QStringLiteral("9600"));
+    const auto request = sheet.request();
+    REQUIRE_EQ(request.settings.baud_rate, 9600u);
+    REQUIRE(request.settings.parity == vss::parity_mode::even);
+
+    // Choosing a new port again gives the settings back.
+    sheet.set_slot_kind(0, slot_kind::new_port);
+    REQUIRE(sheet.settings_editable());
 }
 
 TEST_CASE("canvas: renders a review screenshot in both themes")

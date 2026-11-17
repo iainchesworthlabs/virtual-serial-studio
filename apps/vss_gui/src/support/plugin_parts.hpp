@@ -54,8 +54,34 @@ struct plugin_tile_text
 /// A plugin the user switched off, or cannot switch on, has none: the rule of
 /// the spec is to hide what the user did not choose and to show, disabled
 /// and with its reason, what they did choose and cannot use now.
+/// `fixtures_can_run` is `capabilities::plugin_fixtures`: without it a tile of
+/// a fixture type is disabled, with the reason, however well the plugin is.
 std::vector<plugin_tile_text>
-plugin_toolbox_tiles(const plugin_snapshot& snapshot);
+plugin_toolbox_tiles(const plugin_snapshot& snapshot,
+                     bool fixtures_can_run = true);
+
+// -- decoders -----------------------------------------------------------------
+
+/// One decoder type of a plugin, as "Decode as..." offers it.
+struct decoder_choice
+{
+    QString plugin_id;
+    QString plugin_name;
+    QString type_id;
+    QString type_name;
+    /// The id of the setting that names the place to read, or empty.
+    QString place_setting;
+    /// It can be started from "Decode as...". When not, `reason` says why.
+    bool usable = false;
+    QString reason;
+};
+
+/// The decoder types of the plugins that are on, ordered by plugin name and
+/// then type name. A plugin that is off or cannot be switched on has none, as
+/// for the toolbox; one that is on and cannot be used now is listed with the
+/// reason. A decoder with a setting other than the place to read is listed
+/// as one to set up in Plugins.
+std::vector<decoder_choice> decoder_choices(const plugin_snapshot& snapshot);
 
 // -- parts on the canvas ------------------------------------------------------
 
