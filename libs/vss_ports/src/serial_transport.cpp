@@ -313,6 +313,23 @@ void serial_transport::close()
     port_->close(ignored);
 }
 
+bool serial_transport::is_line_error(boost::system::error_code ec) const noexcept
+{
+    // A fixture stops on a fault: that is what it is for.
+    if (kind_ == endpoint_kind::mock || ec.category() != vs::error_category())
+        return false;
+    switch (static_cast<vs::error>(ec.value()))
+    {
+    case vs::error::framing_error:
+    case vs::error::parity_error:
+    case vs::error::overrun:
+    case vs::error::break_detected:
+        return true;
+    default:
+        return false;
+    }
+}
+
 void serial_transport::cancel()
 {
     if (!port_)

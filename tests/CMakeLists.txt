@@ -236,6 +236,7 @@ set(VSS_SYSTEM_TEST_SOURCES
   framework/main.cpp
   system/test_system_bus.cpp
   system/test_system_listen.cpp
+  system/test_system_proxy_latency.cpp
   system/test_system_serial.cpp
   system/test_system_tcp.cpp
   system/test_system_udp.cpp)
