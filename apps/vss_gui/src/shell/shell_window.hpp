@@ -50,6 +50,7 @@ class MonitorPanel;
 class NoteBanner;
 class OwnerBar;
 class CanvasController;
+class DockPanes;
 class PaneHeader;
 class PortsPanel;
 class SendPanel;
@@ -112,6 +113,16 @@ public:
     /// True while a document is being applied to the engine on a worker
     /// thread (opening a setup, a template, or starting the ports again).
     bool applying() const noexcept { return apply_work_.busy(); }
+
+    /// The movable bottom panes (Monitor, Links, Log, Topology JSON).
+    DockPanes* dock_panes() const noexcept { return dock_panes_; }
+    /// The layout as saved: sizes, tabs, floating and open panes.
+    QByteArray layout_state() const;
+    /// Restores a saved layout. A state that does not fit this version, or
+    /// is damaged, changes nothing and the default layout stays.
+    bool apply_layout_state(const QByteArray& state);
+    /// Puts the panes back as they start.
+    void reset_layout();
 
     /// Shows the window again and puts it in front: the notification-area
     /// icon, and a second Studio that was started while this one runs.
@@ -312,8 +323,10 @@ private:
 
     void save_layout();
     void restore_layout();
-    void reset_layout();
     void apply_dock_sizes();
+    void hide_all_docks();
+    QAction* pane_action(const QDockWidget* dock) const;
+    void show_pane(QDockWidget* dock);
     void apply_theme_setting();
     void apply_density_setting();
     void sync_density_actions();
@@ -351,6 +364,7 @@ private:
     QDockWidget* links_dock_ = nullptr;
     QDockWidget* log_dock_ = nullptr;
     QDockWidget* json_dock_ = nullptr;
+    DockPanes* dock_panes_ = nullptr;
     QToolBar* toolbar_ = nullptr;
     PaneHeader* ports_header_ = nullptr;
     PaneHeader* inspector_header_ = nullptr;
@@ -378,6 +392,12 @@ private:
     QAction* links_action_ = nullptr;
     QAction* log_action_ = nullptr;
     QAction* json_action_ = nullptr;
+    QAction* ports_action_ = nullptr;
+    QAction* inspector_action_ = nullptr;
+    QAction* send_action_ = nullptr;
+    /// True once the user has moved a pane; the compact window then leaves
+    /// the arrangement alone.
+    bool layout_customised_ = false;
 
     QString document_path_;
     QString last_signature_;
@@ -396,6 +416,7 @@ private:
     bool compact_ = false;
     bool layout_sized_ = false;
     bool restored_state_ = false;
+    bool shell_hiding_docks_ = false;
     bool restarting_ = false;
 
     bool background_ = false;
