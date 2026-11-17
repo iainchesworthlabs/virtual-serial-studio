@@ -69,6 +69,72 @@ com_numbers_in_bitmap(const std::vector<unsigned char>& bitmap);
 /// read), so a caller never mistakes "unknown" for "all free".
 std::optional<std::vector<unsigned>> reserved_com_numbers();
 
+/// What holds a COM number.
+enum class com_holder_kind
+{
+    /// A device that is present: a real port, com0com, a running Studio port.
+    present_device,
+    /// A Studio port that was removed. Windows keeps its entry and the number;
+    /// a new Studio port may take the number (the helper removes the entry).
+    studio_port_gone,
+    /// A port of something else that is not plugged in. Not Studio's to take.
+    other_port_gone,
+    /// `\\.\COMn` resolves but no listed device has the name (com0com, a
+    /// driver that made the name itself). Taken.
+    name_only,
+    /// Only the COM name database marks the number; no device has it. A new
+    /// Studio port may take the number.
+    database_only
+};
+
+/// A device of the Ports class, present or not, with its PortName.
+struct com_port_entry
+{
+    unsigned number = 0;
+    std::string instance_id;
+    std::string description;
+    bool present = false;
+};
+
+/// One COM number that is in use or kept, and by what.
+struct com_number_holder
+{
+    unsigned number = 0;
+    com_holder_kind kind = com_holder_kind::present_device;
+    /// The device's PnP instance id; empty for `name_only` and `database_only`.
+    std::string instance_id;
+    /// Friendly name of the device; empty when there is none.
+    std::string description;
+
+    /// True when a new Studio port can be given this number.
+    bool reusable_by_studio() const noexcept
+    {
+        return kind == com_holder_kind::studio_port_gone ||
+               kind == com_holder_kind::database_only;
+    }
+};
+
+/// True for the instance id of a Studio port (`SWD\VSSCOMUM\...` of the
+/// user-mode driver, `VSSCOM\PORT\...` of the kernel-mode one). Not case
+/// sensitive.
+bool is_studio_port_instance_id(std::string_view instance_id);
+
+/// Says what holds each COM number in `database` (the numbers the COM name
+/// database marks), `resolving` (the names that resolve) or `entries`.  One
+/// row per number, sorted by number.  A present device wins over everything,
+/// then a name that resolves, then a port of something else that is gone, then
+/// a Studio port that is gone, and last a number only the database marks.
+std::vector<com_number_holder>
+classify_com_numbers(const std::vector<unsigned>& database,
+                     const std::vector<unsigned>& resolving,
+                     const std::vector<com_port_entry>& entries);
+
+/// Which COM numbers are in use or kept, and by what. Use `reusable_by_studio`
+/// to tell the numbers a new Studio port may take from the others. `nullopt`
+/// where the computer cannot be asked (every platform but Windows, or a
+/// database that cannot be read).
+std::optional<std::vector<com_number_holder>> com_number_holders();
+
 /// Removes duplicate and empty entries, keeping the first occurrence.
 std::vector<serial_device_info> normalise(std::vector<serial_device_info> devices);
 

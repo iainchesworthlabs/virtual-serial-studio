@@ -25,6 +25,17 @@ std::vector<serial_device_info> platform_enumerate_serial_devices();
 /// `reserved_com_numbers`.  `nullopt` where there is none or it cannot be read.
 std::optional<std::vector<unsigned>> platform_reserved_com_numbers();
 
+/// The three sources of `com_number_holders`: the numbers the COM name database
+/// marks, the names that resolve, and the Ports class devices with a PortName,
+/// present or not.  `nullopt` where there is none or it cannot be read.
+struct com_sources
+{
+    std::vector<unsigned> database;
+    std::vector<unsigned> resolving;
+    std::vector<com_port_entry> entries;
+};
+std::optional<com_sources> platform_com_sources();
+
 /// The `COMn` name in the last pair of brackets of `text`, or empty.
 std::string extract_com_name(std::string_view text);
 
