@@ -2354,6 +2354,51 @@
             <source>Studio</source>
             <translation>Studio</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="155" />
+            <source>All ports</source>
+            <translation>すべてのポート</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="154" />
+            <source>Filter by port</source>
+            <translation>ポートで絞り込み</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="157" />
+            <source>Started</source>
+            <translation>開始済み</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="158" />
+            <source>Stopped</source>
+            <translation>停止済み</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="156" />
+            <source>Errors</source>
+            <translation>エラー</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="168" />
+            <source>Search events</source>
+            <translation>イベントを検索</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="164" />
+            <source>Show %1 events</source>
+            <translation>%1 のイベントを表示</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="498" />
+            <source>No events match the filters.</source>
+            <translation>フィルターに一致するイベントはありません。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="159" />
+            <source>Other</source>
+            <translation>その他</translation>
+        </message>
     </context>
     <context>
         <name>ExportCommandDialog</name>
