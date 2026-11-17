@@ -328,6 +328,11 @@ private:
     bool is_selected_link(vss::link_id id) const;
     void clear_multi();
     void emit_selection_count();
+    /// Double-click on a node: Settings while editing, else Inspect.
+    void open_item(vss::endpoint_id id);
+    /// Double-click on a link: its settings, or for a monitor link the
+    /// watched port in the Monitor.
+    void open_link(vss::link_id id);
     void populate_node_menu(QMenu* menu, vss::endpoint_id id);
     void populate_selection_menu(QMenu* menu, vss::endpoint_id id);
     void populate_link_menu(QMenu* menu, vss::link_id id);
