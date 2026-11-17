@@ -1703,6 +1703,30 @@
             <source>Could not change the COM number</source>
             <translation>COM番号を変更できませんでした</translation>
         </message>
+        <message>
+            <source>Windows restarts the port to change its number, so no program may have it open. The list holds free numbers. You can type another.</source>
+            <translation>番号を変更するため、Windows はポートを再起動します。そのため、プログラムがポートを開いていてはいけません。一覧には空き番号が表示されます。別の番号を入力することもできます。</translation>
+        </message>
+        <message>
+            <source>Numbers in use</source>
+            <translation>使用中の番号</translation>
+        </message>
+        <message>
+            <source>%1: %2</source>
+            <translation>%1: %2</translation>
+        </message>
+        <message>
+            <source>%1: this port now</source>
+            <translation>%1: 現在のこのポート</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255.</source>
+            <translation>1 から 255 までの数を選んでください。</translation>
+        </message>
+        <message>
+            <source>%1 is used by %2. Choose a free number.</source>
+            <translation>%1 は %2 が使用しています。空き番号を選んでください。</translation>
+        </message>
     </context>
     <context>
         <name>CommandPalette</name>
@@ -20171,6 +20195,30 @@ Networks: %5</source>
             <source>%1 name</source>
             <translation>%1の名前</translation>
         </message>
+        <message>
+            <source>COM number</source>
+            <translation>COM番号</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>自動</translation>
+        </message>
+        <message>
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one. COM1 and COM2 are kept for real ports.</source>
+            <translation>COM3 のように固定の名前を開くプログラムは、毎回同じ番号が必要です。自動では空き番号を選びます。COM1 と COM2 は実際のポート用に確保されています。</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255, or Automatic.</source>
+            <translation>1 から 255 の番号、または自動を選んでください。</translation>
+        </message>
+        <message>
+            <source>COM%1 is used by %2. Choose a free number.</source>
+            <translation>COM%1 は %2 が使用しています。空き番号を選んでください。</translation>
+        </message>
+        <message>
+            <source>COM1 and COM2 are kept for real ports. Choose COM3 or higher.</source>
+            <translation>COM1 と COM2 は実際のポート用に確保されています。COM3 以上を選んでください。</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -24336,6 +24384,21 @@ From the plugin %2
             <location filename="../src/support/plugin_dialogs.cpp" line="878" />
             <source>Add</source>
             <translation>追加</translation>
+        </message>
+    </context>
+    <context>
+        <name>com_use</name>
+        <message>
+            <source>Studio port %1</source>
+            <translation>Studio のポート %1</translation>
+        </message>
+        <message>
+            <source>Windows device %1</source>
+            <translation>Windows のデバイス %1</translation>
+        </message>
+        <message>
+            <source>Reserved by Windows</source>
+            <translation>Windows が予約済み</translation>
         </message>
     </context>
 </TS>

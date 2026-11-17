@@ -294,6 +294,7 @@ vss::result<QString> FakeStudioBackend::set_com_number(vss::endpoint_id id,
     if (view->com_number == com_number)
         return view->path;
     if (taken_com_numbers_.contains(com_number) ||
+        hidden_com_numbers_.contains(com_number) ||
         std::any_of(ports_.begin(), ports_.end(),
                     [com_number](const port_view& other)
                     { return other.com_number == com_number; }))

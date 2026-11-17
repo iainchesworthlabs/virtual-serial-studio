@@ -13,6 +13,7 @@
 #include "advanced/link_settings_dialog.hpp"
 #include "advanced/port_settings_dialog.hpp"
 #include "backend/canvas_edit.hpp"
+#include "backend/com_number_uses.hpp"
 #include "backend/driver_error.hpp"
 #include "backend/fake_studio_backend.hpp"
 #include "shell/canvas_controller.hpp"
@@ -21,6 +22,7 @@
 #include "support/driver_setup_dialog.hpp"
 #include "theme/theme.hpp"
 #include "topology/add_sheet.hpp"
+#include "widgets/controls.hpp"
 #include "topology/node_item.hpp"
 #include "topology/toolbox.hpp"
 #include "topology/topology_view.hpp"
@@ -29,6 +31,7 @@
 #include <QApplication>
 #include <QComboBox>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QContextMenuEvent>
 #include <QDialog>
 #include <QDir>
@@ -383,6 +386,42 @@ TEST_CASE("canvas: new nodes go where the tile was dropped")
     REQUIRE(std::abs(rect.left() - 400.0) < 40.0);
     REQUIRE(std::abs(rect.top() - 300.0) < 80.0);
     REQUIRE(view.is_arranged());
+}
+
+TEST_CASE("canvas: the Add sheet for a Port offers a COM number")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::capabilities caps;
+    caps.com_numbers = true;
+    backend.set_capabilities(caps);
+    REQUIRE(backend.create_driver_port(QStringLiteral("meter"), true, 5));
+
+    topo::AddSheet port(canvas_item::port, backend.ports());
+    port.show();
+    // Hidden until the window says Windows can give a number.
+    REQUIRE(port.com_number_row()->isHidden());
+    port.set_com_numbers(vss::gui::com_number_uses(backend));
+    REQUIRE(!port.com_number_row()->isHidden());
+    REQUIRE_EQ(port.com_number_combo()->currentText(),
+               QStringLiteral("Automatic"));
+    REQUIRE_EQ(port.request().slots.at(0).com_number, 0U);
+    REQUIRE(port.add_button()->isEnabled());
+    REQUIRE(port.com_number_combo()->findText(QStringLiteral("COM5")) < 0);
+
+    port.com_number_combo()->setEditText(QStringLiteral("COM9"));
+    REQUIRE_EQ(port.request().slots.at(0).com_number, 9U);
+    REQUIRE(port.add_button()->isEnabled());
+    port.com_number_combo()->setEditText(QStringLiteral("COM5"));
+    REQUIRE(!port.add_button()->isEnabled());
+    REQUIRE(port.com_number_combo()->accessibleDescription().contains(
+        QStringLiteral("COM5 is used by Studio port meter")));
+    port.com_number_combo()->setEditText(QStringLiteral("COM2"));
+    REQUIRE(!port.add_button()->isEnabled());
+
+    // Other tiles have no such row.
+    topo::AddSheet fixture(canvas_item::fixture, backend.ports());
+    fixture.set_com_numbers(vss::gui::com_number_uses(backend));
+    REQUIRE(fixture.com_number_row()->isHidden());
 }
 
 TEST_CASE("canvas: the Add sheet names its slots and refuses a clash")
