@@ -1095,6 +1095,14 @@ link_sides facing_sides(const QRectF& source, const QRectF& target)
     return {link_side::right, link_side::left};
 }
 
+link_sides sides_for_drag(link_side dragged, bool dragged_is_source)
+{
+    const link_side other =
+        dragged == link_side::left ? link_side::right : link_side::left;
+    return dragged_is_source ? link_sides{dragged, other}
+                             : link_sides{other, dragged};
+}
+
 QVector<topo_link_placement>
 compute_link_geometry(const QVector<topo_link_input>& links,
                       const QHash<vss::endpoint_id, QRectF>& rects,
@@ -1116,7 +1124,8 @@ compute_link_geometry(const QVector<topo_link_input>& links,
                     continue;
                 const QRectF from = rects.value(source);
                 const QRectF to = rects.value(target);
-                const link_sides sides = facing_sides(from, to);
+                const link_sides sides =
+                    link.sides.value_or(facing_sides(from, to));
                 proxies.append(
                     {source, target,
                      QLineF(sides.from == link_side::right ? right_centre(from)
@@ -1330,7 +1339,8 @@ compute_link_geometry(const QVector<topo_link_input>& links,
                     // One that runs leftward is routed mirrored, as a rightward
                     // one, and the result is mirrored back.
                     const bool flipped =
-                        facing_sides(source, target).from == link_side::left;
+                        link.sides.value_or(facing_sides(source, target))
+                            .from == link_side::left;
                     QVector<QRectF> work_others = others;
                     QVector<proxy_edge> work_proxies = proxies;
                     if (flipped)
