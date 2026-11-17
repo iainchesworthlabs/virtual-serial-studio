@@ -813,7 +813,14 @@ bool NetworkEndpointDialog::edit_port(vss::endpoint_id id)
         if (QString::fromStdString(entry.name) == port->name)
             text = QString::fromStdString(entry.uri);
     }
-    const auto parsed = parse_network_uri(text);
+    auto parsed = parse_network_uri(text);
+    // A port that failed or is waiting may be missing from the snapshot; its
+    // path is the address it was made from.
+    if (!parsed)
+    {
+        text = port->path;
+        parsed = parse_network_uri(text);
+    }
     if (!parsed)
         return false;
 

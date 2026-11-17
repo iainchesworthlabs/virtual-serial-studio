@@ -12,6 +12,7 @@
 #include <boost/asio/post.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <future>
 #include <mutex>
 #include <utility>
@@ -274,6 +275,16 @@ void endpoint::on_read(std::uint64_t generation, boost::system::error_code ec,
 
     if (ec)
     {
+        const auto current = active_transport();
+        if (current && current->is_line_error(ec))
+        {
+            // The device saw a fault on the line.  The channel is still
+            // there, so count it, say so and read on; closing it would
+            // drop every frame in flight for a fault of one byte.
+            on_line_error(ec);
+            do_read();
+            return;
+        }
         handle_read_failure(generation, ec, "read");
         return;
     }
@@ -313,6 +324,32 @@ void endpoint::on_read(std::uint64_t generation, boost::system::error_code ec,
         emit_data(data_direction::rx, std::move(chunk), read_at);
 
     do_read();
+}
+
+void endpoint::on_line_error(const boost::system::error_code& ec)
+{
+    {
+        std::lock_guard lock(stats_mutex_);
+        stats_.errors += 1;
+        stats_.last_activity = clock_type::now();
+    }
+
+    using namespace std::chrono_literals;
+    const time_point now = owner_.now();
+    if (line_error_logged_ != time_point{} && now - line_error_logged_ < 1s)
+    {
+        ++line_errors_unlogged_;
+        return;
+    }
+    std::string text = "line error: " + ec.message();
+    if (line_errors_unlogged_ != 0)
+    {
+        text += " (and " + std::to_string(line_errors_unlogged_) +
+                " more in the last second)";
+    }
+    line_error_logged_ = now;
+    line_errors_unlogged_ = 0;
+    emit(ec, std::move(text));
 }
 
 void endpoint::handle_read_failure(std::uint64_t generation,

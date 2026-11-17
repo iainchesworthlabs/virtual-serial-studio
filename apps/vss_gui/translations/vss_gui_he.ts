@@ -1703,6 +1703,30 @@
             <source>Could not change the COM number</source>
             <translation>לא ניתן היה לשנות את מספר ה־COM</translation>
         </message>
+        <message>
+            <source>Windows restarts the port to change its number, so no program may have it open. The list holds free numbers. You can type another.</source>
+            <translation>Windows מפעיל מחדש את היציאה כדי לשנות את מספרה, ולכן אסור שתוכנית כלשהי תחזיק אותה פתוחה. הרשימה כוללת מספרים פנויים. אפשר גם להקליד מספר אחר.</translation>
+        </message>
+        <message>
+            <source>Numbers in use</source>
+            <translation>מספרים בשימוש</translation>
+        </message>
+        <message>
+            <source>%1: %2</source>
+            <translation>%1: %2</translation>
+        </message>
+        <message>
+            <source>%1: this port now</source>
+            <translation>%1: היציאה הזו כעת</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255.</source>
+            <translation>בחרו מספר בין 1 ל־255.</translation>
+        </message>
+        <message>
+            <source>%1 is used by %2. Choose a free number.</source>
+            <translation>%1 בשימוש של %2. בחרו מספר פנוי.</translation>
+        </message>
     </context>
     <context>
         <name>CommandPalette</name>
@@ -2353,6 +2377,51 @@
             <location filename="../src/advanced/event_log.cpp" line="130" />
             <source>Studio</source>
             <translation>Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="155" />
+            <source>All ports</source>
+            <translation>כל היציאות</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="154" />
+            <source>Filter by port</source>
+            <translation>סינון לפי יציאה</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="157" />
+            <source>Started</source>
+            <translation>התחיל</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="158" />
+            <source>Stopped</source>
+            <translation>נעצר</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="156" />
+            <source>Errors</source>
+            <translation>שגיאות</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="168" />
+            <source>Search events</source>
+            <translation>חיפוש באירועים</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="164" />
+            <source>Show %1 events</source>
+            <translation>הצגת אירועי %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="498" />
+            <source>No events match the filters.</source>
+            <translation>אין אירועים שמתאימים למסננים.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="159" />
+            <source>Other</source>
+            <translation>אחר</translation>
         </message>
     </context>
     <context>
@@ -20172,6 +20241,30 @@ Networks: %5</source>
             <source>%1 name</source>
             <translation>שם %1</translation>
         </message>
+        <message>
+            <source>COM number</source>
+            <translation>מספר COM</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>אוטומטי</translation>
+        </message>
+        <message>
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one. COM1 and COM2 are kept for real ports.</source>
+            <translation>תוכנית שפותחת שם קבוע כמו COM3 צריכה את אותו המספר בכל פעם. אוטומטי בוחר מספר פנוי. COM1 ו-COM2 שמורים ליציאות אמיתיות.</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255, or Automatic.</source>
+            <translation>בחרו מספר מ-1 עד 255, או אוטומטי.</translation>
+        </message>
+        <message>
+            <source>COM%1 is used by %2. Choose a free number.</source>
+            <translation>COM%1 בשימוש של %2. בחרו מספר פנוי.</translation>
+        </message>
+        <message>
+            <source>COM1 and COM2 are kept for real ports. Choose COM3 or higher.</source>
+            <translation>COM1 ו-COM2 שמורים ליציאות אמיתיות. בחרו COM3 ומעלה.</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -23229,6 +23322,11 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>What is wrong: %1</source>
+            <translation>מה לא תקין: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
             <source>Its signature does not match its files. They may have been changed. Get the plugin again from its author.</source>
             <translation>החתימה שלו אינה תואמת לקבצים שלו. ייתכן שהם שונו. הורד את התוסף שוב מהמחבר שלו.</translation>
         </message>
@@ -24361,6 +24459,21 @@ From the plugin %2
             <location filename="../src/support/plugin_dialogs.cpp" line="878" />
             <source>Add</source>
             <translation>הוספה</translation>
+        </message>
+    </context>
+    <context>
+        <name>com_use</name>
+        <message>
+            <source>Studio port %1</source>
+            <translation>יציאת Studio‏ %1</translation>
+        </message>
+        <message>
+            <source>Windows device %1</source>
+            <translation>התקן Windows‏ %1</translation>
+        </message>
+        <message>
+            <source>Reserved by Windows</source>
+            <translation>שמור על ידי Windows</translation>
         </message>
     </context>
     <context>

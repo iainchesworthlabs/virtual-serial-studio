@@ -1703,6 +1703,30 @@
             <source>Could not change the COM number</source>
             <translation>COM番号を変更できませんでした</translation>
         </message>
+        <message>
+            <source>Windows restarts the port to change its number, so no program may have it open. The list holds free numbers. You can type another.</source>
+            <translation>番号を変更するため、Windows はポートを再起動します。そのため、プログラムがポートを開いていてはいけません。一覧には空き番号が表示されます。別の番号を入力することもできます。</translation>
+        </message>
+        <message>
+            <source>Numbers in use</source>
+            <translation>使用中の番号</translation>
+        </message>
+        <message>
+            <source>%1: %2</source>
+            <translation>%1: %2</translation>
+        </message>
+        <message>
+            <source>%1: this port now</source>
+            <translation>%1: 現在のこのポート</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255.</source>
+            <translation>1 から 255 までの数を選んでください。</translation>
+        </message>
+        <message>
+            <source>%1 is used by %2. Choose a free number.</source>
+            <translation>%1 は %2 が使用しています。空き番号を選んでください。</translation>
+        </message>
     </context>
     <context>
         <name>CommandPalette</name>
@@ -2353,6 +2377,51 @@
             <location filename="../src/advanced/event_log.cpp" line="130" />
             <source>Studio</source>
             <translation>Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="155" />
+            <source>All ports</source>
+            <translation>すべてのポート</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="154" />
+            <source>Filter by port</source>
+            <translation>ポートで絞り込み</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="157" />
+            <source>Started</source>
+            <translation>開始済み</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="158" />
+            <source>Stopped</source>
+            <translation>停止済み</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="156" />
+            <source>Errors</source>
+            <translation>エラー</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="168" />
+            <source>Search events</source>
+            <translation>イベントを検索</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="164" />
+            <source>Show %1 events</source>
+            <translation>%1 のイベントを表示</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="498" />
+            <source>No events match the filters.</source>
+            <translation>フィルターに一致するイベントはありません。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="159" />
+            <source>Other</source>
+            <translation>その他</translation>
         </message>
     </context>
     <context>
@@ -20154,6 +20223,30 @@ Networks: %5</source>
             <source>%1 name</source>
             <translation>%1の名前</translation>
         </message>
+        <message>
+            <source>COM number</source>
+            <translation>COM番号</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>自動</translation>
+        </message>
+        <message>
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one. COM1 and COM2 are kept for real ports.</source>
+            <translation>COM3 のように固定の名前を開くプログラムは、毎回同じ番号が必要です。自動では空き番号を選びます。COM1 と COM2 は実際のポート用に確保されています。</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255, or Automatic.</source>
+            <translation>1 から 255 の番号、または自動を選んでください。</translation>
+        </message>
+        <message>
+            <source>COM%1 is used by %2. Choose a free number.</source>
+            <translation>COM%1 は %2 が使用しています。空き番号を選んでください。</translation>
+        </message>
+        <message>
+            <source>COM1 and COM2 are kept for real ports. Choose COM3 or higher.</source>
+            <translation>COM1 と COM2 は実際のポート用に確保されています。COM3 以上を選んでください。</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -23195,6 +23288,11 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>What is wrong: %1</source>
+            <translation>問題点: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
             <source>Its signature does not match its files. They may have been changed. Get the plugin again from its author.</source>
             <translation>署名がファイルと一致しません。ファイルが変更された可能性があります。作者からプラグインをもう一度入手してください。</translation>
         </message>
@@ -24319,6 +24417,21 @@ From the plugin %2
             <location filename="../src/support/plugin_dialogs.cpp" line="878" />
             <source>Add</source>
             <translation>追加</translation>
+        </message>
+    </context>
+    <context>
+        <name>com_use</name>
+        <message>
+            <source>Studio port %1</source>
+            <translation>Studio のポート %1</translation>
+        </message>
+        <message>
+            <source>Windows device %1</source>
+            <translation>Windows のデバイス %1</translation>
+        </message>
+        <message>
+            <source>Reserved by Windows</source>
+            <translation>Windows が予約済み</translation>
         </message>
     </context>
     <context>

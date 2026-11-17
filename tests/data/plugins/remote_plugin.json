@@ -1,0 +1,215 @@
+{
+  "manifest_version": 1,
+  "id": "com.virtualserialstudio.remote",
+  "name": "Remote control and monitoring",
+  "version": "0.1.0",
+  "author": {
+    "name": "Virtual Serial Studio",
+    "url": "https://github.com/iainchesworthlabs"
+  },
+  "description": "Controls or watches Virtual Serial Studio on the other computer of a seat, over a mutually authenticated TLS 1.3 connection to one paired computer.",
+  "license": "LicenseRef-VirtualSerialStudio-Proprietary",
+  "not_after": "2027-06-30",
+  "requires": {
+    "api": {
+      "min": "1.0",
+      "max": "1.x"
+    },
+    "edition": "pro"
+  },
+  "run": {
+    "executable": "bin/vss_plugin_remote.exe",
+    "args": [],
+    "platforms": [
+      "windows-x64"
+    ]
+  },
+  "permissions": [
+    {
+      "name": "ports.read",
+      "required": true,
+      "reason": "Lists ports and links for the other computer of the seat."
+    },
+    {
+      "name": "net.listen",
+      "required": false,
+      "reason": "Accepts the one paired computer. Loopback unless the setting listen_address names an address.",
+      "scope": [
+        "127.0.0.1",
+        "listen_address"
+      ]
+    },
+    {
+      "name": "net.outbound",
+      "required": false,
+      "reason": "Connects to the one paired computer, at the address in the pairing.",
+      "scope": [
+        "paired-computer"
+      ]
+    },
+    {
+      "name": "traffic.tap",
+      "required": false,
+      "reason": "Lets the paired computer watch traffic bytes, only when the pairing allows it."
+    },
+    {
+      "name": "ports.write",
+      "required": false,
+      "reason": "Lets the paired computer send bytes, only when the pairing allows control."
+    },
+    {
+      "name": "topology.modify",
+      "required": false,
+      "reason": "Lets the paired computer create and link ports, only when the pairing allows control."
+    },
+    {
+      "name": "data.private",
+      "required": true,
+      "reason": "Keeps its identity key and the pairing in its own data folder."
+    }
+  ],
+  "extension_points": [
+    {
+      "kind": "adapter",
+      "id": "remote",
+      "name": "Remote control and monitoring",
+      "description": "Relays the control API between the two computers of a seat.",
+      "max_instances": 1,
+      "parameters": [
+        {
+          "id": "role",
+          "type": "enum",
+          "default": "off",
+          "label": {
+            "en": "Role"
+          },
+          "options": [
+            {
+              "value": "off",
+              "label": {
+                "en": "Off"
+              }
+            },
+            {
+              "value": "serve",
+              "label": {
+                "en": "This computer is controlled or watched"
+              }
+            },
+            {
+              "value": "connect",
+              "label": {
+                "en": "This computer controls or watches the other"
+              }
+            }
+          ]
+        },
+        {
+          "id": "listen_address",
+          "type": "string",
+          "default": "127.0.0.1",
+          "max_length": 64,
+          "label": {
+            "en": "Listen address"
+          }
+        },
+        {
+          "id": "advertise_address",
+          "type": "string",
+          "max_length": 253,
+          "label": {
+            "en": "Address to put in the pairing (needed only when listening on every address)"
+          }
+        },
+        {
+          "id": "listen_port",
+          "type": "int",
+          "min": 0,
+          "max": 65535,
+          "default": 0,
+          "label": {
+            "en": "Listen port (0 chooses one)"
+          }
+        },
+        {
+          "id": "peer_scopes",
+          "type": "enum",
+          "default": "monitor",
+          "label": {
+            "en": "What the other computer may do"
+          },
+          "options": [
+            {
+              "value": "monitor",
+              "label": {
+                "en": "Watch state, without traffic bytes"
+              }
+            },
+            {
+              "value": "monitor.data",
+              "label": {
+                "en": "Watch, with traffic bytes"
+              }
+            },
+            {
+              "value": "record",
+              "label": {
+                "en": "Watch, and make and fetch recordings"
+              }
+            },
+            {
+              "value": "control",
+              "label": {
+                "en": "Watch and control"
+              }
+            }
+          ]
+        },
+        {
+          "id": "peer_name",
+          "type": "string",
+          "max_length": 64,
+          "label": {
+            "en": "Name of the other computer"
+          },
+          "help": {
+            "en": "Shown when Studio asks you to approve this plugin. It is only a name you choose."
+          }
+        },
+        {
+          "id": "pair_start",
+          "type": "bool",
+          "default": false,
+          "label": {
+            "en": "Open a pairing"
+          },
+          "help": {
+            "en": "Set on the computer that is watched or controlled. The pairing code appears in the status for five minutes. Set it off to cancel."
+          }
+        },
+        {
+          "id": "pair_with",
+          "type": "secret",
+          "max_length": 400,
+          "label": {
+            "en": "Pairing code from the other computer"
+          },
+          "help": {
+            "en": "Set on the computer that watches or controls: paste the code shown in the status of the other one. It is used once and not kept."
+          }
+        },
+        {
+          "id": "pair_forget",
+          "type": "bool",
+          "default": false,
+          "label": {
+            "en": "Forget the paired computer"
+          },
+          "help": {
+            "en": "Set on to forget the pairing and end the session. Pair again to use the plugin."
+          }
+        }
+      ]
+    }
+  ]
+}

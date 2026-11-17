@@ -1,0 +1,1 @@
+{"version":1,"ports":[{"name":"a","kind":"virtual"},{"name":"b","kind":"virtual"}],"links":[{"mode":"monitor","sources":["a"],"targets":["b"],"emulate_modem_lines":false,"direction":"receive"}]}

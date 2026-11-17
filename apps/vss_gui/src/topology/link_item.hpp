@@ -38,6 +38,7 @@ struct link_data
 struct link_item_callbacks
 {
     std::function<void(vss::link_id)> pressed;
+    std::function<void(vss::link_id)> double_clicked;
     std::function<void(vss::link_id)> hover_entered;
     std::function<void(vss::link_id)> hover_left;
 };
@@ -79,6 +80,7 @@ public:
 
 protected:
     void mousePressEvent(QGraphicsSceneMouseEvent* event) override;
+    void mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event) override;
     void hoverEnterEvent(QGraphicsSceneHoverEvent* event) override;
     void hoverLeaveEvent(QGraphicsSceneHoverEvent* event) override;
 

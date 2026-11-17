@@ -1703,6 +1703,30 @@
             <source>Could not change the COM number</source>
             <translation>无法更改 COM 编号</translation>
         </message>
+        <message>
+            <source>Windows restarts the port to change its number, so no program may have it open. The list holds free numbers. You can type another.</source>
+            <translation>Windows 会重启端口以更改其编号，因此不能有程序打开该端口。列表中是空闲编号，您也可以输入其他编号。</translation>
+        </message>
+        <message>
+            <source>Numbers in use</source>
+            <translation>已使用的编号</translation>
+        </message>
+        <message>
+            <source>%1: %2</source>
+            <translation>%1：%2</translation>
+        </message>
+        <message>
+            <source>%1: this port now</source>
+            <translation>%1：当前的此端口</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255.</source>
+            <translation>请选择 1 到 255 之间的数字。</translation>
+        </message>
+        <message>
+            <source>%1 is used by %2. Choose a free number.</source>
+            <translation>%1 已被 %2 使用。请选择空闲编号。</translation>
+        </message>
     </context>
     <context>
         <name>CommandPalette</name>
@@ -2353,6 +2377,51 @@
             <location filename="../src/advanced/event_log.cpp" line="130" />
             <source>Studio</source>
             <translation>Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="155" />
+            <source>All ports</source>
+            <translation>所有串口</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="154" />
+            <source>Filter by port</source>
+            <translation>按串口筛选</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="157" />
+            <source>Started</source>
+            <translation>已启动</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="158" />
+            <source>Stopped</source>
+            <translation>已停止</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="156" />
+            <source>Errors</source>
+            <translation>错误</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="168" />
+            <source>Search events</source>
+            <translation>搜索事件</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="164" />
+            <source>Show %1 events</source>
+            <translation>显示%1事件</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="498" />
+            <source>No events match the filters.</source>
+            <translation>没有符合筛选条件的事件。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="159" />
+            <source>Other</source>
+            <translation>其他</translation>
         </message>
     </context>
     <context>
@@ -20154,6 +20223,30 @@ Networks: %5</source>
             <source>%1 name</source>
             <translation>%1 名称</translation>
         </message>
+        <message>
+            <source>COM number</source>
+            <translation>COM 编号</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>自动</translation>
+        </message>
+        <message>
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one. COM1 and COM2 are kept for real ports.</source>
+            <translation>打开 COM3 这类固定名称的程序每次都需要相同的编号。自动会选择一个空闲编号。COM1 和 COM2 保留给真实端口。</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255, or Automatic.</source>
+            <translation>请选择 1 到 255 之间的编号，或选择自动。</translation>
+        </message>
+        <message>
+            <source>COM%1 is used by %2. Choose a free number.</source>
+            <translation>COM%1 已被 %2 使用。请选择空闲编号。</translation>
+        </message>
+        <message>
+            <source>COM1 and COM2 are kept for real ports. Choose COM3 or higher.</source>
+            <translation>COM1 和 COM2 保留给真实端口。请选择 COM3 或更高的编号。</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -23195,6 +23288,11 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>What is wrong: %1</source>
+            <translation>问题：%1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
             <source>Its signature does not match its files. They may have been changed. Get the plugin again from its author.</source>
             <translation>它的签名与其文件不符。文件可能已被更改。请向其作者重新获取此插件。</translation>
         </message>
@@ -24319,6 +24417,21 @@ From the plugin %2
             <location filename="../src/support/plugin_dialogs.cpp" line="878" />
             <source>Add</source>
             <translation>添加</translation>
+        </message>
+    </context>
+    <context>
+        <name>com_use</name>
+        <message>
+            <source>Studio port %1</source>
+            <translation>Studio 端口 %1</translation>
+        </message>
+        <message>
+            <source>Windows device %1</source>
+            <translation>Windows 设备 %1</translation>
+        </message>
+        <message>
+            <source>Reserved by Windows</source>
+            <translation>由 Windows 保留</translation>
         </message>
     </context>
     <context>

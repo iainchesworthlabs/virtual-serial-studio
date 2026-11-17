@@ -1703,6 +1703,30 @@
             <source>Could not change the COM number</source>
             <translation>Die COM-Nummer konnte nicht geändert werden</translation>
         </message>
+        <message>
+            <source>Windows restarts the port to change its number, so no program may have it open. The list holds free numbers. You can type another.</source>
+            <translation>Windows startet den Port neu, um seine Nummer zu ändern. Deshalb darf kein Programm ihn geöffnet haben. Die Liste enthält freie Nummern. Sie können auch eine andere eingeben.</translation>
+        </message>
+        <message>
+            <source>Numbers in use</source>
+            <translation>Belegte Nummern</translation>
+        </message>
+        <message>
+            <source>%1: %2</source>
+            <translation>%1: %2</translation>
+        </message>
+        <message>
+            <source>%1: this port now</source>
+            <translation>%1: dieser Port jetzt</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255.</source>
+            <translation>Wählen Sie eine Zahl von 1 bis 255.</translation>
+        </message>
+        <message>
+            <source>%1 is used by %2. Choose a free number.</source>
+            <translation>%1 wird von %2 verwendet. Wählen Sie eine freie Nummer.</translation>
+        </message>
     </context>
     <context>
         <name>CommandPalette</name>
@@ -2353,6 +2377,51 @@
             <location filename="../src/advanced/event_log.cpp" line="130" />
             <source>Studio</source>
             <translation>Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="155" />
+            <source>All ports</source>
+            <translation>Alle Ports</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="154" />
+            <source>Filter by port</source>
+            <translation>Nach Port filtern</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="157" />
+            <source>Started</source>
+            <translation>Gestartet</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="158" />
+            <source>Stopped</source>
+            <translation>Gestoppt</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="156" />
+            <source>Errors</source>
+            <translation>Fehler</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="168" />
+            <source>Search events</source>
+            <translation>Ereignisse durchsuchen</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="164" />
+            <source>Show %1 events</source>
+            <translation>%1-Ereignisse anzeigen</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="498" />
+            <source>No events match the filters.</source>
+            <translation>Keine Ereignisse passen zu den Filtern.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="159" />
+            <source>Other</source>
+            <translation>Andere</translation>
         </message>
     </context>
     <context>
@@ -20172,6 +20241,30 @@ Netzwerke: %5</translation>
             <source>%1 name</source>
             <translation>Name von %1</translation>
         </message>
+        <message>
+            <source>COM number</source>
+            <translation>COM-Nummer</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>Automatisch</translation>
+        </message>
+        <message>
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one. COM1 and COM2 are kept for real ports.</source>
+            <translation>Ein Programm, das einen festen Namen wie COM3 öffnet, braucht jedes Mal dieselbe Nummer. Automatisch wählt eine freie. COM1 und COM2 bleiben echten Ports vorbehalten.</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255, or Automatic.</source>
+            <translation>Wählen Sie eine Nummer von 1 bis 255 oder Automatisch.</translation>
+        </message>
+        <message>
+            <source>COM%1 is used by %2. Choose a free number.</source>
+            <translation>COM%1 wird von %2 verwendet. Wählen Sie eine freie Nummer.</translation>
+        </message>
+        <message>
+            <source>COM1 and COM2 are kept for real ports. Choose COM3 or higher.</source>
+            <translation>COM1 und COM2 bleiben echten Ports vorbehalten. Wählen Sie COM3 oder höher.</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -23229,6 +23322,11 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>What is wrong: %1</source>
+            <translation>Was nicht stimmt: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
             <source>Its signature does not match its files. They may have been changed. Get the plugin again from its author.</source>
             <translation>Seine Signatur passt nicht zu seinen Dateien. Sie wurden möglicherweise geändert. Besorgen Sie sich das Plug-in erneut von seinem Autor.</translation>
         </message>
@@ -24361,6 +24459,21 @@ Aus dem Plug-in %2
             <location filename="../src/support/plugin_dialogs.cpp" line="878" />
             <source>Add</source>
             <translation>Hinzufügen</translation>
+        </message>
+    </context>
+    <context>
+        <name>com_use</name>
+        <message>
+            <source>Studio port %1</source>
+            <translation>Studio-Port %1</translation>
+        </message>
+        <message>
+            <source>Windows device %1</source>
+            <translation>Windows-Gerät %1</translation>
+        </message>
+        <message>
+            <source>Reserved by Windows</source>
+            <translation>Von Windows reserviert</translation>
         </message>
     </context>
     <context>

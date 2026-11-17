@@ -690,13 +690,22 @@ plugin_note_text note_for(const plugin_view& plugin)
                 "author for a newer one."));
         break;
     case plugin_note::invalid_manifest:
-        set(kind::danger,
-            QCoreApplication::translate(
-                "PluginsDialog",
-                "Its description file is not valid, so Studio cannot tell what "
-                "it is."),
-            {plugin_action::copy_details});
+    {
+        QString text = QCoreApplication::translate(
+            "PluginsDialog",
+            "Its description file is not valid, so Studio cannot tell what "
+            "it is.");
+        // The host says which part is wrong; show it instead of only the
+        // general sentence.
+        const QString problem = plain_text(plugin.detail).trimmed();
+        if (!problem.isEmpty())
+            text += QLatin1Char(' ') +
+                    QCoreApplication::translate("PluginsDialog",
+                                                "What is wrong: %1")
+                        .arg(problem);
+        set(kind::danger, text, {plugin_action::copy_details});
         break;
+    }
     case plugin_note::invalid_signature:
         set(kind::danger,
             QCoreApplication::translate(

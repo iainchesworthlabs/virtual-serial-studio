@@ -1703,6 +1703,30 @@
             <source>Could not change the COM number</source>
             <translation>מע האט נישט געקענט ענדערן די COM־נומער</translation>
         </message>
+        <message>
+            <source>Windows restarts the port to change its number, so no program may have it open. The list holds free numbers. You can type another.</source>
+            <translation>Windows שטארט איבער דעם פּאָרט כּדי צו ענדערן זײַן נומער, דעריבער טאָר קיין פּראָגראַם נישט האָבן אים אָפֿן. די ליסטע האַלט פֿרײַע נומערן. איר קענט אויך אײַנטיפּן אַן אַנדערן.</translation>
+        </message>
+        <message>
+            <source>Numbers in use</source>
+            <translation>נומערן אין באַנוץ</translation>
+        </message>
+        <message>
+            <source>%1: %2</source>
+            <translation>%1: %2</translation>
+        </message>
+        <message>
+            <source>%1: this port now</source>
+            <translation>%1: דער פּאָרט איצט</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255.</source>
+            <translation>קלײַבט אַ נומער פֿון 1 ביז 255.</translation>
+        </message>
+        <message>
+            <source>%1 is used by %2. Choose a free number.</source>
+            <translation>%1 װערט באַנוצט פֿון %2. קלײַבט אױס אַ פֿרײַע נומער.</translation>
+        </message>
     </context>
     <context>
         <name>CommandPalette</name>
@@ -2353,6 +2377,51 @@
             <location filename="../src/advanced/event_log.cpp" line="130" />
             <source>Studio</source>
             <translation>Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="155" />
+            <source>All ports</source>
+            <translation>אַלע פּאָרטן</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="154" />
+            <source>Filter by port</source>
+            <translation>פֿילטערן לויט פּאָרט</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="157" />
+            <source>Started</source>
+            <translation>אָנגעהויבן</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="158" />
+            <source>Stopped</source>
+            <translation>אָפּגעשטעלט</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="156" />
+            <source>Errors</source>
+            <translation>טעותן</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="168" />
+            <source>Search events</source>
+            <translation>זוך געשעענישן</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="164" />
+            <source>Show %1 events</source>
+            <translation>ווײַז %1 געשעענישן</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="498" />
+            <source>No events match the filters.</source>
+            <translation>קיין געשעענישן פּאַסן נישט צו די פילטערס.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="159" />
+            <source>Other</source>
+            <translation>אנדערע</translation>
         </message>
     </context>
     <context>
@@ -20172,6 +20241,30 @@ Networks: %5</source>
             <source>%1 name</source>
             <translation>נאָמען פֿון %1</translation>
         </message>
+        <message>
+            <source>COM number</source>
+            <translation>COM־נומער</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>אויטאָמאַטיש</translation>
+        </message>
+        <message>
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one. COM1 and COM2 are kept for real ports.</source>
+            <translation>אַ פּראָגראַם װאָס עפֿנט אַ פֿעסטן נאָמען װי COM3 דאַרף דעם זעלבן נומער יעדעס מאָל. אויטאָמאַטיש קלײַבט אױס אַ פֿרײַע. COM1 און COM2 זענען פֿאַרהאַלטן פֿאַר עכטע פּאָרטן.</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255, or Automatic.</source>
+            <translation>קלײַבט אױס אַ נומער פֿון 1 ביז 255, אָדער אויטאָמאַטיש.</translation>
+        </message>
+        <message>
+            <source>COM%1 is used by %2. Choose a free number.</source>
+            <translation>COM%1 װערט באַנוצט פֿון %2. קלײַבט אױס אַ פֿרײַע נומער.</translation>
+        </message>
+        <message>
+            <source>COM1 and COM2 are kept for real ports. Choose COM3 or higher.</source>
+            <translation>COM1 און COM2 זענען פֿאַרהאַלטן פֿאַר עכטע פּאָרטן. קלײַבט אױס COM3 אָדער העכער.</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -23229,6 +23322,11 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>What is wrong: %1</source>
+            <translation>וואס איז פאַלש: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
             <source>Its signature does not match its files. They may have been changed. Get the plugin again from its author.</source>
             <translation>זײַן אונטערשריפֿט פּאַסט נישט צו זײַנע טעקעס. זיי קענען זײַן געביטן געוואָרן. באַקומט דעם פּלאַגין ווידער פֿון זײַן מחבר.</translation>
         </message>
@@ -24361,6 +24459,21 @@ From the plugin %2
             <location filename="../src/support/plugin_dialogs.cpp" line="878" />
             <source>Add</source>
             <translation>צולייגן</translation>
+        </message>
+    </context>
+    <context>
+        <name>com_use</name>
+        <message>
+            <source>Studio port %1</source>
+            <translation>Studio־פּאָרט %1</translation>
+        </message>
+        <message>
+            <source>Windows device %1</source>
+            <translation>Windows־מיטל %1</translation>
+        </message>
+        <message>
+            <source>Reserved by Windows</source>
+            <translation>פֿאַרהאַלטן דורך Windows</translation>
         </message>
     </context>
     <context>

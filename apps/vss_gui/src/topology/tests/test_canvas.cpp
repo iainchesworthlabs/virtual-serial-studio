@@ -13,6 +13,7 @@
 #include "advanced/link_settings_dialog.hpp"
 #include "advanced/port_settings_dialog.hpp"
 #include "backend/canvas_edit.hpp"
+#include "backend/com_number_uses.hpp"
 #include "backend/driver_error.hpp"
 #include "backend/fake_studio_backend.hpp"
 #include "shell/canvas_controller.hpp"
@@ -21,13 +22,16 @@
 #include "support/driver_setup_dialog.hpp"
 #include "theme/theme.hpp"
 #include "topology/add_sheet.hpp"
+#include "widgets/controls.hpp"
 #include "topology/node_item.hpp"
 #include "topology/toolbox.hpp"
 #include "topology/topology_view.hpp"
 
 #include <QAction>
 #include <QApplication>
+#include <QComboBox>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QContextMenuEvent>
 #include <QDialog>
 #include <QDir>
@@ -229,6 +233,66 @@ TEST_CASE("canvas: select several with Ctrl+click, the band and Ctrl+A")
     REQUIRE_EQ(view.selected_ports().size(), 3);
 }
 
+TEST_CASE("canvas: a link keeps to the connector its wire was dragged from")
+{
+    canvas_fixture fixture;
+    topo::TopologyView view;
+    view.resize(1000, 700);
+    view.show();
+    view.set_editing(true);
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+
+    // Drag from the connector that does not face the other port.
+    const QRectF from = view.node_rect(fixture.lone);
+    const QRectF to = view.node_rect(fixture.tx);
+    const bool facing_right =
+        topo::facing_sides(from, to).from == topo::link_side::right;
+    const qreal edge = facing_right ? from.left() : from.right();
+    // The automatic layout moves the nodes once they are linked, so what the
+    // link must keep to is the side, not the old position.
+    const bool dragged_left = edge == from.left();
+    const QPoint handle =
+        view.mapFromScene(QPointF(edge, from.center().y()));
+    const QPoint target = view.mapFromScene(to.center());
+    mouse(view.viewport(), QEvent::MouseButtonPress, handle, Qt::LeftButton,
+          Qt::LeftButton);
+    REQUIRE(view.is_wiring());
+    mouse(view.viewport(), QEvent::MouseMove, target, Qt::NoButton,
+          Qt::LeftButton);
+    mouse(view.viewport(), QEvent::MouseButtonRelease, target, Qt::LeftButton,
+          Qt::NoButton);
+    QMenu* chooser = view.findChild<QMenu*>();
+    REQUIRE(chooser != nullptr);
+    chooser->actions().first()->trigger();
+    chooser->close();
+    QApplication::processEvents();
+
+    REQUIRE(fixture.backend.connect_ports(fixture.lone, fixture.tx, {}));
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+
+    vss::link_id made = 0;
+    for (const auto& link : fixture.backend.links())
+    {
+        if (link.sources.contains(fixture.lone) ||
+            link.targets.contains(fixture.lone))
+            made = link.id;
+    }
+    REQUIRE(made != 0);
+    const QPainterPath stroke = view.link_stroke(made);
+    const QPointF first = stroke.pointAtPercent(0.0);
+    const QPointF last = stroke.pointAtPercent(1.0);
+    const QRectF now = view.node_rect(fixture.lone);
+    const qreal edge_now = dragged_left ? now.left() : now.right();
+    const auto on_edge = [&](const QPointF& point)
+    {
+        return std::abs(point.x() - edge_now) < 1e-6 &&
+               std::abs(point.y() - now.center().y()) < 1e-6;
+    };
+    REQUIRE(on_edge(first) || on_edge(last));
+}
+
 TEST_CASE("canvas: a wire dragged from a handle opens the link chooser")
 {
     canvas_fixture fixture;
@@ -382,6 +446,42 @@ TEST_CASE("canvas: new nodes go where the tile was dropped")
     REQUIRE(std::abs(rect.left() - 400.0) < 40.0);
     REQUIRE(std::abs(rect.top() - 300.0) < 80.0);
     REQUIRE(view.is_arranged());
+}
+
+TEST_CASE("canvas: the Add sheet for a Port offers a COM number")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::capabilities caps;
+    caps.com_numbers = true;
+    backend.set_capabilities(caps);
+    REQUIRE(backend.create_driver_port(QStringLiteral("meter"), true, 5));
+
+    topo::AddSheet port(canvas_item::port, backend.ports());
+    port.show();
+    // Hidden until the window says Windows can give a number.
+    REQUIRE(port.com_number_row()->isHidden());
+    port.set_com_numbers(vss::gui::com_number_uses(backend));
+    REQUIRE(!port.com_number_row()->isHidden());
+    REQUIRE_EQ(port.com_number_combo()->currentText(),
+               QStringLiteral("Automatic"));
+    REQUIRE_EQ(port.request().slots.at(0).com_number, 0U);
+    REQUIRE(port.add_button()->isEnabled());
+    REQUIRE(port.com_number_combo()->findText(QStringLiteral("COM5")) < 0);
+
+    port.com_number_combo()->setEditText(QStringLiteral("COM9"));
+    REQUIRE_EQ(port.request().slots.at(0).com_number, 9U);
+    REQUIRE(port.add_button()->isEnabled());
+    port.com_number_combo()->setEditText(QStringLiteral("COM5"));
+    REQUIRE(!port.add_button()->isEnabled());
+    REQUIRE(port.com_number_combo()->accessibleDescription().contains(
+        QStringLiteral("COM5 is used by Studio port meter")));
+    port.com_number_combo()->setEditText(QStringLiteral("COM2"));
+    REQUIRE(!port.add_button()->isEnabled());
+
+    // Other tiles have no such row.
+    topo::AddSheet fixture(canvas_item::fixture, backend.ports());
+    fixture.set_com_numbers(vss::gui::com_number_uses(backend));
+    REQUIRE(fixture.com_number_row()->isHidden());
 }
 
 TEST_CASE("canvas: the Add sheet names its slots and refuses a clash")
@@ -1038,6 +1138,37 @@ TEST_CASE("canvas: link Settings change the link in place and undo it in place")
     REQUIRE(!refused.change_link(before.id, options));
     REQUIRE(!other.can_undo());
     REQUIRE_EQ(fixture.backend.links().front().options.jitter_ms, 5u);
+}
+
+TEST_CASE("canvas: a monitor of an existing port shows that port's settings "
+          "and cannot change them")
+{
+    vss::gui::FakeStudioBackend backend;
+    const auto slow = backend.create_virtual_port(
+        QStringLiteral("slow"), vss::virtual_port_kind::pty, true);
+    REQUIRE(slow.has_value());
+    vss::serial_settings nine_six;
+    nine_six.baud_rate = 9600;
+    nine_six.parity = vss::parity_mode::even;
+    REQUIRE(backend.set_port_settings(*slow, nine_six).has_value());
+
+    topo::AddSheet sheet(canvas_item::monitor, backend.ports());
+    // No source port yet: the settings are the user's to set.
+    sheet.set_slot_kind(0, slot_kind::new_port);
+    REQUIRE(sheet.settings_editable());
+    REQUIRE(sheet.settings_note().isEmpty());
+
+    sheet.set_slot_kind(0, slot_kind::existing, QStringLiteral("slow"));
+    REQUIRE(!sheet.settings_editable());
+    REQUIRE(sheet.settings_note().contains(QStringLiteral("slow")));
+    REQUIRE_EQ(sheet.baud_combo()->currentText(), QStringLiteral("9600"));
+    const auto request = sheet.request();
+    REQUIRE_EQ(request.settings.baud_rate, 9600u);
+    REQUIRE(request.settings.parity == vss::parity_mode::even);
+
+    // Choosing a new port again gives the settings back.
+    sheet.set_slot_kind(0, slot_kind::new_port);
+    REQUIRE(sheet.settings_editable());
 }
 
 TEST_CASE("canvas: renders a review screenshot in both themes")

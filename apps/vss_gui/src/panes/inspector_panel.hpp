@@ -48,6 +48,9 @@ public:
     /// The "Provided by" block, hidden for a port no plugin provides.
     QWidget* plugin_block() const noexcept { return plugin_block_; }
     NoteBanner* plugin_note() const noexcept { return plugin_note_; }
+    /// The "monitor" block, hidden for a port that is not a monitor.
+    QWidget* monitor_block() const noexcept { return monitor_block_; }
+    QPushButton* monitor_open_button() const noexcept { return monitor_open_; }
     QPushButton* plugin_show_button() const noexcept { return plugin_show_; }
     void refresh();
     /// Adds the fixture behaviour section (echo, generator) for a mock
@@ -64,6 +67,8 @@ Q_SIGNALS:
     void advanced_tools_requested();
     void com_number_requested(vss::endpoint_id id);
     void release_port_requested(vss::endpoint_id id);
+    /// "Open <port> in the Monitor", for a port that is a monitor.
+    void monitor_requested(vss::endpoint_id id);
     void error_message(const QString& message);
     /// "Show in Plugins" or the action of the note: `action` is a
     /// `vss::gui::part_action`.
@@ -74,6 +79,7 @@ private:
     void update_content();
     void update_lines();
     void update_plugin_part();
+    void update_monitor_block();
     void set_line(vss::control_line line, bool state);
     QString serial_description() const;
 
@@ -110,6 +116,10 @@ private:
     QLabel* advanced_link_ = nullptr;
     FixturePanel* fixture_panel_ = nullptr;
     QVBoxLayout* content_layout_ = nullptr;
+    QWidget* monitor_block_ = nullptr;
+    QLabel* monitor_text_ = nullptr;
+    QPushButton* monitor_open_ = nullptr;
+    vss::endpoint_id watched_ = 0;
     QHash<vss::endpoint_id, vss::gui::part_description> plugin_parts_;
     QWidget* plugin_block_ = nullptr;
     QLabel* plugin_provided_ = nullptr;

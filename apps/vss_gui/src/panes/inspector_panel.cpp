@@ -227,6 +227,39 @@ void InspectorPanel::build()
     plugin_block_->hide();
     layout->addWidget(plugin_block_);
 
+    // "Watching", for a port that is the end of a monitor link: it says what
+    // the port is, because "waiting for program" alone does not.
+    monitor_block_ = new QWidget(content_);
+    monitor_block_->setObjectName(QStringLiteral("inspectorMonitor"));
+    auto* monitor_layout = new QVBoxLayout(monitor_block_);
+    monitor_layout->setContentsMargins(0, 0, 0, 0);
+    monitor_layout->setSpacing(6);
+    monitor_text_ = new QLabel(monitor_block_);
+    monitor_text_->setObjectName(QStringLiteral("inspectorMonitorText"));
+    monitor_text_->setTextFormat(Qt::PlainText);
+    monitor_text_->setWordWrap(true);
+    monitor_text_->setFont(Theme::instance().font(text_style::body));
+    monitor_layout->addWidget(monitor_text_);
+    auto* monitor_row = new QHBoxLayout();
+    monitor_row->setSpacing(8);
+    monitor_open_ = new QPushButton(monitor_block_);
+    monitor_open_->setObjectName(QStringLiteral("inspectorMonitorOpen"));
+    set_role(monitor_open_, "quiet");
+    monitor_open_->setProperty("size", QStringLiteral("small"));
+    monitor_open_->setCursor(Qt::PointingHandCursor);
+    polish(monitor_open_);
+    connect(monitor_open_, &QPushButton::clicked, this,
+            [this]
+            {
+                if (watched_ != 0)
+                    Q_EMIT monitor_requested(watched_);
+            });
+    monitor_row->addWidget(monitor_open_, 0, Qt::AlignVCenter);
+    monitor_row->addStretch(1);
+    monitor_layout->addLayout(monitor_row);
+    monitor_block_->hide();
+    layout->addWidget(monitor_block_);
+
     // Details form: captions in column 0, values in column 1, which stretches.
     auto* form = new QGridLayout();
     form->setHorizontalSpacing(8);
@@ -528,6 +561,35 @@ void InspectorPanel::update_plugin_part()
     }
 }
 
+void InspectorPanel::update_monitor_block()
+{
+    watched_ = 0;
+    if (port_.has_value())
+    {
+        for (const link_view& link : backend_.links())
+        {
+            if (link.shape == link_shape::monitor &&
+                link.targets.contains(port_->id) && !link.sources.isEmpty())
+            {
+                watched_ = link.sources.front();
+                break;
+            }
+        }
+    }
+    const auto source = watched_ != 0 ? backend_.port(watched_)
+                                      : std::optional<port_view>{};
+    monitor_block_->setVisible(source.has_value());
+    if (!source)
+        return;
+    monitor_text_->setText(
+        tr("This port is a monitor. It receives a copy of the traffic on %1, "
+           "and what is written to it does not reach %1.")
+            .arg(source->name));
+    monitor_open_->setText(tr("Open %1 in the Monitor").arg(source->name));
+    monitor_open_->setAccessibleName(
+        tr("Open %1 in the Monitor").arg(source->name));
+}
+
 void InspectorPanel::update_content()
 {
     const bool has_port = port_.has_value();
@@ -540,6 +602,7 @@ void InspectorPanel::update_content()
     const port_view& port = *port_;
     name_->setText(port.name);
     update_plugin_part();
+    update_monitor_block();
     state_->set_kind(chip_kind(PortModel::state_kind(port)));
     state_->set_text(PortModel::state_text(port));
     state_->setToolTip(port.state == vss::endpoint_state::failed

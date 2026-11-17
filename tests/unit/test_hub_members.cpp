@@ -341,7 +341,8 @@ TEST_CASE("members: an endpoint that the bus already sends to is refused")
     f.ports[1].inject_read("y");
     REQUIRE(f.heard(0, "y"));
     REQUIRE(f.heard(3, "y"));
-    REQUIRE_EQ(f.ports[2].written(), std::string());
+    // p0 heard it from the bus and carried it on over its redirect, once.
+    REQUIRE(f.heard(2, "y"));
 }
 
 TEST_CASE("members: a loop through other links or another bus is refused")
@@ -378,8 +379,13 @@ TEST_CASE("members: a loop through other links or another bus is refused")
     REQUIRE_EQ(f.info(*bus).sources, f.ids(0, 2));
     f.ports[0].inject_read("x");
     REQUIRE(f.heard(1, "x"));
-    for (const std::size_t index : {2u, 5u, 8u, 12u})
+    // p2 and p8 only send into the bus, so they hear nothing.  p1 carries
+    // the bytes it heard on through the other links it sends to, to p5 and,
+    // by way of the third bus, to p12, once each.
+    for (const std::size_t index : {2u, 8u})
         REQUIRE_EQ(f.ports[index].written(), std::string());
+    REQUIRE(f.heard(5, "x"));
+    REQUIRE(f.heard(12, "x"));
     REQUIRE(f.hub->add_member(*bus, f.id(13)));
 }
 

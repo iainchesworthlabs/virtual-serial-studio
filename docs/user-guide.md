@@ -916,6 +916,22 @@ Inspector is an Advanced pane.
 Some of these depend on what the engine can do; see
 [what this build cannot do](#what-this-build-cannot-do).
 
+## Data passes through a port
+
+When a link writes bytes into a port, Studio sends them on along that port's
+other links. If port 1 has a two-way link to port 4, port 4 has a two-way link to
+a network server and port 4 is on a bus, the bytes from port 1 reach the server
+and the other ports on the bus, and the bytes from the server reach port 1 and
+the bus.
+
+- A port never gets the same bytes twice, and bytes never go back to the port
+  they came from, so a two-way link or a bus does not echo.
+- A one-way link passes bytes on in its own direction only.
+- A monitor on a port shows what the port reads and what is written into it,
+  each once.
+- The listeners of a split still do not hear each other.
+- A delay on a link is added to the delay of the next link.
+
 ## Choosing a COM number (Windows)
 
 Many older programs open one fixed port, `COM3` for example, and keep it in a

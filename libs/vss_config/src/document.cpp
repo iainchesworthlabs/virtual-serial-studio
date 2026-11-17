@@ -334,6 +334,32 @@ bool half_duplex_from_json(const member_reader& reader, link_entry& link)
     return true;
 }
 
+/// Writes the `direction` of a monitor, and nothing when it is `both`.
+void direction_to_json(const link_entry& link, json::object& object)
+{
+    if (link.direction != monitor_direction::both)
+        object["direction"] = to_string(link.direction);
+}
+
+/// Reads `direction`.  Which links may have one other than `both` is checked
+/// in validate().
+bool direction_from_json(const member_reader& reader, link_entry& link)
+{
+    std::string text;
+    if (!reader.text("direction", text))
+        return false;
+    if (!reader.has("direction") || text == "both")
+        link.direction = monitor_direction::both;
+    else if (text == "transmit")
+        link.direction = monitor_direction::transmit;
+    else if (text == "receive")
+        link.direction = monitor_direction::receive;
+    else
+        return reader.fail("direction",
+                           "must be \"both\", \"transmit\" or \"receive\"");
+    return true;
+}
+
 // -- plugin bindings ---------------------------------------------------------
 //
 // The rules for an id and for a text are the ones a plugin's manifest has
@@ -792,6 +818,9 @@ error_code validate(const document& value)
         if (link.half_duplex.enabled &&
             (link.mode != "bus" || !valid_half_duplex(link.half_duplex)))
             return make_error_code(errc::config_error);
+        // Only a monitor chooses which bytes of its port it copies.
+        if (link.direction != monitor_direction::both && link.mode != "monitor")
+            return make_error_code(errc::config_error);
 
         if (link.mode == "bus")
         {
@@ -923,6 +952,7 @@ result<std::string> to_json(const document& value, bool pretty)
         object["emulate_modem_lines"] = link.emulate_modem_lines;
         object["policy"] = to_string(link.policy);
         latency_to_json(link, object);
+        direction_to_json(link, object);
         bindings_to_json(link.plugins, object);
         links.push_back(std::move(object));
     }
@@ -1085,6 +1115,7 @@ result<document> from_json(std::string_view text, std::string& problem)
 
             if (!latency_from_json(entry, link) ||
                 !half_duplex_from_json(entry, link) ||
+                !direction_from_json(entry, link) ||
                 !bindings_from_json(entry, link.plugins) || !entry.done())
                 return refused();
 

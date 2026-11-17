@@ -8,6 +8,7 @@
 
 #include "advanced/link_settings_dialog.hpp"
 #include "advanced/port_settings_dialog.hpp"
+#include "backend/com_number_uses.hpp"
 #include "backend/driver_error.hpp"
 #include "dialogs/network_endpoint.hpp"
 #include "topology/add_sheet.hpp"
@@ -51,6 +52,8 @@ CanvasController::CanvasController(StudioBackend& backend, UndoService& undo,
     sheet_ = [this](canvas_item item, const attempt_function& attempt)
     {
         topology::AddSheet sheet(item, backend_.ports(), parent_);
+        if (item == canvas_item::port && backend_.caps().com_numbers)
+            sheet.set_com_numbers(com_number_uses(backend_));
         sheet.set_attempt(attempt);
         sheet.set_setup_offer([this] { return setup_offered_; });
         bool set_up = false;
@@ -721,9 +724,29 @@ void CanvasController::open_settings(const QVector<vss::endpoint_id>& ports)
                     Q_EMIT message(tr("Network port changed."));
                 return;
             }
+            // Serial settings mean nothing to a network port, so the generic
+            // dialog is not shown in its place.
+            Q_EMIT message(tr("The address of %1 is not known, so its "
+                              "settings cannot be shown.")
+                               .arg(port->name));
+            return;
         }
     }
     PortSettingsDialog dialog(backend_, ports, parent_);
+    // The copy end of a monitor link runs at the watched port's settings.
+    if (ports.size() == 1)
+    {
+        for (const link_view& link : backend_.links())
+        {
+            if (link.shape != link_shape::monitor ||
+                !link.targets.contains(ports.first()) ||
+                link.sources.isEmpty())
+                continue;
+            if (const auto source = backend_.port(link.sources.front()))
+                dialog.follow_port(source->name, source->serial);
+            break;
+        }
+    }
     connect(&dialog, &PortSettingsDialog::error_shown, this,
             [this](const QString& text) { Q_EMIT message(text); });
     if (dialog.exec() != QDialog::Accepted)

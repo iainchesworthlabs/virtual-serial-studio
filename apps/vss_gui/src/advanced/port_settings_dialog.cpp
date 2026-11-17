@@ -420,6 +420,22 @@ void PortSettingsDialog::set_settings(const vss::serial_settings& settings)
     update_summary();
 }
 
+void PortSettingsDialog::follow_port(const QString& source_name,
+                                     const vss::serial_settings& settings)
+{
+    vss::serial_settings now = this->settings();
+    now.baud_rate = settings.baud_rate;
+    now.data_bits = settings.data_bits;
+    now.parity = settings.parity;
+    now.stop_bits = settings.stop_bits;
+    set_settings(now);
+    for (QComboBox* combo : {baud_, data_bits_, parity_, stop_bits_})
+        combo->setEnabled(false);
+    note_->set_text(tr("Taken from %1. A monitor runs at the speed of the "
+                       "port it watches.")
+                        .arg(source_name));
+}
+
 void PortSettingsDialog::update_summary()
 {
     if (summary_ == nullptr)
