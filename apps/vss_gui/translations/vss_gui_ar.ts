@@ -23485,6 +23485,11 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>What is wrong: %1</source>
+            <translation>ما الخطأ: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
             <source>Its signature does not match its files. They may have been changed. Get the plugin again from its author.</source>
             <translation>توقيعها لا يطابق ملفاتها. ربما جرى تغيير الملفات. احصل على الإضافة من مؤلفها من جديد.</translation>
         </message>
