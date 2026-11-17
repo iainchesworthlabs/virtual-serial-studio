@@ -412,10 +412,26 @@ public:
                           { handler({}, size); });
     }
 
-    void close() override { open_ = false; }
-    void cancel() override {}
+    void close() override
+    {
+        open_ = false;
+        abort_read();
+    }
+    void cancel() override { abort_read(); }
 
 private:
+    /// Ends the parked read the way a device does, so the handler, which
+    /// holds the endpoint, is not kept alive for ever.
+    void abort_read()
+    {
+        if (!parked_)
+            return;
+        boost::asio::post(executor_,
+                          [handler = std::move(parked_)]
+                          { handler(boost::asio::error::operation_aborted, 0); });
+        parked_ = nullptr;
+    }
+
     executor_type executor_;
     io_handler parked_;
     bool open_ = true;

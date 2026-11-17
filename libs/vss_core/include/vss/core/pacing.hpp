@@ -66,10 +66,20 @@ public:
         std::lock_guard lock(mutex_);
         if (last_ != std::chrono::steady_clock::time_point{} && now > last_)
         {
-            const auto passed = now - last_;
-            const auto earned = std::chrono::duration_cast<duration>(
-                passed * per_second_.count() / 1'000'000'000);
-            balance_ = std::min(per_second_, balance_ + earned);
+            const auto passed = std::chrono::duration_cast<duration>(
+                now - last_);
+            if (passed >= std::chrono::seconds{1})
+            {
+                // A whole second or more fills the allowance, and the
+                // product below would overflow for a long wait.
+                balance_ = per_second_;
+            }
+            else
+            {
+                const auto earned = std::chrono::duration_cast<duration>(
+                    passed * per_second_.count() / 1'000'000'000);
+                balance_ = std::min(per_second_, balance_ + earned);
+            }
         }
         last_ = now;
         if (balance_ < wanted)
