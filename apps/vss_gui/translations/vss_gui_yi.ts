@@ -10211,6 +10211,34 @@ Networks: %5</source>
             <source>Decoding %1 as %2. What it finds is in Decoded traffic, under Tools.</source>
             <translation>דעקאדירט %1 ווי %2. וואס עס געפינט זיך אין געצייג, אונטער „דעקאדירטער טראפיק“.</translation>
         </message>
+        <message>
+            <source>Panes</source>
+            <translation>פּאַנעלן</translation>
+        </message>
+        <message>
+            <source>Next pane</source>
+            <translation>דער קומענדיקער פּאַנעל</translation>
+        </message>
+        <message>
+            <source>Previous pane</source>
+            <translation>דער פֿריִערדיקער פּאַנעל</translation>
+        </message>
+        <message>
+            <source>ports list</source>
+            <translation>פּאָרץ ליסטע</translation>
+        </message>
+        <message>
+            <source>port settings</source>
+            <translation>פּאָרט סעטינגס</translation>
+        </message>
+        <message>
+            <source>send bytes</source>
+            <translation>שיקן בײַטן</translation>
+        </message>
+        <message>
+            <source>panes switch cycle monitor log</source>
+            <translation>פּאַנעלן וועקסלען מאָניטאָר לאָג</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -24715,6 +24743,103 @@ From the plugin %2
             <location filename="../src/support/decoded_dialog.cpp" line="194" />
             <source>%1 left out to stay within the limits.</source>
             <translation>%1 אויסגעלאזט צו בלייבן אין די גרענעצן.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockDropOverlay</name>
+        <message>
+            <source>Drop guides</source>
+            <translation>אַראָפּלאָזן־גידעס</translation>
+        </message>
+        <message>
+            <source>Shows where the pane will go. Use the pane menu to move a pane without the mouse.</source>
+            <translation>ווײַזט וווּהין דער פּאַנעל גייט. ניצט דעם פּאַנעל־מעניו כדי אים צו באַוועגן אָן דער מויז.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockPanes</name>
+        <message>
+            <source>Dock</source>
+            <translation>אָנדאַקן</translation>
+        </message>
+        <message>
+            <source>Float</source>
+            <translation>שוועבן</translation>
+        </message>
+        <message>
+            <source>Move to the window edge</source>
+            <translation>באַוועגן צום ראַנד פֿון פֿענצטער</translation>
+        </message>
+        <message>
+            <source>Left</source>
+            <translation>לינקס</translation>
+        </message>
+        <message>
+            <source>Right</source>
+            <translation>רעכטס</translation>
+        </message>
+        <message>
+            <source>Top</source>
+            <translation>אויבן</translation>
+        </message>
+        <message>
+            <source>Bottom</source>
+            <translation>אונטן</translation>
+        </message>
+        <message>
+            <source>Beside %1</source>
+            <translation>לעבן %1</translation>
+        </message>
+        <message>
+            <source>Tab with %1</source>
+            <translation>טאַב מיט %1</translation>
+        </message>
+        <message>
+            <source>Left of %1</source>
+            <translation>לינקס פֿון %1</translation>
+        </message>
+        <message>
+            <source>Right of %1</source>
+            <translation>רעכטס פֿון %1</translation>
+        </message>
+        <message>
+            <source>Above %1</source>
+            <translation>איבער %1</translation>
+        </message>
+        <message>
+            <source>Below %1</source>
+            <translation>אונטער %1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>פֿאַרמאַכן</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockTitleBar</name>
+        <message>
+            <source>%1 title bar</source>
+            <translation>טיטל־באַר פֿון %1</translation>
+        </message>
+        <message>
+            <source>Drag to move the pane. The menu has every move command.</source>
+            <translation>שלעפּט צו באַוועגן דעם פּאַנעל. אין מעניו זענען אַלע באַוועגונג־באַפֿעלן.</translation>
+        </message>
+        <message>
+            <source>Pane menu</source>
+            <translation>פּאַנעל־מעניו</translation>
+        </message>
+        <message>
+            <source>%1 pane menu</source>
+            <translation>פּאַנעל־מעניו פֿון %1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>פֿאַרמאַכן</translation>
+        </message>
+        <message>
+            <source>Close %1</source>
+            <translation>פֿאַרמאַכן %1</translation>
         </message>
     </context>
 </TS>

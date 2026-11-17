@@ -10205,6 +10205,34 @@ Networks: %5</source>
             <source>Decoding %1 as %2. What it finds is in Decoded traffic, under Tools.</source>
             <translation>正在将 %1 解码为 %2。解码结果可在“工具”下的“已解码的流量”中查看。</translation>
         </message>
+        <message>
+            <source>Panes</source>
+            <translation>面板</translation>
+        </message>
+        <message>
+            <source>Next pane</source>
+            <translation>下一个面板</translation>
+        </message>
+        <message>
+            <source>Previous pane</source>
+            <translation>上一个面板</translation>
+        </message>
+        <message>
+            <source>ports list</source>
+            <translation>端口 列表</translation>
+        </message>
+        <message>
+            <source>port settings</source>
+            <translation>端口 设置</translation>
+        </message>
+        <message>
+            <source>send bytes</source>
+            <translation>发送 字节</translation>
+        </message>
+        <message>
+            <source>panes switch cycle monitor log</source>
+            <translation>面板 切换 循环 监视 日志</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -24673,6 +24701,103 @@ From the plugin %2
             <location filename="../src/support/decoded_dialog.cpp" line="194" />
             <source>%1 left out to stay within the limits.</source>
             <translation>为保持在限制之内，已省略 %1 条。</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockDropOverlay</name>
+        <message>
+            <source>Drop guides</source>
+            <translation>放置参考线</translation>
+        </message>
+        <message>
+            <source>Shows where the pane will go. Use the pane menu to move a pane without the mouse.</source>
+            <translation>显示面板将放置的位置。不用鼠标时，可使用面板菜单来移动面板。</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockPanes</name>
+        <message>
+            <source>Dock</source>
+            <translation>停靠</translation>
+        </message>
+        <message>
+            <source>Float</source>
+            <translation>浮动</translation>
+        </message>
+        <message>
+            <source>Move to the window edge</source>
+            <translation>移到窗口边缘</translation>
+        </message>
+        <message>
+            <source>Left</source>
+            <translation>左</translation>
+        </message>
+        <message>
+            <source>Right</source>
+            <translation>右</translation>
+        </message>
+        <message>
+            <source>Top</source>
+            <translation>上</translation>
+        </message>
+        <message>
+            <source>Bottom</source>
+            <translation>下</translation>
+        </message>
+        <message>
+            <source>Beside %1</source>
+            <translation>%1 旁边</translation>
+        </message>
+        <message>
+            <source>Tab with %1</source>
+            <translation>与 %1 合并为标签页</translation>
+        </message>
+        <message>
+            <source>Left of %1</source>
+            <translation>%1 左侧</translation>
+        </message>
+        <message>
+            <source>Right of %1</source>
+            <translation>%1 右侧</translation>
+        </message>
+        <message>
+            <source>Above %1</source>
+            <translation>%1 上方</translation>
+        </message>
+        <message>
+            <source>Below %1</source>
+            <translation>%1 下方</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>关闭</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockTitleBar</name>
+        <message>
+            <source>%1 title bar</source>
+            <translation>%1 标题栏</translation>
+        </message>
+        <message>
+            <source>Drag to move the pane. The menu has every move command.</source>
+            <translation>拖动可移动面板。菜单中有所有移动命令。</translation>
+        </message>
+        <message>
+            <source>Pane menu</source>
+            <translation>面板菜单</translation>
+        </message>
+        <message>
+            <source>%1 pane menu</source>
+            <translation>%1 面板菜单</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>关闭</translation>
+        </message>
+        <message>
+            <source>Close %1</source>
+            <translation>关闭 %1</translation>
         </message>
     </context>
 </TS>

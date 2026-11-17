@@ -331,6 +331,7 @@ private:
     void hide_all_docks();
     QAction* pane_action(const QDockWidget* dock) const;
     void show_pane(QDockWidget* dock);
+    bool raise_if_behind(QDockWidget* dock);
     void apply_theme_setting();
     void apply_density_setting();
     void sync_density_actions();

@@ -10211,6 +10211,34 @@ Redes: %5</translation>
             <source>Decoding %1 as %2. What it finds is in Decoded traffic, under Tools.</source>
             <translation>Decodificando %1 como %2. Lo que encuentre está en Herramientas, Tráfico decodificado.</translation>
         </message>
+        <message>
+            <source>Panes</source>
+            <translation>Paneles</translation>
+        </message>
+        <message>
+            <source>Next pane</source>
+            <translation>Panel siguiente</translation>
+        </message>
+        <message>
+            <source>Previous pane</source>
+            <translation>Panel anterior</translation>
+        </message>
+        <message>
+            <source>ports list</source>
+            <translation>puertos lista</translation>
+        </message>
+        <message>
+            <source>port settings</source>
+            <translation>puerto ajustes</translation>
+        </message>
+        <message>
+            <source>send bytes</source>
+            <translation>enviar bytes</translation>
+        </message>
+        <message>
+            <source>panes switch cycle monitor log</source>
+            <translation>paneles cambiar ciclo monitor registro</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -24715,6 +24743,103 @@ Del complemento %2
             <location filename="../src/support/decoded_dialog.cpp" line="194" />
             <source>%1 left out to stay within the limits.</source>
             <translation>%1 omitidos para respetar los límites.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockDropOverlay</name>
+        <message>
+            <source>Drop guides</source>
+            <translation>Guías para soltar</translation>
+        </message>
+        <message>
+            <source>Shows where the pane will go. Use the pane menu to move a pane without the mouse.</source>
+            <translation>Muestra dónde irá el panel. Use el menú del panel para moverlo sin el ratón.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockPanes</name>
+        <message>
+            <source>Dock</source>
+            <translation>Acoplar</translation>
+        </message>
+        <message>
+            <source>Float</source>
+            <translation>Flotar</translation>
+        </message>
+        <message>
+            <source>Move to the window edge</source>
+            <translation>Mover al borde de la ventana</translation>
+        </message>
+        <message>
+            <source>Left</source>
+            <translation>Izquierda</translation>
+        </message>
+        <message>
+            <source>Right</source>
+            <translation>Derecha</translation>
+        </message>
+        <message>
+            <source>Top</source>
+            <translation>Arriba</translation>
+        </message>
+        <message>
+            <source>Bottom</source>
+            <translation>Abajo</translation>
+        </message>
+        <message>
+            <source>Beside %1</source>
+            <translation>Junto a %1</translation>
+        </message>
+        <message>
+            <source>Tab with %1</source>
+            <translation>Pestaña con %1</translation>
+        </message>
+        <message>
+            <source>Left of %1</source>
+            <translation>A la izquierda de %1</translation>
+        </message>
+        <message>
+            <source>Right of %1</source>
+            <translation>A la derecha de %1</translation>
+        </message>
+        <message>
+            <source>Above %1</source>
+            <translation>Encima de %1</translation>
+        </message>
+        <message>
+            <source>Below %1</source>
+            <translation>Debajo de %1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>Cerrar</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockTitleBar</name>
+        <message>
+            <source>%1 title bar</source>
+            <translation>Barra de título de %1</translation>
+        </message>
+        <message>
+            <source>Drag to move the pane. The menu has every move command.</source>
+            <translation>Arrastre para mover el panel. El menú tiene todos los comandos de movimiento.</translation>
+        </message>
+        <message>
+            <source>Pane menu</source>
+            <translation>Menú del panel</translation>
+        </message>
+        <message>
+            <source>%1 pane menu</source>
+            <translation>Menú del panel %1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>Cerrar</translation>
+        </message>
+        <message>
+            <source>Close %1</source>
+            <translation>Cerrar %1</translation>
         </message>
     </context>
 </TS>

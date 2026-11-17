@@ -10211,6 +10211,34 @@ Networks: %5</source>
             <source>Decoding %1 as %2. What it finds is in Decoded traffic, under Tools.</source>
             <translation>מפענח את %1 כ-%2. מה שנמצא מופיע בכלים, תחת ״תעבורה מפוענחת״.</translation>
         </message>
+        <message>
+            <source>Panes</source>
+            <translation>חלוניות</translation>
+        </message>
+        <message>
+            <source>Next pane</source>
+            <translation>החלונית הבאה</translation>
+        </message>
+        <message>
+            <source>Previous pane</source>
+            <translation>החלונית הקודמת</translation>
+        </message>
+        <message>
+            <source>ports list</source>
+            <translation>פורטים רשימה</translation>
+        </message>
+        <message>
+            <source>port settings</source>
+            <translation>פורט הגדרות</translation>
+        </message>
+        <message>
+            <source>send bytes</source>
+            <translation>שלח בתים</translation>
+        </message>
+        <message>
+            <source>panes switch cycle monitor log</source>
+            <translation>חלוניות החלפה מעבר מוניטור יומן</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -24715,6 +24743,103 @@ From the plugin %2
             <location filename="../src/support/decoded_dialog.cpp" line="194" />
             <source>%1 left out to stay within the limits.</source>
             <translation>%1 הושמטו כדי להישאר בגבולות.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockDropOverlay</name>
+        <message>
+            <source>Drop guides</source>
+            <translation>מדריכי שחרור</translation>
+        </message>
+        <message>
+            <source>Shows where the pane will go. Use the pane menu to move a pane without the mouse.</source>
+            <translation>מראה לאן החלונית תעבור. אפשר להשתמש בתפריט החלונית כדי להזיז אותה בלי עכבר.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockPanes</name>
+        <message>
+            <source>Dock</source>
+            <translation>עגן</translation>
+        </message>
+        <message>
+            <source>Float</source>
+            <translation>הצף</translation>
+        </message>
+        <message>
+            <source>Move to the window edge</source>
+            <translation>העבר לקצה החלון</translation>
+        </message>
+        <message>
+            <source>Left</source>
+            <translation>שמאל</translation>
+        </message>
+        <message>
+            <source>Right</source>
+            <translation>ימין</translation>
+        </message>
+        <message>
+            <source>Top</source>
+            <translation>למעלה</translation>
+        </message>
+        <message>
+            <source>Bottom</source>
+            <translation>למטה</translation>
+        </message>
+        <message>
+            <source>Beside %1</source>
+            <translation>לצד %1</translation>
+        </message>
+        <message>
+            <source>Tab with %1</source>
+            <translation>לשונית עם %1</translation>
+        </message>
+        <message>
+            <source>Left of %1</source>
+            <translation>משמאל ל-%1</translation>
+        </message>
+        <message>
+            <source>Right of %1</source>
+            <translation>מימין ל-%1</translation>
+        </message>
+        <message>
+            <source>Above %1</source>
+            <translation>מעל %1</translation>
+        </message>
+        <message>
+            <source>Below %1</source>
+            <translation>מתחת ל-%1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>סגור</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockTitleBar</name>
+        <message>
+            <source>%1 title bar</source>
+            <translation>שורת הכותרת של %1</translation>
+        </message>
+        <message>
+            <source>Drag to move the pane. The menu has every move command.</source>
+            <translation>גררו כדי להזיז את החלונית. בתפריט יש את כל פקודות ההזזה.</translation>
+        </message>
+        <message>
+            <source>Pane menu</source>
+            <translation>תפריט חלונית</translation>
+        </message>
+        <message>
+            <source>%1 pane menu</source>
+            <translation>תפריט החלונית %1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>סגור</translation>
+        </message>
+        <message>
+            <source>Close %1</source>
+            <translation>סגור את %1</translation>
         </message>
     </context>
 </TS>

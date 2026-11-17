@@ -10211,6 +10211,34 @@ Réseaux : %5</translation>
             <source>Decoding %1 as %2. What it finds is in Decoded traffic, under Tools.</source>
             <translation>Décodage de %1 comme %2. Ce qui est trouvé se voit dans Outils, Trafic décodé.</translation>
         </message>
+        <message>
+            <source>Panes</source>
+            <translation>Volets</translation>
+        </message>
+        <message>
+            <source>Next pane</source>
+            <translation>Volet suivant</translation>
+        </message>
+        <message>
+            <source>Previous pane</source>
+            <translation>Volet précédent</translation>
+        </message>
+        <message>
+            <source>ports list</source>
+            <translation>ports liste</translation>
+        </message>
+        <message>
+            <source>port settings</source>
+            <translation>port réglages</translation>
+        </message>
+        <message>
+            <source>send bytes</source>
+            <translation>envoyer octets</translation>
+        </message>
+        <message>
+            <source>panes switch cycle monitor log</source>
+            <translation>volets changer cycle moniteur journal</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -24715,6 +24743,103 @@ Du module %2
             <location filename="../src/support/decoded_dialog.cpp" line="194" />
             <source>%1 left out to stay within the limits.</source>
             <translation>%1 omis pour rester dans les limites.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockDropOverlay</name>
+        <message>
+            <source>Drop guides</source>
+            <translation>Guides de dépôt</translation>
+        </message>
+        <message>
+            <source>Shows where the pane will go. Use the pane menu to move a pane without the mouse.</source>
+            <translation>Montre où ira le volet. Utilisez le menu du volet pour le déplacer sans la souris.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockPanes</name>
+        <message>
+            <source>Dock</source>
+            <translation>Ancrer</translation>
+        </message>
+        <message>
+            <source>Float</source>
+            <translation>Détacher</translation>
+        </message>
+        <message>
+            <source>Move to the window edge</source>
+            <translation>Déplacer au bord de la fenêtre</translation>
+        </message>
+        <message>
+            <source>Left</source>
+            <translation>Gauche</translation>
+        </message>
+        <message>
+            <source>Right</source>
+            <translation>Droite</translation>
+        </message>
+        <message>
+            <source>Top</source>
+            <translation>Haut</translation>
+        </message>
+        <message>
+            <source>Bottom</source>
+            <translation>Bas</translation>
+        </message>
+        <message>
+            <source>Beside %1</source>
+            <translation>À côté de %1</translation>
+        </message>
+        <message>
+            <source>Tab with %1</source>
+            <translation>Onglet avec %1</translation>
+        </message>
+        <message>
+            <source>Left of %1</source>
+            <translation>À gauche de %1</translation>
+        </message>
+        <message>
+            <source>Right of %1</source>
+            <translation>À droite de %1</translation>
+        </message>
+        <message>
+            <source>Above %1</source>
+            <translation>Au-dessus de %1</translation>
+        </message>
+        <message>
+            <source>Below %1</source>
+            <translation>Au-dessous de %1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>Fermer</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockTitleBar</name>
+        <message>
+            <source>%1 title bar</source>
+            <translation>Barre de titre de %1</translation>
+        </message>
+        <message>
+            <source>Drag to move the pane. The menu has every move command.</source>
+            <translation>Faites glisser pour déplacer le volet. Le menu contient toutes les commandes de déplacement.</translation>
+        </message>
+        <message>
+            <source>Pane menu</source>
+            <translation>Menu du volet</translation>
+        </message>
+        <message>
+            <source>%1 pane menu</source>
+            <translation>Menu du volet %1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>Fermer</translation>
+        </message>
+        <message>
+            <source>Close %1</source>
+            <translation>Fermer %1</translation>
         </message>
     </context>
 </TS>

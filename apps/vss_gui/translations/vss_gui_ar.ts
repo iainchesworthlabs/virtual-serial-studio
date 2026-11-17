@@ -10235,6 +10235,34 @@ Networks: %5</source>
             <source>Decoding %1 as %2. What it finds is in Decoded traffic, under Tools.</source>
             <translation>جارٍ فك ترميز %1 على أنه %2. ما يتم العثور عليه موجود في الأدوات، ضمن «البيانات المفكوكة الترميز».</translation>
         </message>
+        <message>
+            <source>Panes</source>
+            <translation>اللوحات</translation>
+        </message>
+        <message>
+            <source>Next pane</source>
+            <translation>اللوحة التالية</translation>
+        </message>
+        <message>
+            <source>Previous pane</source>
+            <translation>اللوحة السابقة</translation>
+        </message>
+        <message>
+            <source>ports list</source>
+            <translation>المنافذ قائمة</translation>
+        </message>
+        <message>
+            <source>port settings</source>
+            <translation>المنفذ إعدادات</translation>
+        </message>
+        <message>
+            <source>send bytes</source>
+            <translation>إرسال بايتات</translation>
+        </message>
+        <message>
+            <source>panes switch cycle monitor log</source>
+            <translation>اللوحات تبديل تنقل المراقب السجل</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -24883,6 +24911,103 @@ From the plugin %2
             <location filename="../src/support/decoded_dialog.cpp" line="194" />
             <source>%1 left out to stay within the limits.</source>
             <translation>تم تجاهل %1 للبقاء ضمن الحدود.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockDropOverlay</name>
+        <message>
+            <source>Drop guides</source>
+            <translation>أدلة الإفلات</translation>
+        </message>
+        <message>
+            <source>Shows where the pane will go. Use the pane menu to move a pane without the mouse.</source>
+            <translation>يعرض المكان الذي ستنتقل إليه اللوحة. استخدم قائمة اللوحة لنقلها دون الفأرة.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockPanes</name>
+        <message>
+            <source>Dock</source>
+            <translation>إرساء</translation>
+        </message>
+        <message>
+            <source>Float</source>
+            <translation>عائم</translation>
+        </message>
+        <message>
+            <source>Move to the window edge</source>
+            <translation>انقل إلى حافة النافذة</translation>
+        </message>
+        <message>
+            <source>Left</source>
+            <translation>يسار</translation>
+        </message>
+        <message>
+            <source>Right</source>
+            <translation>يمين</translation>
+        </message>
+        <message>
+            <source>Top</source>
+            <translation>أعلى</translation>
+        </message>
+        <message>
+            <source>Bottom</source>
+            <translation>أسفل</translation>
+        </message>
+        <message>
+            <source>Beside %1</source>
+            <translation>بجانب %1</translation>
+        </message>
+        <message>
+            <source>Tab with %1</source>
+            <translation>علامة تبويب مع %1</translation>
+        </message>
+        <message>
+            <source>Left of %1</source>
+            <translation>يسار %1</translation>
+        </message>
+        <message>
+            <source>Right of %1</source>
+            <translation>يمين %1</translation>
+        </message>
+        <message>
+            <source>Above %1</source>
+            <translation>فوق %1</translation>
+        </message>
+        <message>
+            <source>Below %1</source>
+            <translation>تحت %1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>إغلاق</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockTitleBar</name>
+        <message>
+            <source>%1 title bar</source>
+            <translation>شريط عنوان %1</translation>
+        </message>
+        <message>
+            <source>Drag to move the pane. The menu has every move command.</source>
+            <translation>اسحب لنقل اللوحة. تحتوي القائمة على كل أوامر النقل.</translation>
+        </message>
+        <message>
+            <source>Pane menu</source>
+            <translation>قائمة اللوحة</translation>
+        </message>
+        <message>
+            <source>%1 pane menu</source>
+            <translation>قائمة لوحة %1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>إغلاق</translation>
+        </message>
+        <message>
+            <source>Close %1</source>
+            <translation>إغلاق %1</translation>
         </message>
     </context>
 </TS>
