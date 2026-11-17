@@ -428,7 +428,8 @@ result<link_id> hub::bus(const std::vector<endpoint_id>& members,
     {
         record->line = std::make_shared<bus_line>(options.half_duplex);
         record->wire = std::make_shared<bus_wire>(
-            io_.get_executor(), options_.clock, record->line->garbled());
+            io_.get_executor(), options_.clock, record->line->garbled(),
+            make_forwarder());
         for (endpoint_id id : members)
             record->line->set_rts(id, endpoints_.at(id)->peer_rts());
     }
@@ -601,7 +602,7 @@ std::shared_ptr<delay_line> hub::make_delay(endpoint_id to,
         return nullptr;
     return std::make_shared<delay_line>(io_.get_executor(), target->second,
                                         options.delay_ms, options.jitter_ms,
-                                        options_.clock);
+                                        options_.clock, make_forwarder());
 }
 
 hub::route_entry hub::make_route(const link_record& link, endpoint_id from,
@@ -1290,7 +1291,8 @@ result<void> hub::set_link_options(link_id id, const link_options& options)
         {
             line = std::make_shared<bus_line>(next.half_duplex);
             wire = std::make_shared<bus_wire>(io_.get_executor(),
-                                              options_.clock, line->garbled());
+                                              options_.clock, line->garbled(),
+                                              make_forwarder());
             for (const endpoint_id member : record->sources)
             {
                 const auto end = endpoints_.find(member);
@@ -1412,6 +1414,21 @@ void hub::route_data(endpoint_id from, bytes_view data)
 
 void hub::route_data(endpoint_id from, bytes_view data, time_point when)
 {
+    route_chunk(from, data, when, nullptr);
+}
+
+std::function<void(endpoint_id, bytes_view,
+                   const std::shared_ptr<const visited_chunk>&, time_point)>
+hub::make_forwarder()
+{
+    return [this](endpoint_id at, bytes_view data,
+                  const std::shared_ptr<const visited_chunk>& seen,
+                  time_point when) { route_chunk(at, data, when, seen.get()); };
+}
+
+void hub::route_chunk(endpoint_id from, bytes_view data, time_point when,
+                      const visited_chunk* visited)
+{
     VSS_PROFILE_ZONE("hub.route");
 
     if (data.empty())
@@ -1425,6 +1442,10 @@ void hub::route_data(endpoint_id from, bytes_view data, time_point when)
     };
 
     std::vector<delivery> deliveries;
+    // Where the chunk goes, and whether any of those endpoints has links of
+    // its own, in which case the chunk is carried on from there.
+    std::vector<endpoint_id> reached;
+    bool carry_on = false;
 
     // For a sender on a half-duplex bus: what the line said of the chunk,
     // and where the wire takes it.  An endpoint is on one bus at most.
@@ -1432,11 +1453,19 @@ void hub::route_data(endpoint_id from, bytes_view data, time_point when)
     std::vector<bus_wire::delivery> on_wire;
     bus_verdict verdict;
     std::optional<endpoint_event> fault;
+    std::shared_ptr<const visited_chunk> carried;
+    std::vector<link_id> crossed;
     {
         std::shared_lock lock(mutex_);
         auto it = routes_.find(from);
         if (it == routes_.end())
             return;
+
+        const auto has_routes = [this](endpoint_id id)
+        {
+            const auto found = routes_.find(id);
+            return found != routes_.end() && !found->second.empty();
+        };
 
         for (const auto& route : it->second)
         {
@@ -1444,6 +1473,15 @@ void hub::route_data(endpoint_id from, bytes_view data, time_point when)
             if (link_it == links_.end())
                 continue;
             auto& record = *link_it->second;
+
+            // A chunk that is being carried on is not sent to an endpoint
+            // that has had it, or that it was read from, nor over a link it
+            // came by.
+            if (visited &&
+                (visited->trace->seen(route.to) ||
+                 std::find(visited->via.begin(), visited->via.end(),
+                           route.link) != visited->via.end()))
+                continue;
 
             // set_link_options is closing the lines it replaced.
             if (record.retiming.load(std::memory_order_acquire) != 0)
@@ -1498,21 +1536,59 @@ void hub::route_data(endpoint_id from, bytes_view data, time_point when)
                     record.dropped.fetch_add(data.size());
                     continue;
                 }
+                // Another branch of the chunk may have got there first.
+                if (visited && !visited->trace->claim(route.to))
+                    continue;
                 record.bytes.fetch_add(data.size());
                 record.messages.fetch_add(1);
 
                 auto target = endpoints_.find(route.to);
                 if (target != endpoints_.end())
+                {
                     on_wire.push_back({target->second, route.delay});
+                    reached.push_back(route.to);
+                    crossed.push_back(route.link);
+                    carry_on = carry_on || has_routes(route.to);
+                }
                 continue;
             }
 
+            if (visited && !visited->trace->claim(route.to))
+                continue;
             record.bytes.fetch_add(data.size());
             record.messages.fetch_add(1);
 
             auto target = endpoints_.find(route.to);
             if (target != endpoints_.end())
+            {
                 deliveries.push_back({target->second, route.delay});
+                reached.push_back(route.to);
+                crossed.push_back(route.link);
+                carry_on = carry_on || has_routes(route.to);
+            }
+        }
+
+        // Only a chunk that some endpoint it reaches can carry on needs the
+        // set; the others pay for nothing.
+        if (carry_on)
+        {
+            auto hop = std::make_shared<visited_chunk>();
+            if (visited)
+            {
+                hop->trace = visited->trace;
+                hop->via = visited->via;
+            }
+            else
+            {
+                // A chunk read from `from`: it and everything it reaches
+                // have it.
+                hop->trace = std::make_shared<chunk_trace>();
+                hop->trace->add(from);
+                for (const endpoint_id id : reached)
+                    hop->trace->add(id);
+            }
+            hop->via.insert(hop->via.end(), crossed.begin(), crossed.end());
+            carried = std::move(hop);
         }
 
         // Onto the wire before the lock is let go.  A member that is taken
@@ -1522,15 +1598,22 @@ void hub::route_data(endpoint_id from, bytes_view data, time_point when)
         // had left.
         if (wire && !on_wire.empty())
             wire->push(from, verdict.ends, data,
-                       std::move(verdict.transmission), std::move(on_wire));
+                       std::move(verdict.transmission), std::move(on_wire),
+                       carried);
     }
 
     for (const auto& entry : deliveries)
     {
         if (entry.delay)
-            entry.delay->push(data);
-        else
-            entry.target->write(data);
+        {
+            entry.delay->push(data, carried);
+            continue;
+        }
+        // Carried on before it is written, as a delay line does, so the
+        // bytes are read once from the caller's buffer.
+        if (carried)
+            route_chunk(entry.target->id(), data, when, carried.get());
+        entry.target->write(data);
     }
 
     if (fault)

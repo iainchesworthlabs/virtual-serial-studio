@@ -447,6 +447,40 @@ honouring the request for a program whose windows are all minimised or covered,
 so a delay in Studio's own window can go back to the 15.6 ms tick while the
 window cannot be seen; the agent has no window and is not affected.
 
+### Data passes through a port
+
+A chunk that a link writes into an endpoint is carried on along that
+endpoint's other links, as if the endpoint had read it. With `client <-> p4`,
+`p4 <-> server` and `p4` on a bus, the client's bytes reach the server and the
+other members of the bus, and the server's bytes reach the client and the bus.
+
+* **One delivery for each endpoint.** The hub passes a set of visited endpoints
+  along with the chunk: the endpoint it was read from and every endpoint it has
+  been written to, including every member of a bus it crossed. A route into an
+  endpoint in the set is not taken. A chunk is therefore written to an endpoint
+  once, never goes back to where it came from, and cannot go round a loop.
+  The cycle rules refuse a loop of links when it is made, so the set is what
+  keeps the two-way links and the buses, which are loops of two routes, from
+  sending a chunk back. The set also holds the links the chunk has crossed, and
+  a chunk does not leave over a link it arrived by, so the listeners of a split
+  still do not hear each other.
+* **Directions are kept.** A route is taken only in its own direction, so a
+  one-way link (`redirect`, `monitor`, a split's targets) passes data on from its
+  target but never against it. An owner link still forwards only for its owner,
+  and a half-duplex bus still judges the chunk as sent by the member it came
+  through.
+* **Each hop is counted once.** Every link the chunk crosses counts its bytes
+  and messages, a monitor on a port copies what that port reads and what is
+  written into it, and the endpoints count their own bytes. A write that an
+  endpoint refuses because its queue is full is counted in that endpoint's
+  `dropped`, as before.
+* **Delays add up.** A link with a delay holds the chunk for its delay and then
+  carries it on, so the second link's delay starts when the first one has
+  delivered.
+* **No cost without a second link.** The set is made only when an endpoint the
+  chunk reaches has routes of its own, so a plain two-way link or a split does
+  what it did before, with no extra allocation.
+
 ### The shared bus
 
 A bus is the one link that is a broadcast domain rather than a set of
