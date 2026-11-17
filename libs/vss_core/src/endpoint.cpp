@@ -966,12 +966,6 @@ void endpoint::set_name(std::string name)
     name_ = std::move(name);
 }
 
-std::optional<line_format> endpoint::peer_format() const
-{
-    const auto current = active_transport();
-    return current ? current->peer_format() : std::nullopt;
-}
-
 endpoint_info endpoint::info() const
 {
     endpoint_info out;

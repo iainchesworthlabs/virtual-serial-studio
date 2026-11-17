@@ -184,10 +184,6 @@ public:
     /// Applies the modem inputs a peer drives (CTS/DSR/DCD/RI).
     void set_peer_inputs(control_lines inputs);
 
-    /// The baud rate and framing the transport says its program has set
-    /// (#transport::peer_format), if it can tell.
-    std::optional<line_format> peer_format() const;
-
     /// Gives the transport the format of the program on the far side of a
     /// link (#transport::apply_peer_format).
     void set_peer_format(const line_format& format);
