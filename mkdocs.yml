@@ -45,6 +45,7 @@ nav:
       - Response timing rules (design): response-timing.md
       - POSIX virtual ports: posix-virtual-ports.md
       - Windows COM port driver: windows-com-driver.md
+      - Baud rate, framing and break audit: engine-serial-audit.md
       - Platforms: platforms.md
       - Virtual machine testing: vm-testing.md
       - Workstreams: workstreams.md

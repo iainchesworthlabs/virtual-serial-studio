@@ -95,7 +95,7 @@ A dialog, "Settings for <name>", 440 px wide. Fields:
 
 | Field | Values | Default |
 |---|---|---|
-| Baud rate | Editable list: 300 to 921600, and any whole number from 50 to 4000000 | 115200 |
+| Baud rate | Editable list: 300 to 921600 and 1000000, 2000000, 3000000, 4000000 and 12000000, and any whole number from 50 to 12000000 | 115200 |
 | Data bits | 5, 6, 7, 8 | 8 |
 | Parity | None, Odd, Even, Mark, Space | None |
 | Stop bits | 1, 1.5, 2 | 1 |

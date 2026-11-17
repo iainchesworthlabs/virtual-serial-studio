@@ -1562,9 +1562,9 @@ TEST_CASE("json: a half-duplex line is checked and each error is placed")
     };
     const json_problem slow = inside(QStringLiteral("\"bit_rate\":10"));
     REQUIRE(slow.summary.contains(
-        QStringLiteral("The line rate must be between 50 and 4000000 bit/s")));
+        QStringLiteral("The line rate must be between 50 and 12000000 bit/s")));
     REQUIRE_EQ(slow.line, 11);
-    REQUIRE_EQ(inside(QStringLiteral("\"bit_rate\":4000001")).line, 11);
+    REQUIRE_EQ(inside(QStringLiteral("\"bit_rate\":12000001")).line, 11);
     REQUIRE_EQ(inside(QStringLiteral("\"bit_rate\":9600.5")).line, 11);
     REQUIRE_EQ(inside(QStringLiteral("\"bit_rate\":\"fast\"")).line, 11);
 
