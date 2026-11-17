@@ -421,3 +421,89 @@ TEST_CASE("a replay keeps the chunk boundaries and times of the recording")
     // Never early: the last chunk was recorded at 70 ms.
     REQUIRE(took >= 65ms);
 }
+
+TEST_CASE("a replay is read as it plays, so a recording larger than the read "
+          "ahead is played whole")
+{
+    rig r;
+    const fs::path folder = r.data / "recordings" / "big";
+    recording_options options;
+    options.origin_utc = std::chrono::floor<std::chrono::seconds>(
+        std::chrono::system_clock::now());
+    vss::plugin::host::place_spec spec;
+    spec.name = std::string(port_name);
+    options.places.push_back(std::move(spec));
+    options.made_by.plugin = "com.example.replay";
+    options.made_by.version = "1.0.0";
+    auto writer = recording_writer::open(folder, std::move(options));
+    REQUIRE(writer.has_value());
+    // 3000 chunks of 1000 bytes: nearly 3 MiB, more than two reads of the
+    // read ahead, the bytes of each chunk telling which chunk it is.
+    std::string all;
+    for (std::size_t i = 0; i < 3000; ++i)
+    {
+        const std::string chunk(1000, static_cast<char>('a' + i % 26));
+        all += chunk;
+        const vss::byte_buffer bytes(chunk.begin(), chunk.end());
+        REQUIRE(writer->add_data(0, i * 1000, vss::data_direction::rx, bytes));
+    }
+    REQUIRE(writer->finish().has_value());
+    r.have(rig::replay_instance());
+    REQUIRE(rig::is_ok(
+        r.ask(load_of("recordings/big", std::string(port_name), 1.0))));
+    REQUIRE(r.arrived(all.size()));
+    REQUIRE_EQ(r.first.written(), all);
+    REQUIRE(wait_until(
+        [&]
+        {
+            r.pump();
+            return r.handler->counts().finished == 1;
+        },
+        20000ms));
+    REQUIRE_EQ(r.handler->counts().chunks, std::uint64_t{3000});
+    REQUIRE_EQ(r.handler->counts().read_errors, std::uint64_t{0});
+}
+
+TEST_CASE("a replay counts what it does not play")
+{
+    rig r;
+    const fs::path folder = r.data / "recordings" / "mixed-kinds";
+    recording_options options;
+    options.origin_utc = std::chrono::floor<std::chrono::seconds>(
+        std::chrono::system_clock::now());
+    vss::plugin::host::place_spec spec;
+    spec.name = std::string(port_name);
+    options.places.push_back(std::move(spec));
+    options.made_by.plugin = "com.example.replay";
+    options.made_by.version = "1.0.0";
+    auto writer = recording_writer::open(folder, std::move(options));
+    REQUIRE(writer.has_value());
+    const std::string in = "in";
+    const std::string out = "out";
+    REQUIRE(writer->add_data(0, 1'000, vss::data_direction::rx,
+                             vss::byte_buffer(in.begin(), in.end())));
+    REQUIRE(writer->add_data(0, 2'000, vss::data_direction::tx,
+                             vss::byte_buffer(out.begin(), out.end())));
+    REQUIRE(writer->add_fault(0, 3'000, "framing"));
+    vss::control_lines lines;
+    lines.set(vss::control_line::cts, true);
+    REQUIRE(writer->add_line(0, 4'000, lines, lines));
+    REQUIRE(writer->finish().has_value());
+    r.have(rig::replay_instance());
+    REQUIRE(rig::is_ok(
+        r.ask(load_of("recordings/mixed-kinds", std::string(port_name), 1.0))));
+    REQUIRE(wait_until(
+        [&]
+        {
+            r.pump();
+            return r.handler->counts().finished == 1;
+        },
+        20000ms));
+    const auto counts = r.handler->counts();
+    REQUIRE_EQ(r.first.written(), in);
+    REQUIRE_EQ(counts.sent_skipped, std::uint64_t{1});
+    REQUIRE_EQ(counts.faults_skipped, std::uint64_t{1});
+    // The line change is played where the port follows lines and counted as
+    // skipped where it does not: either way it is counted.
+    REQUIRE_EQ(counts.line_changes + counts.lines_skipped, std::uint64_t{1});
+}
