@@ -521,7 +521,18 @@ result<link_id> hub::add_link(link_mode mode,
         }
     }
 
-    return record->id;
+    // A target that can pass a format on learns the one a source has set
+    // now, not at the next change.
+    const link_id created = record->id;
+    lock.unlock();
+    for (endpoint_id source : sources)
+        route_format(source);
+    if (duplex)
+    {
+        for (endpoint_id target : targets)
+            route_format(target);
+    }
+    return created;
 }
 
 endpoint_id hub::cycle_node(endpoint_id id) const
@@ -1732,6 +1743,35 @@ void hub::route_lines(endpoint_id from, control_lines lines)
 
     for (const auto& update : updates)
         update.target->set_peer_inputs(update.inputs);
+}
+
+void hub::route_format(endpoint_id from)
+{
+    VSS_PROFILE_ZONE("hub.route_format");
+    std::shared_ptr<endpoint> sender;
+    std::vector<std::shared_ptr<endpoint>> targets;
+    {
+        std::shared_lock lock(mutex_);
+        const auto found = endpoints_.find(from);
+        if (found == endpoints_.end())
+            return;
+        sender = found->second;
+        const auto it = routes_.find(from);
+        if (it == routes_.end())
+            return;
+        for (const auto& route : it->second)
+        {
+            if (const auto target = endpoints_.find(route.to);
+                target != endpoints_.end())
+                targets.push_back(target->second);
+        }
+    }
+
+    const auto format = sender->peer_format();
+    if (!format)
+        return;
+    for (const auto& target : targets)
+        target->set_peer_format(*format);
 }
 
 void hub::publish(endpoint_event event)

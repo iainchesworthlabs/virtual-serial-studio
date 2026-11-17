@@ -90,6 +90,14 @@ public:
     /// yet.  May be called from any thread.
     virtual std::optional<line_format> peer_format() const { return std::nullopt; }
 
+    /// Tells the transport the baud rate and framing that the program on the
+    /// far side of a link has set, for a transport that can pass them on: an
+    /// RFC 2217 client sends them to its server, so the device there runs as
+    /// the program expects.  Called when the source of a link reports a
+    /// format (#peer_format) and when a link to it is made, from any thread.
+    /// Most transports have no use for it and ignore it.
+    virtual void apply_peer_format(const line_format& /*format*/) {}
+
     /// How many remote clients are connected, for a transport that waits for
     /// them (a listener).  Empty for every other kind, so "none connected" and
     /// "not a listener" stay different answers.  May be called from any thread.

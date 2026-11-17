@@ -422,6 +422,9 @@ public:
     /// (#line_break::when).
     void route_break(endpoint_id from, const line_break& item);
     void route_lines(endpoint_id from, control_lines lines);
+    /// Passes the format the program at `from` has set (#endpoint::peer_format)
+    /// on to the endpoints it has a route to.
+    void route_format(endpoint_id from);
     void publish(endpoint_event event);
 
 private:
