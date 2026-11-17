@@ -47,10 +47,19 @@ time_point delay_line::now() const
     return clock_ ? clock_() : clock_type::now();
 }
 
-void delay_line::push(bytes_view data, visited_set visited)
+void delay_line::push(const stream_item& item, visited_set visited)
 {
-    if (data.empty())
-        return;
+    owned_item owned;
+    if (const auto* bytes = std::get_if<bytes_view>(&item))
+    {
+        if (bytes->empty())
+            return;
+        owned = byte_buffer(bytes->begin(), bytes->end());
+    }
+    else
+    {
+        owned = std::get<line_break>(item);
+    }
 
     VSS_PROFILE_ZONE("link.delay_push");
 
@@ -75,8 +84,7 @@ void delay_line::push(bytes_view data, visited_set visited)
             now() + std::chrono::milliseconds(latency), last_due_);
         last_due_ = due;
         was_empty = queue_.empty();
-        queue_.push_back(item{due, byte_buffer(data.begin(), data.end()),
-                              std::move(visited)});
+        queue_.push_back(entry{due, std::move(owned), std::move(visited)});
         VSS_PROFILE_PLOT("link.delay_queue", queue_.size());
     }
 
@@ -126,7 +134,7 @@ void delay_line::fire()
     // Only this strand and close() take it, so it is free unless the route
     // is being removed.
     std::lock_guard delivering(deliver_mutex_);
-    std::vector<item> ready;
+    std::vector<entry> ready;
     {
         std::lock_guard lock(mutex_);
         const time_point current = now();
@@ -142,9 +150,12 @@ void delay_line::fire()
         // The write takes the bytes, so the forward goes first and reads
         // them from here; the endpoint's queue is where order is kept.
         if (chunk.visited && forward_)
-            forward_(target_->id(), bytes_view(chunk.data), chunk.visited,
+            forward_(target_->id(), view_of(chunk.data), chunk.visited,
                      now());
-        target_->write(std::move(chunk.data));
+        if (auto* bytes = std::get_if<byte_buffer>(&chunk.data))
+            target_->write(std::move(*bytes));
+        else
+            target_->write_break(std::get<line_break>(chunk.data));
     }
 
     arm();

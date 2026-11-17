@@ -150,6 +150,8 @@ QString kind_name(vss::event_kind kind)
         return QObject::tr("log");
     case vss::event_kind::bus_fault:
         return QObject::tr("bus");
+    case vss::event_kind::line_break:
+        return QObject::tr("break");
     }
     return {};
 }

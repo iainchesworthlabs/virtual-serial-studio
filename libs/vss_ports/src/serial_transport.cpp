@@ -304,6 +304,12 @@ void serial_transport::async_write_some(boost::asio::const_buffer buffer,
     port_->async_write_some(buffer, std::move(handler));
 }
 
+void serial_transport::async_write_break(const line_break&, io_handler handler)
+{
+    boost::asio::post(executor_, [handler = std::move(handler)]
+                      { handler(boost::system::error_code{}, 0); });
+}
+
 void serial_transport::close()
 {
     if (!port_)

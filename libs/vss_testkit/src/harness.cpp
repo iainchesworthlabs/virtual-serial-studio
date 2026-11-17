@@ -62,6 +62,30 @@ bool wait_for_rx(const endpoint& endpoint, std::size_t bytes,
                       { return endpoint.stats().bytes_rx >= bytes; }, timeout);
 }
 
+void make_break(endpoint& endpoint, std::chrono::nanoseconds length,
+                time_point start, bool measured)
+{
+    line_break item;
+    item.phase = break_phase::complete;
+    item.start = start;
+    item.duration = length;
+    item.measured = measured;
+    endpoint.receive_break(item);
+}
+
+void make_break_pair(endpoint& endpoint, std::chrono::nanoseconds length,
+                     time_point start)
+{
+    line_break item;
+    item.measured = true;
+    item.phase = break_phase::begin;
+    item.start = start;
+    endpoint.receive_break(item);
+    item.phase = break_phase::end;
+    item.duration = length;
+    endpoint.receive_break(item);
+}
+
 byte_buffer make_pattern(std::size_t size, unsigned seed)
 {
     byte_buffer data;

@@ -688,6 +688,39 @@ The inputs are replaced rather than merged so the result does not depend on
 which line moved last. Transports that can drive the device apply the change;
 the rest keep the model and report it through events.
 
+## Breaks
+
+A serial break is not a control line. It is an item of the stream, a `line_break` with a
+`break_phase` (`begin`, `end` or `complete`), a start time, a length and `measured`
+(whether the length was measured, or is one character time that a real device's break is
+at least). `hub::route_chunk` takes a `stream_item`, which is bytes or a break, so one path
+applies the loop checks, the monitor direction, the owner policy, the delay line, the bus
+wire and the counters to both, and a break never overtakes the bytes before it.
+
+* **Into the engine.** A transport reports a break with `transport::set_break_sink`, in the
+  same task as, and straight after, the read completion that carried the bytes before it,
+  so the endpoint sees them in order. `endpoint::receive_break` does the same for a test or
+  a tool. The endpoint counts it (`breaks_rx`; a begin is not counted, so a break is counted
+  once), routes it and publishes an `rx` `line_break` event.
+* **Out of the engine.** A break written to an endpoint is queued with the bytes
+  (`endpoint::write_break`) and shown to the transport in its turn with
+  `transport::async_write_break`. A transport that cannot show one
+  (`can_deliver_break()` false, the default) is not asked: the endpoint logs "break not
+  delivered" once for the port and counts it in `dropped`. The loopback transport and the
+  scripted fixture take a break and say nothing; the Windows driver, a real serial port,
+  the RFC 2217 listener and a POSIX pseudo terminal do not deliver one yet.
+* **Links.** A delay line holds a break for the link's delay with the bytes. A link counts
+  breaks in `link_stats::breaks`, once for each port that receives one, and they add
+  nothing to `bytes` or `messages`. A `monitor` copies a break by its `direction`, with
+  modem lines on or off.
+* **Half-duplex bus.** A break is a transmission of its length: it holds the line while it
+  lasts (one character at the bus rate when it was not measured), another member's chunk
+  inside it is an `overlap`, and members hear it when it has left the wire. A bus acts on a
+  break when it ends, so the `begin` of a running break is not carried on a bus.
+* **RFC 2217.** A client's SET-CONTROL 5 and 6 are a `begin` and an `end` in order with its
+  bytes, with the time between the two commands as the length (it includes the delay of the
+  network). A client that goes with its break on ends it.
+
 ## Why loopback devices echo
 
 A loopback transport is a loopback *plug*: what you write comes back on the

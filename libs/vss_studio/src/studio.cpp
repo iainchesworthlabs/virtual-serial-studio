@@ -794,6 +794,20 @@ result<void> studio::inject_fault(endpoint_id id, fault_kind fault)
     if (!target)
         return make_error_code(errc::not_found);
 
+    if (fault == fault_kind::break_condition)
+    {
+        // A break at a fixture is an item of the stream, in order with the
+        // bytes it has read, one character long as a real device's break is
+        // at least: not a read error that stops the fixture.
+        line_break item;
+        item.phase = break_phase::complete;
+        item.start = hub_->now();
+        item.duration = target->options().serial.character_duration();
+        item.measured = false;
+        target->receive_break(item);
+        return {};
+    }
+
     // The fixture is not thread safe, and the endpoint reads from it on its
     // strand, so the injection runs there too.  The lambda holds the
     // transport, which keeps the fixture alive until it has run.

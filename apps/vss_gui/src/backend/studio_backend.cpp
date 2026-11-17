@@ -6,6 +6,8 @@
 
 #include "backend/studio_backend.hpp"
 
+#include <QLocale>
+
 #include <algorithm>
 
 namespace vss::gui
@@ -46,6 +48,37 @@ std::vector<device_view> StudioBackend::other_program_ports() const
             out.push_back(std::move(device));
     }
     return out;
+}
+
+namespace
+{
+
+/// A length as the person reads it: microseconds, milliseconds or seconds,
+/// three figures.
+QString length_text(std::chrono::nanoseconds length)
+{
+    const double microseconds = static_cast<double>(length.count()) / 1000.0;
+    if (microseconds < 1000.0)
+        return QObject::tr("%1 µs")
+            .arg(QLocale().toString(microseconds, 'g', 3));
+    const double milliseconds = microseconds / 1000.0;
+    if (milliseconds < 1000.0)
+        return QObject::tr("%1 ms")
+            .arg(QLocale().toString(milliseconds, 'g', 3));
+    return QObject::tr("%1 s")
+        .arg(QLocale().toString(milliseconds / 1000.0, 'g', 3));
+}
+
+} // namespace
+
+QString break_detail(vss::break_phase phase, std::chrono::nanoseconds duration,
+                     bool measured)
+{
+    if (phase == vss::break_phase::begin)
+        return QObject::tr("running");
+    if (!measured)
+        return QObject::tr("at least %1").arg(length_text(duration));
+    return length_text(duration);
 }
 
 QString error_text(const vss::error_code& error)

@@ -97,6 +97,10 @@ QString EventLog::format(const gui_event& event, const QString& stamp)
     case vss::event_kind::bus_fault:
         return QStringLiteral("[%1] %2 bus: %3")
             .arg(stamp, name, event.message);
+    case vss::event_kind::line_break:
+        return QStringLiteral("[%1] %2 %3 break: %4")
+            .arg(stamp, name, direction_text(event.direction),
+                 break_detail(event.phase, event.duration, event.measured));
     case vss::event_kind::stats:
         return {};
     }

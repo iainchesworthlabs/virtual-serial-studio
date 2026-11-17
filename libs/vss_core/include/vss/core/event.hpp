@@ -9,6 +9,7 @@
 
 #include <vss/core/bytes.hpp>
 #include <vss/core/control_lines.hpp>
+#include <vss/core/line_break.hpp>
 #include <vss/core/stats.hpp>
 #include <vss/core/types.hpp>
 
@@ -35,7 +36,12 @@ enum class event_kind
     /// A chunk sent on a half-duplex bus was not a clean transmission.  The
     /// event is the sender's; `fault` says what happened, `link` names the
     /// bus and `message` says it in words.
-    bus_fault
+    bus_fault,
+    /// A serial break, in order with the `data` events around it.  `phase`,
+    /// `start`, `duration` and `measured` say which part and how long;
+    /// `direction` is `rx` for a break the endpoint received and `tx` for
+    /// one it sent out.  `when` is the item's own time (`line_break::when`).
+    line_break
 };
 
 struct endpoint_event
@@ -52,6 +58,13 @@ struct endpoint_event
     /// For `bus_fault`: what happened, and on which bus.
     bus_fault fault = bus_fault::none;
     link_id link = 0;
+    /// For `line_break`: the part of the break this is, when it began, how
+    /// long it lasted (zero for a `begin`) and whether the length was
+    /// measured.
+    break_phase phase = break_phase::complete;
+    time_point start{};
+    std::chrono::nanoseconds duration{0};
+    bool measured = false;
 };
 
 using event_sink = std::function<void(const endpoint_event&)>;

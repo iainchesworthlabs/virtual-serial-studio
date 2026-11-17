@@ -23,8 +23,10 @@
 #include <future>
 #include <initializer_list>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 
 using namespace vss;
 namespace asio = boost::asio;
@@ -602,4 +604,174 @@ TEST_CASE("rfc2217: a client that never negotiates still gets its data")
     auto written = promise->get_future();
     REQUIRE(written.wait_for(3000ms) == std::future_status::ready);
     REQUIRE_EQ(written.get(), std::size_t{4});
+}
+
+TEST_CASE("rfc2217: a break the client turns on and off keeps its place among the bytes")
+{
+    rfc2217::session session = ready_session();
+    const auto result = session.feed(std::string("AB") + command(5, bytes({5})) +
+                                     "CD" + command(5, bytes({6})) + "E");
+    REQUIRE_EQ(result.data, std::string("ABCDE"));
+    REQUIRE_EQ(result.breaks.size(), std::size_t{2});
+    REQUIRE_EQ(result.breaks[0].at, std::size_t{2});
+    REQUIRE(result.breaks[0].on);
+    REQUIRE_EQ(result.breaks[1].at, std::size_t{4});
+    REQUIRE(!result.breaks[1].on);
+
+    // Asking for the state is not a break.
+    const auto asked = session.feed(command(5, bytes({4})));
+    REQUIRE(asked.breaks.empty());
+}
+
+TEST_CASE("rfc2217: the listener reports a client's break as a begin and an end between its bytes")
+{
+    loop running;
+    listen_address address;
+    address.protocol = listen_protocol::rfc2217;
+    address.host = "127.0.0.1";
+    error_code ec;
+    listen_transport transport(running.io.get_executor(), address, ec);
+    REQUIRE(!ec);
+
+    // What the endpoint is told, in the order it is told it.
+    struct log
+    {
+        std::mutex mutex;
+        std::string order;
+        std::vector<line_break> breaks;
+    };
+    auto seen = std::make_shared<log>();
+    transport.set_break_sink(
+        [seen](const line_break& item)
+        {
+            std::lock_guard lock(seen->mutex);
+            seen->order += item.phase == break_phase::begin ? "[begin]" : "[end]";
+            seen->breaks.push_back(item);
+        });
+
+    asio::io_context client_io;
+    asio::ip::tcp::socket client(client_io);
+    client.connect({asio::ip::make_address("127.0.0.1"),
+                    transport.local_port()});
+    rfc2217::session reference;
+    const std::string greeting = reference.greeting();
+    REQUIRE_EQ(receive(client, greeting.size()), greeting);
+    asio::write(client, asio::buffer(bytes({iac, do_option, com_port})));
+
+    const auto read_one = [&]
+    {
+        auto promise = std::make_shared<std::promise<void>>();
+        auto buffer = std::make_shared<std::array<char, 256>>();
+        transport.async_read_some(
+            asio::buffer(*buffer),
+            [promise, buffer, seen](boost::system::error_code,
+                                    std::size_t count)
+            {
+                {
+                    std::lock_guard lock(seen->mutex);
+                    if (count != 0)
+                        seen->order += std::string(buffer->data(), count);
+                }
+                promise->set_value();
+            });
+        auto done = promise->get_future();
+        REQUIRE(done.wait_for(3000ms) == std::future_status::ready);
+    };
+
+    // One write from the client holds bytes, the break on, bytes, the break
+    // off and bytes.
+    asio::write(client, asio::buffer(std::string("ab") + command(5, bytes({5})) +
+                                     "cd" + command(5, bytes({6})) + "e"));
+    for (int index = 0; index < 8; ++index)
+    {
+        read_one();
+        std::lock_guard lock(seen->mutex);
+        if (seen->order == "ab[begin]cd[end]e")
+            break;
+    }
+    // The next read may be the one that carries the break: keep reading until
+    // the whole sequence is in.
+    {
+        std::lock_guard lock(seen->mutex);
+        REQUIRE_EQ(seen->order, std::string("ab[begin]cd[end]e"));
+        REQUIRE_EQ(seen->breaks.size(), std::size_t{2});
+        REQUIRE(seen->breaks[0].measured);
+        REQUIRE_EQ(seen->breaks[1].phase, break_phase::end);
+        REQUIRE(seen->breaks[1].duration >= std::chrono::nanoseconds(0));
+        REQUIRE(seen->breaks[1].start == seen->breaks[0].start);
+    }
+}
+
+TEST_CASE("rfc2217: a client that goes with its break on ends it")
+{
+    loop running;
+    listen_address address;
+    address.protocol = listen_protocol::rfc2217;
+    address.host = "127.0.0.1";
+    error_code ec;
+    listen_transport transport(running.io.get_executor(), address, ec);
+    REQUIRE(!ec);
+
+    auto phases = std::make_shared<std::string>();
+    auto mutex = std::make_shared<std::mutex>();
+    transport.set_break_sink(
+        [phases, mutex](const line_break& item)
+        {
+            std::lock_guard lock(*mutex);
+            *phases += item.phase == break_phase::begin ? "[begin]" : "[end]";
+        });
+
+    {
+        asio::io_context client_io;
+        asio::ip::tcp::socket client(client_io);
+        client.connect({asio::ip::make_address("127.0.0.1"),
+                        transport.local_port()});
+        rfc2217::session reference;
+        const std::string greeting = reference.greeting();
+        REQUIRE_EQ(receive(client, greeting.size()), greeting);
+        asio::write(client, asio::buffer(bytes({iac, do_option, com_port}) +
+                                         command(5, bytes({5}))));
+        // Reads until the begin has been told.
+        for (int index = 0; index < 8; ++index)
+        {
+            auto promise = std::make_shared<std::promise<void>>();
+            auto buffer = std::make_shared<std::array<char, 64>>();
+            transport.async_read_some(
+                asio::buffer(*buffer),
+                [promise, buffer](boost::system::error_code, std::size_t)
+                { promise->set_value(); });
+            auto done = promise->get_future();
+            if (done.wait_for(500ms) != std::future_status::ready)
+            {
+                transport.cancel();
+                done.wait();
+            }
+            std::lock_guard lock(*mutex);
+            if (*phases == "[begin]")
+                break;
+        }
+        // The client goes away with the break still on.
+    }
+
+    // The end comes with the next read.
+    for (int index = 0; index < 20; ++index)
+    {
+        auto promise = std::make_shared<std::promise<void>>();
+        auto buffer = std::make_shared<std::array<char, 64>>();
+        transport.async_read_some(
+            asio::buffer(*buffer),
+            [promise, buffer](boost::system::error_code, std::size_t)
+            { promise->set_value(); });
+        auto done = promise->get_future();
+        if (done.wait_for(250ms) != std::future_status::ready)
+        {
+            transport.cancel();
+            done.wait();
+        }
+        std::lock_guard lock(*mutex);
+        if (*phases == "[begin][end]")
+            break;
+    }
+    std::lock_guard lock(*mutex);
+    REQUIRE_EQ(*phases, std::string("[begin][end]"));
 }

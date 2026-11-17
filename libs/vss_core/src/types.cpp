@@ -6,6 +6,7 @@
 
 #include <vss/core/types.hpp>
 #include <vss/core/event.hpp>
+#include <vss/core/line_break.hpp>
 
 namespace vss {
 
@@ -102,6 +103,17 @@ const char* to_string(bus_fault value) noexcept
     return "unknown";
 }
 
+const char* to_string(break_phase value) noexcept
+{
+    switch (value)
+    {
+    case break_phase::begin: return "begin";
+    case break_phase::end: return "end";
+    case break_phase::complete: return "complete";
+    }
+    return "unknown";
+}
+
 const char* to_string(event_kind value) noexcept
 {
     switch (value)
@@ -114,6 +126,7 @@ const char* to_string(event_kind value) noexcept
     case event_kind::stats: return "stats";
     case event_kind::log_message: return "log";
     case event_kind::bus_fault: return "bus-fault";
+    case event_kind::line_break: return "break";
     }
     return "unknown";
 }
