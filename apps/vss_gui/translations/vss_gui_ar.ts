@@ -2354,6 +2354,51 @@
             <source>Studio</source>
             <translation>Studio</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="155" />
+            <source>All ports</source>
+            <translation>كل المنافذ</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="154" />
+            <source>Filter by port</source>
+            <translation>تصفية حسب المنفذ</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="157" />
+            <source>Started</source>
+            <translation>بدأ</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="158" />
+            <source>Stopped</source>
+            <translation>توقف</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="156" />
+            <source>Errors</source>
+            <translation>الأخطاء</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="168" />
+            <source>Search events</source>
+            <translation>ابحث في الأحداث</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="164" />
+            <source>Show %1 events</source>
+            <translation>إظهار أحداث %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="498" />
+            <source>No events match the filters.</source>
+            <translation>لا توجد أحداث تطابق عوامل التصفية.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="159" />
+            <source>Other</source>
+            <translation>أخرى</translation>
+        </message>
     </context>
     <context>
         <name>ExportCommandDialog</name>

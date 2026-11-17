@@ -2354,6 +2354,51 @@
             <source>Studio</source>
             <translation>Studio</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="155" />
+            <source>All ports</source>
+            <translation>Tous les ports</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="154" />
+            <source>Filter by port</source>
+            <translation>Filtrer par port</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="157" />
+            <source>Started</source>
+            <translation>Démarré</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="158" />
+            <source>Stopped</source>
+            <translation>Arrêté</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="156" />
+            <source>Errors</source>
+            <translation>Erreurs</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="168" />
+            <source>Search events</source>
+            <translation>Rechercher des événements</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="164" />
+            <source>Show %1 events</source>
+            <translation>Afficher les événements : %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="498" />
+            <source>No events match the filters.</source>
+            <translation>Aucun événement ne correspond aux filtres.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="159" />
+            <source>Other</source>
+            <translation>Autres</translation>
+        </message>
     </context>
     <context>
         <name>ExportCommandDialog</name>

@@ -2354,6 +2354,51 @@
             <source>Studio</source>
             <translation>Studio</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="155" />
+            <source>All ports</source>
+            <translation>כל היציאות</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="154" />
+            <source>Filter by port</source>
+            <translation>סינון לפי יציאה</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="157" />
+            <source>Started</source>
+            <translation>התחיל</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="158" />
+            <source>Stopped</source>
+            <translation>נעצר</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="156" />
+            <source>Errors</source>
+            <translation>שגיאות</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="168" />
+            <source>Search events</source>
+            <translation>חיפוש באירועים</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="164" />
+            <source>Show %1 events</source>
+            <translation>הצגת אירועי %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="498" />
+            <source>No events match the filters.</source>
+            <translation>אין אירועים שמתאימים למסננים.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="159" />
+            <source>Other</source>
+            <translation>אחר</translation>
+        </message>
     </context>
     <context>
         <name>ExportCommandDialog</name>
