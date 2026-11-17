@@ -27,6 +27,7 @@ add_library(vss_plugin_host
   src/secret_point.cpp
   src/service.cpp
   src/start_plan.cpp
+  src/timeline_point.cpp
   src/traffic_tap.cpp)
 add_library(Vss::plugin_host ALIAS vss_plugin_host)
 
