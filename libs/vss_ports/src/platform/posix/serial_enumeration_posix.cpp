@@ -42,6 +42,11 @@ std::optional<std::vector<unsigned>> platform_reserved_com_numbers()
     return std::nullopt;
 }
 
+std::optional<com_sources> platform_com_sources()
+{
+    return std::nullopt;
+}
+
 std::vector<serial_device_info> platform_enumerate_serial_devices()
 {
     VSS_PROFILE_ZONE("ports.enumerate.posix");

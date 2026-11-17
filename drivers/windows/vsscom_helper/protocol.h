@@ -112,8 +112,11 @@ typedef struct _VSSCOM_HELPER_REQUEST
 //                             SET_COM_NUMBER_KM) the port was made by someone else;
 //   ERROR_INVALID_PARAMETER   SET_COM_NUMBER: the number is outside the range above;
 //   ERROR_ALREADY_ASSIGNED    SET_COM_NUMBER: another device has that COM number: a real
-//                             port, com0com, or a port that is gone but keeps the
-//                             name; nothing was changed;
+//                             port, com0com, or an unplugged port of something else
+//                             that keeps the name; nothing was changed. A Studio port
+//                             that was removed, or a number only the COM name database
+//                             marks, does not count: the helper clears it and takes
+//                             the number;
 //   ERROR_BUSY                SET_COM_NUMBER: a program has the port open (nothing was
 //                             changed), or its hub end was open, so Windows could not
 //                             restart it (the old values are back, but the port cannot

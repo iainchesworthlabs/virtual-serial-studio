@@ -152,6 +152,105 @@ std::optional<std::vector<unsigned>> reserved_com_numbers()
     return numbers;
 }
 
+bool is_studio_port_instance_id(std::string_view instance_id)
+{
+    const auto starts_with = [&](std::string_view prefix)
+    {
+        if (instance_id.size() < prefix.size())
+            return false;
+        for (std::size_t i = 0; i < prefix.size(); ++i)
+        {
+            char c = instance_id[i];
+            if (c >= 'a' && c <= 'z')
+                c = static_cast<char>(c - 'a' + 'A');
+            if (c != prefix[i])
+                return false;
+        }
+        return true;
+    };
+    return starts_with("SWD\\VSSCOMUM\\") || starts_with("VSSCOM\\PORT\\");
+}
+
+std::vector<com_number_holder>
+classify_com_numbers(const std::vector<unsigned>& database,
+                     const std::vector<unsigned>& resolving,
+                     const std::vector<com_port_entry>& entries)
+{
+    std::vector<unsigned> numbers;
+    numbers.insert(numbers.end(), database.begin(), database.end());
+    numbers.insert(numbers.end(), resolving.begin(), resolving.end());
+    for (const auto& entry : entries)
+        numbers.push_back(entry.number);
+    std::sort(numbers.begin(), numbers.end());
+    numbers.erase(std::unique(numbers.begin(), numbers.end()), numbers.end());
+
+    std::vector<com_number_holder> out;
+    for (const unsigned number : numbers)
+    {
+        if (number == 0)
+            continue;
+        com_number_holder holder;
+        holder.number = number;
+
+        const com_port_entry* present = nullptr;
+        const com_port_entry* other_gone = nullptr;
+        const com_port_entry* studio_gone = nullptr;
+        for (const auto& entry : entries)
+        {
+            if (entry.number != number)
+                continue;
+            if (entry.present)
+                present = present ? present : &entry;
+            else if (is_studio_port_instance_id(entry.instance_id))
+                studio_gone = studio_gone ? studio_gone : &entry;
+            else
+                other_gone = other_gone ? other_gone : &entry;
+        }
+
+        const bool resolves =
+            std::find(resolving.begin(), resolving.end(), number) !=
+            resolving.end();
+        const com_port_entry* shown = nullptr;
+        if (present)
+        {
+            holder.kind = com_holder_kind::present_device;
+            shown = present;
+        }
+        else if (resolves)
+            holder.kind = com_holder_kind::name_only;
+        else if (other_gone)
+        {
+            holder.kind = com_holder_kind::other_port_gone;
+            shown = other_gone;
+        }
+        else if (studio_gone)
+        {
+            holder.kind = com_holder_kind::studio_port_gone;
+            shown = studio_gone;
+        }
+        else
+            holder.kind = com_holder_kind::database_only;
+
+        if (shown)
+        {
+            holder.instance_id = shown->instance_id;
+            holder.description = shown->description;
+        }
+        out.push_back(std::move(holder));
+    }
+    return out;
+}
+
+std::optional<std::vector<com_number_holder>> com_number_holders()
+{
+    VSS_PROFILE_ZONE("ports.com_number_holders");
+    const auto sources = detail::platform_com_sources();
+    if (!sources)
+        return std::nullopt;
+    return classify_com_numbers(sources->database, sources->resolving,
+                                sources->entries);
+}
+
 std::vector<serial_device_info> enumerate_serial_devices()
 {
     VSS_PROFILE_ZONE_NAMED(zone, "ports.enumerate");
