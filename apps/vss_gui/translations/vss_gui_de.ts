@@ -23294,6 +23294,11 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>What is wrong: %1</source>
+            <translation>Was nicht stimmt: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
             <source>Its signature does not match its files. They may have been changed. Get the plugin again from its author.</source>
             <translation>Seine Signatur passt nicht zu seinen Dateien. Sie wurden möglicherweise geändert. Besorgen Sie sich das Plug-in erneut von seinem Autor.</translation>
         </message>
