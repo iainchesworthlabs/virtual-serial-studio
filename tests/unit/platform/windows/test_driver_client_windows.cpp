@@ -20,12 +20,15 @@
 #include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/io_context.hpp>
 
+#include <array>
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
 #include <cwchar>
+#include <functional>
 #include <future>
 #include <memory>
 #include <mutex>
@@ -55,7 +58,9 @@ TEST_CASE("driver client: the control codes are the ones the guest scripts use")
     REQUIRE_EQ(static_cast<unsigned long>(IOCTL_VSSCOM_HUB_REVOKE), 0x80002010ul);
     REQUIRE_EQ(static_cast<unsigned long>(IOCTL_VSSCOM_HUB_LINE_ERROR),
                0x80002014ul);
-    REQUIRE_EQ(static_cast<int>(VSSCOM_VERSION), 4);
+    REQUIRE_EQ(static_cast<unsigned long>(IOCTL_VSSCOM_HUB_READ_BREAKS),
+               0x80002018ul);
+    REQUIRE_EQ(static_cast<int>(VSSCOM_VERSION), 5);
 }
 
 TEST_CASE("driver client: a line error has the layout and the bits the driver reads")
@@ -88,16 +93,40 @@ TEST_CASE("driver client: a line error for a transport that is not a driver port
     REQUIRE_EQ(raised.error(), make_error_code(errc::invalid_argument));
 }
 
+TEST_CASE("driver client: the break and write marks have the layout the driver fills")
+{
+    // The driver copies its own records over these structures, so the sizes and
+    // places must be the ones vsscom_core.h has.
+    REQUIRE_EQ(sizeof(VSSCOM_BREAK_MARK), std::size_t{40});
+    REQUIRE_EQ(offsetof(VSSCOM_BREAK_MARK, OnTime), std::size_t{0});
+    REQUIRE_EQ(offsetof(VSSCOM_BREAK_MARK, OffTime), std::size_t{8});
+    REQUIRE_EQ(offsetof(VSSCOM_BREAK_MARK, OnOffset), std::size_t{16});
+    REQUIRE_EQ(offsetof(VSSCOM_BREAK_MARK, OffOffset), std::size_t{24});
+    REQUIRE_EQ(offsetof(VSSCOM_BREAK_MARK, Flags), std::size_t{32});
+    REQUIRE_EQ(sizeof(VSSCOM_WRITE_MARK), std::size_t{16});
+    REQUIRE_EQ(offsetof(VSSCOM_WRITE_MARK, Offset), std::size_t{8});
+    REQUIRE_EQ(offsetof(VSSCOM_HUB_MARKS, QpcFrequency), std::size_t{0});
+    REQUIRE_EQ(offsetof(VSSCOM_HUB_MARKS, BreakCount), std::size_t{8});
+    REQUIRE_EQ(offsetof(VSSCOM_HUB_MARKS, WriteCount), std::size_t{12});
+    REQUIRE_EQ(offsetof(VSSCOM_HUB_MARKS, BreaksDropped), std::size_t{16});
+    REQUIRE_EQ(offsetof(VSSCOM_HUB_MARKS, WritesMerged), std::size_t{20});
+    REQUIRE_EQ(offsetof(VSSCOM_HUB_MARKS, Breaks), std::size_t{24});
+    REQUIRE_EQ(sizeof(VSSCOM_HUB_MARKS),
+               std::size_t{24 + 40 * 64 + 16 * 256});
+    REQUIRE_EQ(static_cast<unsigned>(VSSCOM_BREAK_MARK_OPEN), 1u);
+}
+
 TEST_CASE("driver client: the hub state has the layout the driver fills")
 {
-    // Twelve 32-bit words, in the order the guest script reads them.
-    REQUIRE_EQ(sizeof(VSSCOM_HUB_STATE), std::size_t{48});
+    // Thirteen 32-bit words, in the order the guest script reads them.
+    REQUIRE_EQ(sizeof(VSSCOM_HUB_STATE), std::size_t{52});
     REQUIRE_EQ(offsetof(VSSCOM_HUB_STATE, Generation), std::size_t{0});
     REQUIRE_EQ(offsetof(VSSCOM_HUB_STATE, AppOpen), std::size_t{4});
     REQUIRE_EQ(offsetof(VSSCOM_HUB_STATE, Dtr), std::size_t{24});
     REQUIRE_EQ(offsetof(VSSCOM_HUB_STATE, Lines), std::size_t{36});
     REQUIRE_EQ(offsetof(VSSCOM_HUB_STATE, TxQueued), std::size_t{40});
     REQUIRE_EQ(offsetof(VSSCOM_HUB_STATE, AppProcessId), std::size_t{44});
+    REQUIRE_EQ(offsetof(VSSCOM_HUB_STATE, BreakCount), std::size_t{48});
     REQUIRE_EQ(sizeof(VSSCOM_VERSION_INFO), std::size_t{8});
 
     // The line bits are the modem status bits Windows uses.
@@ -700,6 +729,125 @@ TEST_CASE("driver client: COM numbers with the helper service")
         hub.close();
         REQUIRE(wait_gone(name2));
         REQUIRE(wait_gone(name1));
+    }
+    catch (...)
+    {
+        stop();
+        throw;
+    }
+    stop();
+}
+
+TEST_CASE("driver client: against the real driver, a break falls between the bytes written around it")
+{
+    char enabled[8]{};
+    const DWORD length = ::GetEnvironmentVariableA("VSS_TEST_DRIVER", enabled,
+                                                   sizeof(enabled));
+    if (length != 1 || enabled[0] != '1')
+        VSS_SKIP("needs the driver: set VSS_TEST_DRIVER=1 in a guest that has it");
+
+    boost::asio::io_context io;
+    auto guard = boost::asio::make_work_guard(io);
+    std::thread runner([&io] { io.run(); });
+    auto stop = [&]
+    {
+        guard.reset();
+        io.stop();
+        runner.join();
+    };
+
+    // What the hub saw, in order: the bytes, and a letter for each break item.
+    struct seen
+    {
+        std::mutex mutex;
+        std::string log;
+        std::vector<line_break> breaks;
+        std::vector<time_point> stamps;
+    };
+    auto record = std::make_shared<seen>();
+
+    try
+    {
+        auto made = create_driver_port(io.get_executor(), "guest break test");
+        REQUIRE(made.has_value());
+        transport& hub = *made->port;
+        const auto app = open_com(made->path);
+        REQUIRE(app != INVALID_HANDLE_VALUE);
+
+        hub.set_break_sink(
+            [record](const line_break& item)
+            {
+                const std::lock_guard lock(record->mutex);
+                record->log += item.phase == break_phase::begin ? "[b]"
+                               : item.phase == break_phase::end ? "[e]"
+                                                                : "[c]";
+                record->breaks.push_back(item);
+            });
+
+        // A read that is always waiting, as the endpoint's is.
+        auto buffer = std::make_shared<std::array<char, 256>>();
+        std::function<void()> arm;
+        std::atomic<bool> running{true};
+        arm = [&]
+        {
+            if (!running.load())
+                return;
+            hub.async_read_some(
+                boost::asio::buffer(*buffer),
+                [&, record, buffer](boost::system::error_code ec, std::size_t n)
+                {
+                    if (ec)
+                        return;
+                    {
+                        const std::lock_guard lock(record->mutex);
+                        record->log.append(buffer->data(), n);
+                    }
+                    arm();
+                });
+        };
+        arm();
+
+        DWORD done = 0;
+        REQUIRE(::WriteFile(app, "AB", 2, &done, nullptr) != FALSE);
+        const auto before = clock_type::now();
+        REQUIRE(::EscapeCommFunction(app, SETBREAK) != FALSE);
+        const auto begun = clock_type::now();
+        std::this_thread::sleep_for(5ms);
+        REQUIRE(::EscapeCommFunction(app, CLRBREAK) != FALSE);
+        const auto ended = clock_type::now();
+        REQUIRE(::WriteFile(app, "CD", 2, &done, nullptr) != FALSE);
+
+        const auto until = clock_type::now() + 10s;
+        for (;;)
+        {
+            {
+                const std::lock_guard lock(record->mutex);
+                if (record->log == "AB[c]CD" || record->log == "AB[b][e]CD")
+                    break;
+            }
+            REQUIRE(clock_type::now() < until);
+            std::this_thread::sleep_for(10ms);
+        }
+
+        {
+            const std::lock_guard lock(record->mutex);
+            const line_break& last = record->breaks.back();
+            REQUIRE(last.measured);
+            // steady_clock and the driver's counter share a base: the start is
+            // between the two readings of the clock around the call.
+            REQUIRE(record->breaks.front().start >= before);
+            REQUIRE(record->breaks.front().start <= begun);
+            REQUIRE(last.when() >= begun + 4ms);
+            REQUIRE(last.when() <= ended);
+            REQUIRE(last.duration >= 4ms);
+            REQUIRE(last.duration < 100ms);
+        }
+
+        running = false;
+        hub.cancel();
+        ::CloseHandle(app);
+        hub.close();
+        REQUIRE(wait_gone(made->path));
     }
     catch (...)
     {

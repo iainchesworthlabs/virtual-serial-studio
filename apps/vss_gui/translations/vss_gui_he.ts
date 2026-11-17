@@ -2274,6 +2274,11 @@
             <source>Bus</source>
             <translation>אפיק</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="105" />
+            <source>Break</source>
+            <translation>Break</translation>
+        </message>
     </context>
     <context>
         <name>EventLogPanel</name>
@@ -2417,6 +2422,11 @@
             <location filename="../src/advanced/event_log.cpp" line="413" />
             <source>Bus</source>
             <translation>אפיק</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="416" />
+            <source>Break</source>
+            <translation>Break</translation>
         </message>
     </context>
     <context>
@@ -3159,6 +3169,22 @@ Networks: %5</source>
         <message>
             <source>Stop %1</source>
             <translation>עצור את %1</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>השהה</translation>
+        </message>
+        <message>
+            <source>Pause %1</source>
+            <translation>השהה את %1</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>המשך</translation>
+        </message>
+        <message>
+            <source>Resume %1</source>
+            <translation>המשך את %1</translation>
         </message>
     </context>
     <context>
@@ -4476,6 +4502,16 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_model.cpp" line="354" />
             <source>not carried by the bus</source>
             <translation>לא הועבר באפיק</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="352" />
+            <source>%1, %2, %3, %4</source>
+            <translation>%1, %2, %3, %4</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="412" />
+            <source>Break, %1</source>
+            <translation>Break, %1</translation>
         </message>
     </context>
     <context>
@@ -6139,6 +6175,21 @@ Networks: %5</source>
             <translation>%1 הועתק.</translation>
         </message>
         <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Ports are not sorted.</source>
+            <translation>הפורטים אינם ממוינים.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Sorted by %1, first to last.</source>
+            <translation>ממוין לפי %1, מהראשון לאחרון.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Sorted by %1, last to first.</source>
+            <translation>ממוין לפי %1, מהאחרון לראשון.</translation>
+        </message>
+        <message>
             <location filename="../src/panes/ports_panel.cpp" line="136" />
             <source>Ports table columns</source>
             <translation>עמודות טבלת היציאות</translation>
@@ -6604,6 +6655,36 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_panel.cpp" line="68" />
             <source>bus</source>
             <translation>אפיק</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="62" />
+            <source>%1 µs</source>
+            <translation>%1 µs</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="66" />
+            <source>%1 ms</source>
+            <translation>%1 ms</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="68" />
+            <source>%1 s</source>
+            <translation>%1 שנ'</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="78" />
+            <source>running</source>
+            <translation>רץ</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="80" />
+            <source>at least %1</source>
+            <translation>לפחות %1</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="154" />
+            <source>break</source>
+            <translation>Break</translation>
         </message>
     </context>
     <context>
@@ -10224,6 +10305,22 @@ Networks: %5</source>
             <source>Stopped %1.</source>
             <translation>%1 נעצר.</translation>
         </message>
+        <message>
+            <source>Could not pause %1.</source>
+            <translation>לא ניתן להשהות את %1.</translation>
+        </message>
+        <message>
+            <source>Could not resume %1.</source>
+            <translation>לא ניתן להמשיך את %1.</translation>
+        </message>
+        <message>
+            <source>Paused %1.</source>
+            <translation>%1 הושהה.</translation>
+        </message>
+        <message>
+            <source>Resumed %1.</source>
+            <translation>%1 חודש.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -10979,6 +11076,14 @@ Networks: %5</source>
         <message>
             <source>Stop</source>
             <translation>עצור</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>השהה</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>המשך</translation>
         </message>
     </context>
     <context>
@@ -20051,8 +20156,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="74" />
-            <source>A byte takes ten bits. The others hear a message when its last byte has left the line.</source>
-            <translation>בייט אחד אורך עשרה ביטים. האחרים שומעים הודעה כשהבייט האחרון שלה עזב את הקו.</translation>
+            <source>A byte takes as many bits as the sender's framing gives it, ten for 8N1. The others hear a message when its last byte has left the line.</source>
+            <translation>בית אחד אורך כמספר הסיביות שמסגור השולח קובע, עשר ב-8N1. האחרים שומעים הודעה כשהבית האחרון שלה עזב את הקו.</translation>
         </message>
         <message>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="81" />
@@ -24473,6 +24578,18 @@ From the plugin %2
             <source>Trying to connect to %1.</source>
             <translation>מנסה להתחבר אל %1.</translation>
         </message>
+        <message>
+            <source>Paused</source>
+            <translation>מושהה</translation>
+        </message>
+        <message>
+            <source>Paused. Not connecting to %1.</source>
+            <translation>מושהה. לא מתחבר אל %1.</translation>
+        </message>
+        <message>
+            <source>Resumed</source>
+            <translation>חודש</translation>
+        </message>
     </context>
     <context>
         <name>PortMenu</name>
@@ -24485,6 +24602,89 @@ From the plugin %2
             <location filename="../src/topology/topology_view.cpp" line="3259" />
             <source>Decode as...</source>
             <translation>פענוח כ…</translation>
+        </message>
+    </context>
+    <context>
+        <name>WireTimingFields</name>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="54" />
+            <source>Wire timing</source>
+            <translation>תזמון קו</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="50" />
+            <source>Bytes and breaks arrive as slowly as a serial line would carry them. A long write takes as long as it would on a wire, and a break holds back what follows it. Gaps under a millisecond use a little more of the processor.</source>
+            <translation>בתים והפסקות מגיעים לאט כמו שקו טורי היה מעביר אותם. כתיבה ארוכה אורכת כמו על חוט אמיתי, והפסקה מעכבת את מה שאחריה. מרווחים קצרים ממילי-שנייה משתמשים במעט יותר מהמעבד.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="75" />
+            <source>Bit rate</source>
+            <translation>קצב סיביות</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="71" />
+            <source> bit/s</source>
+            <translation> ביט/שנ׳</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="72" />
+            <source>From the port</source>
+            <translation>מהיציאה</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="78" />
+            <source>Used when the sending port has no rate of its own. The rate the program set on the port is used first. With neither, the link is not paced.</source>
+            <translation>משמש כשליציאה השולחת אין קצב משלה. קודם נעשה שימוש בקצב שהתוכנית קבעה ביציאה. בלי אף אחד מהם, הקישור לא מתוזמן.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="84" />
+            <source>Framing</source>
+            <translation>מסגור</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="120" />
+            <source>Data bits, parity and stop bits, used with the bit rate.</source>
+            <translation>סיביות נתונים, זוגיות וסיביות עצירה, בשימוש עם קצב הסיביות.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="91" />
+            <source>Data bits</source>
+            <translation>סיביות נתונים</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="97" />
+            <source>Parity</source>
+            <translation>זוגיות</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="99" />
+            <source>None</source>
+            <translation>ללא</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="100" />
+            <source>Odd</source>
+            <translation>אי-זוגית</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="101" />
+            <source>Even</source>
+            <translation>זוגית</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="102" />
+            <source>Mark</source>
+            <translation>סימן</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="103" />
+            <source>Space</source>
+            <translation>רווח</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
+            <source>Stop bits</source>
+            <translation>סיביות עצירה</translation>
         </message>
     </context>
 </TS>

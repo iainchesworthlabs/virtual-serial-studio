@@ -97,6 +97,8 @@ StatusChip::kind chip_kind(port_state_kind kind)
         return StatusChip::kind::failed;
     case port_state_kind::fixture:
         return StatusChip::kind::fixture;
+    case port_state_kind::paused:
+        return StatusChip::kind::paused;
     }
     return StatusChip::kind::closed;
 }
@@ -319,7 +321,22 @@ void InspectorPanel::build()
     // Stop or Start, for a port made from an address: its links stay, and
     // while it is stopped nothing tries to open it.
     run_caption_ = caption(tr("Connection"), content_);
-    run_button_ = new QPushButton(tr("Stop"), content_);
+    run_row_ = new QWidget(content_);
+    auto* run_layout = new QHBoxLayout(run_row_);
+    run_layout->setContentsMargins(0, 0, 0, 0);
+    run_layout->setSpacing(8);
+    pause_button_ = new QPushButton(tr("Pause"), run_row_);
+    pause_button_->setObjectName(QStringLiteral("inspectorPauseButton"));
+    pause_button_->setProperty("size", QStringLiteral("small"));
+    polish(pause_button_);
+    connect(pause_button_, &QPushButton::clicked, this,
+            [this]
+            {
+                if (selected_ != 0 && port_)
+                    Q_EMIT pause_requested(selected_, !port_->paused);
+            });
+    run_layout->addWidget(pause_button_);
+    run_button_ = new QPushButton(tr("Stop"), run_row_);
     run_button_->setObjectName(QStringLiteral("inspectorRunButton"));
     run_button_->setProperty("size", QStringLiteral("small"));
     polish(run_button_);
@@ -329,9 +346,12 @@ void InspectorPanel::build()
                 if (selected_ != 0 && port_)
                     Q_EMIT run_requested(selected_, port_->stopped);
             });
+    run_layout->addWidget(run_button_);
+    run_layout->addStretch(1);
     form->addWidget(run_caption_, row, 0, Qt::AlignVCenter);
-    form->addWidget(run_button_, row++, 1, Qt::AlignLeft | Qt::AlignVCenter);
+    form->addWidget(run_row_, row++, 1, Qt::AlignLeft | Qt::AlignVCenter);
     run_caption_->hide();
+    run_row_->hide();
     run_button_->hide();
 
     form->addWidget(caption(tr("Path"), content_), row, 0, Qt::AlignVCenter);
@@ -795,12 +815,19 @@ void InspectorPanel::update_content()
     {
         const bool can = port.can_stop && backend_.caps().port_stop;
         run_caption_->setVisible(can);
+        run_row_->setVisible(can);
         run_button_->setVisible(can);
         const QString label = port.stopped ? tr("Start") : tr("Stop");
         run_button_->setText(label);
         run_button_->setAccessibleName(
             port.stopped ? tr("Start %1").arg(port.name)
                          : tr("Stop %1").arg(port.name));
+        // A stopped port has only Start; any other can be paused or resumed.
+        pause_button_->setVisible(backend_.caps().port_pause && !port.stopped);
+        pause_button_->setText(port.paused ? tr("Resume") : tr("Pause"));
+        pause_button_->setAccessibleName(
+            port.paused ? tr("Resume %1").arg(port.name)
+                        : tr("Pause %1").arg(port.name));
     }
     serial_row_->setVisible(advanced_ &&
                             port.kind == vss::endpoint_kind::physical);

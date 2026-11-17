@@ -14,9 +14,11 @@ add_library(vss_ports
   src/peer_open.cpp
   src/permissions.cpp
   src/rfc2217.cpp
+  src/rfc2217_client.cpp
   src/serial_enumeration.cpp
   src/serial_transport.cpp
   src/stable_link.cpp
+  src/tx_order.cpp
   src/vcom_driver.cpp
   src/virtual_port.cpp)
 add_library(Vss::ports ALIAS vss_ports)

@@ -87,6 +87,9 @@ gui_event convert(const vss::endpoint_event& event, const QString& name)
             QLatin1Char(':') + QString::number(event.error.value());
     }
     out.when = event.when;
+    out.phase = event.phase;
+    out.duration = event.duration;
+    out.measured = event.measured;
     return out;
 }
 

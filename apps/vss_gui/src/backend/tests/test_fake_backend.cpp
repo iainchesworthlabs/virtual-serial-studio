@@ -563,6 +563,56 @@ TEST_CASE("fake backend: snapshot and apply round trip")
     REQUIRE_EQ(copy.links()[0].shape, vss::gui::link_shape::two_way);
 }
 
+TEST_CASE("fake backend: wire timing is set, saved, applied and refused on a bus")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::capabilities caps = backend.caps();
+    caps.shared_bus = true;
+    backend.set_capabilities(caps);
+    const auto a = backend.create_virtual_port(
+        QStringLiteral("a"), vss::virtual_port_kind::loopback, true);
+    const auto b = backend.create_virtual_port(
+        QStringLiteral("b"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(a.has_value());
+    REQUIRE(b.has_value());
+    const auto invalid = vss::make_error_code(vss::errc::invalid_argument);
+    const auto unsupported = vss::make_error_code(vss::errc::unsupported);
+
+    const auto link = backend.connect_ports(*a, *b, vss::link_options{});
+    REQUIRE(link.has_value());
+    REQUIRE(!backend.links().front().options.wire_timing.enabled);
+
+    vss::link_options options;
+    options.wire_timing.enabled = true;
+    options.wire_timing.bit_rate = 9600;
+    options.wire_timing.framing =
+        vss::wire_framing{7, vss::parity_mode::even, vss::stop_bits_mode::two};
+    REQUIRE(backend.set_link_options(*link, options).has_value());
+    REQUIRE(backend.links().front().options.wire_timing ==
+            options.wire_timing);
+
+    // It is saved, and applied again.
+    const vss::config::document document = backend.snapshot();
+    REQUIRE_EQ(document.links.size(), std::size_t{1});
+    REQUIRE(document.links[0].wire_timing == options.wire_timing);
+    vss::gui::FakeStudioBackend copy;
+    REQUIRE(copy.apply(document, true).has_value());
+    REQUIRE(copy.links()[0].options.wire_timing == options.wire_timing);
+
+    // Values out of range are refused and change nothing.
+    options.wire_timing.bit_rate = 10;
+    REQUIRE(backend.set_link_options(*link, options).error() == invalid);
+    REQUIRE_EQ(backend.links().front().options.wire_timing.bit_rate, 9600u);
+
+    // A bus has a wire of its own.
+    vss::link_options on_bus;
+    on_bus.wire_timing.enabled = true;
+    REQUIRE(backend.bus({*a, *b}, on_bus).error() == unsupported);
+    const auto bus = backend.bus({*a, *b}, vss::link_options{});
+    REQUIRE(bus.has_value());
+    REQUIRE(backend.set_link_options(*bus, on_bus).error() == unsupported);
+}
+
 TEST_CASE("fake backend: errors are returned and capabilities are visible")
 {
     vss::gui::FakeStudioBackend backend;

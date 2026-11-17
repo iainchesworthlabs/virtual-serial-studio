@@ -24,7 +24,9 @@
 #include <vss/core/event.hpp>
 #include <vss/core/hub.hpp>
 #include <vss/core/link.hpp>
+#include <vss/core/pacing.hpp>
 #include <vss/core/types.hpp>
+#include <vss/core/wire_time.hpp>
 #include <vss/studio/responder.hpp>
 
 #include "child_process.hpp"
@@ -747,6 +749,68 @@ TEST_CASE("bench: the precise wait")
         REQUIRE_EQ(spun.size(), std::size_t{500});
         report(std::string("precise_wait_spin_") + item.label, spun);
     }
+}
+
+/// A long chunk through a link with wire timing: each run of it is released
+/// when its first character begins on the wire, so the gap between the
+/// arrivals is known.  A sample is how much later than that a run arrived,
+/// measured from the first arrival, which is the whole of the lateness the
+/// timer and the spin leave.  The link's own counters follow on the same line.
+void report_paced_link(std::uint32_t bit_rate, std::size_t bytes,
+                       const std::string& label)
+{
+    auto engine = start_hub();
+    auto a = add_mock(*engine, "a");
+    auto b = add_mock(*engine, "b");
+    link_options options;
+    options.wire_timing.enabled = true;
+    options.wire_timing.bit_rate = bit_rate;
+    const auto link =
+        engine->connect(a.endpoint->id(), b.endpoint->id(), options);
+    REQUIRE(link);
+    const data_watch at_b(*engine, b.endpoint->id(), data_direction::tx);
+
+    // The accuracy the engine assumes decides how long a run is.
+    const auto accuracy = vss::timer_accuracy();
+    const auto one = vss::wire_time(bit_rate, vss::wire_framing{}, 1);
+    const std::size_t per_run = std::max<std::size_t>(
+        1, static_cast<std::size_t>(std::max(accuracy, one) / one));
+    const std::size_t runs = (bytes + per_run - 1) / per_run;
+
+    inject_timed(a, std::string(bytes, 'x'));
+    std::vector<arrival> arrivals;
+    for (std::size_t index = 1; index <= runs; ++index)
+    {
+        const auto arrived = at_b.wait_for(index);
+        REQUIRE(arrived.has_value());
+        arrivals.push_back(*arrived);
+    }
+    std::vector<micros> late;
+    late.reserve(runs);
+    for (std::size_t index = 0; index < runs; ++index)
+    {
+        const auto expected = std::chrono::duration_cast<
+            std::chrono::microseconds>(
+            vss::wire_time(bit_rate, vss::wire_framing{}, index * per_run));
+        late.push_back(micros_between(arrivals.front().when,
+                                      arrivals[index].when) -
+                       expected.count());
+    }
+    const auto info = engine->find_link(*link);
+    REQUIRE(info);
+    report("paced_link_" + label, late,
+           " runs_of=" + std::to_string(per_run) + " paced_releases=" +
+               std::to_string(info->stats.paced_releases) +
+               " late_releases=" + std::to_string(info->stats.late_releases) +
+               " max_late_us=" + std::to_string(info->stats.max_late_us) +
+               " spin_refused=" + std::to_string(info->stats.spin_refused));
+}
+
+TEST_CASE("bench: a long chunk on a link with wire timing")
+{
+    report_paced_link(115200, 2000, "115200");
+    report_paced_link(250000, 2000, "250000");
+    report_paced_link(9600, 100, "9600");
 }
 
 // These run last and each holds a timer period of 1 ms only while it works, so

@@ -2274,6 +2274,11 @@
             <source>Bus</source>
             <translation>Bus</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="105" />
+            <source>Break</source>
+            <translation>Break</translation>
+        </message>
     </context>
     <context>
         <name>EventLogPanel</name>
@@ -2417,6 +2422,11 @@
             <location filename="../src/advanced/event_log.cpp" line="413" />
             <source>Bus</source>
             <translation>Bus</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="416" />
+            <source>Break</source>
+            <translation>Break</translation>
         </message>
     </context>
     <context>
@@ -3159,6 +3169,22 @@ Netzwerke: %5</translation>
         <message>
             <source>Stop %1</source>
             <translation>%1 anhalten</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>Pausieren</translation>
+        </message>
+        <message>
+            <source>Pause %1</source>
+            <translation>%1 pausieren</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>Fortsetzen</translation>
+        </message>
+        <message>
+            <source>Resume %1</source>
+            <translation>%1 fortsetzen</translation>
         </message>
     </context>
     <context>
@@ -4476,6 +4502,16 @@ Netzwerke: %5</translation>
             <location filename="../src/panes/monitor_model.cpp" line="354" />
             <source>not carried by the bus</source>
             <translation>vom Bus nicht übertragen</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="352" />
+            <source>%1, %2, %3, %4</source>
+            <translation>%1, %2, %3, %4</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="412" />
+            <source>Break, %1</source>
+            <translation>Break, %1</translation>
         </message>
     </context>
     <context>
@@ -6139,6 +6175,21 @@ Netzwerke: %5</translation>
             <translation>%1 kopiert.</translation>
         </message>
         <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Ports are not sorted.</source>
+            <translation>Die Ports sind nicht sortiert.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Sorted by %1, first to last.</source>
+            <translation>Sortiert nach %1, von vorn nach hinten.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Sorted by %1, last to first.</source>
+            <translation>Sortiert nach %1, von hinten nach vorn.</translation>
+        </message>
+        <message>
             <location filename="../src/panes/ports_panel.cpp" line="136" />
             <source>Ports table columns</source>
             <translation>Spalten der Ports-Tabelle</translation>
@@ -6604,6 +6655,36 @@ Netzwerke: %5</translation>
             <location filename="../src/panes/monitor_panel.cpp" line="68" />
             <source>bus</source>
             <translation>Bus</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="62" />
+            <source>%1 µs</source>
+            <translation>%1 µs</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="66" />
+            <source>%1 ms</source>
+            <translation>%1 ms</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="68" />
+            <source>%1 s</source>
+            <translation>%1 s</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="78" />
+            <source>running</source>
+            <translation>läuft</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="80" />
+            <source>at least %1</source>
+            <translation>mindestens %1</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="154" />
+            <source>break</source>
+            <translation>Break</translation>
         </message>
     </context>
     <context>
@@ -10224,6 +10305,22 @@ Netzwerke: %5</translation>
             <source>Stopped %1.</source>
             <translation>%1 angehalten.</translation>
         </message>
+        <message>
+            <source>Could not pause %1.</source>
+            <translation>%1 konnte nicht pausiert werden.</translation>
+        </message>
+        <message>
+            <source>Could not resume %1.</source>
+            <translation>%1 konnte nicht fortgesetzt werden.</translation>
+        </message>
+        <message>
+            <source>Paused %1.</source>
+            <translation>%1 pausiert.</translation>
+        </message>
+        <message>
+            <source>Resumed %1.</source>
+            <translation>%1 fortgesetzt.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -10979,6 +11076,14 @@ Netzwerke: %5</translation>
         <message>
             <source>Stop</source>
             <translation>Anhalten</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>Pausieren</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>Fortsetzen</translation>
         </message>
     </context>
     <context>
@@ -20051,8 +20156,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="74" />
-            <source>A byte takes ten bits. The others hear a message when its last byte has left the line.</source>
-            <translation>Ein Byte braucht zehn Bit. Die anderen hören eine Nachricht, sobald ihr letztes Byte die Leitung verlassen hat.</translation>
+            <source>A byte takes as many bits as the sender's framing gives it, ten for 8N1. The others hear a message when its last byte has left the line.</source>
+            <translation>Ein Byte braucht so viele Bits, wie das Format des Senders vorgibt, zehn bei 8N1. Die anderen hören eine Nachricht, wenn ihr letztes Byte die Leitung verlassen hat.</translation>
         </message>
         <message>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="81" />
@@ -24473,6 +24578,18 @@ Aus dem Plug-in %2
             <source>Trying to connect to %1.</source>
             <translation>Es wird versucht, %1 zu erreichen.</translation>
         </message>
+        <message>
+            <source>Paused</source>
+            <translation>Pausiert</translation>
+        </message>
+        <message>
+            <source>Paused. Not connecting to %1.</source>
+            <translation>Pausiert. Verbindet sich nicht mit %1.</translation>
+        </message>
+        <message>
+            <source>Resumed</source>
+            <translation>Fortgesetzt</translation>
+        </message>
     </context>
     <context>
         <name>PortMenu</name>
@@ -24485,6 +24602,89 @@ Aus dem Plug-in %2
             <location filename="../src/topology/topology_view.cpp" line="3259" />
             <source>Decode as...</source>
             <translation>Dekodieren als …</translation>
+        </message>
+    </context>
+    <context>
+        <name>WireTimingFields</name>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="54" />
+            <source>Wire timing</source>
+            <translation>Leitungstakt</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="50" />
+            <source>Bytes and breaks arrive as slowly as a serial line would carry them. A long write takes as long as it would on a wire, and a break holds back what follows it. Gaps under a millisecond use a little more of the processor.</source>
+            <translation>Bytes und Breaks kommen so langsam an, wie eine serielle Leitung sie transportieren würde. Ein langer Schreibvorgang dauert so lange wie auf einem Draht, und ein Break hält das Folgende zurück. Lücken unter einer Millisekunde beanspruchen den Prozessor etwas mehr.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="75" />
+            <source>Bit rate</source>
+            <translation>Bitrate</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="71" />
+            <source> bit/s</source>
+            <translation> Bit/s</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="72" />
+            <source>From the port</source>
+            <translation>Vom Port</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="78" />
+            <source>Used when the sending port has no rate of its own. The rate the program set on the port is used first. With neither, the link is not paced.</source>
+            <translation>Wird verwendet, wenn der sendende Port keine eigene Rate hat. Zuerst gilt die Rate, die das Programm am Port eingestellt hat. Ohne beides wird die Verbindung nicht getaktet.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="84" />
+            <source>Framing</source>
+            <translation>Rahmenformat</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="120" />
+            <source>Data bits, parity and stop bits, used with the bit rate.</source>
+            <translation>Datenbits, Parität und Stoppbits, verwendet mit der Bitrate.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="91" />
+            <source>Data bits</source>
+            <translation>Datenbits</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="97" />
+            <source>Parity</source>
+            <translation>Parität</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="99" />
+            <source>None</source>
+            <translation>Keine</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="100" />
+            <source>Odd</source>
+            <translation>Ungerade</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="101" />
+            <source>Even</source>
+            <translation>Gerade</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="102" />
+            <source>Mark</source>
+            <translation>Mark</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="103" />
+            <source>Space</source>
+            <translation>Space</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
+            <source>Stop bits</source>
+            <translation>Stoppbits</translation>
         </message>
     </context>
 </TS>

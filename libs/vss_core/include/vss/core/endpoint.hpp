@@ -107,6 +107,10 @@ public:
     endpoint_state state() const noexcept;
     bool is_open() const noexcept;
 
+    /// The baud rate and framing the program on the other side has set, where
+    /// the transport can tell (see #transport::peer_format).
+    std::optional<line_format> peer_format() const;
+
     std::string public_path() const;
     std::string description() const;
     const endpoint_options& options() const noexcept { return options_; }
@@ -150,6 +154,21 @@ public:
     result<std::size_t> write_sync(bytes_view data,
                                    std::chrono::milliseconds timeout);
 
+    /// Takes a break the far side of the transport made, as if the transport
+    /// had reported it (#transport::set_break_sink): it is counted, routed
+    /// over the endpoint's links in order with the bytes read before it, and
+    /// published as an `rx` `line_break` event.  Safe from any thread; calls
+    /// from one thread, and the read completions of the transport, keep their
+    /// order.  For tools, tests and sources that are not a transport.
+    void receive_break(const line_break& item);
+
+    /// Queues `item` for the transport in order with the bytes queued by
+    /// #write, to be shown to the far side.  A transport that cannot show a
+    /// break (#transport::can_deliver_break) drops it: the endpoint says so
+    /// once in the log and counts it in `stats().dropped`.  `handler`, when
+    /// given, is called once with the result.
+    void write_break(const line_break& item, write_handler handler = {});
+
     control_lines lines() const;
     /// The RTS of whatever is on the other side, when the transport follows
     /// it in step with the bytes (#transport::reports_peer_rts); empty when
@@ -164,6 +183,10 @@ public:
 
     /// Applies the modem inputs a peer drives (CTS/DSR/DCD/RI).
     void set_peer_inputs(control_lines inputs);
+
+    /// Gives the transport the format of the program on the far side of a
+    /// link (#transport::apply_peer_format).
+    void set_peer_format(const line_format& format);
 
     /// Puts `stage` where it is shown every chunk the endpoint reads (see
     /// #read_stage), in place of the one there; null removes it.  The change
@@ -182,6 +205,9 @@ private:
         std::shared_ptr<byte_buffer> data;
         std::size_t offset = 0;
         write_handler handler;
+        /// Set for a break: `data` is empty and the item is shown to the
+        /// transport in its place in the queue.
+        std::optional<line_break> item;
     };
 
     endpoint(hub& owner, endpoint_id id, std::string name, endpoint_kind kind,
@@ -211,6 +237,20 @@ private:
                   std::uint64_t generation, boost::system::error_code ec,
                   std::size_t count);
     void on_line_error(const boost::system::error_code& ec);
+    /// Passes the format of the transport's program on to the linked endpoints
+    /// when it has changed (on the strand only).
+    void forward_format();
+    /// A break read from the transport, or made by #receive_break, on the
+    /// strand.  \p generation is that of the transport that reported it.
+    void on_break_read(std::uint64_t generation, const line_break& item);
+    void start_break_write(const std::shared_ptr<pending_write>& write,
+                           std::uint64_t generation);
+    void on_break_written(const std::shared_ptr<pending_write>& write,
+                          std::uint64_t generation,
+                          boost::system::error_code ec);
+    /// Hands the transport the sink for its breaks.
+    void attach_break_sink(const std::shared_ptr<transport>& current);
+    void emit_break(data_direction direction, const line_break& item);
     void handle_read_failure(std::uint64_t generation,
                              const boost::system::error_code& ec,
                              std::string_view what);
@@ -244,6 +284,10 @@ private:
     /// When a line error was last logged, and how many were left out since
     /// (on the strand only), so a line that errs on every byte logs once a
     /// second and not once a byte.
+    bool break_drop_logged_ = false;
+    /// The format last passed on to the endpoints this one is linked to (on
+    /// the strand only).
+    std::optional<line_format> forwarded_format_;
     time_point line_error_logged_{};
     std::uint64_t line_errors_unlogged_ = 0;
     /// Read and written on the strand only, so a read costs one test of it.

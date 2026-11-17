@@ -154,6 +154,19 @@ void PortsPanel::build()
     // Drag a heading to reorder the columns; right-click one to choose which
     // are shown.
     header->setSectionsMovable(true);
+    // A click on a heading sorts by it, ascending then descending then back
+    // to the engine's order.
+    header->setSectionsClickable(true);
+    header->setSortIndicatorShown(true);
+    header->setSortIndicatorClearable(true);
+    header->setSortIndicator(-1, Qt::AscendingOrder);
+    connect(header, &QHeaderView::sortIndicatorChanged, this,
+            [this](int column, Qt::SortOrder order)
+            {
+                if (applying_widths_)
+                    return;
+                sort_by(column, order);
+            });
     header->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(header, &QWidget::customContextMenuRequested, this,
             [this, header](const QPoint& position)
@@ -164,6 +177,7 @@ void PortsPanel::build()
     header->setAccessibleName(tr("Ports table columns"));
     set_default_column_widths();
     restore_column_layout();
+    restore_sort();
     table_->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     column_save_timer_ = new QTimer(this);
     column_save_timer_->setSingleShot(true);
@@ -365,6 +379,65 @@ void PortsPanel::reset_columns()
     applying_widths_ = false;
     set_default_column_widths();
     column_save_timer_->start();
+}
+
+void PortsPanel::sort_by(int column, Qt::SortOrder order)
+{
+    model_->set_sort(column, order);
+    // The header and the model agree, whoever asked.
+    QHeaderView* header = table_->horizontalHeader();
+    if (header->sortIndicatorSection() != model_->sort_column() ||
+        (model_->sort_column() >= 0 &&
+         header->sortIndicatorOrder() != model_->sort_order()))
+    {
+        applying_widths_ = true;
+        header->setSortIndicator(model_->sort_column(), model_->sort_order());
+        applying_widths_ = false;
+    }
+    QSettings settings;
+    settings.setValue(QStringLiteral("ui/portsSortColumn"),
+                      model_->sort_column());
+    settings.setValue(QStringLiteral("ui/portsSortDescending"),
+                      model_->sort_order() == Qt::DescendingOrder);
+    if (model_->sort_column() < 0)
+        Q_EMIT status_message(tr("Ports are not sorted."));
+    else
+        Q_EMIT status_message(
+            (model_->sort_order() == Qt::AscendingOrder
+                 ? tr("Sorted by %1, first to last.")
+                 : tr("Sorted by %1, last to first."))
+                .arg(model_->headerData(model_->sort_column(), Qt::Horizontal)
+                         .toString()));
+}
+
+void PortsPanel::restore_sort()
+{
+    const QSettings settings;
+    bool ok = false;
+    const int column =
+        settings.value(QStringLiteral("ui/portsSortColumn"), -1).toInt(&ok);
+    if (!ok || column < 0 || column >= PortModel::column_count)
+        return;
+    const Qt::SortOrder order =
+        settings.value(QStringLiteral("ui/portsSortDescending"), false)
+                .toBool()
+            ? Qt::DescendingOrder
+            : Qt::AscendingOrder;
+    applying_widths_ = true;
+    model_->set_sort(column, order);
+    table_->horizontalHeader()->setSortIndicator(column, order);
+    applying_widths_ = false;
+}
+
+void PortsPanel::cycle_sort_by_key(int column)
+{
+    // The same order a click on the heading gives.
+    if (model_->sort_column() != column)
+        sort_by(column, Qt::AscendingOrder);
+    else if (model_->sort_order() == Qt::AscendingOrder)
+        sort_by(column, Qt::DescendingOrder);
+    else
+        sort_by(-1, Qt::AscendingOrder);
 }
 
 void PortsPanel::move_column_by_key(int column, int direction)
@@ -703,6 +776,13 @@ bool PortsPanel::eventFilter(QObject* watched, QEvent* event)
             const bool rtl = table_->layoutDirection() == Qt::RightToLeft;
             move_column_by_key(table_->currentIndex().column(),
                                left != rtl ? -1 : 1);
+            return true;
+        }
+        if (watched == table_ &&
+            key->modifiers() == (Qt::ControlModifier | Qt::AltModifier) &&
+            key->key() == Qt::Key_S)
+        {
+            cycle_sort_by_key(table_->currentIndex().column());
             return true;
         }
         if (watched == table_ &&

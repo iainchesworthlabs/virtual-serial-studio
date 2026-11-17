@@ -24,6 +24,7 @@
 #include <QVector>
 #include <QtGlobal>
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -76,7 +77,10 @@ enum class connect_phase
     /// The last try failed and the studio will try again.
     retrying,
     /// Closed on purpose: no try is made until it is started.
-    stopped
+    stopped,
+    /// Held by the user for a while: closed, no try is made until it is
+    /// resumed, and the setup keeps the pause.
+    paused
 };
 
 /// One thing that happened to a connection, for the short history the
@@ -159,6 +163,9 @@ struct port_view
     bool can_stop = false;
     /// Closed on purpose, with its links kept and no retry running.
     bool stopped = false;
+    /// Paused by the user (capability `port_pause`): closed like a stopped
+    /// port, but a pause is saved in the setup.  Never set with `stopped`.
+    bool paused = false;
     /// The names of the ports on a shared link that run at a different baud
     /// rate or framing from this one.  Empty when they all agree or the
     /// formats are not known.
@@ -369,6 +376,11 @@ struct gui_event
     /// The error as category and number, such as "system:10061", or empty.
     QString error_code;
     vss::time_point when{};
+    /// For a `line_break`: which part, how long (zero for a begin) and
+    /// whether the length was measured.
+    vss::break_phase phase = vss::break_phase::complete;
+    std::chrono::nanoseconds duration{0};
+    bool measured = false;
 };
 
 using event_batch = QVector<gui_event>;
@@ -397,6 +409,11 @@ struct network_attach_view
 
 /// One-line rendering of an engine error, used by dialogs and the status bar.
 QString error_text(const vss::error_code& error);
+
+/// What a break row says in its Detail: the length ("88 µs"), "at least"
+/// the length for one that was not measured, and "running" for a begin.
+QString break_detail(vss::break_phase phase, std::chrono::nanoseconds duration,
+                     bool measured);
 
 } // namespace vss::gui
 

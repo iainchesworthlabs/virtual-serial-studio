@@ -8,12 +8,14 @@
 
 #include <vss/core/bytes.hpp>
 #include <vss/core/endpoint.hpp>
+#include <vss/core/line_break.hpp>
 #include <vss/core/stats.hpp>
 
 #include <algorithm>
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <variant>
 #include <vector>
 
 namespace vss
@@ -75,10 +77,22 @@ struct visited_chunk
 
 using visited_set = std::shared_ptr<const visited_chunk>;
 
-/// Called by a delay line or a bus wire after it has written a chunk to
-/// `at`, so the hub can carry the chunk on along the links of `at`.
+/// A chunk or a break that a delay line or a bus wire holds: it owns the
+/// bytes, which the item the router passes on only views.
+using owned_item = std::variant<byte_buffer, line_break>;
+
+/// Called by a delay line or a bus wire after it has written an item to
+/// `at`, so the hub can carry it on along the links of `at`.
 using forward_function = std::function<void(
-    endpoint_id at, bytes_view data, const visited_set& visited,
+    endpoint_id at, const stream_item& item, const visited_set& visited,
     time_point when)>;
+
+/// The item a view of `owned` makes.
+inline stream_item view_of(const owned_item& owned)
+{
+    if (const auto* bytes = std::get_if<byte_buffer>(&owned))
+        return bytes_view(*bytes);
+    return std::get<line_break>(owned);
+}
 
 } // namespace vss

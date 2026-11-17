@@ -2274,6 +2274,11 @@
             <source>Bus</source>
             <translation>Bus</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="105" />
+            <source>Break</source>
+            <translation>Break</translation>
+        </message>
     </context>
     <context>
         <name>EventLogPanel</name>
@@ -2417,6 +2422,11 @@
             <location filename="../src/advanced/event_log.cpp" line="413" />
             <source>Bus</source>
             <translation>Bus</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="416" />
+            <source>Break</source>
+            <translation>Break</translation>
         </message>
     </context>
     <context>
@@ -3159,6 +3169,22 @@ Redes: %5</translation>
         <message>
             <source>Stop %1</source>
             <translation>Detener %1</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>Pausar</translation>
+        </message>
+        <message>
+            <source>Pause %1</source>
+            <translation>Pausar %1</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>Reanudar</translation>
+        </message>
+        <message>
+            <source>Resume %1</source>
+            <translation>Reanudar %1</translation>
         </message>
     </context>
     <context>
@@ -4476,6 +4502,16 @@ Redes: %5</translation>
             <location filename="../src/panes/monitor_model.cpp" line="354" />
             <source>not carried by the bus</source>
             <translation>no transportado por el bus</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="352" />
+            <source>%1, %2, %3, %4</source>
+            <translation>%1, %2, %3, %4</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="412" />
+            <source>Break, %1</source>
+            <translation>Break, %1</translation>
         </message>
     </context>
     <context>
@@ -6139,6 +6175,21 @@ Redes: %5</translation>
             <translation>Se copió %1.</translation>
         </message>
         <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Ports are not sorted.</source>
+            <translation>Los puertos no están ordenados.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Sorted by %1, first to last.</source>
+            <translation>Ordenado por %1, del primero al último.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Sorted by %1, last to first.</source>
+            <translation>Ordenado por %1, del último al primero.</translation>
+        </message>
+        <message>
             <location filename="../src/panes/ports_panel.cpp" line="136" />
             <source>Ports table columns</source>
             <translation>Columnas de la tabla de puertos</translation>
@@ -6604,6 +6655,36 @@ Redes: %5</translation>
             <location filename="../src/panes/monitor_panel.cpp" line="68" />
             <source>bus</source>
             <translation>bus</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="62" />
+            <source>%1 µs</source>
+            <translation>%1 µs</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="66" />
+            <source>%1 ms</source>
+            <translation>%1 ms</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="68" />
+            <source>%1 s</source>
+            <translation>%1 s</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="78" />
+            <source>running</source>
+            <translation>en ejecución</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="80" />
+            <source>at least %1</source>
+            <translation>al menos %1</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="154" />
+            <source>break</source>
+            <translation>break</translation>
         </message>
     </context>
     <context>
@@ -10224,6 +10305,22 @@ Redes: %5</translation>
             <source>Stopped %1.</source>
             <translation>%1 detenido.</translation>
         </message>
+        <message>
+            <source>Could not pause %1.</source>
+            <translation>No se pudo pausar %1.</translation>
+        </message>
+        <message>
+            <source>Could not resume %1.</source>
+            <translation>No se pudo reanudar %1.</translation>
+        </message>
+        <message>
+            <source>Paused %1.</source>
+            <translation>%1 en pausa.</translation>
+        </message>
+        <message>
+            <source>Resumed %1.</source>
+            <translation>%1 reanudado.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -10979,6 +11076,14 @@ Redes: %5</translation>
         <message>
             <source>Stop</source>
             <translation>Detener</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>Pausar</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>Reanudar</translation>
         </message>
     </context>
     <context>
@@ -20051,8 +20156,8 @@ Redes: %5</translation>
         </message>
         <message>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="74" />
-            <source>A byte takes ten bits. The others hear a message when its last byte has left the line.</source>
-            <translation>Un byte ocupa diez bits. Los demás oyen un mensaje cuando su último byte ha salido de la línea.</translation>
+            <source>A byte takes as many bits as the sender's framing gives it, ten for 8N1. The others hear a message when its last byte has left the line.</source>
+            <translation>Un byte ocupa tantos bits como le da el formato del emisor, diez para 8N1. Los demás oyen un mensaje cuando su último byte ha salido de la línea.</translation>
         </message>
         <message>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="81" />
@@ -24473,6 +24578,18 @@ Del complemento %2
             <source>Trying to connect to %1.</source>
             <translation>Intentando conectar a %1.</translation>
         </message>
+        <message>
+            <source>Paused</source>
+            <translation>En pausa</translation>
+        </message>
+        <message>
+            <source>Paused. Not connecting to %1.</source>
+            <translation>En pausa. No se conecta a %1.</translation>
+        </message>
+        <message>
+            <source>Resumed</source>
+            <translation>Reanudado</translation>
+        </message>
     </context>
     <context>
         <name>PortMenu</name>
@@ -24485,6 +24602,89 @@ Del complemento %2
             <location filename="../src/topology/topology_view.cpp" line="3259" />
             <source>Decode as...</source>
             <translation>Decodificar como…</translation>
+        </message>
+    </context>
+    <context>
+        <name>WireTimingFields</name>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="54" />
+            <source>Wire timing</source>
+            <translation>Temporización de la línea</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="50" />
+            <source>Bytes and breaks arrive as slowly as a serial line would carry them. A long write takes as long as it would on a wire, and a break holds back what follows it. Gaps under a millisecond use a little more of the processor.</source>
+            <translation>Los bytes y los breaks llegan tan despacio como los llevaría una línea serie. Una escritura larga tarda lo que tardaría en un cable, y un break retiene lo que le sigue. Los intervalos de menos de un milisegundo usan algo más del procesador.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="75" />
+            <source>Bit rate</source>
+            <translation>Velocidad en bits</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="71" />
+            <source> bit/s</source>
+            <translation> bit/s</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="72" />
+            <source>From the port</source>
+            <translation>Del puerto</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="78" />
+            <source>Used when the sending port has no rate of its own. The rate the program set on the port is used first. With neither, the link is not paced.</source>
+            <translation>Se usa cuando el puerto emisor no tiene velocidad propia. Primero se usa la velocidad que el programa fijó en el puerto. Sin ninguna de las dos, el enlace no se temporiza.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="84" />
+            <source>Framing</source>
+            <translation>Trama</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="120" />
+            <source>Data bits, parity and stop bits, used with the bit rate.</source>
+            <translation>Bits de datos, paridad y bits de parada, usados con la velocidad en bits.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="91" />
+            <source>Data bits</source>
+            <translation>Bits de datos</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="97" />
+            <source>Parity</source>
+            <translation>Paridad</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="99" />
+            <source>None</source>
+            <translation>Ninguna</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="100" />
+            <source>Odd</source>
+            <translation>Impar</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="101" />
+            <source>Even</source>
+            <translation>Par</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="102" />
+            <source>Mark</source>
+            <translation>Marca</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="103" />
+            <source>Space</source>
+            <translation>Espacio</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
+            <source>Stop bits</source>
+            <translation>Bits de parada</translation>
         </message>
     </context>
 </TS>

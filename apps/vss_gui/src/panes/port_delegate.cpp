@@ -53,6 +53,8 @@ StatusChip::kind chip_kind_of(port_state_kind kind)
         return StatusChip::kind::failed;
     case port_state_kind::fixture:
         return StatusChip::kind::fixture;
+    case port_state_kind::paused:
+        return StatusChip::kind::paused;
     }
     return StatusChip::kind::closed;
 }
@@ -162,9 +164,10 @@ void PortDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
             const auto alignment = static_cast<Qt::Alignment>(
                 index.data(Qt::TextAlignmentRole).toInt());
             const bool right = alignment.testFlag(Qt::AlignRight);
+            const Qt::Alignment horizontal =
+                right ? Qt::AlignRight : Qt::AlignLeft;
             painter->drawText(
-                cell,
-                (right ? Qt::AlignRight : Qt::AlignLeft) | Qt::AlignVCenter,
+                cell, static_cast<int>((horizontal | Qt::AlignVCenter).toInt()),
                 QFontMetrics(font).elidedText(text, Qt::ElideRight,
                                               cell.width()));
         }

@@ -980,6 +980,8 @@ void clear_ports_layout_settings()
     settings.remove(QStringLiteral("ui/portsColumnWidths"));
     settings.remove(QStringLiteral("ui/portsColumnsShown"));
     settings.remove(QStringLiteral("ui/portsColumnOrder"));
+    settings.remove(QStringLiteral("ui/portsSortColumn"));
+    settings.remove(QStringLiteral("ui/portsSortDescending"));
 }
 
 } // namespace
@@ -1244,6 +1246,182 @@ TEST_CASE("ports panel: columns can be moved and hidden and are remembered")
         REQUIRE_EQ(table->isColumnHidden(column),
                    column > PortModel::dropped_column);
     }
+    clear_ports_layout_settings();
+}
+
+TEST_CASE("ports panel: state sorts failed, waiting, up, idle, stopped last")
+{
+    using vss::gui::PortModel;
+    const auto make = [](vss::endpoint_id id, const char* name)
+    {
+        vss::gui::port_view port;
+        port.id = id;
+        port.name = QString::fromLatin1(name);
+        return port;
+    };
+    vss::gui::port_view closed = make(1, "closed");
+    vss::gui::port_view stopped = make(2, "stopped");
+    stopped.stopped = true;
+    vss::gui::port_view failed = make(3, "failed");
+    failed.state = vss::endpoint_state::failed;
+    vss::gui::port_view waiting = make(4, "waiting");
+    waiting.open = true;
+    waiting.peer = vss::gui::peer_state::not_open;
+    vss::gui::port_view connected = make(5, "connected");
+    connected.open = true;
+    connected.peer = vss::gui::peer_state::open;
+    vss::gui::port_view open = make(6, "open");
+    open.open = true;
+
+    REQUIRE(PortModel::state_rank(failed) < PortModel::state_rank(waiting));
+    REQUIRE(PortModel::state_rank(waiting) < PortModel::state_rank(open));
+    REQUIRE(PortModel::state_rank(open) < PortModel::state_rank(connected));
+    REQUIRE(PortModel::state_rank(connected) < PortModel::state_rank(closed));
+    REQUIRE(PortModel::state_rank(closed) < PortModel::state_rank(stopped));
+    // A paused port sorts next to a stopped one, before it.
+    vss::gui::port_view paused = make(7, "paused");
+    paused.paused = true;
+    REQUIRE(PortModel::state_rank(closed) < PortModel::state_rank(paused));
+    REQUIRE(PortModel::state_rank(paused) < PortModel::state_rank(stopped));
+    REQUIRE(PortModel::state_kind(paused) ==
+            vss::gui::port_state_kind::paused);
+    REQUIRE_EQ(PortModel::state_text(paused), QStringLiteral("Paused"));
+    // Stopped is a plain closed chip, as the Inspector shows it.
+    REQUIRE(PortModel::state_kind(stopped) ==
+            vss::gui::port_state_kind::closed);
+
+    PortModel model;
+    model.set_snapshot({closed, stopped, failed, waiting, connected, open}, {});
+    const auto names = [&model]
+    {
+        QStringList list;
+        for (int row = 0; row < model.rowCount(); ++row)
+            list << model.index(row, PortModel::port_column).data().toString();
+        return list;
+    };
+    // The engine's order until a column is chosen.
+    REQUIRE_EQ(names().join(QLatin1Char(' ')),
+               QStringLiteral("closed stopped failed waiting connected open"));
+    model.set_sort(PortModel::state_column, Qt::AscendingOrder);
+    REQUIRE_EQ(names().join(QLatin1Char(' ')),
+               QStringLiteral("failed waiting open connected closed stopped"));
+    model.set_sort(PortModel::state_column, Qt::DescendingOrder);
+    REQUIRE_EQ(names().join(QLatin1Char(' ')),
+               QStringLiteral("stopped closed connected open waiting failed"));
+    model.set_sort(-1, Qt::AscendingOrder);
+    REQUIRE_EQ(names().join(QLatin1Char(' ')),
+               QStringLiteral("closed stopped failed waiting connected open"));
+}
+
+TEST_CASE("ports panel: a value the engine does not know sorts last either way")
+{
+    using vss::gui::PortModel;
+    vss::gui::port_view slow;
+    slow.id = 1;
+    slow.name = QStringLiteral("slow");
+    slow.kind = vss::endpoint_kind::physical;
+    slow.serial.baud_rate = 9600;
+    vss::gui::port_view fast = slow;
+    fast.id = 2;
+    fast.name = QStringLiteral("fast");
+    fast.serial.baud_rate = 115200;
+    vss::gui::port_view unknown;
+    unknown.id = 3;
+    unknown.name = QStringLiteral("unknown");
+
+    PortModel model;
+    model.set_snapshot({unknown, fast, slow}, {});
+    const auto first_and_last = [&model]
+    {
+        return model.index(0, PortModel::port_column).data().toString() +
+               QLatin1Char(' ') +
+               model.index(2, PortModel::port_column).data().toString();
+    };
+    // Numbers sort as numbers, not as text.
+    model.set_sort(PortModel::baud_column, Qt::AscendingOrder);
+    REQUIRE_EQ(first_and_last(), QStringLiteral("slow unknown"));
+    model.set_sort(PortModel::baud_column, Qt::DescendingOrder);
+    REQUIRE_EQ(first_and_last(), QStringLiteral("fast unknown"));
+}
+
+TEST_CASE("ports panel: sorting keeps the selection and the scroll while "
+          "counters change")
+{
+    clear_ports_layout_settings();
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::SelectionService selection;
+    const auto first = backend.create_virtual_port(
+        QStringLiteral("one"), vss::virtual_port_kind::pty, true);
+    const auto second = backend.create_virtual_port(
+        QStringLiteral("two"), vss::virtual_port_kind::pty, true);
+    REQUIRE(first.has_value());
+    REQUIRE(second.has_value());
+    {
+        vss::gui::PortsPanel panel(backend, selection);
+        panel.resize(420, 300);
+        panel.set_advanced(true);
+        for (int column = vss::gui::PortModel::kind_column;
+             column < vss::gui::PortModel::column_count; ++column)
+            panel.set_column_visible(column, true);
+        panel.show();
+        QApplication::processEvents();
+        QTableView* table = panel.table();
+        QHeaderView* header = table->horizontalHeader();
+        REQUIRE(header->sectionsClickable());
+        REQUIRE(header->isSortIndicatorShown());
+
+        // Biggest TX first: "one" has sent nothing, so "two" leads once it
+        // sends, and the selected port follows its row.
+        panel.select_port(*first);
+        panel.sort_by(vss::gui::PortModel::tx_column, Qt::DescendingOrder);
+        REQUIRE_EQ(header->sortIndicatorSection(),
+                   static_cast<int>(vss::gui::PortModel::tx_column));
+        REQUIRE_EQ(header->sortIndicatorOrder(), Qt::DescendingOrder);
+        QScrollBar* across = table->horizontalScrollBar();
+        across->setValue(across->maximum());
+        const int scrolled = across->value();
+        REQUIRE(scrolled > 0);
+        int resets = 0;
+        QObject::connect(table->model(), &QAbstractItemModel::modelReset,
+                         [&resets] { ++resets; });
+
+        REQUIRE(backend.send(*second, QByteArrayLiteral("hello")).has_value());
+        Q_EMIT backend.stats_changed();
+        QApplication::processEvents();
+        REQUIRE_EQ(table->model()->index(0, 0).data().toString(),
+                   QStringLiteral("two"));
+        REQUIRE_EQ(selection.port(), *first);
+        REQUIRE_EQ(table->currentIndex().row(), 1);
+        REQUIRE_EQ(across->value(), scrolled);
+        REQUIRE_EQ(resets, 0);
+
+        // The choice is kept for the next start.
+        panel.sort_by(vss::gui::PortModel::rx_column, Qt::AscendingOrder);
+    }
+    vss::gui::PortsPanel again(backend, selection);
+    again.set_advanced(true);
+    REQUIRE_EQ(again.table()->horizontalHeader()->sortIndicatorSection(),
+               static_cast<int>(vss::gui::PortModel::rx_column));
+    again.sort_by(-1, Qt::AscendingOrder);
+    REQUIRE_EQ(again.table()->horizontalHeader()->sortIndicatorSection(), -1);
+
+    // The keyboard: Ctrl+Alt+S goes ascending, descending, then unsorted.
+    again.show();
+    again.table()->setFocus();
+    again.table()->setCurrentIndex(
+        again.table()->model()->index(0, vss::gui::PortModel::state_column));
+    QKeyEvent sort(QEvent::KeyPress, Qt::Key_S,
+                   Qt::ControlModifier | Qt::AltModifier);
+    QApplication::sendEvent(again.table(), &sort);
+    REQUIRE_EQ(again.table()->horizontalHeader()->sortIndicatorSection(),
+               static_cast<int>(vss::gui::PortModel::state_column));
+    REQUIRE_EQ(again.table()->horizontalHeader()->sortIndicatorOrder(),
+               Qt::AscendingOrder);
+    QApplication::sendEvent(again.table(), &sort);
+    REQUIRE_EQ(again.table()->horizontalHeader()->sortIndicatorOrder(),
+               Qt::DescendingOrder);
+    QApplication::sendEvent(again.table(), &sort);
+    REQUIRE_EQ(again.table()->horizontalHeader()->sortIndicatorSection(), -1);
     clear_ports_layout_settings();
 }
 
@@ -1572,6 +1750,75 @@ TEST_CASE("inspector: Stop and Start for a port made from an address")
     backend.set_capabilities(caps);
     panel.refresh();
     REQUIRE(button()->isHidden());
+}
+
+TEST_CASE("inspector: Pause and Resume for a port made from an address")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::capabilities caps = backend.caps();
+    caps.port_stop = true;
+    caps.port_pause = true;
+    backend.set_capabilities(caps);
+    const auto id = backend.create_virtual_port(
+        QStringLiteral("client"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(id.has_value());
+    backend.set_stoppable(*id, true);
+    vss::gui::InspectorPanel panel(backend);
+    panel.set_selected_port(*id);
+    QApplication::processEvents();
+    const auto pause = [&panel]
+    { return panel.findChild<QPushButton*>(
+          QStringLiteral("inspectorPauseButton")); };
+    const auto run = [&panel]
+    { return panel.findChild<QPushButton*>(
+          QStringLiteral("inspectorRunButton")); };
+    REQUIRE(pause() != nullptr);
+    REQUIRE(!pause()->isHidden());
+    REQUIRE_EQ(pause()->text(), QStringLiteral("Pause"));
+    REQUIRE_EQ(pause()->accessibleName(), QStringLiteral("Pause client"));
+
+    vss::endpoint_id asked = 0;
+    bool asked_pause = false;
+    QObject::connect(&panel, &vss::gui::InspectorPanel::pause_requested,
+                     [&](vss::endpoint_id port, bool value)
+                     {
+                         asked = port;
+                         asked_pause = value;
+                     });
+    pause()->click();
+    REQUIRE_EQ(asked, *id);
+    REQUIRE(asked_pause);
+
+    REQUIRE(backend.set_port_paused(*id, true));
+    panel.refresh();
+    REQUIRE_EQ(pause()->text(), QStringLiteral("Resume"));
+    // A paused port can still be stopped.
+    REQUIRE_EQ(run()->text(), QStringLiteral("Stop"));
+    const auto held = backend.port(*id);
+    REQUIRE(held);
+    REQUIRE_EQ(vss::gui::PortModel::state_text(*held),
+               QStringLiteral("Paused"));
+    REQUIRE(vss::gui::PortModel::state_kind(*held) ==
+            vss::gui::port_state_kind::paused);
+    const auto* chip = dynamic_cast<vss::gui::StatusChip*>(
+        panel.findChild<QWidget*>(QStringLiteral("inspectorStateChip")));
+    REQUIRE(chip != nullptr);
+    REQUIRE(chip->get_kind() == vss::gui::StatusChip::kind::paused);
+    pause()->click();
+    REQUIRE(!asked_pause);
+
+    // A stopped port has Start only.
+    REQUIRE(backend.set_port_running(*id, false));
+    panel.refresh();
+    REQUIRE(pause()->isHidden());
+    REQUIRE_EQ(run()->text(), QStringLiteral("Start"));
+
+    // Without the capability there is no Pause.
+    REQUIRE(backend.set_port_running(*id, true));
+    caps.port_pause = false;
+    backend.set_capabilities(caps);
+    panel.refresh();
+    REQUIRE(pause()->isHidden());
 }
 
 TEST_CASE("inspector: waiting sentence and control line chips")

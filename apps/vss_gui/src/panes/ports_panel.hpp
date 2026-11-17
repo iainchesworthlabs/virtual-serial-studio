@@ -62,6 +62,8 @@ public:
     void set_column_visible(int column, bool visible);
     /// Puts the columns back in their default order, widths and visibility.
     void reset_columns();
+    /// Orders the table by a column, or leaves the engine's order with -1.
+    void sort_by(int column, Qt::SortOrder order);
 
     /// How a port's menu reads its Send, Monitor and fixture actions; see
     /// `add_port_menu_actions`.
@@ -89,6 +91,8 @@ private:
     void set_default_column_widths();
     void restore_column_layout();
     void move_column_by_key(int column, int direction);
+    void cycle_sort_by_key(int column);
+    void restore_sort();
     void open_column_menu(const QPoint& global);
     void schedule_refresh();
     void resize_column_by_key(int column, int delta);

@@ -88,6 +88,11 @@ struct port_entry
     /// takes the lowest free number.  Other systems and other kinds of port have no
     /// COM numbers and ignore it.
     unsigned com_number = 0;
+    /// The user paused the port: it is kept, with its links, but closed until
+    /// it is resumed.  Only for a port made from an address.  In the file it
+    /// is `"paused": true`, left out when false, so a file without it means
+    /// the port runs.
+    bool paused = false;
     /// What plugins provide at this port: at most one `fixture` or
     /// `generator`, and at most `max_plugin_bindings` in all.  In the file
     /// it is the list `plugins`, left out when empty, so a port without
@@ -125,6 +130,12 @@ struct link_entry
     /// on.  Left out of the file when the option is off, so a bus without
     /// it is written as before.
     half_duplex_options half_duplex;
+    /// Carries the link at wire speed (`vss::wire_timing_options`), on any
+    /// link but a `bus`.  In the file it is the object `wire_timing` with an
+    /// optional `bit_rate` and `framing` (such as `8N1`); the object being
+    /// there turns the option on.  Left out of the file when the option is
+    /// off, so a link without it is written as before.
+    wire_timing_options wire_timing;
     /// For `monitor` only: which bytes of the monitored port it copies.  In
     /// the file it is the text `direction`, `both`, `transmit` or `receive`,
     /// left out when it is `both`, so a file without it, which every file

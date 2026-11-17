@@ -82,8 +82,9 @@ The engine's data is bytes and only bytes.
   bits. `parity_mode` is a **setting**, kept so that two ends can agree and so that a port can be opened with it. The
   engine does not model parity as a property of a byte, and it does not check or compute it. `line_format` and
   `same_format` compare the four fields so that a link between mismatched ports can be flagged.
-* A half-duplex bus charges every byte as 10 bits (`bus_bits_per_byte`). A 9-bit frame is 11, so the line would run
-  about 10 percent fast for 9-bit traffic.
+* A half-duplex bus counts the bits of a character from the sender's framing (`vss::wire_time`: start, 5 to 8 data bits,
+  parity, 1, 1.5 or 2 stop bits), or 10 bits when the framing is not known. It has no ninth data bit, so a 9-bit frame
+  would be 11 bits and the line would run about 10 percent fast for 9-bit traffic.
 * RFC 2217 (`libs/vss_ports/src/rfc2217.cpp`) sets baud, data size, parity and stop size, and carries a stream of bytes.
   It has nothing for a per-byte bit.
 * The saved setup holds `data_bits` and `parity` for a port as numbers and words (`libs/vss_config/src/document.cpp`).

@@ -26,10 +26,12 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_endpoint_reopen.cpp
   unit/test_endpoint_status.cpp
   unit/test_error_and_log.cpp
+  unit/test_hub_break.cpp
   unit/test_hub_bus.cpp
   unit/test_hub_events.cpp
   unit/test_hub_half_duplex.cpp
   unit/test_hub_latency.cpp
+  unit/test_wire_timing.cpp
   unit/test_hub_members.cpp
   unit/test_hub_options.cpp
   unit/test_hub_options_stress.cpp
@@ -52,6 +54,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_loopback_transport.cpp
   unit/test_machine.cpp
   unit/test_rfc2217.cpp
+  unit/test_rfc2217_client.cpp
   unit/test_native_and_com0com.cpp
   unit/test_permissions.cpp
   unit/test_permissions_linux.cpp
@@ -106,6 +109,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_studio_sources.cpp
   unit/test_studio_targets.cpp
   unit/test_tool_paths.cpp
+  unit/test_tx_order.cpp
   unit/test_update_feed.cpp
   unit/test_update_select.cpp
   unit/test_update_version.cpp
@@ -195,6 +199,8 @@ target_include_directories(vss_unit_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/support
   # The private headers of the control library, for the tests of its files.
   ${PROJECT_SOURCE_DIR}/libs/vss_control/src
+  # tx_order.hpp of the ports library, for the test of the break and write marks.
+  ${PROJECT_SOURCE_DIR}/libs/vss_ports/src
   # replay_inputs.hpp and perf_common.hpp, which test_tool_paths.cpp exercises.
   ${CMAKE_CURRENT_SOURCE_DIR}/fuzz
   ${PROJECT_SOURCE_DIR}/perf)
@@ -236,6 +242,7 @@ set(VSS_SYSTEM_TEST_SOURCES
   framework/main.cpp
   system/test_system_bus.cpp
   system/test_system_listen.cpp
+  system/test_system_rfc2217_client.cpp
   system/test_system_proxy_latency.cpp
   system/test_system_serial.cpp
   system/test_system_tcp.cpp

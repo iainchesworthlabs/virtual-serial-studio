@@ -485,6 +485,9 @@ struct port_entry
     bool open = false;
     std::uint64_t bytes_rx = 0;
     std::uint64_t bytes_tx = 0;
+    /// Breaks received and sent; zero when the sender does not know breaks.
+    std::uint64_t breaks_rx = 0;
+    std::uint64_t breaks_tx = 0;
 
     friend bool operator==(const port_entry&, const port_entry&) = default;
 };
@@ -497,6 +500,8 @@ struct link_entry
     std::vector<std::string> sources;
     std::vector<std::string> targets;
     std::uint64_t bytes = 0;
+    /// Breaks carried; zero when the sender does not know breaks.
+    std::uint64_t breaks = 0;
 
     friend bool operator==(const link_entry&, const link_entry&) = default;
 };
@@ -718,7 +723,7 @@ struct reply
 struct event_entry
 {
     /// The engine's name of the kind: `started`, `stopped`, `data`, `lines`,
-    /// `error`, `stats`, `log_message`, `bus_fault`.  A client ignores a
+    /// `error`, `stats`, `log_message`, `bus_fault`, `break`.  A client ignores a
     /// kind it does not know.
     std::string kind;
     /// The id of the port (`p_3`); empty for an event about no port.

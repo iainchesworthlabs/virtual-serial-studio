@@ -9,6 +9,7 @@
 #include "platform/timer_period_platform.hpp"
 
 #include <vss/core/bus_line.hpp>
+#include <vss/core/wire_time.hpp>
 #include <vss/core/hub.hpp>
 #include <vss/core/profile.hpp>
 
@@ -58,10 +59,13 @@ constexpr endpoint_id bus_node_tag = endpoint_id{1} << 63;
 /// What a half-duplex bus says about a chunk that was not a clean
 /// transmission.  `other` is the member that was in the way, or empty.
 std::string describe_fault(bus_fault fault, std::size_t bytes,
-                           const std::string& other, bool garble)
+                           const std::string& other, bool garble,
+                           bool is_break = false)
 {
     std::string sent =
-        "sent " + std::to_string(bytes) + (bytes == 1 ? " byte" : " bytes");
+        is_break ? std::string("sent a break")
+                 : "sent " + std::to_string(bytes) +
+                       (bytes == 1 ? " byte" : " bytes");
     switch (fault)
     {
     case bus_fault::overlap:
@@ -397,8 +401,12 @@ result<link_id> hub::bus(const std::vector<endpoint_id>& members,
     if (options.policy != merge_policy::interleave ||
         options.direction != monitor_direction::both)
         return make_error_code(errc::unsupported);
-    if (!valid_latency(options) || !valid_half_duplex(options.half_duplex))
+    if (!valid_latency(options) || !valid_half_duplex(options.half_duplex) ||
+        !valid_wire_timing(options.wire_timing))
         return make_error_code(errc::invalid_argument);
+    // A bus has a wire of its own.
+    if (options.wire_timing.enabled)
+        return make_error_code(errc::unsupported);
 
     const std::unordered_set<endpoint_id> unique(members.begin(),
                                                  members.end());
@@ -460,7 +468,7 @@ result<link_id> hub::add_link(link_mode mode,
     VSS_PROFILE_ZONE("hub.add_link");
     if (sources.empty() || targets.empty())
         return make_error_code(errc::invalid_argument);
-    if (!valid_latency(options))
+    if (!valid_latency(options) || !valid_wire_timing(options.wire_timing))
         return make_error_code(errc::invalid_argument);
     // Only a bus is one wire that its members take turns on.
     if (options.half_duplex.enabled)
@@ -518,7 +526,18 @@ result<link_id> hub::add_link(link_mode mode,
         }
     }
 
-    return record->id;
+    // A target that can pass a format on learns the one a source has set
+    // now, not at the next change.
+    const link_id created = record->id;
+    lock.unlock();
+    for (endpoint_id source : sources)
+        route_format(source);
+    if (duplex)
+    {
+        for (endpoint_id target : targets)
+            route_format(target);
+    }
+    return created;
 }
 
 endpoint_id hub::cycle_node(endpoint_id id) const
@@ -597,18 +616,32 @@ bool hub::bus_would_create_cycle(const std::vector<endpoint_id>& members) const
     return false;
 }
 
-std::shared_ptr<delay_line> hub::make_delay(endpoint_id to,
+std::shared_ptr<delay_line> hub::make_delay(
+    const std::shared_ptr<pacing_counters>& pacing, endpoint_id from, endpoint_id to,
                                             const link_options& options)
 {
-    if (!options.has_latency())
+    if (!options.needs_delay_line())
         return nullptr;
     // The caller holds the lock and has checked that `to` exists.
     const auto target = endpoints_.find(to);
     if (target == endpoints_.end())
         return nullptr;
-    return std::make_shared<delay_line>(io_.get_executor(), target->second,
-                                        options.delay_ms, options.jitter_ms,
-                                        options_.clock, make_forwarder());
+    std::shared_ptr<endpoint> source;
+    if (const auto sender = endpoints_.find(from); sender != endpoints_.end())
+        source = sender->second;
+    return std::make_shared<delay_line>(
+        io_.get_executor(), target->second, options.delay_ms,
+        options.jitter_ms, options_.clock, make_forwarder(),
+        options.wire_timing, std::move(source), pacing, spin_budget_,
+        [this, to](std::string message)
+        {
+            endpoint_event event;
+            event.kind = event_kind::log_message;
+            event.endpoint = to;
+            event.message = std::move(message);
+            event.when = now();
+            publish(std::move(event));
+        });
 }
 
 hub::route_entry hub::make_route(const link_record& link, endpoint_id from,
@@ -617,7 +650,7 @@ hub::route_entry hub::make_route(const link_record& link, endpoint_id from,
     route_entry route;
     route.link = link.id;
     route.to = to;
-    route.delay = make_delay(to, link.options);
+    route.delay = make_delay(link.pacing, from, to, link.options);
     route.arbitrated = arbitrates(link.options.policy, link.mode, link.sources,
                                   link.targets, from);
     return route;
@@ -1112,6 +1145,14 @@ link_info hub::describe(const link_record& record) const
     info.stats.bytes = record.bytes.load();
     info.stats.messages = record.messages.load();
     info.stats.dropped = record.dropped.load();
+    info.stats.breaks = record.breaks.load();
+    if (record.pacing)
+    {
+        info.stats.paced_releases = record.pacing->releases.load();
+        info.stats.late_releases = record.pacing->late.load();
+        info.stats.max_late_us = record.pacing->max_late_us.load();
+        info.stats.spin_refused = record.pacing->spin_refused.load();
+    }
     if (record.line)
     {
         info.stats.collisions = record.line->collisions();
@@ -1201,7 +1242,8 @@ result<void> hub::set_link_wiring(link_id id, const modem_wiring& wiring)
 result<void> hub::set_link_options(link_id id, const link_options& options)
 {
     VSS_PROFILE_ZONE("hub.set_link_options");
-    if (!valid_latency(options) || !valid_half_duplex(options.half_duplex))
+    if (!valid_latency(options) || !valid_half_duplex(options.half_duplex) ||
+        !valid_wire_timing(options.wire_timing))
         return make_error_code(errc::invalid_argument);
 
     struct line_driver
@@ -1241,6 +1283,9 @@ result<void> hub::set_link_options(link_id id, const link_options& options)
         const bool bus = record->mode == link_mode::bus;
         if (bus && options.policy != merge_policy::interleave)
             return make_error_code(errc::unsupported);
+        // A bus has a wire of its own.
+        if (bus && options.wire_timing.enabled)
+            return make_error_code(errc::unsupported);
         // Only a bus is one wire that its members take turns on.
         if (!bus && options.half_duplex.enabled)
             return make_error_code(errc::unsupported);
@@ -1259,7 +1304,8 @@ result<void> hub::set_link_options(link_id id, const link_options& options)
         }
         const link_options previous = record->options;
         const bool retime = next.delay_ms != previous.delay_ms ||
-                            next.jitter_ms != previous.jitter_ms;
+                            next.jitter_ms != previous.jitter_ms ||
+                            next.wire_timing != previous.wire_timing;
         const bool lines_on =
             next.emulate_modem_lines &&
             (!previous.emulate_modem_lines || next.wiring != previous.wiring);
@@ -1294,7 +1340,7 @@ result<void> hub::set_link_options(link_id id, const link_options& options)
             fresh.reserve(mine.size());
             held.reserve(mine.size());
             for (const auto& entry : mine)
-                fresh.push_back(make_delay(entry.route->to, next));
+                fresh.push_back(make_delay(record->pacing, entry.from, entry.route->to, next));
         }
         std::shared_ptr<bus_line> line;
         std::shared_ptr<bus_wire> wire;
@@ -1428,23 +1474,36 @@ void hub::route_data(endpoint_id from, bytes_view data, time_point when)
     route_chunk(from, data, when, nullptr);
 }
 
-std::function<void(endpoint_id, bytes_view,
+void hub::route_break(endpoint_id from, const line_break& item)
+{
+    route_chunk(from, item, item.when(), nullptr);
+}
+
+std::function<void(endpoint_id, const stream_item&,
                    const std::shared_ptr<const visited_chunk>&, time_point)>
 hub::make_forwarder()
 {
-    return [this](endpoint_id at, bytes_view data,
+    return [this](endpoint_id at, const stream_item& item,
                   const std::shared_ptr<const visited_chunk>& seen,
-                  time_point when) { route_chunk(at, data, when, seen.get()); };
+                  time_point when) { route_chunk(at, item, when, seen.get()); };
 }
 
-void hub::route_chunk(endpoint_id from, bytes_view data, time_point when,
-                      const visited_chunk* visited)
+void hub::route_chunk(endpoint_id from, const stream_item& item,
+                      time_point when, const visited_chunk* visited)
 {
     VSS_PROFILE_ZONE("hub.route");
 
-    if (data.empty())
+    // What the item is: bytes, with a size, or a break.  The size of a break
+    // is zero, so the byte counters of a link do not move for it.
+    const auto* const shown_bytes = std::get_if<bytes_view>(&item);
+    const auto* const shown_break = std::get_if<line_break>(&item);
+    if (shown_bytes && shown_bytes->empty())
         return;
-    VSS_PROFILE_PLOT("hub.route_bytes", data.size());
+    const std::size_t size = shown_bytes ? shown_bytes->size() : 0;
+    // A break is counted when it ends, once for each port it reaches.
+    const bool counts_break = shown_break && shown_break->ends_break();
+    if (shown_bytes)
+        VSS_PROFILE_PLOT("hub.route_bytes", size);
 
     struct delivery
     {
@@ -1476,6 +1535,18 @@ void hub::route_chunk(endpoint_id from, bytes_view data, time_point when,
         {
             const auto found = routes_.find(id);
             return found != routes_.end() && !found->second.empty();
+        };
+
+        const auto count_delivery = [&](link_record& record)
+        {
+            if (shown_break)
+            {
+                if (counts_break)
+                    record.breaks.fetch_add(1);
+                return;
+            }
+            record.bytes.fetch_add(size);
+            record.messages.fetch_add(1);
         };
 
         for (const auto& route : it->second)
@@ -1516,18 +1587,37 @@ void hub::route_chunk(endpoint_id from, bytes_view data, time_point when,
                     owner = from;
                 if (owner != from)
                 {
-                    record.dropped.fetch_add(data.size());
+                    record.dropped.fetch_add(size);
                     continue;
                 }
             }
 
             if (record.line)
             {
+                // A bus acts on a break when it ends, with its length: the
+                // wire is held for that long and the members hear it then.
+                // The begin of a running break is not carried on a bus.
+                if (shown_break && !counts_break)
+                    continue;
                 // One verdict for the chunk, however many members hear it.
                 if (!wire)
                 {
                     wire = record.wire;
-                    verdict = record.line->transmit(from, data.size(), when);
+                    // The sender's own characters are what the wire carries.
+                    wire_framing framing;
+                    if (const auto sender = endpoints_.find(from);
+                        sender != endpoints_.end())
+                    {
+                        if (const auto format = sender->second->peer_format())
+                            framing = framing_of(*format);
+                    }
+                    verdict =
+                        shown_break
+                            ? record.line->transmit_break(
+                                  from, shown_break->duration,
+                                  shown_break->measured, shown_break->start,
+                                  framing)
+                            : record.line->transmit(from, size, when, framing);
                     if (verdict.fault != bus_fault::none)
                     {
                         const auto name_of = [this](endpoint_id id)
@@ -1544,21 +1634,21 @@ void hub::route_chunk(endpoint_id from, bytes_view data, time_point when,
                         fault->fault = verdict.fault;
                         fault->link = record.id;
                         fault->message = describe_fault(
-                            verdict.fault, data.size(), name_of(verdict.other),
+                            verdict.fault, size, name_of(verdict.other),
                             record.options.half_duplex.on_collision ==
-                                collision_action::garble);
+                                collision_action::garble,
+                            shown_break != nullptr);
                     }
                 }
                 if (!verdict.carried)
                 {
-                    record.dropped.fetch_add(data.size());
+                    record.dropped.fetch_add(size);
                     continue;
                 }
                 // Another branch of the chunk may have got there first.
                 if (visited && !visited->trace->claim(route.to))
                     continue;
-                record.bytes.fetch_add(data.size());
-                record.messages.fetch_add(1);
+                count_delivery(record);
 
                 auto target = endpoints_.find(route.to);
                 if (target != endpoints_.end())
@@ -1573,8 +1663,7 @@ void hub::route_chunk(endpoint_id from, bytes_view data, time_point when,
 
             if (visited && !visited->trace->claim(route.to))
                 continue;
-            record.bytes.fetch_add(data.size());
-            record.messages.fetch_add(1);
+            count_delivery(record);
 
             auto target = endpoints_.find(route.to);
             if (target != endpoints_.end())
@@ -1615,7 +1704,7 @@ void hub::route_chunk(endpoint_id from, bytes_view data, time_point when,
         // then: put there afterwards, it would be heard after its sender
         // had left.
         if (wire && !on_wire.empty())
-            wire->push(from, verdict.ends, data,
+            wire->push(from, verdict.ends, item,
                        std::move(verdict.transmission), std::move(on_wire),
                        carried);
     }
@@ -1624,14 +1713,17 @@ void hub::route_chunk(endpoint_id from, bytes_view data, time_point when,
     {
         if (entry.delay)
         {
-            entry.delay->push(data, carried);
+            entry.delay->push(item, carried);
             continue;
         }
         // Carried on before it is written, as a delay line does, so the
         // bytes are read once from the caller's buffer.
         if (carried)
-            route_chunk(entry.target->id(), data, when, carried.get());
-        entry.target->write(data);
+            route_chunk(entry.target->id(), item, when, carried.get());
+        if (shown_break)
+            entry.target->write_break(*shown_break);
+        else
+            entry.target->write(*shown_bytes);
     }
 
     if (fault)
@@ -1691,6 +1783,35 @@ void hub::route_lines(endpoint_id from, control_lines lines)
 
     for (const auto& update : updates)
         update.target->set_peer_inputs(update.inputs);
+}
+
+void hub::route_format(endpoint_id from)
+{
+    VSS_PROFILE_ZONE("hub.route_format");
+    std::shared_ptr<endpoint> sender;
+    std::vector<std::shared_ptr<endpoint>> targets;
+    {
+        std::shared_lock lock(mutex_);
+        const auto found = endpoints_.find(from);
+        if (found == endpoints_.end())
+            return;
+        sender = found->second;
+        const auto it = routes_.find(from);
+        if (it == routes_.end())
+            return;
+        for (const auto& route : it->second)
+        {
+            if (const auto target = endpoints_.find(route.to);
+                target != endpoints_.end())
+                targets.push_back(target->second);
+        }
+    }
+
+    const auto format = sender->peer_format();
+    if (!format)
+        return;
+    for (const auto& target : targets)
+        target->set_peer_format(*format);
 }
 
 void hub::publish(endpoint_event event)

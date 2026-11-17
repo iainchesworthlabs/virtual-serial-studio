@@ -60,7 +60,7 @@ struct topo_link_input
     /// The sides the user attached the link to by dragging from a connector.
     /// Empty: the sides that face each other are used.  Used for the routed
     /// line of a pair, not for the bar of a split, a join or a bus.
-    std::optional<link_sides> sides;
+    std::optional<link_sides> sides{};
 };
 
 /// Gaps and margins in scene units.  The design fixes the minimum gap at

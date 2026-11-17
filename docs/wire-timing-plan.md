@@ -8,6 +8,14 @@ after a break), LIN (the response space) and Modbus RTU (3.5 characters of silen
 
 It changes no code. The driver interface and a link option are involved, so a phase waits for the decisions at the end.
 
+**Status (17 November 2026):** the owner approved decisions 1 to 6 as written. G2 and G3 are built;
+[architecture.md](architecture.md#wire-timing) says what is built and [wire-timing-lateness.md](wire-timing-lateness.md)
+what was measured. G1 (driver write records) and G4 are not part of that work. Two things differ from the text below:
+the bus counts the framing of the sender's own port (`peer_format`) at the rate it already has, rather than taking a
+framing in its options, because the schema addition approved was for `wire_timing` only; and a virtual port's own serial
+setting is not taken as a choice for the wire (it is a default), so the order is the program's format, a real line's
+setting, then the link's `bit_rate` and `framing`.
+
 ## What is there now
 
 * A program's writes go into one ring, `Tx`, and the helper reads what is there (`hub.c:693`, `:610`). Two writes made

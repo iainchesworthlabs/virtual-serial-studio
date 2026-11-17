@@ -606,6 +606,72 @@ TEST_CASE("stop_port: starting a client whose server refuses keeps trying")
     REQUIRE(wait_for_state(*port, endpoint_state::open));
 }
 
+TEST_CASE("pause_port: a paused client stays closed, is saved and resumes")
+{
+    tcp_server server;
+    studio app;
+    app.set_reconnect_policy(quick_policy());
+    const auto port = app.attach_serial("remote", uri_of(server));
+    REQUIRE(port);
+    REQUIRE(wait_until([&] { return server.accepted() == 1; }, 5000ms));
+    REQUIRE(app.port_paused((*port)->id()).value_or(true) == false);
+
+    REQUIRE(app.pause_port((*port)->id()));
+    REQUIRE(wait_for_state(*port, endpoint_state::closed));
+    REQUIRE(app.port_paused((*port)->id()).value_or(false) == true);
+    // A pause is not a stop.
+    REQUIRE(app.port_stopped((*port)->id()).value_or(true) == false);
+    std::this_thread::sleep_for(500ms);
+    REQUIRE_EQ(server.accepted(), 1);
+    REQUIRE(!app.connection((*port)->id())->retrying);
+
+    // The setup carries the pause; a stop is not carried.
+    const auto saved = app.snapshot();
+    REQUIRE_EQ(saved.ports.size(), std::size_t{1});
+    REQUIRE(saved.ports.front().paused);
+
+    REQUIRE(app.resume_port((*port)->id()));
+    REQUIRE(wait_until([&] { return server.accepted() == 2; }, 5000ms));
+    REQUIRE(wait_for_state(*port, endpoint_state::open));
+    REQUIRE(app.port_paused((*port)->id()).value_or(true) == false);
+    REQUIRE(!app.snapshot().ports.front().paused);
+
+    REQUIRE(app.stop_port((*port)->id()));
+    REQUIRE(!app.snapshot().ports.front().paused);
+    REQUIRE(app.port_paused((*port)->id()).value_or(true) == false);
+}
+
+TEST_CASE("pause_port: a setup with a paused port opens it paused")
+{
+    tcp_server server;
+    studio first;
+    REQUIRE(first.attach_serial("remote", uri_of(server)));
+    auto document = first.snapshot();
+    REQUIRE_EQ(document.ports.size(), std::size_t{1});
+    document.ports.front().paused = true;
+
+    studio second;
+    REQUIRE(second.apply(document));
+    const auto port = second.find("remote");
+    REQUIRE(port != nullptr);
+    REQUIRE(second.port_paused(port->id()).value_or(false));
+    REQUIRE(second.snapshot().ports.front().paused);
+    REQUIRE(second.resume_port(port->id()));
+    REQUIRE(wait_for_state(port, endpoint_state::open));
+}
+
+TEST_CASE("pause_port: a port with no address cannot be paused")
+{
+    studio app;
+    const auto port = app.create_virtual_port("plain",
+                                              virtual_port_kind::loopback);
+    REQUIRE(port);
+    REQUIRE(!app.port_paused((*port)->id()).has_value());
+    REQUIRE_EQ(app.pause_port((*port)->id()).error(),
+               make_error_code(errc::unsupported));
+    REQUIRE_EQ(app.pause_port(9999).error(), make_error_code(errc::not_found));
+}
+
 TEST_CASE("reconnect: it keeps trying while the server is down")
 {
     tcp_server server;

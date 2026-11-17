@@ -333,6 +333,7 @@ unsigned session::set_control(unsigned request, feed_result& result)
     case 6:
         outputs_.set(control_line::break_signal, request == 5);
         result.outputs_changed = true;
+        result.breaks.push_back({result.data.size(), request == 5});
         break;
     case 7:
         answer = outputs_.dtr() ? 8U : 9U;
@@ -488,6 +489,281 @@ std::string session::modem_state(control_lines inputs, bool force)
     put_subnegotiation(out, cmd_notify_modemstate,
                        one_byte(state | deltas));
     return out;
+}
+
+// -- The client side ---------------------------------------------------------
+
+namespace
+{
+
+constexpr unsigned char cmd_notify_linestate = 6;
+
+std::string request(unsigned char code, const std::string& value)
+{
+    std::string out;
+    out.push_back(static_cast<char>(iac));
+    out.push_back(static_cast<char>(sb));
+    out.push_back(static_cast<char>(option_com_port));
+    out.push_back(static_cast<char>(code));
+    for (const char byte : value)
+    {
+        out.push_back(byte);
+        if (static_cast<unsigned char>(byte) == iac)
+            out.push_back(byte);
+    }
+    out.push_back(static_cast<char>(iac));
+    out.push_back(static_cast<char>(se));
+    return out;
+}
+
+} // namespace
+
+std::string client_session::greeting()
+{
+    std::string out;
+    for (const unsigned char code :
+         {option_com_port, option_binary, option_suppress_go_ahead})
+    {
+        option& entry = option_for(code);
+        entry.asked = true;
+        put_command(out, will, code);
+        put_command(out, iac_do, code);
+    }
+    return out;
+}
+
+bool client_session::com_port_active() const noexcept
+{
+    return com_port_.local || com_port_.remote;
+}
+
+std::string client_session::encode(std::string_view data)
+{
+    return session::encode(data);
+}
+
+client_session::option& client_session::option_for(unsigned char code)
+{
+    switch (code)
+    {
+    case option_binary:
+        return binary_;
+    case option_suppress_go_ahead:
+        return suppress_go_ahead_;
+    case option_com_port:
+        return com_port_;
+    default:
+        break;
+    }
+    return unsupported_;
+}
+
+client_feed client_session::feed(std::string_view bytes)
+{
+    VSS_PROFILE_ZONE("ports.rfc2217.client_feed");
+    client_feed result;
+    for (const char raw : bytes)
+    {
+        const auto byte = static_cast<unsigned char>(raw);
+        switch (state_)
+        {
+        case parse_state::data:
+            if (byte == iac)
+                state_ = parse_state::iac;
+            else
+                result.data.push_back(raw);
+            break;
+        case parse_state::iac:
+            if (byte == iac)
+            {
+                result.data.push_back(raw);
+                state_ = parse_state::data;
+            }
+            else if (byte == will || byte == wont || byte == iac_do ||
+                     byte == dont)
+            {
+                verb_ = byte;
+                state_ = parse_state::verb;
+            }
+            else if (byte == sb)
+            {
+                subnegotiation_.clear();
+                state_ = parse_state::subnegotiation;
+            }
+            else
+            {
+                state_ = parse_state::data;
+            }
+            break;
+        case parse_state::verb:
+            negotiate(verb_, byte, result);
+            state_ = parse_state::data;
+            break;
+        case parse_state::subnegotiation:
+            if (byte == iac)
+                state_ = parse_state::subnegotiation_iac;
+            else if (subnegotiation_.size() < max_subnegotiation)
+                subnegotiation_.push_back(raw);
+            break;
+        case parse_state::subnegotiation_iac:
+            if (byte == iac)
+            {
+                if (subnegotiation_.size() < max_subnegotiation)
+                    subnegotiation_.push_back(raw);
+                state_ = parse_state::subnegotiation;
+            }
+            else
+            {
+                if (byte == se)
+                    subnegotiate(subnegotiation_, result);
+                state_ = parse_state::data;
+            }
+            break;
+        }
+    }
+    return result;
+}
+
+void client_session::negotiate(unsigned char verb, unsigned char code,
+                               client_feed& result)
+{
+    const bool supported = code == option_binary ||
+                           code == option_suppress_go_ahead ||
+                           code == option_com_port;
+    option& entry = option_for(code);
+    const bool was_active = com_port_active();
+
+    switch (verb)
+    {
+    case iac_do:
+        if (!supported)
+        {
+            put_command(result.reply, wont, code);
+            break;
+        }
+        // Studio offered the option with WILL, so a DO answers that offer.
+        // A DO that comes first is answered with a WILL, once.
+        if (!entry.local && !entry.asked)
+            put_command(result.reply, will, code);
+        entry.local = true;
+        break;
+    case dont:
+        if (supported && entry.local && !entry.asked)
+            put_command(result.reply, wont, code);
+        entry.local = false;
+        if (code == option_com_port)
+            refused_ = true;
+        break;
+    case will:
+        if (!supported)
+        {
+            put_command(result.reply, dont, code);
+            break;
+        }
+        if (!entry.remote && !entry.asked)
+            put_command(result.reply, iac_do, code);
+        entry.remote = true;
+        break;
+    case wont:
+        if (supported && entry.remote && !entry.asked)
+            put_command(result.reply, dont, code);
+        entry.remote = false;
+        if (code == option_com_port)
+            refused_ = true;
+        break;
+    default:
+        break;
+    }
+    if (code == option_com_port && com_port_active())
+        refused_ = false;
+    if (code == option_com_port &&
+        (was_active != com_port_active() || refused_))
+        result.com_port_changed = true;
+}
+
+void client_session::subnegotiate(const std::string& payload,
+                                  client_feed& result)
+{
+    if (payload.size() < 2 ||
+        static_cast<unsigned char>(payload[0]) != option_com_port)
+        return;
+    const auto code = static_cast<unsigned char>(payload[1]);
+    const std::string value = payload.substr(2);
+    const unsigned first =
+        value.empty() ? 0U : static_cast<unsigned char>(value[0]);
+
+    // A server answers a command with its code plus 100, and sends its
+    // notifications the same way. One that sends a notification without the
+    // offset is read as well.
+    if (code == cmd_notify_linestate + server_offset ||
+        code == cmd_notify_linestate)
+    {
+        if (!value.empty())
+            result.line_states.push_back(
+                {result.data.size(), static_cast<unsigned char>(first)});
+    }
+    else if (code == cmd_notify_modemstate + server_offset ||
+             code == cmd_notify_modemstate)
+    {
+        if (!value.empty())
+            result.modem_state = static_cast<unsigned char>(first);
+    }
+    else if (code == cmd_signature + server_offset)
+    {
+        server_signature_ = value;
+    }
+    // The answers to the SET commands say what the server now uses. Studio
+    // keeps what it asked for, so they are read and not acted on.
+}
+
+std::string client_session::set_baud_rate(unsigned rate) const
+{
+    return request(cmd_set_baudrate, baud_bytes(rate));
+}
+
+std::string client_session::set_data_size(unsigned bits) const
+{
+    return request(cmd_set_datasize, one_byte(bits));
+}
+
+std::string client_session::set_parity(parity_mode parity) const
+{
+    return request(cmd_set_parity, one_byte(parity_code(parity)));
+}
+
+std::string client_session::set_stop_size(stop_bits_mode stop) const
+{
+    return request(cmd_set_stopsize, one_byte(stop_code(stop)));
+}
+
+std::string client_session::set_flow_control(flow_control_mode flow) const
+{
+    return request(cmd_set_control, one_byte(flow_code(flow)));
+}
+
+std::string client_session::set_dtr(bool on) const
+{
+    return request(cmd_set_control, one_byte(on ? 8U : 9U));
+}
+
+std::string client_session::set_rts(bool on) const
+{
+    return request(cmd_set_control, one_byte(on ? 11U : 12U));
+}
+
+std::string client_session::set_break(bool on) const
+{
+    return request(cmd_set_control, one_byte(on ? 5U : 6U));
+}
+
+std::string client_session::set_line_state_mask(unsigned char mask) const
+{
+    return request(cmd_set_linestate_mask, one_byte(mask));
+}
+
+std::string client_session::set_modem_state_mask(unsigned char mask) const
+{
+    return request(cmd_set_modemstate_mask, one_byte(mask));
 }
 
 } // namespace vss::rfc2217

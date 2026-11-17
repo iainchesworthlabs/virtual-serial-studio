@@ -9,8 +9,10 @@
 #include <vss/core/link.hpp>
 #include <vss/core/stats.hpp>
 #include <vss/core/types.hpp>
+#include <vss/core/wire_time.hpp>
 
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -66,7 +68,18 @@ public:
 
     /// Judges a chunk of `bytes` bytes that `member` sent at `now`, and takes
     /// the wire for it when it is carried.
-    bus_verdict transmit(endpoint_id member, std::size_t bytes, time_point now);
+    /// The bytes take the real framing of the sender's characters, `8N1`
+    /// when it is not known (ten bits a byte).
+    bus_verdict transmit(endpoint_id member, std::size_t bytes, time_point now,
+                         const wire_framing& framing = {});
+
+    /// Judges a break that `member` sent, which holds the wire for its
+    /// `duration` as a chunk does for its bytes, or for one character at the
+    /// bus rate when it is not `measured`.  `now` is when the break began.
+    bus_verdict transmit_break(endpoint_id member,
+                               std::chrono::nanoseconds duration,
+                               bool measured, time_point now,
+                               const wire_framing& framing = {});
 
     /// Says what the hub knows of a member's RTS: high, low, or nothing at
     /// all (the member has no RTS the hub can follow, so it always sends and
@@ -87,11 +100,18 @@ public:
         return garbled_;
     }
 
-    /// How long `bytes` bytes take at `bit_rate` bits per second.
+    /// How long `bytes` bytes take at `bit_rate` bits per second with
+    /// `framing` (see #vss::wire_time).
     static clock_type::duration wire_time(std::uint32_t bit_rate,
-                                          std::size_t bytes) noexcept;
+                                          std::size_t bytes,
+                                          const wire_framing& framing = {}) noexcept;
 
 private:
+    /// Takes the wire for `length` from `now` or from the end of the same
+    /// member's last transmission, and judges it against the others.
+    bus_verdict occupy(endpoint_id member, clock_type::duration length,
+                       time_point now);
+
     struct span
     {
         endpoint_id member = 0;

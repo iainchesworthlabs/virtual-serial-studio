@@ -2274,6 +2274,11 @@
             <source>Bus</source>
             <translation>באַס</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="105" />
+            <source>Break</source>
+            <translation>Break</translation>
+        </message>
     </context>
     <context>
         <name>EventLogPanel</name>
@@ -2417,6 +2422,11 @@
             <location filename="../src/advanced/event_log.cpp" line="413" />
             <source>Bus</source>
             <translation>באַס</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="416" />
+            <source>Break</source>
+            <translation>Break</translation>
         </message>
     </context>
     <context>
@@ -3159,6 +3169,22 @@ Networks: %5</source>
         <message>
             <source>Stop %1</source>
             <translation>אָפּשטעלן %1</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>אָפּשטעלן פֿאַר אַ וויילע</translation>
+        </message>
+        <message>
+            <source>Pause %1</source>
+            <translation>%1 אָפּשטעלן פֿאַר אַ וויילע</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>ווידער אָנהייבן</translation>
+        </message>
+        <message>
+            <source>Resume %1</source>
+            <translation>%1 ווידער אָנהייבן</translation>
         </message>
     </context>
     <context>
@@ -4476,6 +4502,16 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_model.cpp" line="354" />
             <source>not carried by the bus</source>
             <translation>נישט געטראָגן דורכן באַס</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="352" />
+            <source>%1, %2, %3, %4</source>
+            <translation>%1, %2, %3, %4</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="412" />
+            <source>Break, %1</source>
+            <translation>Break, %1</translation>
         </message>
     </context>
     <context>
@@ -6139,6 +6175,21 @@ Networks: %5</source>
             <translation>%1 איז אָפּגעקאָפּירט.</translation>
         </message>
         <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Ports are not sorted.</source>
+            <translation>די פּאָרטן זענען נישט סארטירט.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Sorted by %1, first to last.</source>
+            <translation>סארטירט לויט %1, פון ערשטן צום לעצטן.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Sorted by %1, last to first.</source>
+            <translation>סארטירט לויט %1, פון לעצטן צום ערשטן.</translation>
+        </message>
+        <message>
             <location filename="../src/panes/ports_panel.cpp" line="136" />
             <source>Ports table columns</source>
             <translation>שפּאַלטן פֿון דער פּאָרט־טאַבעלע</translation>
@@ -6604,6 +6655,36 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_panel.cpp" line="68" />
             <source>bus</source>
             <translation>באַס</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="62" />
+            <source>%1 µs</source>
+            <translation>%1 µs</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="66" />
+            <source>%1 ms</source>
+            <translation>%1 ms</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="68" />
+            <source>%1 s</source>
+            <translation>%1 סעק</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="78" />
+            <source>running</source>
+            <translation>לויפֿט</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="80" />
+            <source>at least %1</source>
+            <translation>מינדסטנס %1</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="154" />
+            <source>break</source>
+            <translation>BREAK</translation>
         </message>
     </context>
     <context>
@@ -10224,6 +10305,22 @@ Networks: %5</source>
             <source>Stopped %1.</source>
             <translation>%1 אָפּגעשטעלט.</translation>
         </message>
+        <message>
+            <source>Could not pause %1.</source>
+            <translation>קען נישט אָפּשטעלן %1 פֿאַר אַ וויילע.</translation>
+        </message>
+        <message>
+            <source>Could not resume %1.</source>
+            <translation>קען נישט ווידער אָנהייבן %1.</translation>
+        </message>
+        <message>
+            <source>Paused %1.</source>
+            <translation>%1 אָפּגעשטעלט פֿאַר אַ וויילע.</translation>
+        </message>
+        <message>
+            <source>Resumed %1.</source>
+            <translation>%1 ווידער אָנגעהויבן.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -10979,6 +11076,14 @@ Networks: %5</source>
         <message>
             <source>Stop</source>
             <translation>אָפּשטעלן</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>אָפּשטעלן פֿאַר אַ וויילע</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>ווידער אָנהייבן</translation>
         </message>
     </context>
     <context>
@@ -20051,8 +20156,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="74" />
-            <source>A byte takes ten bits. The others hear a message when its last byte has left the line.</source>
-            <translation>אַ בײַט נעמט צען ביטן. די אַנדערע הערן אַ מעלדונג ווען איר לעצטער בײַט האָט פֿאַרלאָזט די ליניע.</translation>
+            <source>A byte takes as many bits as the sender's framing gives it, ten for 8N1. The others hear a message when its last byte has left the line.</source>
+            <translation>אַ בייט נעמט אַזוי פֿיל ביטן ווי דער פֿאָרמאַט פֿון דעם שיקער גיט עס, צען פֿאַר 8N1. די אַנדערע הערן אַ מעלדונג ווען איר לעצטער בייט האָט פֿאַרלאָזט די ליניע.</translation>
         </message>
         <message>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="81" />
@@ -24473,6 +24578,18 @@ From the plugin %2
             <source>Trying to connect to %1.</source>
             <translation>פּרובירט זיך צו פֿאַרבינדן מיט %1.</translation>
         </message>
+        <message>
+            <source>Paused</source>
+            <translation>אָפּגעשטעלט פֿאַר אַ וויילע</translation>
+        </message>
+        <message>
+            <source>Paused. Not connecting to %1.</source>
+            <translation>אָפּגעשטעלט פֿאַר אַ וויילע. פֿאַרבינדט זיך נישט מיט %1.</translation>
+        </message>
+        <message>
+            <source>Resumed</source>
+            <translation>ווידער אָנגעהויבן</translation>
+        </message>
     </context>
     <context>
         <name>PortMenu</name>
@@ -24485,6 +24602,89 @@ From the plugin %2
             <location filename="../src/topology/topology_view.cpp" line="3259" />
             <source>Decode as...</source>
             <translation>דעקאדירן ווי…</translation>
+        </message>
+    </context>
+    <context>
+        <name>WireTimingFields</name>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="54" />
+            <source>Wire timing</source>
+            <translation>ליניע־טיימינג</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="50" />
+            <source>Bytes and breaks arrive as slowly as a serial line would carry them. A long write takes as long as it would on a wire, and a break holds back what follows it. Gaps under a millisecond use a little more of the processor.</source>
+            <translation>בייטס און Break קומען אָן אַזוי לאַנגזאַם ווי אַ סעריעלע ליניע וואָלט זיי געטראָגן. אַ לאַנגע שרײַבונג נעמט אַזוי לאַנג ווי אויף אַ דראָט, און אַ Break האַלט אָפּ דאָס וואָס קומט נאָך אים. אָפּשטאַנדן אונטער אַ מיליסעקונדע נוצן אַביסל מער פֿון דעם פּראָצעסאָר.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="75" />
+            <source>Bit rate</source>
+            <translation>ביט־גיכקייט</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="71" />
+            <source> bit/s</source>
+            <translation> ביט/סעק</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="72" />
+            <source>From the port</source>
+            <translation>פֿונעם פּאָרט</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="78" />
+            <source>Used when the sending port has no rate of its own. The rate the program set on the port is used first. With neither, the link is not paced.</source>
+            <translation>ווערט גענוצט ווען דער שיקנדיקער פּאָרט האָט נישט קיין אייגענע גיכקייט. ערשט ווערט גענוצט די גיכקייט וואָס דאָס פּראָגראַם האָט אײַנגעשטעלט אויפֿן פּאָרט. אָן קיינעם פֿון זיי ווערט די פֿאַרבינדונג נישט געטאַקטירט.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="84" />
+            <source>Framing</source>
+            <translation>פֿרײַמינג</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="120" />
+            <source>Data bits, parity and stop bits, used with the bit rate.</source>
+            <translation>דאַטן־ביטן, פּאַריטעט און שטאָפּ־ביטן, גענוצט מיט דער ביט־גיכקייט.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="91" />
+            <source>Data bits</source>
+            <translation>דאַטן־ביטן</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="97" />
+            <source>Parity</source>
+            <translation>פּאַריטעט</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="99" />
+            <source>None</source>
+            <translation>קיין</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="100" />
+            <source>Odd</source>
+            <translation>אומגראַד</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="101" />
+            <source>Even</source>
+            <translation>גראַד</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="102" />
+            <source>Mark</source>
+            <translation>מאַרק</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="103" />
+            <source>Space</source>
+            <translation>ספּייס</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
+            <source>Stop bits</source>
+            <translation>שטאָפּ־ביטן</translation>
         </message>
     </context>
 </TS>
