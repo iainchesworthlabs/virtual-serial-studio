@@ -490,6 +490,8 @@ TEST_CASE("a replay plays the bytes the place sent when asked to")
     REQUIRE(rig::is_ok(r.ask(load_of("recordings/both-ways",
                                      std::string(port_name), 1.0,
                                      instance_number, 1, true))));
+    // The port has the bytes only once its strand has taken them.
+    REQUIRE(r.arrived(in.size() + out.size()));
     REQUIRE(wait_until(
         [&]
         {
