@@ -682,7 +682,7 @@ Every member of `half_duplex` may be left out; `"half_duplex": {}` is a line at
 9600 bit/s that reports and changes nothing. A bus without `half_duplex` is the
 plain bus, as before, and Studio writes nothing for it.
 
-- **The line rate** (`bit_rate`, 50 to 4000000 bit/s; **Line rate**). A byte
+- **The line rate** (`bit_rate`, 50 to 12000000 bit/s; **Line rate**). A byte
   takes ten bits, as at 8N1. A message of `n` bytes is on the line for
   `10 × n ÷ bit_rate` seconds from the moment its program sent it, and **the
   other stations hear it when its last byte has left the line**, not before: 8

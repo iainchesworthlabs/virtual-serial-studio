@@ -58,6 +58,7 @@ TEST_CASE("bus line: a byte takes ten bits at the line rate")
     REQUIRE(bus_line::wire_time(1000, 25) == 250ms);
     REQUIRE(bus_line::wire_time(9600, 96) == 100ms);
     REQUIRE(bus_line::wire_time(4'000'000, 1) == 2500ns);
+    REQUIRE(bus_line::wire_time(12'000'000, 12) == 10000ns);
     REQUIRE(bus_line::wire_time(50, 65536) == 13107200ms);
     REQUIRE(bus_line::wire_time(1000, 0) == 0ms);
 }
