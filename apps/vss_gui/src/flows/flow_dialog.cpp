@@ -21,6 +21,7 @@
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QShortcut>
+#include <QSizePolicy>
 #include <QTimer>
 #include <QVBoxLayout>
 
@@ -39,16 +40,24 @@ FlowDialog::FlowDialog(const QString& title, const QString& subtitle,
     polish(this);
     setSizeGripEnabled(true);
 
+    // The footer runs edge to edge, so the dialog is a column with no margin
+    // and the content sits in a host of its own that carries the margins.
     auto* outer = new QVBoxLayout(this);
-    outer->setContentsMargins(20, 20, 20, 0);
-    outer->setSpacing(16);
+    outer->setContentsMargins(0, 0, 0, 0);
+    outer->setSpacing(0);
+    auto* content = new QWidget(this);
+    content->setObjectName(QStringLiteral("flowContent"));
+    content_layout_ = new QVBoxLayout(content);
+    content_layout_->setContentsMargins(20, 20, 20, 16);
+    content_layout_->setSpacing(16);
+    outer->addWidget(content, 1);
 
     title_ = new QLabel(title, this);
     title_->setObjectName(QStringLiteral("flowTitle"));
     title_->setFont(Theme::instance().font(text_style::title));
     title_->setWordWrap(true);
     title_->setAccessibleName(title);
-    outer->addWidget(title_);
+    content_layout_->addWidget(title_);
 
     subtitle_ = new QLabel(subtitle, this);
     subtitle_->setObjectName(QStringLiteral("flowSubtitle"));
@@ -56,7 +65,7 @@ FlowDialog::FlowDialog(const QString& title, const QString& subtitle,
     subtitle_->setWordWrap(true);
     subtitle_->setProperty("muted", true);
     subtitle_->setAccessibleName(subtitle);
-    outer->addWidget(subtitle_);
+    content_layout_->addWidget(subtitle_);
 
     scroll_ = new QScrollArea(this);
     scroll_->setObjectName(QStringLiteral("flowScroll"));
@@ -77,11 +86,12 @@ FlowDialog::FlowDialog(const QString& title, const QString& subtitle,
     body_layout_->setContentsMargins(0, 0, 4, 0);
     body_layout_->setSpacing(16);
     scroll_->setWidget(body_);
-    outer->addWidget(scroll_, 1);
+    content_layout_->addWidget(scroll_, 1);
 
     auto* footer = new QFrame(this);
     footer->setObjectName(QStringLiteral("dialogFooter"));
     footer->setAttribute(Qt::WA_StyledBackground);
+    footer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     footer_layout_ = new QHBoxLayout(footer);
     footer_layout_->setContentsMargins(20, 10, 20, 10);
     footer_layout_->setSpacing(8);
@@ -206,8 +216,8 @@ bool FlowDialog::run_in_background(std::function<void()> work,
         busy_label_->setWordWrap(true);
         row->addWidget(busy_label_);
         busy_row_->setVisible(false);
-        auto* outer = static_cast<QVBoxLayout*>(layout());
-        outer->insertWidget(outer->indexOf(scroll_) + 1, busy_row_);
+        content_layout_->insertWidget(content_layout_->indexOf(scroll_) + 1,
+                                      busy_row_);
     }
 
     footer_state_.clear();

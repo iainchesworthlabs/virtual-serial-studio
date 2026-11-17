@@ -57,6 +57,8 @@ struct bundle_slot
     slot_kind kind = slot_kind::new_port;
     /// The name of a new port, or of the existing port it refers to.
     QString name;
+    /// The COM number asked of the driver for a new port, or 0 for Automatic.
+    unsigned com_number = 0;
 
     friend bool operator==(const bundle_slot&, const bundle_slot&) = default;
 };
