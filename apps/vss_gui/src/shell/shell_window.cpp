@@ -211,6 +211,10 @@ ShellWindow::ShellWindow(StudioBackend& backend, QWidget* parent)
 
     apply_theme_setting();
     apply_density_setting();
+    // The density can change from the Settings dialog too; keep the menu ticks
+    // in step with the theme, whoever changed it.
+    connect(&Theme::instance(), &Theme::theme_changed, this,
+            [this] { sync_density_actions(); });
     apply_menu_palette();
 
     registry_.set_level(level_.level());
@@ -3706,17 +3710,26 @@ void ShellWindow::apply_density_setting()
     Theme::instance().set_density(density == QLatin1String("compact")
                                       ? density_mode::compact
                                       : density_mode::comfortable);
-    for (const QString& name :
-         {QStringLiteral("comfortable"), QStringLiteral("compact")})
-    {
-        QAction* action =
-            registry_.action(QStringLiteral("view.density.") + name);
-        if (action != nullptr)
-        {
-            const QSignalBlocker blocker(action);
-            action->setChecked(density == name);
-        }
-    }
+    sync_density_actions();
+}
+
+/// Ticks the one density action that matches the theme.  The actions are in an
+/// exclusive group, which tracks the checked action through the action's
+/// changed signal, so the action is not blocked here: a blocked change would
+/// leave the group with no current action and the old tick in place.  The
+/// registry runs an action on triggered, not toggled, so this does not feed
+/// back into the theme or the saved setting.
+void ShellWindow::sync_density_actions()
+{
+    const bool compact = Theme::instance().density() == density_mode::compact;
+    QAction* comfortable_action =
+        registry_.action(QStringLiteral("view.density.comfortable"));
+    QAction* compact_action =
+        registry_.action(QStringLiteral("view.density.compact"));
+    if (comfortable_action == nullptr || compact_action == nullptr)
+        return;
+    (compact ? compact_action : comfortable_action)->setChecked(true);
+    (compact ? comfortable_action : compact_action)->setChecked(false);
 }
 
 void ShellWindow::apply_menu_palette()

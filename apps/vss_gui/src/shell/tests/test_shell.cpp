@@ -338,6 +338,77 @@ TEST_CASE("palette: renders a review screenshot in both themes")
     palette.close();
 }
 
+namespace
+{
+
+/// The checked entries of the View > Density menu, by text.
+QStringList ticked_densities(vss::gui::ShellWindow& window)
+{
+    QStringList ticked;
+    for (QMenu* menu : window.findChildren<QMenu*>())
+    {
+        if (menu->title() != QStringLiteral("Density"))
+            continue;
+        for (QAction* action : menu->actions())
+        {
+            if (action->isChecked())
+                ticked << action->text();
+        }
+    }
+    return ticked;
+}
+
+QAction* density_entry(vss::gui::ShellWindow& window, const QString& text)
+{
+    for (QMenu* menu : window.findChildren<QMenu*>())
+    {
+        if (menu->title() != QStringLiteral("Density"))
+            continue;
+        for (QAction* action : menu->actions())
+        {
+            if (action->text() == text)
+                return action;
+        }
+    }
+    return nullptr;
+}
+
+} // namespace
+
+TEST_CASE("shell: exactly one Density entry is ticked, whatever changed it")
+{
+    // A saved compact density is ticked at startup, and only it.
+    clear_settings();
+    QSettings().setValue(QStringLiteral("ui/density"),
+                         QStringLiteral("compact"));
+    vss::gui::Theme::instance().set_density(vss::gui::density_mode::comfortable);
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::ShellWindow window(backend);
+    REQUIRE_EQ(ticked_densities(window), QStringList{QStringLiteral("Compact")});
+
+    // Choosing from the menu moves the one tick.
+    QAction* comfortable = density_entry(window, QStringLiteral("Comfortable"));
+    QAction* compact = density_entry(window, QStringLiteral("Compact"));
+    REQUIRE(comfortable != nullptr);
+    REQUIRE(compact != nullptr);
+    comfortable->trigger();
+    REQUIRE_EQ(ticked_densities(window),
+               QStringList{QStringLiteral("Comfortable")});
+    compact->trigger();
+    REQUIRE_EQ(ticked_densities(window), QStringList{QStringLiteral("Compact")});
+    compact->trigger();
+    REQUIRE_EQ(ticked_densities(window), QStringList{QStringLiteral("Compact")});
+
+    // A change from somewhere else, such as the Settings dialog, is followed.
+    vss::gui::Theme::instance().set_density(vss::gui::density_mode::comfortable);
+    REQUIRE_EQ(ticked_densities(window),
+               QStringList{QStringLiteral("Comfortable")});
+    vss::gui::Theme::instance().set_density(vss::gui::density_mode::compact);
+    REQUIRE_EQ(ticked_densities(window), QStringList{QStringLiteral("Compact")});
+    vss::gui::Theme::instance().set_density(vss::gui::density_mode::comfortable);
+    clear_settings();
+}
+
 TEST_CASE("shell: the search and the level switch are centred in the header")
 {
     clear_settings();

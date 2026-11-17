@@ -310,6 +310,7 @@ private:
     void apply_dock_sizes();
     void apply_theme_setting();
     void apply_density_setting();
+    void sync_density_actions();
     void apply_menu_palette();
 
     // Running in the background.
