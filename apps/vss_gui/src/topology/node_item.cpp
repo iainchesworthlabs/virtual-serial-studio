@@ -47,6 +47,8 @@ QStringList badge_texts(const node_data& data)
         badges.append(connection_text::state(connect_phase::connected));
     if (data.stopped)
         badges.append(connection_text::state(connect_phase::stopped));
+    if (data.paused)
+        badges.append(connection_text::state(connect_phase::paused));
     return badges;
 }
 
@@ -340,6 +342,11 @@ void NodeItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
             soft = colour_role::fill;
             ink = colour_role::ink3;
         }
+        if (data_.paused)
+        {
+            soft = colour_role::accentSoft;
+            ink = colour_role::accentText;
+        }
         painter->setPen(Qt::NoPen);
         painter->setBrush(theme.colour(soft));
         const qreal tile_radius = theme.radius(QStringLiteral("tile"));
@@ -348,8 +355,8 @@ void NodeItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
         // turns its icon; with reduced motion it shows a still arrow in a
         // circle instead, so the state reads without movement.
         const bool still = busy && theme.reduced_motion();
-        const QString icon_name = data_.stopped ? QStringLiteral("pause")
-                                  : failed      ? QStringLiteral("warning")
+        const QString icon_name = data_.paused ? QStringLiteral("pause")
+                                  : failed     ? QStringLiteral("warning")
                                   : still       ? QStringLiteral("refresh")
                                                 : data_.icon;
         const QIcon icon = IconProvider::instance().icon(icon_name, ink, 18);
@@ -424,19 +431,25 @@ void NodeItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
             (!data_.plugin_badge.isEmpty() && badge == data_.plugin_badge) ||
             (data_.stopped &&
              badge == connection_text::state(connect_phase::stopped));
+        const bool paused_chip =
+            data_.paused &&
+            badge == connection_text::state(connect_phase::paused);
         draw_chip(painter,
                   QRectF(x, content_top + (name_height - chip_height) / 2.0,
                          chip_width, chip_height),
                   badge,
                   theme.colour(plugin        ? colour_role::fill
+                               : paused_chip ? colour_role::accentSoft
                                : failed_chip ? colour_role::badSoft
                                : (owner || open_chip) ? colour_role::okSoft
                                              : colour_role::amberSoft),
                   theme.colour(plugin        ? colour_role::line
+                               : paused_chip ? colour_role::accentLine
                                : failed_chip ? colour_role::badLine
                                : (owner || open_chip) ? colour_role::okLine
                                              : colour_role::amberLine),
                   theme.colour(plugin        ? colour_role::ink3
+                               : paused_chip ? colour_role::accentText
                                : failed_chip ? colour_role::noteDangerText
                                : (owner || open_chip) ? colour_role::noteOkText
                                              : colour_role::amber),

@@ -3168,6 +3168,22 @@ Networks: %5</source>
             <source>Stop %1</source>
             <translation>停止 %1</translation>
         </message>
+        <message>
+            <source>Pause</source>
+            <translation>暂停</translation>
+        </message>
+        <message>
+            <source>Pause %1</source>
+            <translation>暂停 %1</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>恢复</translation>
+        </message>
+        <message>
+            <source>Resume %1</source>
+            <translation>恢复 %1</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -10281,6 +10297,22 @@ Networks: %5</source>
             <source>Stopped %1.</source>
             <translation>已停止 %1。</translation>
         </message>
+        <message>
+            <source>Could not pause %1.</source>
+            <translation>无法暂停 %1。</translation>
+        </message>
+        <message>
+            <source>Could not resume %1.</source>
+            <translation>无法恢复 %1。</translation>
+        </message>
+        <message>
+            <source>Paused %1.</source>
+            <translation>已暂停 %1。</translation>
+        </message>
+        <message>
+            <source>Resumed %1.</source>
+            <translation>已恢复 %1。</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -11035,6 +11067,14 @@ Networks: %5</source>
         <message>
             <source>Stop</source>
             <translation>停止</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>暂停</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>恢复</translation>
         </message>
     </context>
     <context>
@@ -24493,6 +24533,18 @@ From the plugin %2
         <message>
             <source>Trying to connect to %1.</source>
             <translation>正在尝试连接到 %1。</translation>
+        </message>
+        <message>
+            <source>Paused</source>
+            <translation>已暂停</translation>
+        </message>
+        <message>
+            <source>Paused. Not connecting to %1.</source>
+            <translation>已暂停。不会连接到 %1。</translation>
+        </message>
+        <message>
+            <source>Resumed</source>
+            <translation>已恢复</translation>
         </message>
     </context>
     <context>

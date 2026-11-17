@@ -123,6 +123,16 @@ public:
         return vss::make_error_code(vss::errc::unsupported);
     }
 
+    /// Pauses a port that was made from an address, or resumes it
+    /// (capability `port_pause`).  What stopping keeps and closes, and the
+    /// setup records the pause.  `unsupported` for any other port and
+    /// without the capability.  Resuming a stopped port starts it.
+    virtual vss::result<void> set_port_paused(vss::endpoint_id /*id*/,
+                                              bool /*paused*/)
+    {
+        return vss::make_error_code(vss::errc::unsupported);
+    }
+
     /// Renames a port everywhere the studio keeps its name.  The default is
     /// `unsupported`: a build without `Capabilities::rename_port` never
     /// changes only part of the records.

@@ -88,6 +88,11 @@ struct port_entry
     /// takes the lowest free number.  Other systems and other kinds of port have no
     /// COM numbers and ignore it.
     unsigned com_number = 0;
+    /// The user paused the port: it is kept, with its links, but closed until
+    /// it is resumed.  Only for a port made from an address.  In the file it
+    /// is `"paused": true`, left out when false, so a file without it means
+    /// the port runs.
+    bool paused = false;
     /// What plugins provide at this port: at most one `fixture` or
     /// `generator`, and at most `max_plugin_bindings` in all.  In the file
     /// it is the list `plugins`, left out when empty, so a port without

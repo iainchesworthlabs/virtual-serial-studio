@@ -3170,6 +3170,22 @@ Networks: %5</source>
             <source>Stop %1</source>
             <translation>עצור את %1</translation>
         </message>
+        <message>
+            <source>Pause</source>
+            <translation>השהה</translation>
+        </message>
+        <message>
+            <source>Pause %1</source>
+            <translation>השהה את %1</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>המשך</translation>
+        </message>
+        <message>
+            <source>Resume %1</source>
+            <translation>המשך את %1</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -10289,6 +10305,22 @@ Networks: %5</source>
             <source>Stopped %1.</source>
             <translation>%1 נעצר.</translation>
         </message>
+        <message>
+            <source>Could not pause %1.</source>
+            <translation>לא ניתן להשהות את %1.</translation>
+        </message>
+        <message>
+            <source>Could not resume %1.</source>
+            <translation>לא ניתן להמשיך את %1.</translation>
+        </message>
+        <message>
+            <source>Paused %1.</source>
+            <translation>%1 הושהה.</translation>
+        </message>
+        <message>
+            <source>Resumed %1.</source>
+            <translation>%1 חודש.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -11044,6 +11076,14 @@ Networks: %5</source>
         <message>
             <source>Stop</source>
             <translation>עצור</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>השהה</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>המשך</translation>
         </message>
     </context>
     <context>
@@ -24537,6 +24577,18 @@ From the plugin %2
         <message>
             <source>Trying to connect to %1.</source>
             <translation>מנסה להתחבר אל %1.</translation>
+        </message>
+        <message>
+            <source>Paused</source>
+            <translation>מושהה</translation>
+        </message>
+        <message>
+            <source>Paused. Not connecting to %1.</source>
+            <translation>מושהה. לא מתחבר אל %1.</translation>
+        </message>
+        <message>
+            <source>Resumed</source>
+            <translation>חודש</translation>
         </message>
     </context>
     <context>

@@ -3170,6 +3170,22 @@ Réseaux : %5</translation>
             <source>Stop %1</source>
             <translation>Arrêter %1</translation>
         </message>
+        <message>
+            <source>Pause</source>
+            <translation>Mettre en pause</translation>
+        </message>
+        <message>
+            <source>Pause %1</source>
+            <translation>Mettre %1 en pause</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>Reprendre</translation>
+        </message>
+        <message>
+            <source>Resume %1</source>
+            <translation>Reprendre %1</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -10289,6 +10305,22 @@ Réseaux : %5</translation>
             <source>Stopped %1.</source>
             <translation>%1 arrêté.</translation>
         </message>
+        <message>
+            <source>Could not pause %1.</source>
+            <translation>Impossible de mettre %1 en pause.</translation>
+        </message>
+        <message>
+            <source>Could not resume %1.</source>
+            <translation>Impossible de reprendre %1.</translation>
+        </message>
+        <message>
+            <source>Paused %1.</source>
+            <translation>%1 en pause.</translation>
+        </message>
+        <message>
+            <source>Resumed %1.</source>
+            <translation>%1 repris.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -11044,6 +11076,14 @@ Réseaux : %5</translation>
         <message>
             <source>Stop</source>
             <translation>Arrêter</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>Mettre en pause</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>Reprendre</translation>
         </message>
     </context>
     <context>
@@ -24537,6 +24577,18 @@ Du module %2
         <message>
             <source>Trying to connect to %1.</source>
             <translation>Tentative de connexion à %1.</translation>
+        </message>
+        <message>
+            <source>Paused</source>
+            <translation>En pause</translation>
+        </message>
+        <message>
+            <source>Paused. Not connecting to %1.</source>
+            <translation>En pause. Ne se connecte pas à %1.</translation>
+        </message>
+        <message>
+            <source>Resumed</source>
+            <translation>Repris</translation>
         </message>
     </context>
     <context>

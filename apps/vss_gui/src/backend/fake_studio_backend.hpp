@@ -50,6 +50,8 @@ public:
     /// can be.
     void set_stoppable(vss::endpoint_id id, bool stoppable);
     vss::result<void> set_port_running(vss::endpoint_id id, bool run) override;
+    vss::result<void> set_port_paused(vss::endpoint_id id,
+                                      bool paused) override;
     /// Makes a port a network client in this state.
     void set_connection(vss::endpoint_id id, const connection_view& connection);
     /// COM numbers that another device has, so a driver port cannot take them.

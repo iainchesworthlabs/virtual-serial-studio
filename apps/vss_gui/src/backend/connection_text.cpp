@@ -25,6 +25,8 @@ QString state(connect_phase phase)
         return QCoreApplication::translate("Connection", "Retrying");
     case connect_phase::stopped:
         return QCoreApplication::translate("Connection", "Stopped");
+    case connect_phase::paused:
+        return QCoreApplication::translate("Connection", "Paused");
     }
     return {};
 }
@@ -53,6 +55,10 @@ QString sentence(const connection_view& connection)
         return QCoreApplication::translate(
                    "Connection", "Stopped. Not connecting to %1.")
             .arg(target);
+    case connect_phase::paused:
+        return QCoreApplication::translate(
+                   "Connection", "Paused. Not connecting to %1.")
+            .arg(target);
     case connect_phase::retrying:
         if (reason.isEmpty())
             return QCoreApplication::translate(
@@ -73,6 +79,16 @@ QString event_started()
 QString event_stopped()
 {
     return QCoreApplication::translate("Connection", "Stopped");
+}
+
+QString event_paused()
+{
+    return QCoreApplication::translate("Connection", "Paused");
+}
+
+QString event_resumed()
+{
+    return QCoreApplication::translate("Connection", "Resumed");
 }
 
 QString event_connected()

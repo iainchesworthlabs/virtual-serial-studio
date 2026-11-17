@@ -181,6 +181,7 @@ bool same_port_shape(const port_view& left, const port_view& right)
            left.clients == right.clients &&
            left.connection == right.connection &&
            left.can_stop == right.can_stop && left.stopped == right.stopped &&
+           left.paused == right.paused &&
            left.format_conflicts == right.format_conflicts &&
            left.driver_port == right.driver_port &&
            left.com_number == right.com_number;
@@ -293,6 +294,8 @@ capabilities EngineStudioBackend::caps() const
     caps.network_status = true;
     // `vss::studio::stop_port` and `start_port`.
     caps.port_stop = true;
+    // `vss::studio::pause_port` and `resume_port`; the setup file keeps it.
+    caps.port_pause = true;
     // `vss::run_benchmark` is the core `vss_cli bench` uses, shared with the
     // GUI.
     caps.benchmark = true;
@@ -675,6 +678,20 @@ vss::result<void> EngineStudioBackend::set_port_running(vss::endpoint_id id,
     if (histories_.contains(id))
         note_connection_event(id, run ? connection_text::event_started()
                                       : connection_text::event_stopped());
+    rebuild();
+    return {};
+}
+
+vss::result<void> EngineStudioBackend::set_port_paused(vss::endpoint_id id,
+                                                       bool paused)
+{
+    const auto done =
+        paused ? studio_.pause_port(id) : studio_.resume_port(id);
+    if (!done)
+        return done.error();
+    if (histories_.contains(id))
+        note_connection_event(id, paused ? connection_text::event_paused()
+                                         : connection_text::event_resumed());
     rebuild();
     return {};
 }
@@ -1286,6 +1303,8 @@ EngineStudioBackend::connection_of(const port_view& port)
     connect_phase raw = connect_phase::failed;
     if (port.stopped)
         raw = connect_phase::stopped;
+    else if (port.paused)
+        raw = connect_phase::paused;
     else if (status->retrying)
         raw = connect_phase::retrying;
     else if (port.state == vss::endpoint_state::opening ||
@@ -1336,7 +1355,12 @@ EngineStudioBackend::connection_of(const port_view& port)
     else if (raw != *history.shown)
     {
         const auto shown_for = now - history.shown_at;
-        if (shown_for >= hold)
+        // What the user chose shows at once; only the changes the network
+        // makes are held.
+        const auto chosen = [](connect_phase phase)
+        { return phase == connect_phase::stopped ||
+                 phase == connect_phase::paused; };
+        if (shown_for >= hold || chosen(raw) || chosen(*history.shown))
         {
             history.shown = raw;
             history.shown_at = now;
@@ -1409,6 +1433,8 @@ void EngineStudioBackend::rebuild()
         {
             next_ports.back().can_stop = true;
             next_ports.back().stopped = *stopped;
+            next_ports.back().paused =
+                studio_.port_paused(info.id).value_or(false);
         }
         next_ports.back().connection = connection_of(next_ports.back());
         // A client has no path of its own; the address it connects to stands

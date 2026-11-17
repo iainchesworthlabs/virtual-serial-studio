@@ -3170,6 +3170,22 @@ Netzwerke: %5</translation>
             <source>Stop %1</source>
             <translation>%1 anhalten</translation>
         </message>
+        <message>
+            <source>Pause</source>
+            <translation>Pausieren</translation>
+        </message>
+        <message>
+            <source>Pause %1</source>
+            <translation>%1 pausieren</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>Fortsetzen</translation>
+        </message>
+        <message>
+            <source>Resume %1</source>
+            <translation>%1 fortsetzen</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -10289,6 +10305,22 @@ Netzwerke: %5</translation>
             <source>Stopped %1.</source>
             <translation>%1 angehalten.</translation>
         </message>
+        <message>
+            <source>Could not pause %1.</source>
+            <translation>%1 konnte nicht pausiert werden.</translation>
+        </message>
+        <message>
+            <source>Could not resume %1.</source>
+            <translation>%1 konnte nicht fortgesetzt werden.</translation>
+        </message>
+        <message>
+            <source>Paused %1.</source>
+            <translation>%1 pausiert.</translation>
+        </message>
+        <message>
+            <source>Resumed %1.</source>
+            <translation>%1 fortgesetzt.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -11044,6 +11076,14 @@ Netzwerke: %5</translation>
         <message>
             <source>Stop</source>
             <translation>Anhalten</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>Pausieren</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>Fortsetzen</translation>
         </message>
     </context>
     <context>
@@ -24537,6 +24577,18 @@ Aus dem Plug-in %2
         <message>
             <source>Trying to connect to %1.</source>
             <translation>Es wird versucht, %1 zu erreichen.</translation>
+        </message>
+        <message>
+            <source>Paused</source>
+            <translation>Pausiert</translation>
+        </message>
+        <message>
+            <source>Paused. Not connecting to %1.</source>
+            <translation>Pausiert. Verbindet sich nicht mit %1.</translation>
+        </message>
+        <message>
+            <source>Resumed</source>
+            <translation>Fortgesetzt</translation>
         </message>
     </context>
     <context>

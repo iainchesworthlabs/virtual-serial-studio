@@ -490,6 +490,20 @@ public:
     /// whether it is stopped now.  A port that was opened again by other
     /// means is not stopped.
     std::optional<bool> port_stopped(endpoint_id id) const;
+
+    /// Pauses a port that was made from an address: the same close as
+    /// #stop_port (the port, its id and links stay, a client does not try to
+    /// open it again, a server lets go of its address and drops its clients,
+    /// and what a link sends to it is not delivered and not held: the closed
+    /// port refuses the write), but a pause is the user's temporary hold, so `snapshot()`
+    /// writes it (`paused` in the port's entry) and opening that setup pauses
+    /// the port again.  Same errors as #stop_port.
+    result<void> pause_port(endpoint_id id);
+    /// Opens a paused port again, as #start_port does for a stopped one.
+    result<void> resume_port(endpoint_id id);
+    /// `nullopt` when the port cannot be paused (see #stop_port), else
+    /// whether it is paused now.
+    std::optional<bool> port_paused(endpoint_id id) const;
     reconnect_policy current_reconnect_policy() const;
 
     /// The ports of the Windows driver whose endpoint has stopped: the helper
@@ -728,13 +742,26 @@ private:
         /// The port was opened with settings given apart from its address, so
         /// a reopen gives them again; otherwise the address alone describes it.
         bool settings_given = false;
-        /// Closed by #stop_port and not to be opened until #start_port.
-        bool stopped = false;
+        /// Closed by #stop_port or #pause_port and not to be opened until
+        /// #start_port or #resume_port.  Only a pause is written by
+        /// `snapshot`.
+        enum class run_state : unsigned char
+        {
+            running,
+            stopped,
+            paused
+        };
+        run_state run = run_state::running;
         /// Where the port is in the setup: `snapshot` writes ports in this
         /// order, then by id.  `register_port` gives the next number, and
         /// `apply` and `replace` set it from the place in the document.
         std::size_t order = 0;
     };
+
+    result<void> hold_port(endpoint_id id, port_record::run_state how);
+    result<void> release_port(endpoint_id id);
+    std::optional<bool> held_as(endpoint_id id,
+                                port_record::run_state wanted) const;
 
     struct rules_record
     {

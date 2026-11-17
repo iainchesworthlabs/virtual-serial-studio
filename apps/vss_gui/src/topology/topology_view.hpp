@@ -243,6 +243,8 @@ Q_SIGNALS:
     /// Stop (`run` false) or start a port that was made from an address,
     /// chosen from its menu.
     void run_requested(vss::endpoint_id id, bool run);
+    /// Pause (`pause` true) or resume a port, chosen from its menu.
+    void pause_requested(vss::endpoint_id id, bool pause);
     void remove_link_requested(vss::link_id id);
     /// Emitted only when the build can rename (Capabilities::rename_port).
     void rename_requested(vss::endpoint_id id);
@@ -315,8 +317,9 @@ private:
     /// that is connecting.  It runs only while there is one, and never with
     /// reduced motion.
     void update_spin_timer();
-    /// "Stop" or "Start" for a port that can be stopped, or empty.
-    QString run_action_label(vss::endpoint_id id) const;
+    /// "Pause" and "Stop", "Resume" and "Stop", or "Start", for a port that
+    /// can be stopped, or none.
+    QStringList run_action_labels(vss::endpoint_id id) const;
     void add_run_action(QMenu* menu, vss::endpoint_id id);
     void tick_spin();
     void apply_positions(bool refresh_scene_rect = true);

@@ -30,7 +30,9 @@ enum class port_state_kind
     studio_only,
     closed,
     failed,
-    fixture
+    fixture,
+    /// Held by the user for a while; see `port_view::paused`.
+    paused
 };
 
 /// One row per port.  Simple and Advanced share the model; only the view
@@ -106,9 +108,9 @@ public:
     static QString state_text(const port_view& port);
     static port_state_kind state_kind(const port_view& port);
     /// Where a port's state sorts, first to last: failed, waiting, open,
-    /// connected, Studio only, fixture, closed, and a port stopped on purpose
-    /// last. There is no paused state for a port: the engine has none, and
-    /// the Monitor's Pause is not a port's.
+    /// connected, Studio only, fixture, closed, then a port paused by the user
+    /// and a port stopped on purpose last. The Monitor's Pause is not a
+    /// port's.
     static int state_rank(const port_view& port);
     static QString role_text(const port_view& port,
                              const std::vector<port_view>& ports,

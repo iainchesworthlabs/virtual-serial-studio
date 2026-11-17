@@ -128,6 +128,11 @@ struct capabilities
     /// its links kept (`vss::studio::stop_port` and `start_port`).  A
     /// backend without it shows no Stop or Start.
     bool port_stop = false;
+    /// A port made from an address can be paused and resumed, and the setup
+    /// keeps the pause (`vss::studio::pause_port` and `resume_port`, the
+    /// `paused` field of a port in the setup file).  A backend without it
+    /// shows no Pause or Resume.
+    bool port_pause = false;
     /// A shared multi-drop bus link: every member hears every other and none
     /// hears itself (`vss::hub::bus`).  The engine backend provides it.  A
     /// backend without it keeps the star (a split with a join tap): the

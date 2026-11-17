@@ -1096,6 +1096,9 @@ void ShellWindow::build_central()
     connect(topology_, &topology::TopologyView::run_requested, this,
             [this](vss::endpoint_id id, bool run)
             { set_port_running(id, run); });
+    connect(topology_, &topology::TopologyView::pause_requested, this,
+            [this](vss::endpoint_id id, bool pause)
+            { set_port_paused(id, pause); });
     connect(topology_, &topology::TopologyView::status_message, this,
             [this](const QString& text) { status_->showMessage(text, 4000); });
     connect(topology_, &topology::TopologyView::selection_changed, this,
@@ -1262,6 +1265,9 @@ void ShellWindow::build_docks()
     connect(inspector_panel_, &InspectorPanel::run_requested, this,
             [this](vss::endpoint_id id, bool run)
             { set_port_running(id, run); });
+    connect(inspector_panel_, &InspectorPanel::pause_requested, this,
+            [this](vss::endpoint_id id, bool pause)
+            { set_port_paused(id, pause); });
     connect(inspector_panel_, &InspectorPanel::com_number_requested, this,
             [this](vss::endpoint_id id) { show_com_number(id); });
     connect(inspector_panel_, &InspectorPanel::release_port_requested, this,
@@ -3213,6 +3219,26 @@ void ShellWindow::set_port_running(vss::endpoint_id id, bool run)
     }
     status_->showMessage(run ? tr("Started %1.").arg(port->name)
                              : tr("Stopped %1.").arg(port->name),
+                         3000);
+}
+
+void ShellWindow::set_port_paused(vss::endpoint_id id, bool pause)
+{
+    if (id == 0 || !backend_.caps().port_pause)
+        return;
+    const auto port = backend_.port(id);
+    if (!port)
+        return;
+    const auto done = backend_.set_port_paused(id, pause);
+    if (!done)
+    {
+        ToastManager::instance().show(
+            this, pause ? tr("Could not pause %1.").arg(port->name)
+                        : tr("Could not resume %1.").arg(port->name));
+        return;
+    }
+    status_->showMessage(pause ? tr("Paused %1.").arg(port->name)
+                               : tr("Resumed %1.").arg(port->name),
                          3000);
 }
 

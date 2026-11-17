@@ -155,9 +155,29 @@ vss::result<void> FakeStudioBackend::set_port_running(vss::endpoint_id id,
     if (!view->can_stop)
         return vss::make_error_code(vss::errc::unsupported);
     view->stopped = !run;
+    view->paused = false;
     if (view->connection)
         view->connection->phase = run ? connect_phase::connecting
                                       : connect_phase::stopped;
+    refresh();
+    return {};
+}
+
+vss::result<void> FakeStudioBackend::set_port_paused(vss::endpoint_id id,
+                                                     bool paused)
+{
+    if (const auto error = take_error())
+        return *error;
+    port_view* view = find_port(id);
+    if (view == nullptr)
+        return vss::make_error_code(vss::errc::not_found);
+    if (!view->can_stop)
+        return vss::make_error_code(vss::errc::unsupported);
+    view->paused = paused;
+    view->stopped = false;
+    if (view->connection)
+        view->connection->phase =
+            paused ? connect_phase::paused : connect_phase::connecting;
     refresh();
     return {};
 }

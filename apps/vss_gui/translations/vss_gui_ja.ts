@@ -3168,6 +3168,22 @@ Networks: %5</source>
             <source>Stop %1</source>
             <translation>%1 を停止</translation>
         </message>
+        <message>
+            <source>Pause</source>
+            <translation>一時停止</translation>
+        </message>
+        <message>
+            <source>Pause %1</source>
+            <translation>%1 を一時停止</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>再開</translation>
+        </message>
+        <message>
+            <source>Resume %1</source>
+            <translation>%1 を再開</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -10281,6 +10297,22 @@ Networks: %5</source>
             <source>Stopped %1.</source>
             <translation>%1 を停止しました。</translation>
         </message>
+        <message>
+            <source>Could not pause %1.</source>
+            <translation>%1 を一時停止できませんでした。</translation>
+        </message>
+        <message>
+            <source>Could not resume %1.</source>
+            <translation>%1 を再開できませんでした。</translation>
+        </message>
+        <message>
+            <source>Paused %1.</source>
+            <translation>%1 を一時停止しました。</translation>
+        </message>
+        <message>
+            <source>Resumed %1.</source>
+            <translation>%1 を再開しました。</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -11035,6 +11067,14 @@ Networks: %5</source>
         <message>
             <source>Stop</source>
             <translation>停止</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>一時停止</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>再開</translation>
         </message>
     </context>
     <context>
@@ -24493,6 +24533,18 @@ From the plugin %2
         <message>
             <source>Trying to connect to %1.</source>
             <translation>%1 への接続を試みています。</translation>
+        </message>
+        <message>
+            <source>Paused</source>
+            <translation>一時停止中</translation>
+        </message>
+        <message>
+            <source>Paused. Not connecting to %1.</source>
+            <translation>一時停止中です。%1 には接続しません。</translation>
+        </message>
+        <message>
+            <source>Resumed</source>
+            <translation>再開しました</translation>
         </message>
     </context>
     <context>

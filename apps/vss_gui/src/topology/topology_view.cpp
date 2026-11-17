@@ -132,6 +132,7 @@ bool same_graph(const std::vector<port_view>& left_ports,
             left.studio_only != right.studio_only ||
             (left.stats.dropped > 0) != (right.stats.dropped > 0) ||
             left.can_stop != right.can_stop || left.stopped != right.stopped ||
+            left.paused != right.paused ||
             connection_look(left) != connection_look(right))
         {
             return false;
@@ -505,6 +506,7 @@ void TopologyView::rebuild_items()
         node.dropped = port.stats.dropped > 0;
         node.tooltip = topology_text::node_tooltip(port, node.unlinked);
         node.stopped = port.stopped;
+        node.paused = port.paused;
         if (port.connection)
         {
             switch (port.connection->phase)
@@ -520,6 +522,7 @@ void TopologyView::rebuild_items()
                 node.connection = node_data::connect::open;
                 break;
             case connect_phase::stopped:
+            case connect_phase::paused:
                 break;
             }
         }
@@ -2075,26 +2078,44 @@ void TopologyView::open_context_menu(const QPoint& viewport_position)
     menu->popup(global);
 }
 
-QString TopologyView::run_action_label(vss::endpoint_id id) const
+QStringList TopologyView::run_action_labels(vss::endpoint_id id) const
 {
+    QStringList labels;
     if (!caps_.port_stop)
-        return {};
+        return labels;
     const auto port =
         std::find_if(ports_.begin(), ports_.end(),
                      [id](const port_view& view) { return view.id == id; });
     if (port == ports_.end() || !port->can_stop)
-        return {};
-    return port->stopped ? topology_text::start_action()
-                         : topology_text::stop_action();
+        return labels;
+    if (port->stopped)
+    {
+        labels << topology_text::start_action();
+        return labels;
+    }
+    if (caps_.port_pause)
+        labels << (port->paused ? topology_text::resume_action()
+                                : topology_text::pause_action());
+    labels << topology_text::stop_action();
+    return labels;
 }
 
 void TopologyView::add_run_action(QMenu* menu, vss::endpoint_id id)
 {
-    const QString label = run_action_label(id);
-    if (label.isEmpty())
-        return;
-    const bool run = label == topology_text::start_action();
-    menu->addAction(label, this, [this, id, run] { Q_EMIT run_requested(id, run); });
+    for (const QString& label : run_action_labels(id))
+    {
+        if (label == topology_text::pause_action() ||
+            label == topology_text::resume_action())
+        {
+            const bool pause = label == topology_text::pause_action();
+            menu->addAction(label, this, [this, id, pause]
+                            { Q_EMIT pause_requested(id, pause); });
+            continue;
+        }
+        const bool run = label == topology_text::start_action();
+        menu->addAction(label, this,
+                        [this, id, run] { Q_EMIT run_requested(id, run); });
+    }
 }
 
 QStringList TopologyView::node_menu_labels(vss::endpoint_id id) const
@@ -2117,8 +2138,7 @@ QStringList TopologyView::node_menu_labels(vss::endpoint_id id) const
     labels << topology_text::inspect_action()
            << port_menu_labels(menu_state_ ? menu_state_(id)
                                            : port_menu_state{});
-    if (const QString run = run_action_label(id); !run.isEmpty())
-        labels << run;
+    labels << run_action_labels(id);
     labels << topology_text::copy_name_action();
     if (caps_.rename_port)
         labels << topology_text::rename_action();
@@ -2507,6 +2527,8 @@ QStringList TopologyView::node_badges(vss::endpoint_id id) const
         result.append(connection_text::state(connect_phase::connected));
     if (item->data().stopped)
         result.append(connection_text::state(connect_phase::stopped));
+    if (item->data().paused)
+        result.append(connection_text::state(connect_phase::paused));
     if (item->data().unlinked)
         result.append(topology_text::unlinked_badge());
     return result;

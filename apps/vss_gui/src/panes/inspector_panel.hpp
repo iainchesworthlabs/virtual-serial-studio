@@ -74,6 +74,8 @@ Q_SIGNALS:
     void release_port_requested(vss::endpoint_id id);
     /// The Stop or Start button: `run` is true to start.
     void run_requested(vss::endpoint_id id, bool run);
+    /// The Pause or Resume button: `pause` is true to pause.
+    void pause_requested(vss::endpoint_id id, bool pause);
     /// "Open <port> in the Monitor", for a port that is a monitor.
     void monitor_requested(vss::endpoint_id id);
     void error_message(const QString& message);
@@ -107,6 +109,8 @@ private:
     QLabel* traffic_ = nullptr;
     QLabel* run_caption_ = nullptr;
     QPushButton* run_button_ = nullptr;
+    QPushButton* pause_button_ = nullptr;
+    QWidget* run_row_ = nullptr;
     /// The rows of a network client's connection, in the order shown; all
     /// hidden for any other port.  Each is a caption and its value.
     struct connection_row
