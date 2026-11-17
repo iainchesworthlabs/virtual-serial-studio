@@ -290,8 +290,10 @@ int PortModel::state_rank(const port_view& port)
 {
     // Stopped on purpose is a closed chip, but it sorts after the ports that
     // are merely closed.
-    if (port.stopped)
+    if (port.paused)
         return 7;
+    if (port.stopped)
+        return 8;
     switch (state_kind(port))
     {
     case port_state_kind::failed:
@@ -308,6 +310,8 @@ int PortModel::state_rank(const port_view& port)
         return 5;
     case port_state_kind::closed:
         return 6;
+    case port_state_kind::paused:
+        return 7;
     }
     return 6;
 }
@@ -523,6 +527,8 @@ std::optional<port_view> PortModel::port_at(int row) const
 
 QString PortModel::state_text(const port_view& port)
 {
+    if (port.paused)
+        return connection_text::state(connect_phase::paused);
     if (port.stopped)
         return connection_text::state(connect_phase::stopped);
     if (port.connection)
@@ -554,6 +560,8 @@ QString PortModel::state_text(const port_view& port)
 port_state_kind PortModel::state_kind(const port_view& port)
 {
     // Stopped is a plain, neutral closed: it is not a fault.
+    if (port.paused)
+        return port_state_kind::paused;
     if (port.stopped)
         return port_state_kind::closed;
     if (port.connection)
@@ -569,6 +577,8 @@ port_state_kind PortModel::state_kind(const port_view& port)
             return port_state_kind::waiting;
         case connect_phase::stopped:
             return port_state_kind::closed;
+        case connect_phase::paused:
+            return port_state_kind::paused;
         }
     }
     if (port.state == vss::endpoint_state::failed)

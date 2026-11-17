@@ -27,6 +27,8 @@ struct chip_palette
     bool hollow = false;
     bool cross = false;
     bool mark_visible = true;
+    /// Two bars, the mark of a pause, in place of a dot.
+    bool bars = false;
 };
 
 chip_palette palette_for(StatusChip::kind kind)
@@ -79,6 +81,15 @@ chip_palette palette_for(StatusChip::kind kind)
                 theme.colour(colour_role::accent),
                 false,
                 false,
+                true};
+    case StatusChip::kind::paused:
+        return {theme.colour(colour_role::accentSoft),
+                none,
+                theme.colour(colour_role::accentText),
+                theme.colour(colour_role::accent),
+                false,
+                false,
+                true,
                 true};
     case StatusChip::kind::failed:
         return {theme.colour(colour_role::badSoft),
@@ -185,7 +196,16 @@ void StatusChip::paint(QPainter* painter, const QRect& rect,
         const QRectF mark(x, centre_y - 4, 8, 8);
         painter->setPen(QPen(palette.mark, 1.5));
         painter->setBrush(Qt::NoBrush);
-        if (palette.cross)
+        if (palette.bars)
+        {
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(palette.mark);
+            painter->drawRect(
+                QRectF(mark.left() + 0.5, mark.top(), 2.5, mark.height()));
+            painter->drawRect(
+                QRectF(mark.right() - 3.0, mark.top(), 2.5, mark.height()));
+        }
+        else if (palette.cross)
         {
             painter->drawLine(mark.topLeft(), mark.bottomRight());
             painter->drawLine(mark.topRight(), mark.bottomLeft());

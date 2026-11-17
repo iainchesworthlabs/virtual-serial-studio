@@ -3170,6 +3170,22 @@ Networks: %5</source>
             <source>Stop %1</source>
             <translation>אָפּשטעלן %1</translation>
         </message>
+        <message>
+            <source>Pause</source>
+            <translation>אָפּשטעלן פֿאַר אַ וויילע</translation>
+        </message>
+        <message>
+            <source>Pause %1</source>
+            <translation>%1 אָפּשטעלן פֿאַר אַ וויילע</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>ווידער אָנהייבן</translation>
+        </message>
+        <message>
+            <source>Resume %1</source>
+            <translation>%1 ווידער אָנהייבן</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -10289,6 +10305,22 @@ Networks: %5</source>
             <source>Stopped %1.</source>
             <translation>%1 אָפּגעשטעלט.</translation>
         </message>
+        <message>
+            <source>Could not pause %1.</source>
+            <translation>קען נישט אָפּשטעלן %1 פֿאַר אַ וויילע.</translation>
+        </message>
+        <message>
+            <source>Could not resume %1.</source>
+            <translation>קען נישט ווידער אָנהייבן %1.</translation>
+        </message>
+        <message>
+            <source>Paused %1.</source>
+            <translation>%1 אָפּגעשטעלט פֿאַר אַ וויילע.</translation>
+        </message>
+        <message>
+            <source>Resumed %1.</source>
+            <translation>%1 ווידער אָנגעהויבן.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -11044,6 +11076,14 @@ Networks: %5</source>
         <message>
             <source>Stop</source>
             <translation>אָפּשטעלן</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>אָפּשטעלן פֿאַר אַ וויילע</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>ווידער אָנהייבן</translation>
         </message>
     </context>
     <context>
@@ -24537,6 +24577,18 @@ From the plugin %2
         <message>
             <source>Trying to connect to %1.</source>
             <translation>פּרובירט זיך צו פֿאַרבינדן מיט %1.</translation>
+        </message>
+        <message>
+            <source>Paused</source>
+            <translation>אָפּגעשטעלט פֿאַר אַ וויילע</translation>
+        </message>
+        <message>
+            <source>Paused. Not connecting to %1.</source>
+            <translation>אָפּגעשטעלט פֿאַר אַ וויילע. פֿאַרבינדט זיך נישט מיט %1.</translation>
+        </message>
+        <message>
+            <source>Resumed</source>
+            <translation>ווידער אָנגעהויבן</translation>
         </message>
     </context>
     <context>

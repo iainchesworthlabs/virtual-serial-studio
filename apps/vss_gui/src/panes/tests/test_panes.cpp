@@ -1278,6 +1278,14 @@ TEST_CASE("ports panel: state sorts failed, waiting, up, idle, stopped last")
     REQUIRE(PortModel::state_rank(open) < PortModel::state_rank(connected));
     REQUIRE(PortModel::state_rank(connected) < PortModel::state_rank(closed));
     REQUIRE(PortModel::state_rank(closed) < PortModel::state_rank(stopped));
+    // A paused port sorts next to a stopped one, before it.
+    vss::gui::port_view paused = make(7, "paused");
+    paused.paused = true;
+    REQUIRE(PortModel::state_rank(closed) < PortModel::state_rank(paused));
+    REQUIRE(PortModel::state_rank(paused) < PortModel::state_rank(stopped));
+    REQUIRE(PortModel::state_kind(paused) ==
+            vss::gui::port_state_kind::paused);
+    REQUIRE_EQ(PortModel::state_text(paused), QStringLiteral("Paused"));
     // Stopped is a plain closed chip, as the Inspector shows it.
     REQUIRE(PortModel::state_kind(stopped) ==
             vss::gui::port_state_kind::closed);
@@ -1742,6 +1750,75 @@ TEST_CASE("inspector: Stop and Start for a port made from an address")
     backend.set_capabilities(caps);
     panel.refresh();
     REQUIRE(button()->isHidden());
+}
+
+TEST_CASE("inspector: Pause and Resume for a port made from an address")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::capabilities caps = backend.caps();
+    caps.port_stop = true;
+    caps.port_pause = true;
+    backend.set_capabilities(caps);
+    const auto id = backend.create_virtual_port(
+        QStringLiteral("client"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(id.has_value());
+    backend.set_stoppable(*id, true);
+    vss::gui::InspectorPanel panel(backend);
+    panel.set_selected_port(*id);
+    QApplication::processEvents();
+    const auto pause = [&panel]
+    { return panel.findChild<QPushButton*>(
+          QStringLiteral("inspectorPauseButton")); };
+    const auto run = [&panel]
+    { return panel.findChild<QPushButton*>(
+          QStringLiteral("inspectorRunButton")); };
+    REQUIRE(pause() != nullptr);
+    REQUIRE(!pause()->isHidden());
+    REQUIRE_EQ(pause()->text(), QStringLiteral("Pause"));
+    REQUIRE_EQ(pause()->accessibleName(), QStringLiteral("Pause client"));
+
+    vss::endpoint_id asked = 0;
+    bool asked_pause = false;
+    QObject::connect(&panel, &vss::gui::InspectorPanel::pause_requested,
+                     [&](vss::endpoint_id port, bool value)
+                     {
+                         asked = port;
+                         asked_pause = value;
+                     });
+    pause()->click();
+    REQUIRE_EQ(asked, *id);
+    REQUIRE(asked_pause);
+
+    REQUIRE(backend.set_port_paused(*id, true));
+    panel.refresh();
+    REQUIRE_EQ(pause()->text(), QStringLiteral("Resume"));
+    // A paused port can still be stopped.
+    REQUIRE_EQ(run()->text(), QStringLiteral("Stop"));
+    const auto held = backend.port(*id);
+    REQUIRE(held);
+    REQUIRE_EQ(vss::gui::PortModel::state_text(*held),
+               QStringLiteral("Paused"));
+    REQUIRE(vss::gui::PortModel::state_kind(*held) ==
+            vss::gui::port_state_kind::paused);
+    const auto* chip = dynamic_cast<vss::gui::StatusChip*>(
+        panel.findChild<QWidget*>(QStringLiteral("inspectorStateChip")));
+    REQUIRE(chip != nullptr);
+    REQUIRE(chip->get_kind() == vss::gui::StatusChip::kind::paused);
+    pause()->click();
+    REQUIRE(!asked_pause);
+
+    // A stopped port has Start only.
+    REQUIRE(backend.set_port_running(*id, false));
+    panel.refresh();
+    REQUIRE(pause()->isHidden());
+    REQUIRE_EQ(run()->text(), QStringLiteral("Start"));
+
+    // Without the capability there is no Pause.
+    REQUIRE(backend.set_port_running(*id, true));
+    caps.port_pause = false;
+    backend.set_capabilities(caps);
+    panel.refresh();
+    REQUIRE(pause()->isHidden());
 }
 
 TEST_CASE("inspector: waiting sentence and control line chips")

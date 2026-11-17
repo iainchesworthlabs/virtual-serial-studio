@@ -53,6 +53,8 @@ StatusChip::kind chip_kind_of(port_state_kind kind)
         return StatusChip::kind::failed;
     case port_state_kind::fixture:
         return StatusChip::kind::fixture;
+    case port_state_kind::paused:
+        return StatusChip::kind::paused;
     }
     return StatusChip::kind::closed;
 }

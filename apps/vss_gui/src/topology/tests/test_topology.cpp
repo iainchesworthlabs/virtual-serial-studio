@@ -389,6 +389,60 @@ TEST_CASE("topology: a stopped port says so and offers Start")
                                          "tcp://10.0.0.9:9001.")));
 }
 
+TEST_CASE("topology: Pause and Resume in the menu, and a paused port")
+{
+    std::vector<vss::gui::port_view> ports(1);
+    ports[0].id = 1;
+    ports[0].name = QStringLiteral("client");
+    ports[0].path = QStringLiteral("tcp://10.0.0.9:9001");
+    ports[0].kind = vss::endpoint_kind::tcp;
+    ports[0].can_stop = true;
+    vss::gui::connection_view connection;
+    connection.target = ports[0].path;
+    ports[0].connection = connection;
+
+    vss::gui::capabilities caps;
+    caps.port_stop = true;
+    caps.port_pause = true;
+    topo::TopologyView view;
+    view.set_capabilities(caps);
+    view.set_topology(ports, {});
+    REQUIRE(view.node_menu_labels(1).contains(QStringLiteral("Pause")));
+    REQUIRE(view.node_menu_labels(1).contains(QStringLiteral("Stop")));
+    REQUIRE(!view.node_menu_labels(1).contains(QStringLiteral("Resume")));
+
+    ports[0].paused = true;
+    ports[0].connection->phase = vss::gui::connect_phase::paused;
+    view.set_topology(ports, {});
+    REQUIRE(view.node_menu_labels(1).contains(QStringLiteral("Resume")));
+    REQUIRE(view.node_menu_labels(1).contains(QStringLiteral("Stop")));
+    REQUIRE(!view.node_menu_labels(1).contains(QStringLiteral("Pause")));
+    // Paused is its own state: a chip, no spinning icon, no failure.
+    REQUIRE(view.node_badges(1).contains(QStringLiteral("Paused")));
+    REQUIRE(!view.node_badges(1).contains(QStringLiteral("Stopped")));
+    REQUIRE(!view.node_badges(1).contains(QStringLiteral("Failed")));
+    REQUIRE(!view.node_spins(1));
+    REQUIRE(vss::gui::topology_text::node_tooltip(ports[0], true)
+                .contains(QStringLiteral("Paused. Not connecting to "
+                                         "tcp://10.0.0.9:9001.")));
+
+    // A stopped port has Start only.
+    ports[0].paused = false;
+    ports[0].stopped = true;
+    ports[0].connection->phase = vss::gui::connect_phase::stopped;
+    view.set_topology(ports, {});
+    REQUIRE(view.node_menu_labels(1).contains(QStringLiteral("Start")));
+    REQUIRE(!view.node_menu_labels(1).contains(QStringLiteral("Pause")));
+
+    // Without the capability there is no Pause.
+    caps.port_pause = false;
+    ports[0].stopped = false;
+    ports[0].connection->phase = vss::gui::connect_phase::connecting;
+    view.set_capabilities(caps);
+    view.set_topology(ports, {});
+    REQUIRE(!view.node_menu_labels(1).contains(QStringLiteral("Pause")));
+}
+
 TEST_CASE("topology: layout for split, join, straight, chain and unlinked")
 {
     const topo::topology_metrics metrics;

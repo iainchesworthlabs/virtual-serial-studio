@@ -240,6 +240,7 @@ private:
     void show_rename(vss::endpoint_id id);
     /// Stops or starts a port that was made from an address.
     void set_port_running(vss::endpoint_id id, bool run);
+    void set_port_paused(vss::endpoint_id id, bool pause);
     void show_com_number(vss::endpoint_id id);
     void show_release_port(vss::endpoint_id id);
     void show_links_dock(bool shown);

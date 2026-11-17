@@ -3170,6 +3170,22 @@ Redes: %5</translation>
             <source>Stop %1</source>
             <translation>Detener %1</translation>
         </message>
+        <message>
+            <source>Pause</source>
+            <translation>Pausar</translation>
+        </message>
+        <message>
+            <source>Pause %1</source>
+            <translation>Pausar %1</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>Reanudar</translation>
+        </message>
+        <message>
+            <source>Resume %1</source>
+            <translation>Reanudar %1</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -10289,6 +10305,22 @@ Redes: %5</translation>
             <source>Stopped %1.</source>
             <translation>%1 detenido.</translation>
         </message>
+        <message>
+            <source>Could not pause %1.</source>
+            <translation>No se pudo pausar %1.</translation>
+        </message>
+        <message>
+            <source>Could not resume %1.</source>
+            <translation>No se pudo reanudar %1.</translation>
+        </message>
+        <message>
+            <source>Paused %1.</source>
+            <translation>%1 en pausa.</translation>
+        </message>
+        <message>
+            <source>Resumed %1.</source>
+            <translation>%1 reanudado.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -11044,6 +11076,14 @@ Redes: %5</translation>
         <message>
             <source>Stop</source>
             <translation>Detener</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>Pausar</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>Reanudar</translation>
         </message>
     </context>
     <context>
@@ -24537,6 +24577,18 @@ Del complemento %2
         <message>
             <source>Trying to connect to %1.</source>
             <translation>Intentando conectar a %1.</translation>
+        </message>
+        <message>
+            <source>Paused</source>
+            <translation>En pausa</translation>
+        </message>
+        <message>
+            <source>Paused. Not connecting to %1.</source>
+            <translation>En pausa. No se conecta a %1.</translation>
+        </message>
+        <message>
+            <source>Resumed</source>
+            <translation>Reanudado</translation>
         </message>
     </context>
     <context>

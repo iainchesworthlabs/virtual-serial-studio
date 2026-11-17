@@ -70,6 +70,9 @@ struct node_data
     /// Closed on purpose, any kind of port: a neutral tile with the pause
     /// icon and a "Stopped" chip, which is not a fault.
     bool stopped = false;
+    /// Paused by the user, any kind of port: an accent tile with the pause
+    /// icon and a "Paused" chip.
+    bool paused = false;
 };
 
 /// The node size the design specifies, grown when the text needs more room.

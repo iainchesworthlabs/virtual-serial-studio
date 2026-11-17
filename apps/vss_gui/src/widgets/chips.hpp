@@ -36,7 +36,10 @@ public:
         neutral,
         /// Something to read or open, not a state: the accent tint and a
         /// filled dot.
-        info
+        info,
+        /// Held by the user for a while: the accent tint and a pause mark,
+        /// two bars, so it is not read as a dot.
+        paused
     };
 
     explicit StatusChip(QWidget* parent = nullptr);

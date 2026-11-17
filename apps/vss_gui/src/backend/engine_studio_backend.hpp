@@ -75,6 +75,8 @@ public:
     set_port_settings(vss::endpoint_id id,
                       const vss::serial_settings& settings) override;
     vss::result<void> set_port_running(vss::endpoint_id id, bool run) override;
+    vss::result<void> set_port_paused(vss::endpoint_id id,
+                                      bool paused) override;
     vss::result<void> rename_port(vss::endpoint_id id,
                                   const QString& name) override;
     std::vector<vss::endpoint_id> lost_ports() const override;

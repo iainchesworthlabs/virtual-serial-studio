@@ -3172,6 +3172,22 @@ Networks: %5</source>
             <source>Stop %1</source>
             <translation>أوقف %1</translation>
         </message>
+        <message>
+            <source>Pause</source>
+            <translation>إيقاف مؤقت</translation>
+        </message>
+        <message>
+            <source>Pause %1</source>
+            <translation>إيقاف %1 مؤقتًا</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>استئناف</translation>
+        </message>
+        <message>
+            <source>Resume %1</source>
+            <translation>استئناف %1</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -10315,6 +10331,22 @@ Networks: %5</source>
             <source>Stopped %1.</source>
             <translation>أُوقف %1.</translation>
         </message>
+        <message>
+            <source>Could not pause %1.</source>
+            <translation>تعذّر إيقاف %1 مؤقتًا.</translation>
+        </message>
+        <message>
+            <source>Could not resume %1.</source>
+            <translation>تعذّر استئناف %1.</translation>
+        </message>
+        <message>
+            <source>Paused %1.</source>
+            <translation>أُوقف %1 مؤقتًا.</translation>
+        </message>
+        <message>
+            <source>Resumed %1.</source>
+            <translation>استُؤنف %1.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -11074,6 +11106,14 @@ Networks: %5</source>
         <message>
             <source>Stop</source>
             <translation>أوقف</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>إيقاف مؤقت</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>استئناف</translation>
         </message>
     </context>
     <context>
@@ -24707,6 +24747,18 @@ From the plugin %2
         <message>
             <source>Trying to connect to %1.</source>
             <translation>جارٍ محاولة الاتصال بـ %1.</translation>
+        </message>
+        <message>
+            <source>Paused</source>
+            <translation>متوقف مؤقتًا</translation>
+        </message>
+        <message>
+            <source>Paused. Not connecting to %1.</source>
+            <translation>متوقف مؤقتًا. لا يتصل بـ %1.</translation>
+        </message>
+        <message>
+            <source>Resumed</source>
+            <translation>استُؤنف</translation>
         </message>
     </context>
     <context>

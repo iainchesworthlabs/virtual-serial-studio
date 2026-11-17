@@ -154,6 +154,16 @@ QString start_action()
     return QCoreApplication::translate("Topology", "Start");
 }
 
+QString pause_action()
+{
+    return QCoreApplication::translate("Topology", "Pause");
+}
+
+QString resume_action()
+{
+    return QCoreApplication::translate("Topology", "Resume");
+}
+
 QString remove_action()
 {
     return QCoreApplication::translate("Topology", "Remove");
@@ -241,6 +251,9 @@ QString node_tooltip(const port_view& port, bool unlinked)
         text += QLatin1Char('\n') + detail;
     if (port.connection)
         text += QLatin1Char('\n') + connection_text::sentence(*port.connection);
+    else if (port.paused)
+        text += QLatin1Char('\n') +
+                connection_text::state(connect_phase::paused);
     else if (port.stopped)
         text += QLatin1Char('\n') +
                 connection_text::state(connect_phase::stopped);

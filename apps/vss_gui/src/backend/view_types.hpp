@@ -77,7 +77,10 @@ enum class connect_phase
     /// The last try failed and the studio will try again.
     retrying,
     /// Closed on purpose: no try is made until it is started.
-    stopped
+    stopped,
+    /// Held by the user for a while: closed, no try is made until it is
+    /// resumed, and the setup keeps the pause.
+    paused
 };
 
 /// One thing that happened to a connection, for the short history the
@@ -160,6 +163,9 @@ struct port_view
     bool can_stop = false;
     /// Closed on purpose, with its links kept and no retry running.
     bool stopped = false;
+    /// Paused by the user (capability `port_pause`): closed like a stopped
+    /// port, but a pause is saved in the setup.  Never set with `stopped`.
+    bool paused = false;
     /// The names of the ports on a shared link that run at a different baud
     /// rate or framing from this one.  Empty when they all agree or the
     /// formats are not known.
