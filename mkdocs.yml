@@ -47,6 +47,7 @@ nav:
       - POSIX virtual ports: posix-virtual-ports.md
       - Windows COM port driver: windows-com-driver.md
       - Baud rate, framing and break audit: engine-serial-audit.md
+      - Break as a timestamped event (plan): break-event-plan.md
       - Platforms: platforms.md
       - Virtual machine testing: vm-testing.md
       - Workstreams: workstreams.md
