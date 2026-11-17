@@ -17,6 +17,7 @@
 #include "widgets/port_menu.hpp"
 
 #include <QMainWindow>
+#include <QPointer>
 #include <QString>
 
 #include <functional>
@@ -43,6 +44,7 @@ class PluginNotice;
 namespace support
 {
 class PluginPromptQueue;
+class DecodedDialog;
 }
 class FixtureBehaviours;
 struct setup_group;
@@ -212,6 +214,8 @@ private:
     void open_in_monitor(vss::endpoint_id id);
     /// "Decode as..." for a port: chooses a decoder and starts it.
     void show_decode(vss::endpoint_id id);
+    /// "Decoded traffic": what every running decoder has found.
+    void show_decoded();
     port_menu_state port_menu_state_for(vss::endpoint_id id) const;
     void run_port_action(vss::endpoint_id id, port_menu_action action);
     void run_job(const QString& job);
@@ -383,6 +387,9 @@ private:
     LicenceNotice* licence_notice_ = nullptr;
     PluginNotice* plugin_notice_ = nullptr;
     support::PluginPromptQueue* plugin_prompts_ = nullptr;
+    /// The Decoded traffic window, made when first asked for and deleted when
+    /// closed.
+    QPointer<support::DecodedDialog> decoded_dialog_;
     UpdateNotice* update_notice_ = nullptr;
     updates::UpdateService* update_service_ = nullptr;
     QThread* recreate_thread_ = nullptr;

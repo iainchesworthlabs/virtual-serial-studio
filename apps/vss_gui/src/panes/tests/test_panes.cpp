@@ -1810,6 +1810,16 @@ TEST_CASE("monitor: Open in monitor shows only that port, and the Inspector "
                      [&asked](vss::endpoint_id id) { asked = id; });
     inspector.monitor_open_button()->click();
     REQUIRE_EQ(asked, *watched);
+    // The direction defaults to both and is changed live, on the link.
+    auto* direction = inspector.monitor_direction_combo();
+    REQUIRE_EQ(direction->currentData().toInt(),
+               static_cast<int>(vss::monitor_direction::both));
+    REQUIRE_EQ(direction->count(), 3);
+    direction->setCurrentIndex(
+        direction->findData(static_cast<int>(vss::monitor_direction::transmit)));
+    Q_EMIT direction->activated(direction->currentIndex());
+    const auto link = backend.links().front();
+    REQUIRE(link.options.direction == vss::monitor_direction::transmit);
     inspector.set_selected_port(*other);
     QApplication::processEvents();
     REQUIRE(inspector.monitor_block()->isHidden());

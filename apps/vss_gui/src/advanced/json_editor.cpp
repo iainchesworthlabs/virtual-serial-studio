@@ -208,26 +208,25 @@ void TopologyJsonEditor::build()
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
 
-    // Toolbar across the top: document status, a hint, then the three actions.
+    // One slim row across the top: document status, then the three actions.
+    // The hint is the status chip's tooltip and the editor's accessible
+    // description, not a band of its own, as in the Monitor and the Log.
+    const Theme& theme = Theme::instance();
     auto* toolbar = new QWidget(this);
     auto* toolbar_layout = new QHBoxLayout(toolbar);
-    toolbar_layout->setContentsMargins(12, 6, 12, 6);
-    toolbar_layout->setSpacing(10);
+    toolbar_layout->setContentsMargins(theme.space(2), theme.space(0) / 2,
+                                       theme.space(2), theme.space(0) / 2);
+    toolbar_layout->setSpacing(theme.space(1));
 
     status_ = new StatusChip(tr("Valid, version 1"), StatusChip::kind::healthy,
                              toolbar);
     status_->setAccessibleName(tr("Document status"));
     toolbar_layout->addWidget(status_, 0, Qt::AlignVCenter);
 
-    caption_ = new QLabel(
-        tr("Unsaved edits are checked as you type. Nothing changes until you "
-           "apply."),
-        toolbar);
-    caption_->setFont(Theme::instance().font(text_style::caption));
-    caption_->setProperty("muted", true);
-    caption_->setWordWrap(true);
-    toolbar_layout->addWidget(caption_, 1);
-    toolbar_layout->addStretch(0);
+    const QString hint = tr("Unsaved edits are checked as you type. Nothing "
+                            "changes until you apply.");
+    status_->setToolTip(hint);
+    toolbar_layout->addStretch(1);
 
     // Revert, Format and Apply use the small button size; Apply is primary.
     revert_ = make_button(tr("Revert"), nullptr, toolbar);
@@ -260,6 +259,7 @@ void TopologyJsonEditor::build()
 
     // Every edit schedules a re-validation (see schedule_validation()).
     editor_ = new JsonCodeEdit(this);
+    editor_->setAccessibleDescription(hint);
     connect(editor_, &QPlainTextEdit::textChanged, this,
             &TopologyJsonEditor::schedule_validation);
     body->addWidget(editor_, 1);
@@ -272,8 +272,9 @@ void TopologyJsonEditor::build()
     side->setAttribute(Qt::WA_StyledBackground);
     side->setMinimumWidth(380);
     auto* side_layout = new QVBoxLayout(side);
-    side_layout->setContentsMargins(16, 16, 16, 16);
-    side_layout->setSpacing(16);
+    side_layout->setContentsMargins(theme.space(3), theme.space(2),
+                                    theme.space(3), theme.space(2));
+    side_layout->setSpacing(theme.space(2));
 
     command_ = new CommandPanel(tr("Run it without the window"), side);
     connect(command_, &CommandPanel::export_requested, this,

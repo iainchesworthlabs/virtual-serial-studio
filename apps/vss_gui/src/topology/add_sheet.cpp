@@ -203,11 +203,12 @@ AddSheet::AddSheet(canvas_item item, const std::vector<port_view>& ports,
     baud_ = new QComboBox(settings_);
     baud_->setAccessibleName(tr("Baud rate"));
     baud_->setEditable(true);
-    for (const int value : {9600, 19200, 38400, 57600, 115200, 230400})
+    for (const int value : {9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600,
+                                1000000, 2000000, 3000000, 4000000, 12000000})
         baud_->addItem(QString::number(value), value);
     baud_->setCurrentText(QStringLiteral("115200"));
     // The baud rate can be typed as well as chosen, within a sane range.
-    baud_->setValidator(new QIntValidator(50, 4'000'000, baud_));
+    baud_->setValidator(new QIntValidator(50, 12'000'000, baud_));
     framing_ = new QComboBox(settings_);
     framing_->setAccessibleName(tr("Framing"));
     for (const auto& value : kFramings)

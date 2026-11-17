@@ -15,6 +15,7 @@
 #include <array>
 #include <optional>
 
+class QComboBox;
 class QLabel;
 class QPushButton;
 class QScrollArea;
@@ -51,6 +52,10 @@ public:
     /// The "monitor" block, hidden for a port that is not a monitor.
     QWidget* monitor_block() const noexcept { return monitor_block_; }
     QPushButton* monitor_open_button() const noexcept { return monitor_open_; }
+    QComboBox* monitor_direction_combo() const noexcept
+    {
+        return monitor_direction_;
+    }
     QPushButton* plugin_show_button() const noexcept { return plugin_show_; }
     void refresh();
     /// Adds the fixture behaviour section (echo, generator) for a mock
@@ -119,6 +124,9 @@ private:
     QWidget* monitor_block_ = nullptr;
     QLabel* monitor_text_ = nullptr;
     QPushButton* monitor_open_ = nullptr;
+    QComboBox* monitor_direction_ = nullptr;
+    QLabel* monitor_direction_hint_ = nullptr;
+    vss::link_id monitor_link_ = 0;
     vss::endpoint_id watched_ = 0;
     QHash<vss::endpoint_id, vss::gui::part_description> plugin_parts_;
     QWidget* plugin_block_ = nullptr;

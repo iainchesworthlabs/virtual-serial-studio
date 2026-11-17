@@ -56,6 +56,7 @@
 #include "support/driver_setup_dialog.hpp"
 #include "support/help_contents_dialog.hpp"
 #include "support/licence_dialog.hpp"
+#include "support/decoded_dialog.hpp"
 #include "support/plugin_parts.hpp"
 #include "support/plugin_prompts.hpp"
 #include "support/plugins_dialog.hpp"
@@ -506,6 +507,11 @@ void ShellWindow::build_actions()
         tr("plugin plugins extension fixture generator trust"), {}, {},
         action_level::simple, [this] { open_plugins(); }, false,
         [this] { return backend_.caps().plugins; });
+    add(
+        QStringLiteral("tools.decoded"), tr("Decoded traffic..."),
+        tr("decode decoder frames triggers protocol plugin"), {}, {},
+        action_level::advanced, [this] { show_decoded(); }, false,
+        [this] { return backend_.caps().plugins; });
     add(QStringLiteral("tools.benchmark"), tr("Benchmark"),
         tr("throughput speed"), {}, {}, action_level::advanced,
         [this] { open_benchmark(); });
@@ -781,6 +787,7 @@ void ShellWindow::build_menus()
     add(tools, QStringLiteral("tools.search"));
     add(tools, QStringLiteral("tools.setupCheck"));
     add(tools, QStringLiteral("tools.plugins"));
+    add(tools, QStringLiteral("tools.decoded"));
     add(tools, QStringLiteral("tools.benchmark"));
     tools->addSeparator();
     add(tools, QStringLiteral("tools.refresh"));
@@ -2540,14 +2547,28 @@ void ShellWindow::show_decode(vss::endpoint_id id)
     if (!choice.place_setting.isEmpty())
         values.insert(choice.place_setting, port->name);
     host->add_instance(choice.plugin_id, choice.type_id, values);
-    status_->showMessage(tr("Decoding %1 as %2. What it finds is in Plugins, "
-                            "under %3.")
-                             .arg(port->name, choice.type_name,
-                                  choice.plugin_name),
+    status_->showMessage(tr("Decoding %1 as %2. What it finds is in Decoded "
+                            "traffic, under Tools.")
+                             .arg(port->name, choice.type_name),
                          8000);
-    QTimer::singleShot(0, this,
-                       [this, plugin = choice.plugin_id]
-                       { open_plugins(plugin); });
+    QTimer::singleShot(0, this, [this] { show_decoded(); });
+}
+
+void ShellWindow::show_decoded()
+{
+    PluginBackend* host = backend_.plugin_backend();
+    if (host == nullptr)
+        return;
+    // One window, kept: a second request brings it forward.
+    if (decoded_dialog_ == nullptr)
+    {
+        decoded_dialog_ = new support::DecodedDialog(*host, this);
+        decoded_dialog_->setAttribute(Qt::WA_DeleteOnClose);
+    }
+    decoded_dialog_->refresh();
+    decoded_dialog_->show();
+    decoded_dialog_->raise();
+    decoded_dialog_->activateWindow();
 }
 
 void ShellWindow::run_port_action(vss::endpoint_id id, port_menu_action action)

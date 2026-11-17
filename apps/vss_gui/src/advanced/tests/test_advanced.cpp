@@ -34,6 +34,7 @@
 #include <QDir>
 #include <QDockWidget>
 #include <QLabel>
+#include <QMenu>
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QProgressBar>
@@ -1562,9 +1563,9 @@ TEST_CASE("json: a half-duplex line is checked and each error is placed")
     };
     const json_problem slow = inside(QStringLiteral("\"bit_rate\":10"));
     REQUIRE(slow.summary.contains(
-        QStringLiteral("The line rate must be between 50 and 4000000 bit/s")));
+        QStringLiteral("The line rate must be between 50 and 12000000 bit/s")));
     REQUIRE_EQ(slow.line, 11);
-    REQUIRE_EQ(inside(QStringLiteral("\"bit_rate\":4000001")).line, 11);
+    REQUIRE_EQ(inside(QStringLiteral("\"bit_rate\":12000001")).line, 11);
     REQUIRE_EQ(inside(QStringLiteral("\"bit_rate\":9600.5")).line, 11);
     REQUIRE_EQ(inside(QStringLiteral("\"bit_rate\":\"fast\"")).line, 11);
 
@@ -1674,6 +1675,38 @@ TEST_CASE("link settings: a bus without the capability, and other links")
     REQUIRE(!plain.half_duplex_shown());
     REQUIRE(!plain.half_duplex_fields()->isVisibleTo(&plain));
     REQUIRE(plain.options().half_duplex == vss::half_duplex_options{});
+}
+
+TEST_CASE("link settings: a monitor chooses its direction and has no delay")
+{
+    using namespace vss::gui;
+    link_view monitor;
+    monitor.shape = link_shape::monitor;
+    monitor.sources = {1};
+    monitor.targets = {2};
+    LinkSettingsDialog dialog(monitor, QStringLiteral("a and b"), true);
+    dialog.show();
+    QApplication::processEvents();
+    REQUIRE(dialog.direction_shown());
+    REQUIRE(!dialog.delay_spin()->isVisibleTo(&dialog));
+    auto* direction = dialog.direction_combo();
+    REQUIRE_EQ(direction->count(), 3);
+    REQUIRE_EQ(direction->itemText(0), QStringLiteral("Both directions"));
+    REQUIRE_EQ(direction->itemText(1), QStringLiteral("Transmit only"));
+    REQUIRE_EQ(direction->itemText(2), QStringLiteral("Receive only"));
+    // Both is the default and is what an old file means.
+    REQUIRE(dialog.options().direction == vss::monitor_direction::both);
+    direction->setCurrentIndex(2);
+    REQUIRE(dialog.options().direction == vss::monitor_direction::receive);
+
+    // A link that is not a monitor has no direction to choose.
+    link_view pair;
+    pair.shape = link_shape::two_way;
+    pair.sources = {1};
+    pair.targets = {2};
+    LinkSettingsDialog plain(pair, QStringLiteral("a and b"), true);
+    REQUIRE(!plain.direction_shown());
+    REQUIRE(plain.options().direction == vss::monitor_direction::both);
 }
 
 TEST_CASE("event log: rows and heading follow the density like the Monitor")
@@ -1802,10 +1835,39 @@ TEST_CASE("event log: port, kind and search filters keep new rows arriving")
     REQUIRE(log.empty_label()->isVisibleTo(&log));
     search->clear();
 
-    for (QCheckBox* box : log.findChildren<QCheckBox*>())
+    auto* kinds = log.findChild<QToolButton*>();
+    REQUIRE(kinds != nullptr);
+    for (QAction* action : kinds->menu()->actions())
     {
-        if (box->text() == QStringLiteral("Errors"))
-            box->setChecked(false);
+        if (action->text() == QStringLiteral("Errors"))
+            action->setChecked(false);
     }
     REQUIRE_EQ(shown(), 3);
+}
+
+TEST_CASE("event log: in a narrow pane no control is squeezed")
+{
+    using namespace vss::gui;
+    for (const int width : {360, 388, 520, 900})
+    {
+        EventLogPanel log;
+        log.resize(width, 300);
+        log.show();
+        QApplication::processEvents();
+        for (QWidget* widget : log.findChildren<QWidget*>())
+        {
+            if (!widget->isVisible())
+                continue;
+            if (qobject_cast<QPushButton*>(widget) == nullptr &&
+                qobject_cast<QToolButton*>(widget) == nullptr &&
+                qobject_cast<QComboBox*>(widget) == nullptr)
+                continue;
+            REQUIRE(widget->width() >= widget->minimumSizeHint().width());
+            REQUIRE(widget->width() >= 24);
+            if (auto* button = qobject_cast<QAbstractButton*>(widget))
+            {
+                REQUIRE(button->width() >= button->sizeHint().width());
+            }
+        }
+    }
 }
