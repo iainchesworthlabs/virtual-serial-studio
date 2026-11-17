@@ -193,3 +193,63 @@ TEST_CASE("helper: the friendly name follows the number")
     // None at all: just the COM name.
     REQUIRE(friendly_name_for(L"", 5) == L"(COM5)");
 }
+
+TEST_CASE("helper: a number held by nothing, or only by Studio ports that are gone, may be taken")
+{
+    using vss::helper::holder_kind;
+    using vss::helper::number_holder;
+    using vss::helper::plan_claim;
+
+    // Only the COM name database marks it: nothing owns it.
+    auto plan = plan_claim(false, {});
+    REQUIRE(plan.allowed);
+    REQUIRE(plan.remove.empty());
+
+    // Studio ports that were removed keep the number; they are cleared away.
+    plan = plan_claim(false,
+                      {number_holder{holder_kind::studio_ghost,
+                                     L"SWD\\VSSCOMUM\\0003"},
+                       number_holder{holder_kind::studio_ghost,
+                                     L"SWD\\VSSCOMUM\\0009"}});
+    REQUIRE(plan.allowed);
+    REQUIRE_EQ(plan.remove.size(), std::size_t{2});
+    REQUIRE(plan.remove[0] == L"SWD\\VSSCOMUM\\0003");
+}
+
+TEST_CASE("helper: a number that something else has is never taken")
+{
+    using vss::helper::holder_kind;
+    using vss::helper::number_holder;
+    using vss::helper::plan_claim;
+
+    // The name resolves: a real port, com0com, a running port.
+    REQUIRE(!plan_claim(true, {}).allowed);
+    REQUIRE(!plan_claim(true, {number_holder{holder_kind::studio_ghost,
+                                             L"SWD\\VSSCOMUM\\0003"}})
+                 .allowed);
+    // A present device holds it.
+    REQUIRE(!plan_claim(false, {number_holder{holder_kind::live_device,
+                                              L"USB\\VID_1&PID_2\\3"}})
+                 .allowed);
+    // An unplugged port of something else comes back to its number.
+    REQUIRE(!plan_claim(false, {number_holder{holder_kind::other_ghost,
+                                              L"USB\\VID_1&PID_2\\3"}})
+                 .allowed);
+    // One owner that is not Studio's spoils it even beside a Studio ghost.
+    const auto plan = plan_claim(
+        false, {number_holder{holder_kind::studio_ghost, L"SWD\\VSSCOMUM\\0003"},
+                number_holder{holder_kind::other_ghost, L"USB\\X\\1"}});
+    REQUIRE(!plan.allowed);
+    REQUIRE(plan.remove.empty());
+}
+
+TEST_CASE("helper: which instance ids are Studio's ports")
+{
+    using vss::helper::is_studio_port_instance;
+    REQUIRE(is_studio_port_instance(L"SWD\\VSSCOMUM\\0003"));
+    REQUIRE(is_studio_port_instance(L"swd\\vsscomum\\000A"));
+    REQUIRE(is_studio_port_instance(L"VSSCOM\\PORT\\0001"));
+    REQUIRE(!is_studio_port_instance(L"USB\\VID_303A&PID_1001&MI_00\\8&1"));
+    REQUIRE(!is_studio_port_instance(L"COM0COM\\PORT\\CNCA1"));
+    REQUIRE(!is_studio_port_instance(L""));
+}

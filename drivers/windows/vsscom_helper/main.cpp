@@ -33,6 +33,8 @@
 #include <winioctl.h>
 // Defines the interface GUIDs of public.h in this file only.
 #include <initguid.h>
+// After initguid.h: this file defines GUID_DEVCLASS_PORTS too.
+#include <devguid.h>
 // clang-format on
 
 #include "../vsscom/public.h"
@@ -399,6 +401,95 @@ bool wait_name(const std::wstring& name, HANDLE stop)
     }
 }
 
+/// The devices of the Ports class, present or not, whose PortName is `wanted`,
+/// other than `except` (the port being renamed). A port that is gone stays in the
+/// Ports class with its PortName, and Windows keeps its number marked in the COM
+/// name database; this is how those are told from a number that a device in use
+/// holds.
+std::vector<vss::helper::number_holder>
+find_holders(const std::wstring& wanted, const std::wstring& except)
+{
+    std::vector<vss::helper::number_holder> holders;
+    const HDEVINFO set = ::SetupDiGetClassDevsW(&GUID_DEVCLASS_PORTS, nullptr,
+                                                nullptr, 0);
+    if (set == INVALID_HANDLE_VALUE)
+        return holders;
+
+    SP_DEVINFO_DATA data{};
+    data.cbSize = sizeof(data);
+    for (DWORD index = 0; ::SetupDiEnumDeviceInfo(set, index, &data); ++index)
+    {
+        wchar_t id[MAX_DEVICE_ID_LEN]{};
+        if (!::SetupDiGetDeviceInstanceIdW(set, &data, id, MAX_DEVICE_ID_LEN,
+                                           nullptr) ||
+            _wcsicmp(id, except.c_str()) == 0)
+            continue;
+
+        const HKEY key = ::SetupDiOpenDevRegKey(set, &data, DICS_FLAG_GLOBAL, 0,
+                                                DIREG_DEV, KEY_QUERY_VALUE);
+        if (key == INVALID_HANDLE_VALUE)
+            continue;
+        std::wstring name;
+        const bool has_name = read_port_name(key, name);
+        ::RegCloseKey(key);
+        if (!has_name || _wcsicmp(name.c_str(), wanted.c_str()) != 0)
+            continue;
+
+        DEVINST node = 0;
+        const bool present =
+            ::CM_Locate_DevNodeW(&node, id, CM_LOCATE_DEVNODE_NORMAL) ==
+            CR_SUCCESS;
+
+        vss::helper::number_holder holder;
+        holder.instance = id;
+        holder.kind =
+            present ? vss::helper::holder_kind::live_device
+                    : (vss::helper::is_studio_port_instance(id)
+                           ? vss::helper::holder_kind::studio_ghost
+                           : vss::helper::holder_kind::other_ghost);
+        holders.push_back(std::move(holder));
+    }
+    ::SetupDiDestroyDeviceInfoList(set);
+    return holders;
+}
+
+/// Removes the entry of a port that is gone, as Device Manager does for a
+/// hidden device. The Ports class installer lets go of its number in the database.
+void remove_ghost(const std::wstring& instance)
+{
+    const HDEVINFO set = ::SetupDiCreateDeviceInfoList(nullptr, nullptr);
+    if (set == INVALID_HANDLE_VALUE)
+        return;
+    SP_DEVINFO_DATA data{};
+    data.cbSize = sizeof(data);
+    if (::SetupDiOpenDeviceInfoW(set, instance.c_str(), nullptr, 0, &data))
+        (void)::SetupDiCallClassInstaller(DIF_REMOVE, set, &data);
+    ::SetupDiDestroyDeviceInfoList(set);
+}
+
+/// Takes `number` in the database for the port `instance`, or says it is not
+/// Studio's to take (ERROR_ALREADY_ASSIGNED). A number that the database marks
+/// for a Studio port that is gone, or for no device at all, is taken back; one that
+/// a present device holds, or a port of something else that is only unplugged, is
+/// not.
+DWORD claim_number(com_database& database, const std::wstring& instance,
+                   DWORD number)
+{
+    const std::wstring wanted = vss::helper::com_name(number);
+    const auto plan =
+        vss::helper::plan_claim(dos_name_exists(wanted),
+                                find_holders(wanted, instance));
+    if (!plan.allowed)
+        return ERROR_ALREADY_ASSIGNED;
+    for (const auto& ghost : plan.remove)
+        remove_ghost(ghost);
+    if (database.claim(number))
+        return ERROR_SUCCESS;
+    // Nothing holds the number but the database: let it go and take it.
+    database.release(number);
+    return database.claim(number) ? ERROR_SUCCESS : ERROR_ALREADY_ASSIGNED;
+}
+
 /// Gives the port of the device `instance` the COM number `number`.
 ///
 /// Nothing is changed unless the whole change goes through: a failure puts the
@@ -435,10 +526,9 @@ DWORD set_com_number(const std::wstring& instance, DWORD number, HANDLE stop)
     const auto database = com_database::open();
     if (!database)
         return ERROR_GEN_FAILURE;
-    if (dos_name_exists(wanted))
-        return ERROR_ALREADY_ASSIGNED;
-    if (!database->claim(number))
-        return ERROR_ALREADY_ASSIGNED;
+    if (const DWORD claimed = claim_number(*database, instance, number);
+        claimed != ERROR_SUCCESS)
+        return claimed;
 
     const std::wstring old_friendly = read_friendly_name(node);
     auto put_back = [&]
