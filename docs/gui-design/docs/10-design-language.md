@@ -17,9 +17,8 @@ and TX. The language works with the system font and plain Qt widgets.
 1. **Panes float on the ground.** A pane is `panel` with a 1 px `line` border, radius `pane` (12), and an 8 px gap of
    `ground` around it. Do not separate regions with full-width rules.
 2. **Pane header, not window chrome.** A pane header is 44 px. It holds the title (`heading`, 14/600), an optional count
-   badge, then that pane's actions on the right as small secondary or ghost buttons. The Ports, Inspector and Send panes
-   have no float or close buttons; View, Panes opens and closes the bottom panes and View, Reset layout puts them back.
-   The bottom panes (Monitor, Links, Log, Topology JSON) are movable and have a dock title bar, see `04-components.md`.
+   badge, then that pane's actions on the right as small secondary or ghost buttons. The panes are movable and have a dock
+   title bar above the pane (`04-components.md`); View, Panes opens and closes them and View, Reset layout puts them back.
 3. **Three button weights.** Primary is `accent` fill with `onAccent` text and no border. Secondary is `fill` with
    `ink` text and no border, and `fillHover` on hover. Ghost is `ink2` text with no fill, and `hover` on hover.
    Destructive is `badSoft` fill with `bad` text. A surface has at most one primary. Buttons are 32 px, or 28 px in

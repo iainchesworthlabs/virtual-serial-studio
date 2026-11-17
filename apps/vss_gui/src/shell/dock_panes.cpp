@@ -628,6 +628,7 @@ void DockPanes::move_to_edge(QDockWidget* dock, Qt::DockWidgetArea area)
     dock->show();
     dock->raise();
     refresh_tab_bars();
+    Q_EMIT layout_changed();
 }
 
 void DockPanes::tab_with(QDockWidget* dock, QDockWidget* target)
@@ -641,6 +642,7 @@ void DockPanes::tab_with(QDockWidget* dock, QDockWidget* target)
     dock->show();
     dock->raise();
     refresh_tab_bars();
+    Q_EMIT layout_changed();
 }
 
 void DockPanes::split_beside(QDockWidget* dock, QDockWidget* target,
@@ -689,6 +691,7 @@ void DockPanes::split_beside(QDockWidget* dock, QDockWidget* target,
     window_->resizeDocks({first, second}, {total / 2, total - total / 2},
                          orientation);
     refresh_tab_bars();
+    Q_EMIT layout_changed();
 }
 
 void DockPanes::refresh_tab_bars()
@@ -757,6 +760,7 @@ void DockPanes::float_pane(QDockWidget* dock)
     dock->setFloating(true);
     dock->setGeometry(rect.translated(QPoint(24, 24)));
     dock->show();
+    Q_EMIT layout_changed();
 }
 
 void DockPanes::cycle(int step)
