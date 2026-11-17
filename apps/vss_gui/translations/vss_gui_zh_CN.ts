@@ -2409,11 +2409,6 @@
             <translation>搜索事件</translation>
         </message>
         <message>
-            <location filename="../src/advanced/event_log.cpp" line="164" />
-            <source>Show %1 events</source>
-            <translation>显示%1事件</translation>
-        </message>
-        <message>
             <location filename="../src/advanced/event_log.cpp" line="498" />
             <source>No events match the filters.</source>
             <translation>没有符合筛选条件的事件。</translation>
@@ -2422,6 +2417,21 @@
             <location filename="../src/advanced/event_log.cpp" line="159" />
             <source>Other</source>
             <translation>其他</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="165" />
+            <source>Events</source>
+            <translation>事件</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="166" />
+            <source>Event kinds</source>
+            <translation>事件类型</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="167" />
+            <source>Choose which kinds of event are shown.</source>
+            <translation>选择要显示的事件类型。</translation>
         </message>
     </context>
     <context>

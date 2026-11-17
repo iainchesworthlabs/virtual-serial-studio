@@ -16,7 +16,10 @@
 
 #include <vss/core/profile.hpp>
 
-#include <QCheckBox>
+#include <QAction>
+#include <QGridLayout>
+#include <QMenu>
+#include <QToolButton>
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QEvent>
@@ -38,6 +41,7 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <initializer_list>
 
 namespace vss::gui
 {
@@ -147,41 +151,51 @@ EventLogPanel::EventLogPanel(QWidget* parent) : QWidget(parent)
     // panel keeps it in a slim bar, so it is never lost.
     const Theme& theme = Theme::instance();
     bar_ = new QWidget(this);
-    auto* bar_layout = new QHBoxLayout(bar_);
-    bar_layout->setContentsMargins(theme.space(2), theme.space(0) / 2,
-                                   theme.space(2), theme.space(0) / 2);
-    bar_layout->setSpacing(theme.space(1));
+    bar_layout_ = new QGridLayout(bar_);
+    bar_layout_->setContentsMargins(theme.space(2), theme.space(0) / 2,
+                                    theme.space(2), theme.space(0) / 2);
+    bar_layout_->setHorizontalSpacing(theme.space(1));
+    bar_layout_->setVerticalSpacing(theme.space(0) / 2);
     port_filter_ = make_port_filter(tr("Filter by port"), bar_);
     port_filter_->addItem(tr("All ports"), QString());
-    errors_ = new QCheckBox(tr("Errors"), bar_);
-    started_ = new QCheckBox(tr("Started"), bar_);
-    stopped_ = new QCheckBox(tr("Stopped"), bar_);
-    other_ = new QCheckBox(tr("Other"), bar_);
-    for (QCheckBox* box : {errors_, started_, stopped_, other_})
+
+    // The kinds are in one menu button, not four check boxes, so the controls
+    // fit a narrow pane. Every kind starts shown, so the log is unfiltered.
+    kinds_ = new QToolButton(bar_);
+    kinds_->setText(tr("Events"));
+    kinds_->setAccessibleName(tr("Event kinds"));
+    kinds_->setToolTip(tr("Choose which kinds of event are shown."));
+    kinds_->setPopupMode(QToolButton::InstantPopup);
+    kinds_->setProperty("role", QStringLiteral("secondary"));
+    auto* kinds_menu = new QMenu(kinds_);
+    for (QAction** slot : {&errors_, &started_, &stopped_, &other_})
     {
-        // Every kind starts shown, so the log is unfiltered at first.
-        box->setChecked(true);
-        box->setAccessibleName(tr("Show %1 events").arg(box->text()));
-        connect(box, &QCheckBox::toggled, this,
+        const QString text = slot == &errors_    ? tr("Errors")
+                             : slot == &started_ ? tr("Started")
+                             : slot == &stopped_ ? tr("Stopped")
+                                                 : tr("Other");
+        QAction* action = kinds_menu->addAction(text);
+        action->setCheckable(true);
+        action->setChecked(true);
+        connect(action, &QAction::toggled, this,
                 [this](bool) { apply_filters(); });
+        *slot = action;
     }
+    kinds_->setMenu(kinds_menu);
     search_ = make_search_field(tr("Search events"), bar_);
+    search_->setMinimumWidth(120);
     connect(port_filter_, qOverload<int>(&QComboBox::currentIndexChanged), this,
             [this](int) { apply_filters(); });
     connect(search_, &QLineEdit::textChanged, this,
             [this](const QString&) { apply_filters(); });
-    bar_layout->addWidget(port_filter_);
-    for (QCheckBox* box : {errors_, started_, stopped_, other_})
-        bar_layout->addWidget(box);
-    bar_layout->addWidget(search_);
-    bar_layout->addStretch(1);
     bar_->installEventFilter(this);
     clear_ = make_button(tr("Clear"), nullptr, bar_);
     clear_->setProperty("size", QStringLiteral("small"));
     polish(clear_);
     clear_->setAccessibleName(tr("Clear the event log"));
     connect(clear_, &QPushButton::clicked, this, &EventLogPanel::clear);
-    bar_layout->addWidget(clear_);
+    bar_layout_->setColumnStretch(3, 1);
+    arrange(false);
     layout->addWidget(bar_);
 
     table_ = new QTableWidget(0, 4, this);
@@ -253,13 +267,46 @@ bool EventLogPanel::eventFilter(QObject* watched, QEvent* event)
     {
         place_controls();
     }
+    else if (watched == bar_ && type == QEvent::Resize && !in_header_)
+    {
+        // Below the title row, a bar too narrow for one row puts the search
+        // box on a second row, so nothing is squeezed.
+        arrange(bar_->width() < single_row_width());
+    }
     else if (watched == bar_ &&
-             (type == QEvent::FontChange || type == QEvent::StyleChange))
+             (type == QEvent::FontChange || type == QEvent::StyleChange ||
+              type == QEvent::LayoutRequest))
     {
         // The controls got wider or narrower: the same test decides again.
         QTimer::singleShot(0, this, [this] { place_controls(); });
     }
     return QWidget::eventFilter(watched, event);
+}
+
+int EventLogPanel::single_row_width() const
+{
+    const QMargins margins = bar_layout_->contentsMargins();
+    return margins.left() + margins.right() +
+           port_filter_->sizeHint().width() + kinds_->sizeHint().width() +
+           search_->sizeHint().width() + clear_->sizeHint().width() +
+           4 * bar_layout_->horizontalSpacing();
+}
+
+void EventLogPanel::arrange(bool two_rows)
+{
+    if (two_rows == two_rows_ && bar_layout_->count() > 0)
+        return;
+    two_rows_ = two_rows;
+    for (QWidget* widget : std::initializer_list<QWidget*>{
+             port_filter_, kinds_, search_, clear_})
+        bar_layout_->removeWidget(widget);
+    bar_layout_->addWidget(port_filter_, 0, 0);
+    bar_layout_->addWidget(kinds_, 0, 1);
+    bar_layout_->addWidget(clear_, 0, 4);
+    if (two_rows)
+        bar_layout_->addWidget(search_, 1, 0, 1, 5);
+    else
+        bar_layout_->addWidget(search_, 0, 2);
 }
 
 void EventLogPanel::place_controls()
@@ -268,14 +315,19 @@ void EventLogPanel::place_controls()
         return;
     // As in the Monitor: on the title row when it is wide enough, otherwise on
     // a row of their own under it, so no control is cut off.
+    // The controls are measured in the font and style they will be drawn in.
+    bar_->ensurePolished();
+    for (QWidget* child : bar_->findChildren<QWidget*>())
+        child->ensurePolished();
     const bool want_header =
         header_->isVisible() &&
-        header_->width() >= header_->lead_width() + bar_->sizeHint().width();
+        header_->width() >= header_->lead_width() + single_row_width();
     if (want_header == in_header_)
         return;
     in_header_ = want_header;
     if (want_header)
     {
+        arrange(false);
         layout()->removeWidget(bar_);
         header_->set_fill(bar_);
     }
@@ -283,6 +335,7 @@ void EventLogPanel::place_controls()
     {
         header_->set_fill(nullptr);
         static_cast<QVBoxLayout*>(layout())->insertWidget(0, bar_);
+        arrange(width() < single_row_width());
     }
     bar_->show();
 }
