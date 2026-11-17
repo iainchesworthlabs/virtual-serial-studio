@@ -12,6 +12,8 @@
 #include "support/test_support.hpp"
 
 #include <vss/core/hub.hpp>
+#include <vss/core/line_break.hpp>
+#include <vss/testkit/harness.hpp>
 
 #include <boost/asio/post.hpp>
 
@@ -1092,4 +1094,138 @@ TEST_CASE("half-duplex: new values make a new line and bad ones are refused")
     const auto other = fixture.hub->set_link_options(*pair, half_duplex());
     REQUIRE(!other);
     REQUIRE_EQ(other.error(), make_error_code(errc::unsupported));
+}
+
+// -- breaks ------------------------------------------------------------------
+
+namespace
+{
+
+/// The breaks every endpoint was written, from the hub's events.
+struct break_watch
+{
+    event_recorder events;
+    subscription_guard guard;
+
+    explicit break_watch(vss::hub& hub)
+        : guard(hub, event_filter{std::nullopt, event_kind::line_break},
+                [recorder = events](const endpoint_event& event)
+                { recorder.record(event); })
+    {
+    }
+
+    std::size_t written_by(endpoint_id id) const
+    {
+        std::size_t count = 0;
+        for (const auto& event : events.snapshot())
+        {
+            if (event.endpoint == id && event.direction == data_direction::tx)
+                ++count;
+        }
+        return count;
+    }
+};
+
+} // namespace
+
+TEST_CASE("half-duplex: a break is a transmission of its length and overlaps another member")
+{
+    line_fixture fixture(3);
+    break_watch watch(*fixture.hub);
+    const link_id bus = fixture.make_bus(half_duplex());
+
+    fixture.send(0, "aaaa"); // on the wire for 40 ms
+    fixture.clock.advance(10ms);
+    // A break of 20 ms from p1: from 10 to 30 ms, inside the chunk of p0.
+    make_break(*fixture.ports[1].endpoint, 20ms, fixture.clock.now());
+
+    REQUIRE(fixture.faults(1));
+    const auto fault = fixture.events.snapshot().front();
+    REQUIRE(fault.fault == bus_fault::overlap);
+    REQUIRE_EQ(fault.endpoint, fixture.id(1));
+    REQUIRE_EQ(fault.link, bus);
+    REQUIRE_EQ(fault.message, std::string("sent a break while p0 was sending"));
+
+    // The members hear the break when it has left the wire, not before, and
+    // its maker never hears it.
+    REQUIRE_EQ(watch.written_by(fixture.id(2)), std::size_t{0});
+    fixture.clock.advance(20ms);
+    REQUIRE(wait_until([&] { return watch.written_by(fixture.id(2)) == 1 &&
+                                    watch.written_by(fixture.id(0)) == 1; },
+                       5000ms));
+    fixture.clock.advance(10ms);
+    REQUIRE(fixture.heard(1, "aaaa"));
+    REQUIRE_EQ(watch.written_by(fixture.id(1)), std::size_t{0});
+
+    // A break is counted, and is no bytes.
+    const auto stats = fixture.stats(bus);
+    REQUIRE_EQ(stats.breaks, std::uint64_t{2});
+    REQUIRE_EQ(stats.collisions, std::uint64_t{1});
+    REQUIRE_EQ(stats.bytes, std::uint64_t{8});
+}
+
+TEST_CASE("half-duplex: a break that is not measured holds the line for one character")
+{
+    line_fixture fixture(3);
+    break_watch watch(*fixture.hub);
+    const link_id bus = fixture.make_bus(half_duplex());
+
+    // One character at 1000 bit/s is 10 ms, whatever length it was given.
+    make_break(*fixture.ports[0].endpoint, 1s, fixture.clock.now(), false);
+    REQUIRE(wait_until([&] { return fixture.stats(bus).breaks == 2; }, 5000ms));
+
+    fixture.clock.advance(5ms);
+    fixture.send(1, "b"); // 5 to 15 ms: inside the break
+    REQUIRE(fixture.faults(1));
+    REQUIRE_EQ(fixture.events.snapshot().front().message,
+               std::string("sent 1 byte while p0 was sending"));
+}
+
+TEST_CASE("half-duplex: a measured break holds the line for its length and no longer")
+{
+    line_fixture fixture(3);
+    break_watch watch(*fixture.hub);
+    const link_id bus = fixture.make_bus(half_duplex());
+
+    make_break(*fixture.ports[0].endpoint, 30ms, fixture.clock.now(), true);
+    REQUIRE(wait_until([&] { return fixture.stats(bus).breaks == 2; }, 5000ms));
+
+    fixture.clock.advance(30ms);
+    fixture.send(1, "b"); // the line is free again
+    fixture.clock.advance(10ms);
+    REQUIRE(fixture.heard(2, "b"));
+    REQUIRE_EQ(fixture.events.count(event_kind::bus_fault), std::size_t{0});
+    REQUIRE_EQ(watch.written_by(fixture.id(2)), std::size_t{1});
+}
+
+TEST_CASE("half-duplex: the begin of a running break is not carried on a bus")
+{
+    line_fixture fixture(3);
+    break_watch watch(*fixture.hub);
+    const link_id bus = fixture.make_bus(half_duplex());
+
+    line_break begin;
+    begin.phase = break_phase::begin;
+    begin.start = fixture.clock.now();
+    begin.measured = true;
+    fixture.ports[0].endpoint->receive_break(begin);
+    REQUIRE(wait_until(
+        [&] { return fixture.ports[0].endpoint->stats().last_activity != time_point{}; },
+        5000ms));
+    fixture.clock.advance(100ms);
+    std::this_thread::sleep_for(100ms);
+    REQUIRE_EQ(watch.written_by(fixture.id(1)), std::size_t{0});
+    REQUIRE_EQ(fixture.stats(bus).breaks, std::uint64_t{0});
+
+    // The end brings the whole break, with its length.
+    line_break end = begin;
+    end.phase = break_phase::end;
+    end.duration = 20ms;
+    end.start = fixture.clock.now();
+    fixture.ports[0].endpoint->receive_break(end);
+    REQUIRE(wait_until([&] { return fixture.stats(bus).breaks == 2; }, 5000ms));
+    fixture.clock.advance(20ms);
+    REQUIRE(wait_until([&] { return watch.written_by(fixture.id(1)) == 1 &&
+                                    watch.written_by(fixture.id(2)) == 1; },
+                       5000ms));
 }

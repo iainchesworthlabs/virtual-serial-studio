@@ -45,11 +45,20 @@ void MonitorModel::queue_events(const event_batch& events)
     QDateTime now;
     for (const gui_event& event : events)
     {
-        if (event.kind != vss::event_kind::data || event.data.empty())
+        const bool is_break = event.kind == vss::event_kind::line_break;
+        if (!is_break &&
+            (event.kind != vss::event_kind::data || event.data.empty()))
             continue;
         if (!now.isValid())
             now = QDateTime::currentDateTime();
         traffic_row row;
+        if (is_break)
+        {
+            row.is_break = true;
+            row.phase = event.phase;
+            row.length = event.duration;
+            row.measured = event.measured;
+        }
         row.time = now;
         row.endpoint = event.endpoint;
         row.port = event.name;
@@ -306,6 +315,8 @@ QVariant MonitorModel::data(const QModelIndex& index, int item_role) const
             }
             return {};
         case 3:
+            if (row.is_break)
+                return {};
             return QLocale().toString(static_cast<qulonglong>(row.bytes));
         case 4:
             return preview_for(row);
@@ -337,6 +348,10 @@ QVariant MonitorModel::data(const QModelIndex& index, int item_role) const
             row.direction == traffic_direction::rx   ? tr("received")
             : row.direction == traffic_direction::tx ? tr("sent")
                                                      : tr("dropped");
+        if (row.is_break)
+            return tr("%1, %2, %3, %4")
+                .arg(row.time.toString(QStringLiteral("HH:mm:ss.zzz")),
+                     row.port, dir, preview_for(row));
         return tr("%1, %2, %3, %4 bytes, %5")
             .arg(row.time.toString(QStringLiteral("HH:mm:ss.zzz")), row.port,
                  dir, QLocale().toString(static_cast<qulonglong>(row.bytes)),
@@ -393,6 +408,9 @@ const traffic_row* MonitorModel::row_at(int row) const
 
 QString MonitorModel::preview_for(const traffic_row& row) const
 {
+    if (row.is_break)
+        return tr("Break, %1")
+            .arg(break_detail(row.phase, row.length, row.measured));
     if (row.dropped)
     {
         return row.bus ? tr("not carried by the bus")
@@ -452,7 +470,10 @@ QString MonitorModel::export_text() const
                      .arg(
                          row.time.toString(QStringLiteral("HH:mm:ss.zzz")),
                          row.port, direction,
-                         QLocale().toString(static_cast<qulonglong>(row.bytes)),
+                         row.is_break
+                             ? QString()
+                             : QLocale().toString(
+                                   static_cast<qulonglong>(row.bytes)),
                          preview_for(row));
     }
     return lines.join(QLatin1Char('\n'));

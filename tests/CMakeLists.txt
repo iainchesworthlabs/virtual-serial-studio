@@ -26,6 +26,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_endpoint_reopen.cpp
   unit/test_endpoint_status.cpp
   unit/test_error_and_log.cpp
+  unit/test_hub_break.cpp
   unit/test_hub_bus.cpp
   unit/test_hub_events.cpp
   unit/test_hub_half_duplex.cpp

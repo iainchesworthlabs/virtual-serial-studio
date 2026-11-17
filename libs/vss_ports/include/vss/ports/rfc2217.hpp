@@ -28,6 +28,15 @@ struct feed_result
     std::string reply;
     /// The client changed DTR, RTS or break.
     bool outputs_changed = false;
+    /// The client turned break on (SET-CONTROL 5) or off (6), in the order it
+    /// did, each with `at` the number of payload bytes in `data` that came
+    /// before it, so a break keeps its place among the bytes.
+    struct break_command
+    {
+        std::size_t at = 0;
+        bool on = false;
+    };
+    std::vector<break_command> breaks;
     /// The client asked for the modem state (it set a mask), so the server
     /// should send it with `session::modem_state(inputs, true)`.
     bool modem_state_requested = false;

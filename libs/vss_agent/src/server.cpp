@@ -92,6 +92,17 @@ public:
                                event.when.time_since_epoch())
                                .count();
         record.when_ns = since > 0 ? static_cast<std::uint64_t>(since) : 0;
+        if (event.kind == event_kind::line_break)
+        {
+            const auto began = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                   event.start.time_since_epoch())
+                                   .count();
+            record.phase = event.phase;
+            record.start_ns = began > 0 ? static_cast<std::uint64_t>(began) : 0;
+            record.duration_ns = static_cast<std::uint64_t>(
+                std::max<std::int64_t>(0, event.duration.count()));
+            record.measured = event.measured;
+        }
         if (event.data)
         {
             record.size = event.data->size();
@@ -210,6 +221,8 @@ port_summary summarise(const endpoint_info& info, std::string advertised)
     out.open = info.open;
     out.bytes_rx = info.stats.bytes_rx;
     out.bytes_tx = info.stats.bytes_tx;
+    out.breaks_rx = info.stats.breaks_rx;
+    out.breaks_tx = info.stats.breaks_tx;
     return out;
 }
 
@@ -221,6 +234,7 @@ link_summary summarise(const link_info& info)
     out.sources = info.sources;
     out.targets = info.targets;
     out.bytes = info.stats.bytes;
+    out.breaks = info.stats.breaks;
     return out;
 }
 

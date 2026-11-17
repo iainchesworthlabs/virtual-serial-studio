@@ -101,6 +101,8 @@ QString kind_text(vss::event_kind kind)
         return QCoreApplication::translate("EventLog", "Traffic");
     case vss::event_kind::bus_fault:
         return QCoreApplication::translate("EventLog", "Bus");
+    case vss::event_kind::line_break:
+        return QCoreApplication::translate("EventLog", "Break");
     }
     return QCoreApplication::translate("EventLog", "Message");
 }
@@ -411,7 +413,7 @@ void EventLogPanel::apply_metrics()
     for (const QString& word :
          {tr("Started"), tr("Stopped"), tr("Control lines"), tr("Error"),
           tr("Counters"), tr("Message"), tr("Traffic"), tr("Bus"),
-          tr("Studio")})
+          tr("Break"), tr("Studio")})
         event = std::max(event, cell(heavy, word));
     const int content[3] = {cell(data_font, QStringLiteral("00:00:00.000")),
                             port, event};
@@ -440,6 +442,8 @@ void EventLogPanel::append(const event_batch& events)
             detail = event.error;
         if (event.kind == vss::event_kind::lines)
             detail = QString::fromStdString(vss::to_string(event.lines));
+        if (event.kind == vss::event_kind::line_break)
+            detail = break_detail(event.phase, event.duration, event.measured);
         if (detail.isEmpty())
             detail = tr("No details.");
         add_row(now, event.name, kind_text(event.kind), detail,

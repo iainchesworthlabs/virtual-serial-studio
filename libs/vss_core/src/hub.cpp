@@ -58,10 +58,13 @@ constexpr endpoint_id bus_node_tag = endpoint_id{1} << 63;
 /// What a half-duplex bus says about a chunk that was not a clean
 /// transmission.  `other` is the member that was in the way, or empty.
 std::string describe_fault(bus_fault fault, std::size_t bytes,
-                           const std::string& other, bool garble)
+                           const std::string& other, bool garble,
+                           bool is_break = false)
 {
     std::string sent =
-        "sent " + std::to_string(bytes) + (bytes == 1 ? " byte" : " bytes");
+        is_break ? std::string("sent a break")
+                 : "sent " + std::to_string(bytes) +
+                       (bytes == 1 ? " byte" : " bytes");
     switch (fault)
     {
     case bus_fault::overlap:
@@ -1112,6 +1115,7 @@ link_info hub::describe(const link_record& record) const
     info.stats.bytes = record.bytes.load();
     info.stats.messages = record.messages.load();
     info.stats.dropped = record.dropped.load();
+    info.stats.breaks = record.breaks.load();
     if (record.line)
     {
         info.stats.collisions = record.line->collisions();
@@ -1428,23 +1432,36 @@ void hub::route_data(endpoint_id from, bytes_view data, time_point when)
     route_chunk(from, data, when, nullptr);
 }
 
-std::function<void(endpoint_id, bytes_view,
+void hub::route_break(endpoint_id from, const line_break& item)
+{
+    route_chunk(from, item, item.when(), nullptr);
+}
+
+std::function<void(endpoint_id, const stream_item&,
                    const std::shared_ptr<const visited_chunk>&, time_point)>
 hub::make_forwarder()
 {
-    return [this](endpoint_id at, bytes_view data,
+    return [this](endpoint_id at, const stream_item& item,
                   const std::shared_ptr<const visited_chunk>& seen,
-                  time_point when) { route_chunk(at, data, when, seen.get()); };
+                  time_point when) { route_chunk(at, item, when, seen.get()); };
 }
 
-void hub::route_chunk(endpoint_id from, bytes_view data, time_point when,
-                      const visited_chunk* visited)
+void hub::route_chunk(endpoint_id from, const stream_item& item,
+                      time_point when, const visited_chunk* visited)
 {
     VSS_PROFILE_ZONE("hub.route");
 
-    if (data.empty())
+    // What the item is: bytes, with a size, or a break.  The size of a break
+    // is zero, so the byte counters of a link do not move for it.
+    const auto* const shown_bytes = std::get_if<bytes_view>(&item);
+    const auto* const shown_break = std::get_if<line_break>(&item);
+    if (shown_bytes && shown_bytes->empty())
         return;
-    VSS_PROFILE_PLOT("hub.route_bytes", data.size());
+    const std::size_t size = shown_bytes ? shown_bytes->size() : 0;
+    // A break is counted when it ends, once for each port it reaches.
+    const bool counts_break = shown_break && shown_break->ends_break();
+    if (shown_bytes)
+        VSS_PROFILE_PLOT("hub.route_bytes", size);
 
     struct delivery
     {
@@ -1476,6 +1493,18 @@ void hub::route_chunk(endpoint_id from, bytes_view data, time_point when,
         {
             const auto found = routes_.find(id);
             return found != routes_.end() && !found->second.empty();
+        };
+
+        const auto count_delivery = [&](link_record& record)
+        {
+            if (shown_break)
+            {
+                if (counts_break)
+                    record.breaks.fetch_add(1);
+                return;
+            }
+            record.bytes.fetch_add(size);
+            record.messages.fetch_add(1);
         };
 
         for (const auto& route : it->second)
@@ -1516,18 +1545,28 @@ void hub::route_chunk(endpoint_id from, bytes_view data, time_point when,
                     owner = from;
                 if (owner != from)
                 {
-                    record.dropped.fetch_add(data.size());
+                    record.dropped.fetch_add(size);
                     continue;
                 }
             }
 
             if (record.line)
             {
+                // A bus acts on a break when it ends, with its length: the
+                // wire is held for that long and the members hear it then.
+                // The begin of a running break is not carried on a bus.
+                if (shown_break && !counts_break)
+                    continue;
                 // One verdict for the chunk, however many members hear it.
                 if (!wire)
                 {
                     wire = record.wire;
-                    verdict = record.line->transmit(from, data.size(), when);
+                    verdict =
+                        shown_break
+                            ? record.line->transmit_break(
+                                  from, shown_break->duration,
+                                  shown_break->measured, shown_break->start)
+                            : record.line->transmit(from, size, when);
                     if (verdict.fault != bus_fault::none)
                     {
                         const auto name_of = [this](endpoint_id id)
@@ -1544,21 +1583,21 @@ void hub::route_chunk(endpoint_id from, bytes_view data, time_point when,
                         fault->fault = verdict.fault;
                         fault->link = record.id;
                         fault->message = describe_fault(
-                            verdict.fault, data.size(), name_of(verdict.other),
+                            verdict.fault, size, name_of(verdict.other),
                             record.options.half_duplex.on_collision ==
-                                collision_action::garble);
+                                collision_action::garble,
+                            shown_break != nullptr);
                     }
                 }
                 if (!verdict.carried)
                 {
-                    record.dropped.fetch_add(data.size());
+                    record.dropped.fetch_add(size);
                     continue;
                 }
                 // Another branch of the chunk may have got there first.
                 if (visited && !visited->trace->claim(route.to))
                     continue;
-                record.bytes.fetch_add(data.size());
-                record.messages.fetch_add(1);
+                count_delivery(record);
 
                 auto target = endpoints_.find(route.to);
                 if (target != endpoints_.end())
@@ -1573,8 +1612,7 @@ void hub::route_chunk(endpoint_id from, bytes_view data, time_point when,
 
             if (visited && !visited->trace->claim(route.to))
                 continue;
-            record.bytes.fetch_add(data.size());
-            record.messages.fetch_add(1);
+            count_delivery(record);
 
             auto target = endpoints_.find(route.to);
             if (target != endpoints_.end())
@@ -1615,7 +1653,7 @@ void hub::route_chunk(endpoint_id from, bytes_view data, time_point when,
         // then: put there afterwards, it would be heard after its sender
         // had left.
         if (wire && !on_wire.empty())
-            wire->push(from, verdict.ends, data,
+            wire->push(from, verdict.ends, item,
                        std::move(verdict.transmission), std::move(on_wire),
                        carried);
     }
@@ -1624,14 +1662,17 @@ void hub::route_chunk(endpoint_id from, bytes_view data, time_point when,
     {
         if (entry.delay)
         {
-            entry.delay->push(data, carried);
+            entry.delay->push(item, carried);
             continue;
         }
         // Carried on before it is written, as a delay line does, so the
         // bytes are read once from the caller's buffer.
         if (carried)
-            route_chunk(entry.target->id(), data, when, carried.get());
-        entry.target->write(data);
+            route_chunk(entry.target->id(), item, when, carried.get());
+        if (shown_break)
+            entry.target->write_break(*shown_break);
+        else
+            entry.target->write(*shown_bytes);
     }
 
     if (fault)

@@ -112,10 +112,12 @@ constexpr std::array endpoint_states{
 constexpr std::array link_modes{link_mode::duplex, link_mode::one_way,
                                 link_mode::bus};
 constexpr std::array directions{data_direction::rx, data_direction::tx};
+constexpr std::array break_phases{break_phase::begin, break_phase::end,
+                                  break_phase::complete};
 constexpr std::array event_kinds{
     event_kind::started,     event_kind::stopped,  event_kind::data,
     event_kind::lines,       event_kind::error,    event_kind::stats,
-    event_kind::log_message, event_kind::bus_fault};
+    event_kind::log_message, event_kind::bus_fault, event_kind::line_break};
 
 /// The enumerator whose engine name (`to_string`) is `text`.
 template <class Enum, std::size_t Count>
@@ -168,6 +170,19 @@ bool read_u64(const json::object& object, std::string_view key,
 {
     const json::value* const item = object.if_contains(key);
     return item != nullptr && to_u64(*item, out);
+}
+
+/// A counter an older sender does not have: absent reads as zero, present
+/// must be a number.
+bool read_u64_or_zero(const json::object& object, std::string_view key,
+                      std::uint64_t& out) noexcept
+{
+    if (!object.contains(key))
+    {
+        out = 0;
+        return true;
+    }
+    return read_u64(object, key, out);
 }
 
 bool read_u32(const json::object& object, std::string_view key,
@@ -453,6 +468,12 @@ json::object port_to_json(const port_summary& port)
     out["open"] = port.open;
     out["bytes_rx"] = port.bytes_rx;
     out["bytes_tx"] = port.bytes_tx;
+    // Written only when there is something, so a reader that does not know
+    // breaks sees the message it always saw.
+    if (port.breaks_rx != 0)
+        out["breaks_rx"] = port.breaks_rx;
+    if (port.breaks_tx != 0)
+        out["breaks_tx"] = port.breaks_tx;
     return out;
 }
 
@@ -467,7 +488,9 @@ bool port_from_json(const json::value& item, port_summary& out)
            read_enum(port, "state", endpoint_states, out.state) &&
            read_bool(port, "open", out.open) &&
            read_u64(port, "bytes_rx", out.bytes_rx) &&
-           read_u64(port, "bytes_tx", out.bytes_tx);
+           read_u64(port, "bytes_tx", out.bytes_tx) &&
+           read_u64_or_zero(port, "breaks_rx", out.breaks_rx) &&
+           read_u64_or_zero(port, "breaks_tx", out.breaks_tx);
 }
 
 json::object link_to_json(const link_summary& link)
@@ -478,6 +501,8 @@ json::object link_to_json(const link_summary& link)
     out["sources"] = ids_to_json(link.sources);
     out["targets"] = ids_to_json(link.targets);
     out["bytes"] = link.bytes;
+    if (link.breaks != 0)
+        out["breaks"] = link.breaks;
     return out;
 }
 
@@ -490,7 +515,8 @@ bool link_from_json(const json::value& item, link_summary& out)
            read_enum(link, "mode", link_modes, out.mode) &&
            read_ids(link, "sources", out.sources) &&
            read_ids(link, "targets", out.targets) &&
-           read_u64(link, "bytes", out.bytes);
+           read_u64(link, "bytes", out.bytes) &&
+           read_u64_or_zero(link, "breaks", out.breaks);
 }
 
 struct reply_writer
@@ -638,6 +664,12 @@ bool event_from_json(const json::value& item, const byte_buffer& blob,
         return false;
     if (event.contains("when") && !read_u64(event, "when", out.when_ns))
         return false;
+    if (out.kind == event_kind::line_break &&
+        (!read_enum(event, "phase", break_phases, out.phase) ||
+         !read_u64_or_zero(event, "start", out.start_ns) ||
+         !read_u64_or_zero(event, "duration", out.duration_ns) ||
+         !read_bool(event, "measured", out.measured)))
+        return false;
     if (stored > blob.size() - cursor)
         return false;
     const auto first = blob.begin() + static_cast<std::ptrdiff_t>(cursor);
@@ -710,6 +742,13 @@ frame encode(const event_batch& value)
             event["error"] = error_to_json(record.error);
         if (record.when_ns != 0)
             event["when"] = record.when_ns;
+        if (record.kind == event_kind::line_break)
+        {
+            event["phase"] = to_string(record.phase);
+            event["start"] = record.start_ns;
+            event["duration"] = record.duration_ns;
+            event["measured"] = record.measured;
+        }
         events.emplace_back(std::move(event));
         blob.insert(blob.end(), record.data.begin(), record.data.end());
     }

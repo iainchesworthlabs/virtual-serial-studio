@@ -35,6 +35,24 @@ clock_type::duration bus_line::wire_time(std::uint32_t bit_rate,
 bus_verdict bus_line::transmit(endpoint_id member, std::size_t bytes,
                                time_point now)
 {
+    return occupy(member, wire_time(options_.bit_rate, bytes), now);
+}
+
+bus_verdict bus_line::transmit_break(endpoint_id member,
+                                     std::chrono::nanoseconds duration,
+                                     bool measured, time_point now)
+{
+    // A length that is not a measurement is one character at the rate of the
+    // bus, as a real device's break is at least that long.
+    const clock_type::duration held =
+        measured ? std::chrono::duration_cast<clock_type::duration>(duration)
+                 : wire_time(options_.bit_rate, 1);
+    return occupy(member, held, now);
+}
+
+bus_verdict bus_line::occupy(endpoint_id member, clock_type::duration length,
+                             time_point now)
+{
     std::lock_guard lock(mutex_);
 
     // What left the wire longer ago than the turn-around no longer matters.
@@ -69,7 +87,7 @@ bus_verdict bus_line::transmit(endpoint_id member, std::size_t bytes,
         verdict.carried = false;
         return verdict;
     }
-    const time_point end = start + wire_time(options_.bit_rate, bytes);
+    const time_point end = start + length;
 
     const bool garble = options_.on_collision == collision_action::garble;
     for (const span& entry : active_)

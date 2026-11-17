@@ -11,6 +11,7 @@
 #include <vss/core/types.hpp>
 
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -68,6 +69,13 @@ public:
     /// the wire for it when it is carried.
     bus_verdict transmit(endpoint_id member, std::size_t bytes, time_point now);
 
+    /// Judges a break that `member` sent, which holds the wire for its
+    /// `duration` as a chunk does for its bytes, or for one character at the
+    /// bus rate when it is not `measured`.  `now` is when the break began.
+    bus_verdict transmit_break(endpoint_id member,
+                               std::chrono::nanoseconds duration,
+                               bool measured, time_point now);
+
     /// Says what the hub knows of a member's RTS: high, low, or nothing at
     /// all (the member has no RTS the hub can follow, so it always sends and
     /// never holds the line).  Without `rts_gating` the line ignores it.
@@ -92,6 +100,11 @@ public:
                                           std::size_t bytes) noexcept;
 
 private:
+    /// Takes the wire for `length` from `now` or from the end of the same
+    /// member's last transmission, and judges it against the others.
+    bus_verdict occupy(endpoint_id member, clock_type::duration length,
+                       time_point now);
+
     struct span
     {
         endpoint_id member = 0;

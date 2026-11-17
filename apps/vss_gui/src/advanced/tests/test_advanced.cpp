@@ -1609,6 +1609,33 @@ TEST_CASE("event log: a bus fault shows its sentence")
     REQUIRE_EQ(table->item(0, 3)->text(), fault.message);
 }
 
+TEST_CASE("event log: a break is a row of its own with its length")
+{
+    using namespace vss::gui;
+    using namespace std::chrono_literals;
+    EventLogPanel log;
+    gui_event done;
+    done.kind = vss::event_kind::line_break;
+    done.name = QStringLiteral("p1");
+    done.phase = vss::break_phase::complete;
+    done.duration = 88us;
+    done.measured = true;
+    gui_event unmeasured = done;
+    unmeasured.measured = false;
+    gui_event running = done;
+    running.phase = vss::break_phase::begin;
+    running.duration = 0ns;
+    log.append({done, unmeasured, running});
+    REQUIRE_EQ(log.row_count(), 3);
+
+    auto* table = log.findChild<QTableWidget*>();
+    REQUIRE(table != nullptr);
+    REQUIRE_EQ(table->item(0, 2)->text(), QStringLiteral("Break"));
+    REQUIRE(table->item(0, 3)->text().contains(QStringLiteral("88")));
+    REQUIRE(table->item(1, 3)->text().startsWith(QStringLiteral("at least")));
+    REQUIRE_EQ(table->item(2, 3)->text(), QStringLiteral("running"));
+}
+
 TEST_CASE("link settings: a bus shows the half-duplex line and returns it")
 {
     using namespace vss::gui;

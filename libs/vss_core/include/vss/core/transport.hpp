@@ -8,6 +8,8 @@
 #define VSS_CORE_TRANSPORT_HPP
 
 #include <vss/core/control_lines.hpp>
+#include <vss/core/error.hpp>
+#include <vss/core/line_break.hpp>
 #include <vss/core/serial_settings.hpp>
 
 #include <boost/asio/any_io_executor.hpp>
@@ -105,6 +107,40 @@ public:
     // The overrides take the sink by value and keep it, so the base does too.
     // NOLINTNEXTLINE(performance-unnecessary-value-param)
     virtual void set_notice_sink(notice_sink) {}
+
+    /// Where a transport reports a break it received from its device or its
+    /// program, with the time the break began and how long it lasted.
+    using break_sink = std::function<void(const line_break&)>;
+
+    /// Gives the transport the function to report breaks to.  The sink only
+    /// posts to the endpoint's strand, and the transport keeps the order of
+    /// the stream with it: it calls the sink in the same task, and straight
+    /// after, the read completion that carried the bytes before the break,
+    /// and the break is never reported before that completion nor after the
+    /// one that carries the bytes behind it.  With no bytes to ride, it
+    /// completes the read it holds with zero bytes (the endpoint takes that
+    /// for a change of lines and reads on) and calls the sink after it.  A
+    /// transport that cannot see a break ignores the sink.
+    // The overrides take the sink by value and keep it, so the base does too.
+    // NOLINTNEXTLINE(performance-unnecessary-value-param)
+    virtual void set_break_sink(break_sink) {}
+
+    /// True when the transport can show a break to the program or device on
+    /// its far side.  False means a break written to it is not delivered:
+    /// the endpoint says so once in the log and counts it as dropped.  A
+    /// transport that can raise a break overrides this and
+    /// #async_write_break together.
+    virtual bool can_deliver_break() const noexcept { return false; }
+
+    /// Shows `item` to the far side, in order with the bytes written before
+    /// and after it.  Called only when #can_deliver_break is true, one at a
+    /// time and in step with #async_write_some.  `handler` is called once
+    /// with the result and zero bytes.  A `begin` raises the break, an `end`
+    /// ends it, and a `complete` is both, lasting `item.duration`.
+    virtual void async_write_break(const line_break& /*item*/, io_handler handler)
+    {
+        handler(make_error_code(errc::unsupported), 0);
+    }
 };
 
 } // namespace vss

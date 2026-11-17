@@ -155,6 +155,13 @@ public:
 
     bool is_open() const override { return open_.load(); }
 
+    /// A break cannot be shown to the program on the slave.  Checked on
+    /// Linux (kernel 6.6): `tcsendbreak` and `TIOCSBRK` on the master
+    /// succeed and the slave reads nothing, with BRKINT and PARMRK set.  The
+    /// master has no other way to raise one, so a break is not delivered and
+    /// the endpoint says so once.  Not checked on macOS, where it stays false.
+    bool can_deliver_break() const noexcept override { return false; }
+
     void async_read_some(boost::asio::mutable_buffer buffer,
                          io_handler handler) override
     {

@@ -51,6 +51,11 @@ struct traffic_row
     /// A dropped row of a bus: a bus has no owner, so its bytes were not
     /// carried (RTS low, or too far ahead of the line rate).
     bool bus = false;
+    /// A break: a row of its own between the data rows, with no bytes.
+    bool is_break = false;
+    vss::break_phase phase = vss::break_phase::complete;
+    std::chrono::nanoseconds length{0};
+    bool measured = false;
 
     /// The bytes the table shows: the first 256.  Valid while the row is.
     QByteArrayView preview() const noexcept;

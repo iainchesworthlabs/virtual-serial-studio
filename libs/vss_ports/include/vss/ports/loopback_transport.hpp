@@ -11,9 +11,11 @@
 #include <vss/core/transport.hpp>
 
 #include <atomic>
+#include <cstdint>
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <vector>
 
 namespace vss {
 
@@ -47,6 +49,11 @@ public:
     void close() override;
     void cancel() override;
 
+    /// A cable plugged into itself has nothing on the other end to show a
+    /// break to, so one written to it is taken and not returned.
+    bool can_deliver_break() const noexcept override { return true; }
+    void async_write_break(const line_break& item, io_handler handler) override;
+
     bool supports_control_lines() const noexcept override { return true; }
     /// The lines of a loopback port are set through its endpoint, so the hub
     /// knows of a change before any byte that follows it.
@@ -56,11 +63,24 @@ public:
 
     /// Injects bytes as if the far end had sent them.
     void inject(bytes_view data);
+    /// Injects a break as if the far end had made it.  It is reported to the
+    /// break sink after the bytes injected before it have been read, and
+    /// before the bytes injected after it.
+    void inject_break(const line_break& item);
+    void set_break_sink(break_sink sink) override;
     /// Number of bytes currently waiting for a reader.
     std::size_t available() const;
 
 private:
     void finish_pending_read();
+    /// Takes the breaks that now have no bytes ahead of them.  The caller
+    /// holds `mutex_`.
+    std::vector<line_break> take_due_breaks_locked();
+    /// Completes `handler` as `complete_on` does, and in the same task
+    /// reports `items` to the break sink after it, so a break keeps its
+    /// place against the bytes of the completion.
+    void complete_with(io_handler handler, boost::system::error_code ec,
+                       std::size_t count, std::vector<line_break> items);
     /// Removes and returns the parked read. The caller holds `mutex_`.
     io_handler take_pending_read();
 
@@ -68,6 +88,17 @@ private:
     std::string name_;
     mutable std::mutex mutex_;
     std::deque<byte> buffer_;
+    /// A break waits for the bytes that were injected before it: `at` is the
+    /// count of bytes ever injected when it was.
+    struct pending_break
+    {
+        std::uint64_t at = 0;
+        line_break item;
+    };
+    std::deque<pending_break> breaks_;
+    std::uint64_t injected_ = 0;
+    std::uint64_t consumed_ = 0;
+    break_sink break_sink_;
     io_handler pending_read_;
     boost::asio::mutable_buffer read_buffer_{};
     control_lines lines_;

@@ -24,6 +24,7 @@
 #include <QVector>
 #include <QtGlobal>
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -369,6 +370,11 @@ struct gui_event
     /// The error as category and number, such as "system:10061", or empty.
     QString error_code;
     vss::time_point when{};
+    /// For a `line_break`: which part, how long (zero for a begin) and
+    /// whether the length was measured.
+    vss::break_phase phase = vss::break_phase::complete;
+    std::chrono::nanoseconds duration{0};
+    bool measured = false;
 };
 
 using event_batch = QVector<gui_event>;
@@ -397,6 +403,11 @@ struct network_attach_view
 
 /// One-line rendering of an engine error, used by dialogs and the status bar.
 QString error_text(const vss::error_code& error);
+
+/// What a break row says in its Detail: the length ("88 µs"), "at least"
+/// the length for one that was not measured, and "running" for a begin.
+QString break_detail(vss::break_phase phase, std::chrono::nanoseconds duration,
+                     bool measured);
 
 } // namespace vss::gui
 

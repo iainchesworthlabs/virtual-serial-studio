@@ -20,6 +20,7 @@
 #include <vss/core/error.hpp>
 #include <vss/core/event.hpp>
 #include <vss/core/hub.hpp>
+#include <vss/core/line_break.hpp>
 #include <vss/core/link.hpp>
 #include <vss/core/serial_settings.hpp>
 #include <vss/core/stats.hpp>

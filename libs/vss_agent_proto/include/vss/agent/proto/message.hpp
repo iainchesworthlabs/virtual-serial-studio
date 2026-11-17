@@ -169,6 +169,10 @@ struct port_summary
     bool open = false;
     std::uint64_t bytes_rx = 0;
     std::uint64_t bytes_tx = 0;
+    /// Breaks received and sent.  An agent that does not know breaks sends
+    /// neither, and they read as zero.
+    std::uint64_t breaks_rx = 0;
+    std::uint64_t breaks_tx = 0;
 
     friend bool operator==(const port_summary&, const port_summary&) = default;
 };
@@ -180,6 +184,8 @@ struct link_summary
     std::vector<endpoint_id> sources;
     std::vector<endpoint_id> targets;
     std::uint64_t bytes = 0;
+    /// Breaks carried; zero when the agent does not send it.
+    std::uint64_t breaks = 0;
 
     friend bool operator==(const link_summary&, const link_summary&) = default;
 };
@@ -272,6 +278,12 @@ struct event_record
     /// When the engine made the event: nanoseconds on the steady clock of
     /// this computer, the clock that stamps all traffic.  0 when not known.
     std::uint64_t when_ns = 0;
+    /// For a `line_break` event: which part of the break it is, when it began
+    /// (as `when_ns`), how long it lasted and whether that was measured.
+    break_phase phase = break_phase::complete;
+    std::uint64_t start_ns = 0;
+    std::uint64_t duration_ns = 0;
+    bool measured = false;
 
     friend bool operator==(const event_record&, const event_record&) = default;
 };
