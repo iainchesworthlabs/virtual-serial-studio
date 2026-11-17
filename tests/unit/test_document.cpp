@@ -1124,7 +1124,7 @@ TEST_CASE("document: a half-duplex bus in a hand written file")
 
     const auto full =
         parse(R"({"mode":"bus","members":["a","b"],"half_duplex":)"
-              R"({"bit_rate":4000000,"turnaround_ms":60000,)"
+              R"({"bit_rate":12000000,"turnaround_ms":60000,)"
               R"("collisions":"report","rts_gating":false}})");
     REQUIRE(full);
     REQUIRE_EQ(full->links[0].half_duplex.bit_rate, max_bus_bit_rate);
@@ -1140,7 +1140,7 @@ TEST_CASE("document: a half-duplex bus in a hand written file")
     expect_invalid("true");
     expect_invalid("[]");
     expect_invalid(R"({"bit_rate":49})");
-    expect_invalid(R"({"bit_rate":4000001})");
+    expect_invalid(R"({"bit_rate":12000001})");
     expect_invalid(R"({"bit_rate":-9600})");
     expect_invalid(R"({"bit_rate":"fast"})");
     expect_invalid(R"({"bit_rate":9600.5})");

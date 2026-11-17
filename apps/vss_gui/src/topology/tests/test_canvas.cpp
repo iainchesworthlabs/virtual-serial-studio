@@ -534,6 +534,13 @@ TEST_CASE("canvas: port Settings change a fixture and say what they do")
     slow.parity = vss::parity_mode::even;
     dialog.set_settings(slow);
     REQUIRE(dialog.summary_text().startsWith(QStringLiteral("9600 7E1")));
+
+    // The top of the range is accepted, as a typed rate.
+    vss::serial_settings top;
+    top.baud_rate = 12'000'000;
+    dialog.set_settings(top);
+    REQUIRE(dialog.summary_text().startsWith(QStringLiteral("12000000 8N1")));
+    dialog.set_settings(slow);
     dialog.show();
     dialog.apply();
     QElapsedTimer timer;

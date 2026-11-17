@@ -46,6 +46,7 @@ nav:
       - 9-bit serial and multi-drop addressing (design): nine-bit-serial.md
       - POSIX virtual ports: posix-virtual-ports.md
       - Windows COM port driver: windows-com-driver.md
+      - Baud rate, framing and break audit: engine-serial-audit.md
       - Platforms: platforms.md
       - Virtual machine testing: vm-testing.md
       - Workstreams: workstreams.md
