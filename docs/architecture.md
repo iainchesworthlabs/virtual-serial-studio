@@ -291,7 +291,7 @@ The rules for each kind of link:
 | Link | Rule |
 |---|---|
 | `connect`, `split`, `join`, `redirect` | Every option may change. |
-| `monitor` | Every option may change. A `monitor` is a one-way link with `emulate_modem_lines` false, and the saved topology tells it from a `redirect` by that flag, so turning the lines on saves it as a `redirect` and off again as a `monitor`. The file takes a delay and a policy on every link, so no combination is refused for being unsaveable, and the options read back from the saved file are the ones set. The wiring is the one option the file does not store. |
+| `monitor` | Every option may change. A `monitor` is a one-way link with `emulate_modem_lines` false, and the saved topology tells it from a `redirect` by that flag, so turning the lines on saves it as a `redirect` and off again as a `monitor`. The file takes a delay and a policy on every link, so no combination is refused for being unsaveable, and the options read back from the saved file are the ones set. The wiring is the one option the file does not store. `direction` (`both`, `transmit` or `receive`) says which bytes of the monitored port the monitor copies: what its program writes, what links write into it, or both. It may change while the monitor carries traffic. Any value but `both` is `unsupported` on a link that is not a monitor, and so on a monitor whose lines are turned on. |
 | `bus` | Delay, jitter and the half-duplex line may change. `emulate_modem_lines` is stored as false whatever is passed, as on creation. Any policy but `interleave` is `unsupported`. The wiring is ignored and the bus keeps the wiring it has: it has no lines, so it means nothing, and only `set_link_wiring`, which is asked for nothing else, refuses it with `unsupported`. |
 
 The refusals, and nothing is changed by any of them: `invalid_argument` for a
@@ -469,6 +469,11 @@ other members of the bus, and the server's bytes reach the client and the bus.
   target but never against it. An owner link still forwards only for its owner,
   and a half-duplex bus still judges the chunk as sent by the member it came
   through.
+* **A monitor can pick a direction.** A monitor's `direction` is `both` (the
+  default), `transmit` (only what the port's program writes) or `receive` (only
+  what links write into the port). In the saved file it is `"direction"` on a
+  link with `"mode": "monitor"`, left out when it is `both`, so older files mean
+  `both`.
 * **Each hop is counted once.** Every link the chunk crosses counts its bytes
   and messages, a monitor on a port copies what that port reads and what is
   written into it, and the endpoints count their own bytes. A write that an

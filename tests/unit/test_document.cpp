@@ -1641,3 +1641,82 @@ TEST_CASE("document: long numbers in plugin params write the same text twice")
     REQUIRE(rewritten);
     REQUIRE_EQ(*rewritten, *written);
 }
+
+TEST_CASE("document: a monitor's direction round trips and stays out when both")
+{
+    const auto base =
+        std::string(R"({"version":1,"ports":[{"name":"a","kind":"virtual"},)"
+                    R"({"name":"b","kind":"virtual"}],"links":[)");
+    const auto monitor = [&](const std::string& extra)
+    {
+        return from_json(base +
+                         R"({"mode":"monitor","sources":["a"],)"
+                         R"("targets":["b"],"emulate_modem_lines":false)" +
+                         extra + "}]}");
+    };
+
+    // A file without the field means both, as every older file does.
+    const auto absent = monitor("");
+    REQUIRE(absent);
+    REQUIRE(absent->links[0].direction == monitor_direction::both);
+    const auto plain = to_json(*absent);
+    REQUIRE(plain);
+    REQUIRE(plain->find("direction") == std::string::npos);
+
+    const auto both = monitor(R"(,"direction":"both")");
+    REQUIRE(both);
+    REQUIRE(both->links[0].direction == monitor_direction::both);
+
+    for (const auto& [text, value] :
+         {std::pair{std::string("transmit"), monitor_direction::transmit},
+          std::pair{std::string("receive"), monitor_direction::receive}})
+    {
+        const auto parsed = monitor(R"(,"direction":")" + text + R"(")");
+        REQUIRE(parsed);
+        REQUIRE(parsed->links[0].direction == value);
+        const auto written = to_json(*parsed, false);
+        REQUIRE(written);
+        REQUIRE(written->find(R"("direction":")" + text + R"(")") !=
+                std::string::npos);
+        // The version is still 1.
+        REQUIRE(written->find("\"version\":1") != std::string::npos);
+        const auto again = from_json(*written);
+        REQUIRE(again);
+        REQUIRE(*again == *parsed);
+    }
+}
+
+TEST_CASE("document: a direction that is not a monitor's is refused")
+{
+    const auto base =
+        std::string(R"({"version":1,"ports":[{"name":"a","kind":"virtual"},)"
+                    R"({"name":"b","kind":"virtual"}],"links":[)");
+    std::string problem;
+
+    // An unknown value says what the values are.
+    const auto unknown = from_json(
+        base + R"({"mode":"monitor","sources":["a"],"targets":["b"],)"
+               R"("emulate_modem_lines":false,"direction":"sideways"}]})",
+        problem);
+    REQUIRE(!unknown);
+    REQUIRE(problem.find("direction") != std::string::npos);
+    REQUIRE(problem.find("transmit") != std::string::npos);
+
+    // A value of the wrong type is refused too.
+    REQUIRE(!from_json(
+        base + R"({"mode":"monitor","sources":["a"],"targets":["b"],)"
+               R"("emulate_modem_lines":false,"direction":3}]})"));
+
+    // Only a monitor takes a direction but both.
+    for (const char* mode : {"duplex", "redirect"})
+    {
+        const auto other = from_json(
+            base + std::string(R"({"mode":")") + mode +
+            R"(","sources":["a"],"targets":["b"],"direction":"transmit"}]})");
+        REQUIRE(!other);
+        const auto harmless = from_json(
+            base + std::string(R"({"mode":")") + mode +
+            R"(","sources":["a"],"targets":["b"],"direction":"both"}]})");
+        REQUIRE(harmless);
+    }
+}

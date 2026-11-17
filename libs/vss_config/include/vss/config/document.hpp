@@ -125,6 +125,11 @@ struct link_entry
     /// on.  Left out of the file when the option is off, so a bus without
     /// it is written as before.
     half_duplex_options half_duplex;
+    /// For `monitor` only: which bytes of the monitored port it copies.  In
+    /// the file it is the text `direction`, `both`, `transmit` or `receive`,
+    /// left out when it is `both`, so a file without it, which every file
+    /// from before it was added is, means `both`.
+    monitor_direction direction = monitor_direction::both;
     /// What plugins provide on this link, at most `max_plugin_bindings`.
     /// The order of the list is the order `modifier` bindings are applied
     /// in.  In the file it is the list `plugins`, left out when empty.
