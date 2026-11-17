@@ -36,7 +36,7 @@ using namespace std::chrono_literals;
 /// it are read in the order they were injected.
 struct source_port
 {
-    std::shared_ptr<endpoint> endpoint;
+    std::shared_ptr<vss::endpoint> endpoint;
     std::shared_ptr<loopback_transport> transport;
 
     void bytes(const std::string& text) const

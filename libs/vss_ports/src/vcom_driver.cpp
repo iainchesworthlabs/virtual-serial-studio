@@ -63,10 +63,10 @@ result<std::uint32_t> revoke_driver_port(transport& port)
 }
 
 result<void> raise_driver_line_error(transport& port, driver_line_error error,
-                                     std::optional<std::uint8_t> byte)
+                                     std::optional<std::uint8_t> replacement)
 {
     VSS_PROFILE_ZONE("ports.vcom.line_error");
-    return detail::platform_raise_driver_line_error(port, error, byte);
+    return detail::platform_raise_driver_line_error(port, error, replacement);
 }
 
 std::optional<driver_peer_info> driver_peer(const std::string& com_name)

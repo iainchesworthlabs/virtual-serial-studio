@@ -69,7 +69,7 @@ void bus_wire::push(endpoint_id sender, time_point due,
         if (closed_)
             return;
         const auto placed = queue_.emplace(
-            due, entry{sender, std::move(owned), std::move(transmission),
+            due, slot{sender, std::move(owned), std::move(transmission),
                        std::move(receivers), std::move(visited)});
         first = placed == queue_.begin();
         VSS_PROFILE_PLOT("link.wire_queue", queue_.size());
@@ -94,8 +94,8 @@ void bus_wire::forget(endpoint_id member)
     for (auto it = queue_.begin(); it != queue_.end();)
     {
         auto& receivers = it->second.receivers;
-        std::erase_if(receivers, [member](const delivery& entry)
-                      { return entry.target->id() == member; });
+        std::erase_if(receivers, [member](const delivery& hearer)
+                      { return hearer.target->id() == member; });
         if (it->second.sender == member || receivers.empty())
             it = queue_.erase(it);
         else
@@ -147,14 +147,14 @@ void bus_wire::fire()
     // Only this strand and close() take it, so it is free unless the hub is
     // replacing the wire.
     std::lock_guard delivering(deliver_mutex_);
-    std::vector<entry> ready = take_due();
+    std::vector<slot> ready = take_due();
     deliver(ready);
     arm();
 }
 
-std::vector<bus_wire::entry> bus_wire::take_due()
+std::vector<bus_wire::slot> bus_wire::take_due()
 {
-    std::vector<entry> ready;
+    std::vector<slot> ready;
     std::lock_guard lock(mutex_);
     const time_point current = now();
     while (!queue_.empty() && queue_.begin()->first <= current)
@@ -165,7 +165,7 @@ std::vector<bus_wire::entry> bus_wire::take_due()
     return ready;
 }
 
-void bus_wire::deliver(std::vector<entry>& ready)
+void bus_wire::deliver(std::vector<slot>& ready)
 {
     for (auto& chunk : ready)
     {
