@@ -6159,6 +6159,21 @@ Networks: %5</source>
             <translation>%1 איז אָפּגעקאָפּירט.</translation>
         </message>
         <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Ports are not sorted.</source>
+            <translation>די פּאָרטן זענען נישט סארטירט.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Sorted by %1, first to last.</source>
+            <translation>סארטירט לויט %1, פון ערשטן צום לעצטן.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Sorted by %1, last to first.</source>
+            <translation>סארטירט לויט %1, פון לעצטן צום ערשטן.</translation>
+        </message>
+        <message>
             <location filename="../src/panes/ports_panel.cpp" line="136" />
             <source>Ports table columns</source>
             <translation>שפּאַלטן פֿון דער פּאָרט־טאַבעלע</translation>

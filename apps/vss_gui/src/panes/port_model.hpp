@@ -59,7 +59,7 @@ public:
     /// The columns. The first five are the default view; the rest are offered
     /// by the header menu. The numbers are fixed, because saved settings name
     /// columns by them.
-    enum column
+    enum table_column
     {
         port_column,
         state_column,
@@ -83,6 +83,12 @@ public:
     void set_snapshot(std::vector<port_view> ports,
                       std::vector<link_view> links);
     void set_filter(const QString& filter);
+    /// Orders the rows by a column, or in the engine's order with -1. Ties
+    /// keep the engine's order, and a value the engine does not know (a dash)
+    /// always comes last, whichever way the column is sorted.
+    void set_sort(int column, Qt::SortOrder order);
+    int sort_column() const noexcept { return sort_column_; }
+    Qt::SortOrder sort_order() const noexcept { return sort_order_; }
     QString filter() const { return filter_; }
 
     int rowCount(const QModelIndex& parent = {}) const override;
@@ -99,6 +105,11 @@ public:
 
     static QString state_text(const port_view& port);
     static port_state_kind state_kind(const port_view& port);
+    /// Where a port's state sorts, first to last: failed, waiting, open,
+    /// connected, Studio only, fixture, closed, and a port stopped on purpose
+    /// last. There is no paused state for a port: the engine has none, and
+    /// the Monitor's Pause is not a port's.
+    static int state_rank(const port_view& port);
     static QString role_text(const port_view& port,
                              const std::vector<port_view>& ports,
                              const std::vector<link_view>& links);
@@ -120,8 +131,17 @@ public:
     static bool has_format_warning(const port_view& port);
 
 private:
-    void rebuild_visible();
-    bool matches(const port_view& port) const;
+    /// The rows to show for these ports, in the order to show them.
+    QVector<int> compute_visible(const std::vector<port_view>& ports,
+                                 const std::vector<link_view>& links) const;
+    bool matches(const port_view& port, const std::vector<port_view>& ports,
+                 const std::vector<link_view>& links) const;
+    QVariant sort_key(const port_view& port, int column) const;
+    bool sorts_before(const port_view& left, const port_view& right) const;
+    QVector<qulonglong> visible_ids() const;
+    /// Puts `next` in place of the shown rows when they are the same rows in
+    /// another order, so selection and the current cell follow their rows.
+    void reorder_visible(QVector<int> next);
 
     /// What each visible row showed when it was last published, one string
     /// per column and a last one for what only the row delegate reads, so an
@@ -133,6 +153,8 @@ private:
     std::vector<link_view> links_;
     QVector<int> visible_;
     QString filter_;
+    int sort_column_ = -1;
+    Qt::SortOrder sort_order_ = Qt::AscendingOrder;
 };
 
 } // namespace vss::gui
