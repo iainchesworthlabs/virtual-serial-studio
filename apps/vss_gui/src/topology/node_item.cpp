@@ -5,6 +5,7 @@
 //
 
 #include "topology/node_item.hpp"
+#include "backend/connection_text.hpp"
 
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
@@ -40,6 +41,12 @@ QStringList badge_texts(const node_data& data)
         badges.append(topology_text::dropped_badge());
     if (!data.plugin_badge.isEmpty())
         badges.append(data.plugin_badge);
+    if (data.connection == node_data::connect::failed)
+        badges.append(connection_text::state(connect_phase::failed));
+    if (data.connection == node_data::connect::open)
+        badges.append(connection_text::state(connect_phase::connected));
+    if (data.stopped)
+        badges.append(connection_text::state(connect_phase::stopped));
     return badges;
 }
 
@@ -145,6 +152,15 @@ void NodeItem::set_in_loop(bool value)
     if (in_loop_ == value)
         return;
     in_loop_ = value;
+    redraw();
+}
+
+void NodeItem::set_spin(int degrees)
+{
+    degrees %= 360;
+    if (!spins() || spin_ == degrees)
+        return;
+    spin_ = degrees;
     redraw();
 }
 
@@ -307,12 +323,50 @@ void NodeItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
             soft = colour_role::okSoft;
             ink = colour_role::ok;
         }
+        const bool failed = data_.connection == node_data::connect::failed;
+        const bool busy = data_.connection == node_data::connect::busy;
+        if (failed)
+        {
+            soft = colour_role::badSoft;
+            ink = colour_role::bad;
+        }
+        else if (data_.connection == node_data::connect::open)
+        {
+            soft = colour_role::okSoft;
+            ink = colour_role::ok;
+        }
+        if (data_.stopped)
+        {
+            soft = colour_role::fill;
+            ink = colour_role::ink3;
+        }
         painter->setPen(Qt::NoPen);
         painter->setBrush(theme.colour(soft));
         const qreal tile_radius = theme.radius(QStringLiteral("tile"));
         painter->drawRoundedRect(tile, tile_radius, tile_radius);
-        const QIcon icon = IconProvider::instance().icon(data_.icon, ink, 18);
-        icon.paint(painter, tile.adjusted(7.0, 7.0, -7.0, -7.0).toRect());
+        // A failed client shows the warning icon.  One that is connecting
+        // turns its icon; with reduced motion it shows a still arrow in a
+        // circle instead, so the state reads without movement.
+        const bool still = busy && theme.reduced_motion();
+        const QString icon_name = data_.stopped ? QStringLiteral("pause")
+                                  : failed      ? QStringLiteral("warning")
+                                  : still       ? QStringLiteral("refresh")
+                                                : data_.icon;
+        const QIcon icon = IconProvider::instance().icon(icon_name, ink, 18);
+        const QRect icon_rect = tile.adjusted(7.0, 7.0, -7.0, -7.0).toRect();
+        if (busy && !still)
+        {
+            painter->save();
+            painter->translate(tile.center());
+            painter->rotate(spin_);
+            painter->translate(-tile.center());
+            icon.paint(painter, icon_rect);
+            painter->restore();
+        }
+        else
+        {
+            icon.paint(painter, icon_rect);
+        }
         left_x += kTileSpace;
     }
     // Fonts and metrics for the three kinds of text: name, detail line and
@@ -358,23 +412,34 @@ void NodeItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
         if (x + chip_width > body.width() - padding_x)
             break;
         const bool owner = badge == topology_text::owner_badge();
+        const bool failed_chip =
+            data_.connection == node_data::connect::failed &&
+            badge == connection_text::state(connect_phase::failed);
+        const bool open_chip =
+            data_.connection == node_data::connect::open &&
+            badge == connection_text::state(connect_phase::connected);
         // A plugin that is not available is a plain fact: neutral, with a
         // word, never a colour alone.
         const bool plugin =
-            !data_.plugin_badge.isEmpty() && badge == data_.plugin_badge;
+            (!data_.plugin_badge.isEmpty() && badge == data_.plugin_badge) ||
+            (data_.stopped &&
+             badge == connection_text::state(connect_phase::stopped));
         draw_chip(painter,
                   QRectF(x, content_top + (name_height - chip_height) / 2.0,
                          chip_width, chip_height),
                   badge,
-                  theme.colour(plugin  ? colour_role::fill
-                               : owner ? colour_role::okSoft
-                                       : colour_role::amberSoft),
-                  theme.colour(plugin  ? colour_role::line
-                               : owner ? colour_role::okLine
-                                       : colour_role::amberLine),
-                  theme.colour(plugin  ? colour_role::ink3
-                               : owner ? colour_role::ok
-                                       : colour_role::amber),
+                  theme.colour(plugin        ? colour_role::fill
+                               : failed_chip ? colour_role::badSoft
+                               : (owner || open_chip) ? colour_role::okSoft
+                                             : colour_role::amberSoft),
+                  theme.colour(plugin        ? colour_role::line
+                               : failed_chip ? colour_role::badLine
+                               : (owner || open_chip) ? colour_role::okLine
+                                             : colour_role::amberLine),
+                  theme.colour(plugin        ? colour_role::ink3
+                               : failed_chip ? colour_role::noteDangerText
+                               : (owner || open_chip) ? colour_role::noteOkText
+                                             : colour_role::amber),
                   badge_font);
         x += chip_width + 4.0;
     }

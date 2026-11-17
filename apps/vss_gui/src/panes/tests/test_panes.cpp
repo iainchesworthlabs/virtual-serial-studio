@@ -19,6 +19,7 @@
 #include "panes/selection_service.hpp"
 #include "panes/send_panel.hpp"
 #include "theme/theme.hpp"
+#include "widgets/chips.hpp"
 #include "widgets/notes.hpp"
 #include "widgets/port_menu.hpp"
 #include "theme/theme.hpp"
@@ -30,6 +31,7 @@
 #include <QClipboard>
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFontDatabase>
@@ -42,6 +44,7 @@
 #include <QLineEdit>
 #include <QListView>
 #include <QMenu>
+#include <QPainter>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
@@ -182,6 +185,37 @@ TEST_CASE("ports: the other side's format, clients and a speed mismatch")
     listener.clients = 3;
     REQUIRE_EQ(PortModel::status_text(listener),
                QStringLiteral("Clients connected: 3"));
+
+    // A network client says where it connects and how that stands, and its
+    // state is the connection's, not the engine's.
+    auto client = make_port(5, QStringLiteral("client"), QString(),
+                            vss::endpoint_kind::tcp);
+    vss::gui::connection_view connection;
+    connection.target = QStringLiteral("tcp://10.0.0.9:4001");
+    client.connection = connection;
+    REQUIRE_EQ(PortModel::state_text(client), QStringLiteral("Connecting"));
+    REQUIRE_EQ(PortModel::status_text(client),
+               QStringLiteral("Connecting to tcp://10.0.0.9:4001"));
+    client.connection->phase = vss::gui::connect_phase::connected;
+    REQUIRE_EQ(PortModel::state_text(client), QStringLiteral("Connected"));
+    REQUIRE(PortModel::state_kind(client) ==
+            vss::gui::port_state_kind::connected);
+    client.connection->phase = vss::gui::connect_phase::failed;
+    client.connection->reason = QStringLiteral("Connection refused");
+    REQUIRE_EQ(PortModel::state_text(client), QStringLiteral("Failed"));
+    REQUIRE(PortModel::state_kind(client) ==
+            vss::gui::port_state_kind::failed);
+    REQUIRE_EQ(PortModel::status_text(client),
+               QStringLiteral("Could not connect to tcp://10.0.0.9:4001: "
+                              "Connection refused"));
+    client.connection->phase = vss::gui::connect_phase::retrying;
+    REQUIRE_EQ(PortModel::state_text(client), QStringLiteral("Retrying"));
+    REQUIRE_EQ(PortModel::status_text(client),
+               QStringLiteral("Could not connect to tcp://10.0.0.9:4001: "
+                              "Connection refused. Trying again"));
+    client.connection->reason.clear();
+    REQUIRE_EQ(PortModel::status_text(client),
+               QStringLiteral("Trying to connect to tcp://10.0.0.9:4001"));
 
     // A mismatch is a warning that names the others, after the rest.
     program.format_conflicts = {QStringLiteral("device"),
@@ -1009,6 +1043,210 @@ QPushButton* find_text_button(QWidget& parent, const QString& text)
 }
 
 } // namespace
+
+TEST_CASE("inspector: a network client shows its connection")
+{
+    vss::gui::FakeStudioBackend backend;
+    const auto id = backend.create_virtual_port(
+        QStringLiteral("client"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(id.has_value());
+    vss::gui::connection_view connection;
+    connection.target = QStringLiteral("tcp://10.0.0.9:9001");
+    connection.phase = vss::gui::connect_phase::failed;
+    connection.reason = QStringLiteral("Connection refused");
+    backend.set_connection(*id, connection);
+    vss::gui::InspectorPanel panel(backend);
+    panel.set_selected_port(*id);
+    QApplication::processEvents();
+
+    const auto value_of = [&panel](const QString& name)
+    {
+        for (QLabel* label : panel.findChildren<QLabel*>())
+        {
+            if (label->accessibleName() == name &&
+                label->objectName() ==
+                    QStringLiteral("inspectorConnectionValue"))
+                return label->text();
+        }
+        return QStringLiteral("<missing>");
+    };
+    REQUIRE_EQ(value_of(QStringLiteral("Remote")),
+               QStringLiteral("10.0.0.9, port 9001"));
+    REQUIRE_EQ(value_of(QStringLiteral("Local")),
+               QStringLiteral("Not reported"));
+    REQUIRE_EQ(value_of(QStringLiteral("Connected at")),
+               QStringLiteral("Not connected"));
+    REQUIRE_EQ(value_of(QStringLiteral("Last error")),
+               QStringLiteral("Connection refused"));
+    REQUIRE_EQ(value_of(QStringLiteral("Reconnects")), QStringLiteral("0"));
+
+    connection.phase = vss::gui::connect_phase::connected;
+    connection.connected_at = QDateTime::currentDateTime();
+    connection.reconnects = 2;
+    backend.set_connection(*id, connection);
+    QApplication::processEvents();
+    REQUIRE(value_of(QStringLiteral("Connected at")) !=
+            QStringLiteral("Not connected"));
+    REQUIRE(value_of(QStringLiteral("Received")).contains(QStringLiteral("0 B")));
+    REQUIRE_EQ(value_of(QStringLiteral("Reconnects")), QStringLiteral("2"));
+    // The last error stays after the connection is back.
+    REQUIRE_EQ(value_of(QStringLiteral("Last error")),
+               QStringLiteral("Connection refused"));
+
+    // The details are there in every state, never an empty panel.
+    for (const auto phase : {vss::gui::connect_phase::connecting,
+                             vss::gui::connect_phase::failed,
+                             vss::gui::connect_phase::retrying,
+                             vss::gui::connect_phase::connected})
+    {
+        connection.phase = phase;
+        backend.set_connection(*id, connection);
+        QApplication::processEvents();
+        REQUIRE_EQ(value_of(QStringLiteral("Remote")),
+                   QStringLiteral("10.0.0.9, port 9001"));
+        for (QLabel* label : panel.findChildren<QLabel*>())
+        {
+            if (label->objectName() == QStringLiteral("inspectorConnectionValue"))
+                REQUIRE(!label->isHidden());
+        }
+    }
+
+    // A flapping connection: the code, the next try and the short history.
+    connection.phase = vss::gui::connect_phase::retrying;
+    connection.connected_at = {};
+    connection.error_code = QStringLiteral("system:10061");
+    connection.next_try_at = QDateTime::currentDateTime().addSecs(4);
+    connection.history = {
+        {QDateTime::currentDateTime(), QStringLiteral("Connected")},
+        {QDateTime::currentDateTime(), QStringLiteral("Connection lost")}};
+    backend.set_connection(*id, connection);
+    QApplication::processEvents();
+    REQUIRE_EQ(value_of(QStringLiteral("Last error")),
+               QStringLiteral("Connection refused (system:10061)"));
+    REQUIRE(value_of(QStringLiteral("Next try")) !=
+            QStringLiteral("None planned"));
+    const QString history = value_of(QStringLiteral("Recent events"));
+    REQUIRE(history.contains(QStringLiteral("Connected")));
+    REQUIRE(history.contains(QStringLiteral("Connection lost")));
+    REQUIRE_EQ(history.count(QLatin1Char('\n')), 1);
+}
+
+TEST_CASE("chips: the Inspector's state chip is the Ports table's chip")
+{
+    using vss::gui::StatusChip;
+    const QStringList texts = {QStringLiteral("Open"),
+                               QStringLiteral("Failed"),
+                               QStringLiteral("Stopped"),
+                               QStringLiteral("Waiting for program")};
+    const StatusChip::kind kinds[] = {
+        StatusChip::kind::open,   StatusChip::kind::waiting,
+        StatusChip::kind::closed, StatusChip::kind::failed,
+        StatusChip::kind::fixture};
+    for (const auto mode :
+         {vss::gui::theme_mode::light, vss::gui::theme_mode::dark})
+    {
+        vss::gui::Theme::instance().set_mode(mode);
+        for (const QString& text : texts)
+        {
+            for (const auto kind : kinds)
+            {
+                StatusChip chip(text, kind);
+                chip.set_small(true);
+                // Same width as the table gives it, and its height.
+                REQUIRE_EQ(chip.sizeHint().width(),
+                           vss::gui::PortDelegate::state_chip_width(text));
+                REQUIRE_EQ(chip.sizeHint().height(),
+                           StatusChip::chip_height(true));
+                // The widget draws exactly what the shared code draws.
+                chip.resize(chip.sizeHint());
+                QImage widget_image(chip.size(),
+                                    QImage::Format_ARGB32_Premultiplied);
+                widget_image.fill(Qt::transparent);
+                chip.render(&widget_image);
+                QImage shared_image(chip.size(),
+                                    QImage::Format_ARGB32_Premultiplied);
+                // The widget's own background shows outside the rounded
+                // corner; the shared drawing goes over the same one.
+                shared_image.fill(widget_image.pixelColor(0, 0));
+                {
+                    QPainter painter(&shared_image);
+                    StatusChip::paint(&painter, QRect(QPoint(0, 0), chip.size()),
+                                      text, kind);
+                }
+                REQUIRE(widget_image == shared_image);
+            }
+        }
+    }
+    vss::gui::Theme::instance().set_mode(vss::gui::theme_mode::light);
+
+    // The Inspector's chip is the small one, the table's height.
+    vss::gui::FakeStudioBackend backend;
+    const auto id = backend.create_virtual_port(
+        QStringLiteral("chip-test"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(id.has_value());
+    vss::gui::InspectorPanel panel(backend);
+    panel.set_selected_port(*id);
+    QApplication::processEvents();
+    const auto* chip = dynamic_cast<StatusChip*>(
+        panel.findChild<QWidget*>(QStringLiteral("inspectorStateChip")));
+    REQUIRE(chip != nullptr);
+    REQUIRE(chip->is_small());
+}
+
+TEST_CASE("inspector: Stop and Start for a port made from an address")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::capabilities caps = backend.caps();
+    caps.port_stop = true;
+    backend.set_capabilities(caps);
+    const auto id = backend.create_virtual_port(
+        QStringLiteral("client"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(id.has_value());
+    vss::gui::InspectorPanel panel(backend);
+    panel.set_selected_port(*id);
+    QApplication::processEvents();
+    const auto button = [&panel]
+    { return panel.findChild<QPushButton*>(
+          QStringLiteral("inspectorRunButton")); };
+    REQUIRE(button() != nullptr);
+    // A port with no address has no button.
+    REQUIRE(button()->isHidden());
+
+    backend.set_stoppable(*id, true);
+    panel.refresh();
+    REQUIRE(!button()->isHidden());
+    REQUIRE_EQ(button()->text(), QStringLiteral("Stop"));
+
+    vss::endpoint_id asked = 0;
+    bool asked_run = true;
+    QObject::connect(&panel, &vss::gui::InspectorPanel::run_requested,
+                     [&](vss::endpoint_id port, bool run)
+                     {
+                         asked = port;
+                         asked_run = run;
+                     });
+    button()->click();
+    REQUIRE_EQ(asked, *id);
+    REQUIRE(!asked_run);
+
+    REQUIRE(backend.set_port_running(*id, false));
+    panel.refresh();
+    REQUIRE_EQ(button()->text(), QStringLiteral("Start"));
+    const auto stopped = backend.port(*id);
+    REQUIRE(stopped);
+    REQUIRE_EQ(vss::gui::PortModel::state_text(*stopped),
+               QStringLiteral("Stopped"));
+    REQUIRE(vss::gui::PortModel::state_kind(*stopped) ==
+            vss::gui::port_state_kind::closed);
+    button()->click();
+    REQUIRE(asked_run);
+
+    // Without the capability there is no button, whatever the port is.
+    caps.port_stop = false;
+    backend.set_capabilities(caps);
+    panel.refresh();
+    REQUIRE(button()->isHidden());
+}
 
 TEST_CASE("inspector: waiting sentence and control line chips")
 {

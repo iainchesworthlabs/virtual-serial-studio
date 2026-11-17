@@ -135,6 +135,43 @@ void FakeStudioBackend::set_peer_state(vss::endpoint_id id, peer_state state)
     }
 }
 
+void FakeStudioBackend::set_stoppable(vss::endpoint_id id, bool stoppable)
+{
+    if (port_view* view = find_port(id))
+    {
+        view->can_stop = stoppable;
+        refresh();
+    }
+}
+
+vss::result<void> FakeStudioBackend::set_port_running(vss::endpoint_id id,
+                                                      bool run)
+{
+    if (const auto error = take_error())
+        return *error;
+    port_view* view = find_port(id);
+    if (view == nullptr)
+        return vss::make_error_code(vss::errc::not_found);
+    if (!view->can_stop)
+        return vss::make_error_code(vss::errc::unsupported);
+    view->stopped = !run;
+    if (view->connection)
+        view->connection->phase = run ? connect_phase::connecting
+                                      : connect_phase::stopped;
+    refresh();
+    return {};
+}
+
+void FakeStudioBackend::set_connection(vss::endpoint_id id,
+                                       const connection_view& connection)
+{
+    if (port_view* view = find_port(id))
+    {
+        view->connection = connection;
+        refresh();
+    }
+}
+
 void FakeStudioBackend::set_devices(std::vector<device_view> devices)
 {
     devices_ = std::move(devices);

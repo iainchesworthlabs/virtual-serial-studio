@@ -6,6 +6,7 @@
 
 #include "topology/topology_view.hpp"
 
+#include "backend/connection_text.hpp"
 #include "rendering/gpu_canvas.hpp"
 #include "rendering/render_state.hpp"
 #include "theme/focus_ring_style.hpp"
@@ -25,6 +26,7 @@
 #include <QAction>
 #include <QContextMenuEvent>
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDragEnterEvent>
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
@@ -101,6 +103,16 @@ constexpr qreal kHandleHit = 12.0;
 /// True when the two snapshots draw exactly the same graph.  Traffic and
 /// state counters change many times a second; the topology does not show
 /// them, so a refresh must not rebuild the scene for a counter.
+/// What a node shows of its connection: the address, and the state.  Its
+/// counters and its history change more often than the node does.
+std::pair<QString, int> connection_look(const port_view& port)
+{
+    if (!port.connection)
+        return {QString(), -1};
+    return {port.connection->target,
+            static_cast<int>(port.connection->phase)};
+}
+
 bool same_graph(const std::vector<port_view>& left_ports,
                 const std::vector<port_view>& right_ports,
                 const std::vector<link_view>& left_links,
@@ -118,7 +130,9 @@ bool same_graph(const std::vector<port_view>& left_ports,
         if (left.id != right.id || left.name != right.name ||
             left.path != right.path || left.kind != right.kind ||
             left.studio_only != right.studio_only ||
-            (left.stats.dropped > 0) != (right.stats.dropped > 0))
+            (left.stats.dropped > 0) != (right.stats.dropped > 0) ||
+            left.can_stop != right.can_stop || left.stopped != right.stopped ||
+            connection_look(left) != connection_look(right))
         {
             return false;
         }
@@ -465,6 +479,25 @@ void TopologyView::rebuild_items()
         node.owner = owners.contains(port.id);
         node.dropped = port.stats.dropped > 0;
         node.tooltip = topology_text::node_tooltip(port, node.unlinked);
+        node.stopped = port.stopped;
+        if (port.connection)
+        {
+            switch (port.connection->phase)
+            {
+            case connect_phase::connecting:
+            case connect_phase::retrying:
+                node.connection = node_data::connect::busy;
+                break;
+            case connect_phase::failed:
+                node.connection = node_data::connect::failed;
+                break;
+            case connect_phase::connected:
+                node.connection = node_data::connect::open;
+                break;
+            case connect_phase::stopped:
+                break;
+            }
+        }
         if (const auto part = plugin_parts_.constFind(port.id);
             part != plugin_parts_.constEnd() && !part->running)
         {
@@ -656,6 +689,42 @@ void TopologyView::rebuild_items()
         for (const vss::link_id id : link_order_)
             link_items_.value(id)->set_in_loop(loop_links_.contains(id));
     }
+    update_spin_timer();
+}
+
+void TopologyView::update_spin_timer()
+{
+    bool any = false;
+    if (!Theme::instance().reduced_motion())
+    {
+        for (NodeItem* item : std::as_const(node_items_))
+            any = any || item->spins();
+    }
+    if (!any)
+    {
+        if (spin_timer_ != nullptr)
+            spin_timer_->stop();
+        return;
+    }
+    if (spin_timer_ == nullptr)
+    {
+        spin_timer_ = new QTimer(this);
+        spin_timer_->setInterval(50);
+        connect(spin_timer_, &QTimer::timeout, this,
+                &TopologyView::tick_spin);
+    }
+    if (!spin_timer_->isActive())
+        spin_timer_->start();
+    tick_spin();
+}
+
+void TopologyView::tick_spin()
+{
+    // One turn a second, from the clock, so a rebuild does not restart it.
+    const int degrees = static_cast<int>(
+        QDateTime::currentMSecsSinceEpoch() % 1000 * 360 / 1000);
+    for (NodeItem* item : std::as_const(node_items_))
+        item->set_spin(degrees);
 }
 
 void TopologyView::place_nodes()
@@ -1935,6 +2004,7 @@ void TopologyView::open_context_menu(const QPoint& viewport_position)
                               menu_state_ ? menu_state_(id) : port_menu_state{},
                               [this, id](port_menu_action action)
                               { Q_EMIT port_action_requested(id, action); });
+        add_run_action(menu, id);
         menu->addAction(topology_text::copy_name_action(), this,
                         [this, id] { Q_EMIT copy_name_requested(id); });
         if (caps_.rename_port)
@@ -1970,6 +2040,28 @@ void TopologyView::open_context_menu(const QPoint& viewport_position)
     menu->popup(global);
 }
 
+QString TopologyView::run_action_label(vss::endpoint_id id) const
+{
+    if (!caps_.port_stop)
+        return {};
+    const auto port =
+        std::find_if(ports_.begin(), ports_.end(),
+                     [id](const port_view& view) { return view.id == id; });
+    if (port == ports_.end() || !port->can_stop)
+        return {};
+    return port->stopped ? topology_text::start_action()
+                         : topology_text::stop_action();
+}
+
+void TopologyView::add_run_action(QMenu* menu, vss::endpoint_id id)
+{
+    const QString label = run_action_label(id);
+    if (label.isEmpty())
+        return;
+    const bool run = label == topology_text::start_action();
+    menu->addAction(label, this, [this, id, run] { Q_EMIT run_requested(id, run); });
+}
+
 QStringList TopologyView::node_menu_labels(vss::endpoint_id id) const
 {
     if (!node_items_.contains(id))
@@ -1989,8 +2081,10 @@ QStringList TopologyView::node_menu_labels(vss::endpoint_id id) const
     QStringList labels;
     labels << topology_text::inspect_action()
            << port_menu_labels(menu_state_ ? menu_state_(id)
-                                           : port_menu_state{})
-           << topology_text::copy_name_action();
+                                           : port_menu_state{});
+    if (const QString run = run_action_label(id); !run.isEmpty())
+        labels << run;
+    labels << topology_text::copy_name_action();
     if (caps_.rename_port)
         labels << topology_text::rename_action();
     labels << topology_text::connect_from_here_action()
@@ -2372,9 +2466,26 @@ QStringList TopologyView::node_badges(vss::endpoint_id id) const
         result.append(topology_text::dropped_badge());
     if (!item->data().plugin_badge.isEmpty())
         result.append(item->data().plugin_badge);
+    if (item->data().connection == node_data::connect::failed)
+        result.append(connection_text::state(connect_phase::failed));
+    if (item->data().connection == node_data::connect::open)
+        result.append(connection_text::state(connect_phase::connected));
+    if (item->data().stopped)
+        result.append(connection_text::state(connect_phase::stopped));
     if (item->data().unlinked)
         result.append(topology_text::unlinked_badge());
     return result;
+}
+
+bool TopologyView::node_spins(vss::endpoint_id id) const
+{
+    NodeItem* item = node_items_.value(id);
+    return item != nullptr && item->spins();
+}
+
+bool TopologyView::node_spin_timer_running() const
+{
+    return spin_timer_ != nullptr && spin_timer_->isActive();
 }
 
 void TopologyView::set_plugin_parts(
@@ -2945,6 +3056,7 @@ void TopologyView::populate_node_menu(QMenu* menu, vss::endpoint_id id)
         duplicate->setEnabled(false);
         duplicate->setToolTip(tr("This port can only be opened once."));
     }
+    add_run_action(menu, id);
     menu->addSeparator();
     shortcut(menu->addAction(topology_text::connect_from_here_action(), this,
                              [this, id] { begin_wire(id); }),

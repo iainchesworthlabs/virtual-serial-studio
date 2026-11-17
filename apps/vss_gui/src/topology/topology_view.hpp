@@ -24,6 +24,7 @@
 #include <QSet>
 #include <QSizeF>
 #include <QString>
+#include <QTimer>
 #include <QStringList>
 #include <QVector>
 
@@ -169,6 +170,9 @@ public:
     bool node_is_unlinked(vss::endpoint_id id) const;
     bool node_is_device(vss::endpoint_id id) const;
     QStringList node_badges(vss::endpoint_id id) const;
+    /// A network client that is connecting turns its icon.
+    bool node_spins(vss::endpoint_id id) const;
+    bool node_spin_timer_running() const;
     /// What a port that a plugin provides says about its plugin: the badge
     /// and the accessible name. Setting it redraws the nodes that changed.
     void set_plugin_parts(
@@ -232,6 +236,9 @@ Q_SIGNALS:
     void copy_name_requested(vss::endpoint_id id);
     void connect_requested(vss::endpoint_id id);
     void remove_port_requested(vss::endpoint_id id);
+    /// Stop (`run` false) or start a port that was made from an address,
+    /// chosen from its menu.
+    void run_requested(vss::endpoint_id id, bool run);
     void remove_link_requested(vss::link_id id);
     /// Emitted only when the build can rename (Capabilities::rename_port).
     void rename_requested(vss::endpoint_id id);
@@ -300,6 +307,14 @@ private:
     void disable_gpu();
     void apply_gpu_style();
     void rebuild_items();
+    /// Starts or stops the timer that turns the icon of a network client
+    /// that is connecting.  It runs only while there is one, and never with
+    /// reduced motion.
+    void update_spin_timer();
+    /// "Stop" or "Start" for a port that can be stopped, or empty.
+    QString run_action_label(vss::endpoint_id id) const;
+    void add_run_action(QMenu* menu, vss::endpoint_id id);
+    void tick_spin();
     void apply_positions(bool refresh_scene_rect = true);
     void update_scene_rect();
     void update_overlays();
@@ -371,6 +386,7 @@ private:
 
     std::function<port_menu_state(vss::endpoint_id)> menu_state_;
     QLabel* empty_ = nullptr;
+    QTimer* spin_timer_ = nullptr;
     QLabel* hint_ = nullptr;
     NoteBanner* loop_note_ = nullptr;
     QWidget* zoom_bar_ = nullptr;

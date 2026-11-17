@@ -1043,6 +1043,9 @@ void ShellWindow::build_central()
             [this](vss::link_id id) { remove_link(id); });
     connect(topology_, &topology::TopologyView::rename_requested, this,
             [this](vss::endpoint_id id) { show_rename(id); });
+    connect(topology_, &topology::TopologyView::run_requested, this,
+            [this](vss::endpoint_id id, bool run)
+            { set_port_running(id, run); });
     connect(topology_, &topology::TopologyView::status_message, this,
             [this](const QString& text) { status_->showMessage(text, 4000); });
     connect(topology_, &topology::TopologyView::selection_changed, this,
@@ -1201,6 +1204,9 @@ void ShellWindow::build_docks()
             [this] { open_troubleshoot(); });
     connect(inspector_panel_, &InspectorPanel::advanced_tools_requested, this,
             [this] { open_wiring(); });
+    connect(inspector_panel_, &InspectorPanel::run_requested, this,
+            [this](vss::endpoint_id id, bool run)
+            { set_port_running(id, run); });
     connect(inspector_panel_, &InspectorPanel::com_number_requested, this,
             [this](vss::endpoint_id id) { show_com_number(id); });
     connect(inspector_panel_, &InspectorPanel::release_port_requested, this,
@@ -2959,6 +2965,26 @@ void ShellWindow::add_program_port()
         tr("Added %1 to %2.")
             .arg(port ? port_display_name(*port) : tr("a port"), device_name),
         4000);
+}
+
+void ShellWindow::set_port_running(vss::endpoint_id id, bool run)
+{
+    if (id == 0 || !backend_.caps().port_stop)
+        return;
+    const auto port = backend_.port(id);
+    if (!port)
+        return;
+    const auto done = backend_.set_port_running(id, run);
+    if (!done)
+    {
+        ToastManager::instance().show(
+            this, run ? tr("Could not start %1.").arg(port->name)
+                      : tr("Could not stop %1.").arg(port->name));
+        return;
+    }
+    status_->showMessage(run ? tr("Started %1.").arg(port->name)
+                             : tr("Stopped %1.").arg(port->name),
+                         3000);
 }
 
 void ShellWindow::show_rename(vss::endpoint_id id)
