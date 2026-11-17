@@ -57,6 +57,15 @@ public:
     virtual void close() = 0;
     virtual void cancel() {}
 
+    /// True when a read that completed with `ec` reports a fault of the line
+    /// (framing, parity, overrun, break) and not the end of the channel.  The
+    /// transport is still open and the next read carries on, so the endpoint
+    /// logs and counts the fault and reads again.
+    virtual bool is_line_error(boost::system::error_code /*ec*/) const noexcept
+    {
+        return false;
+    }
+
     virtual bool supports_control_lines() const noexcept { return false; }
     virtual void set_control_line(control_line, bool) {}
     virtual control_lines lines() const { return {}; }
