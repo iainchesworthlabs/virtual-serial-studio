@@ -71,3 +71,5 @@ The cheapest first step for all three is a `break` event of its own, with a star
 driver (it already knows when the program called the two functions: a stamp in `IOCTL_SERIAL_SET_BREAK_ON` and `_OFF` would
 do), carried by `hub::route_lines` to links and buses, and written to capture files. That changes the driver interface and
 the capture format, so it needs the owner's decision.
+
+The plan is in [break as a timestamped event](break-event-plan.md).
