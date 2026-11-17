@@ -4388,6 +4388,11 @@ Netzwerke: %5</translation>
             <source>The jitter can be no more than the delay.</source>
             <translation>Der Jitter darf nicht größer sein als die Verzögerung.</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="82" />
+            <source>Direction</source>
+            <translation>Richtung</translation>
+        </message>
     </context>
     <context>
         <name>MonitorModel</name>
@@ -10182,9 +10187,19 @@ Netzwerke: %5</translation>
             <translation>Der Monitor zeigt %1.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="2511" />
-            <source>Decoding %1 as %2. What it finds is in Plugins, under %3.</source>
-            <translation>%1 wird als %2 dekodiert. Was gefunden wird, steht unter Plug-ins bei %3.</translation>
+            <location filename="../src/shell/shell_window.cpp" line="511" />
+            <source>Decoded traffic...</source>
+            <translation>Dekodierter Datenverkehr …</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="512" />
+            <source>decode decoder frames triggers protocol plugin</source>
+            <translation>dekodieren dekoder frames auslöser protokoll plug-in</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2518" />
+            <source>Decoding %1 as %2. What it finds is in Decoded traffic, under Tools.</source>
+            <translation>%1 wird als %2 dekodiert. Was gefunden wird, steht unter Extras, Dekodierter Datenverkehr.</translation>
         </message>
     </context>
     <context>
@@ -24587,6 +24602,109 @@ Aus dem Plug-in %2
             <location filename="../src/widgets/monitor_direction.cpp" line="45" />
             <source>Copies only what is written into the port.</source>
             <translation>Kopiert nur, was in den Port geschrieben wird.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DecodedDialog</name>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="41" />
+            <source>Decoded traffic</source>
+            <translation>Dekodierter Datenverkehr</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="53" />
+            <source>What the decoders found on your ports. Decoding only reads. The words in the table come from the plugin.</source>
+            <translation>Was die Dekoder auf Ihren Ports gefunden haben. Dekodieren liest nur. Die Wörter in der Tabelle stammen vom Plug-in.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="61" />
+            <source>Triggers only</source>
+            <translation>Nur Auslöser</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Time</source>
+            <translation>Zeit</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Place</source>
+            <translation>Ort</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Direction</source>
+            <translation>Richtung</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>Type</source>
+            <translation>Typ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>Message</source>
+            <translation>Meldung</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>What</source>
+            <translation>Was</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="92" />
+            <source>Close</source>
+            <translation>Schließen</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="167" />
+            <source>%1 s</source>
+            <translation>%1 s</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="169" />
+            <source>Received</source>
+            <translation>Empfangen</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="169" />
+            <source>Sent</source>
+            <translation>Gesendet</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="170" />
+            <source>Trigger</source>
+            <translation>Auslöser</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="170" />
+            <source>Frame</source>
+            <translation>Frame</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="181" />
+            <source>Nothing is being decoded. Choose Decode as... in the menu of a port to start.</source>
+            <translation>Es wird nichts dekodiert. Wählen Sie im Menü eines Ports „Dekodieren als …“, um zu beginnen.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="185" />
+            <source>No triggers. Everything decoded so far has fitted the protocol.</source>
+            <translation>Keine Auslöser. Alles bisher Dekodierte passte zum Protokoll.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="188" />
+            <source>Nothing found yet.</source>
+            <translation>Noch nichts gefunden.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="192" />
+            <source>Showing the newest %1 of %2.</source>
+            <translation>Die neuesten %1 von %2 werden angezeigt.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="194" />
+            <source>%1 left out to stay within the limits.</source>
+            <translation>%1 ausgelassen, um die Grenzen einzuhalten.</translation>
         </message>
     </context>
 </TS>

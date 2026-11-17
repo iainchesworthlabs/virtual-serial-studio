@@ -4388,6 +4388,11 @@ Networks: %5</source>
             <source>The jitter can be no more than the delay.</source>
             <translation>דער דזשיטער קען נישט זײַן גרעסער ווי די פֿאַרהאַלטונג.</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="82" />
+            <source>Direction</source>
+            <translation>ריכטונג</translation>
+        </message>
     </context>
     <context>
         <name>MonitorModel</name>
@@ -10182,9 +10187,19 @@ Networks: %5</source>
             <translation>דער מאניטאר ווייזט %1.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="2511" />
-            <source>Decoding %1 as %2. What it finds is in Plugins, under %3.</source>
-            <translation>דעקאדירט %1 ווי %2. וואס עס געפינט זיך אין פּלאגינס, אונטער %3.</translation>
+            <location filename="../src/shell/shell_window.cpp" line="511" />
+            <source>Decoded traffic...</source>
+            <translation>דעקאדירטער טראפיק…</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="512" />
+            <source>decode decoder frames triggers protocol plugin</source>
+            <translation>דעקאדירן דעקאדער פֿריימס טריגערס פראטאקאל פּלאגין</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2518" />
+            <source>Decoding %1 as %2. What it finds is in Decoded traffic, under Tools.</source>
+            <translation>דעקאדירט %1 ווי %2. וואס עס געפינט זיך אין געצייג, אונטער „דעקאדירטער טראפיק“.</translation>
         </message>
     </context>
     <context>
@@ -24587,6 +24602,109 @@ From the plugin %2
             <location filename="../src/widgets/monitor_direction.cpp" line="45" />
             <source>Copies only what is written into the port.</source>
             <translation>קאפירט נאר וואס מען שרייבט אין דעם פארט.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DecodedDialog</name>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="41" />
+            <source>Decoded traffic</source>
+            <translation>דעקאדירטער טראפיק</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="53" />
+            <source>What the decoders found on your ports. Decoding only reads. The words in the table come from the plugin.</source>
+            <translation>וואס די דעקאדערס האבן געפונען אויף אייערע פארטן. דעקאדירן לייענט נאר. די ווערטער אין דער טאבעל קומען פון דער פּלאגין.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="61" />
+            <source>Triggers only</source>
+            <translation>נאר טריגערס</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Time</source>
+            <translation>צײַט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Place</source>
+            <translation>אָרט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Direction</source>
+            <translation>ריכטונג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>Type</source>
+            <translation>סארט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>Message</source>
+            <translation>מעלדונג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>What</source>
+            <translation>וואָס</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="92" />
+            <source>Close</source>
+            <translation>פֿאַרמאַכן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="167" />
+            <source>%1 s</source>
+            <translation>%1 סעק</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="169" />
+            <source>Received</source>
+            <translation>באקומען</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="169" />
+            <source>Sent</source>
+            <translation>געשיקט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="170" />
+            <source>Trigger</source>
+            <translation>טריגער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="170" />
+            <source>Frame</source>
+            <translation>פֿריים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="181" />
+            <source>Nothing is being decoded. Choose Decode as... in the menu of a port to start.</source>
+            <translation>גאָרנישט ווערט נישט דעקאדירט. קלויבט אויס „דעקאדירן ווי…“ אין דעם מעניו פון א פארט צו אנהייבן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="185" />
+            <source>No triggers. Everything decoded so far has fitted the protocol.</source>
+            <translation>קיין טריגערס. אלעס וואס איז ביז יעצט דעקאדירט געווארן האט געפאסט צום פראטאקאל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="188" />
+            <source>Nothing found yet.</source>
+            <translation>נאָך גאָרנישט געפֿונען.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="192" />
+            <source>Showing the newest %1 of %2.</source>
+            <translation>ווײַזט די נײַסטע %1 פֿון %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="194" />
+            <source>%1 left out to stay within the limits.</source>
+            <translation>%1 אויסגעלאזט צו בלייבן אין די גרענעצן.</translation>
         </message>
     </context>
 </TS>
