@@ -255,7 +255,9 @@ TEST_CASE("targets: a target that would close a loop is refused whole")
                        2000ms));
     f.c.inject_read("z");
     REQUIRE(heard(f.a, "z"));
-    REQUIRE_EQ(f.info(*link).stats.bytes, std::uint64_t{1});
+    // z is written into a, which carries it on over the split to b.
+    REQUIRE(wait_until([&] { return f.info(*link).stats.bytes == 2; },
+                       2000ms));
 }
 
 TEST_CASE("targets: a loop through a bus is refused too")

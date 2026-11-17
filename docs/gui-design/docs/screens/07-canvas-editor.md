@@ -51,7 +51,7 @@ A small non-modal popup (`QFrame`, `panel` fill, 1 px `control` edge, 6 px radiu
 1. Title: "Add pair" (the tile name).
 2. One row per slot: a label ("End A"), a kind picker (New port, New fixture, Loopback, or an existing port by name), and a name field filled with the next free name (`port-1`, `fixture-1`, ...). A slot that holds an existing port has no name field.
 3. For bundles with a count (Split, Join, Bus, Switch, Share, Bench): "How many" spin box, which adds or removes slot rows.
-4. For Port: the kind (Best available and the platform's kinds) and, when `com_numbers` is on, "COM number" (Next free by default).
+4. For Port: the kind (Best available and the platform's kinds) and, when `com_numbers` is on, "COM number" (Automatic by default, an editable list of the free numbers; a number that is in use is refused under the field and Add stays disabled).
 5. "More settings": a disclosure that shows the port Settings fields (below) for the new ports, defaulting to 115200 8N1, no flow control.
 6. Buttons: Cancel, **Add** (default). Enter adds, Esc cancels.
 
@@ -95,14 +95,14 @@ A dialog, "Settings for <name>", 440 px wide. Fields:
 
 | Field | Values | Default |
 |---|---|---|
-| Baud rate | Editable list: 300 to 921600, and any whole number from 50 to 4000000 | 115200 |
+| Baud rate | Editable list: 300 to 921600 and 1000000, 2000000, 3000000, 4000000 and 12000000, and any whole number from 50 to 12000000 | 115200 |
 | Data bits | 5, 6, 7, 8 | 8 |
 | Parity | None, Odd, Even, Mark, Space | None |
 | Stop bits | 1, 1.5, 2 | 1 |
 | Flow control | None, Hardware (RTS/CTS), Software (XON/XOFF) | None |
 | Read timeout | 0 to 60000 ms, 0 means wait | 0 |
 | Write timeout | 0 to 60000 ms, 0 means wait | 0 |
-| COM number | Driver ports only, when `com_numbers` is on; the existing Change... flow | |
+| COM number | Driver ports only, when `com_numbers` is on; the Change COM number dialog: an editable list of the free numbers (from COM3), a list of the numbers in use with what holds each ("Studio port rx-sim", "Windows device USB Serial Device", "Reserved by Windows"), and a reason under the field, with Change number disabled, for a number that is in use or not 1 to 255 | |
 
 A one-line summary under the fields updates as they change: "115200 8N1, no flow control". `vss::validate` checks the values; a refusal is shown under the field it names.
 

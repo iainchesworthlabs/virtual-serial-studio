@@ -28,6 +28,7 @@
 #include "flows/port_ready_dialog.hpp"
 #include "flows/release_port_dialog.hpp"
 #include "flows/rename_dialog.hpp"
+#include "flows/decode_dialog.hpp"
 #include "flows/watch_dialog.hpp"
 #include "panes/fixture_behaviour.hpp"
 #include "panes/inspector_panel.hpp"
@@ -37,6 +38,7 @@
 #include "rendering/render_state.hpp"
 #include "shell/canvas_controller.hpp"
 #include "shell/command_palette.hpp"
+#include "shell/dock_panes.hpp"
 #include "shell/format.hpp"
 #include "shell/launcher.hpp"
 #include "shell/licence_notice.hpp"
@@ -54,6 +56,7 @@
 #include "support/driver_setup_dialog.hpp"
 #include "support/help_contents_dialog.hpp"
 #include "support/licence_dialog.hpp"
+#include "support/decoded_dialog.hpp"
 #include "support/plugin_parts.hpp"
 #include "support/plugin_prompts.hpp"
 #include "support/plugins_dialog.hpp"
@@ -131,6 +134,7 @@
 #include <cstdio>
 #include <functional>
 #include <optional>
+#include <utility>
 
 namespace vss::gui
 {
@@ -211,6 +215,10 @@ ShellWindow::ShellWindow(StudioBackend& backend, QWidget* parent)
 
     apply_theme_setting();
     apply_density_setting();
+    // The density can change from the Settings dialog too; keep the menu ticks
+    // in step with the theme, whoever changed it.
+    connect(&Theme::instance(), &Theme::theme_changed, this,
+            [this] { sync_density_actions(); });
     apply_menu_palette();
 
     registry_.set_level(level_.level());
@@ -499,6 +507,11 @@ void ShellWindow::build_actions()
         tr("plugin plugins extension fixture generator trust"), {}, {},
         action_level::simple, [this] { open_plugins(); }, false,
         [this] { return backend_.caps().plugins; });
+    add(
+        QStringLiteral("tools.decoded"), tr("Decoded traffic..."),
+        tr("decode decoder frames triggers protocol plugin"), {}, {},
+        action_level::advanced, [this] { show_decoded(); }, false,
+        [this] { return backend_.caps().plugins; });
     add(QStringLiteral("tools.benchmark"), tr("Benchmark"),
         tr("throughput speed"), {}, {}, action_level::advanced,
         [this] { open_benchmark(); });
@@ -522,6 +535,15 @@ void ShellWindow::build_actions()
         tr("simple expert level"), {},
         QKeySequence(QStringLiteral("Ctrl+Shift+A")), action_level::simple,
         [] {}, true);
+    add(
+        QStringLiteral("view.ports"), tr("Ports"), tr("ports list"), {}, {},
+        action_level::advanced, [] {}, true);
+    add(
+        QStringLiteral("view.inspector"), tr("Inspector"), tr("port settings"),
+        {}, {}, action_level::advanced, [] {}, true);
+    add(
+        QStringLiteral("view.send"), tr("Send"), tr("send bytes"), {}, {},
+        action_level::advanced, [] {}, true);
     add(
         QStringLiteral("view.monitor"), tr("Monitor"), tr("traffic"), {}, {},
         action_level::simple, [] {}, true);
@@ -588,6 +610,22 @@ void ShellWindow::build_actions()
     add(QStringLiteral("view.resetLayout"), tr("Reset layout"),
         tr("docks window"), {}, {}, action_level::simple,
         [this] { reset_layout(); });
+    add(QStringLiteral("view.nextPane"), tr("Next pane"),
+        tr("panes switch cycle monitor log"), {},
+        QKeySequence(QStringLiteral("Ctrl+Tab")), action_level::advanced,
+        [this]
+        {
+            if (dock_panes_ != nullptr)
+                dock_panes_->cycle(1);
+        });
+    add(QStringLiteral("view.previousPane"), tr("Previous pane"),
+        tr("panes switch cycle monitor log"), {},
+        QKeySequence(QStringLiteral("Ctrl+Shift+Tab")), action_level::advanced,
+        [this]
+        {
+            if (dock_panes_ != nullptr)
+                dock_panes_->cycle(-1);
+        });
     add(QStringLiteral("view.showLauncher"), tr("Show launcher"),
         tr("empty start"), {}, {}, action_level::simple,
         [this] { show_launcher(); });
@@ -624,6 +662,9 @@ void ShellWindow::build_actions()
 
     advanced_action_ = registry_.action(QStringLiteral("view.advanced"));
     monitor_action_ = registry_.action(QStringLiteral("view.monitor"));
+    ports_action_ = registry_.action(QStringLiteral("view.ports"));
+    inspector_action_ = registry_.action(QStringLiteral("view.inspector"));
+    send_action_ = registry_.action(QStringLiteral("view.send"));
     links_action_ = registry_.action(QStringLiteral("view.links"));
     log_action_ = registry_.action(QStringLiteral("view.log"));
     json_action_ = registry_.action(QStringLiteral("view.json"));
@@ -746,6 +787,7 @@ void ShellWindow::build_menus()
     add(tools, QStringLiteral("tools.search"));
     add(tools, QStringLiteral("tools.setupCheck"));
     add(tools, QStringLiteral("tools.plugins"));
+    add(tools, QStringLiteral("tools.decoded"));
     add(tools, QStringLiteral("tools.benchmark"));
     tools->addSeparator();
     add(tools, QStringLiteral("tools.refresh"));
@@ -755,11 +797,19 @@ void ShellWindow::build_menus()
     QMenu* view = add_menu(tr("&View"));
     add(view, QStringLiteral("view.advanced"));
     view->addSeparator();
-    add(view, QStringLiteral("view.monitor"));
-    add(view, QStringLiteral("view.links"));
+    QMenu* panes = view->addMenu(tr("Panes"));
+    panes->setObjectName(QStringLiteral("panesMenu"));
+    add(panes, QStringLiteral("view.ports"));
+    add(panes, QStringLiteral("view.inspector"));
+    add(panes, QStringLiteral("view.send"));
+    add(panes, QStringLiteral("view.monitor"));
+    add(panes, QStringLiteral("view.links"));
+    add(panes, QStringLiteral("view.log"));
+    add(panes, QStringLiteral("view.json"));
+    panes->addSeparator();
+    add(panes, QStringLiteral("view.nextPane"));
+    add(panes, QStringLiteral("view.previousPane"));
     add(view, QStringLiteral("view.toolbox"));
-    add(view, QStringLiteral("view.log"));
-    add(view, QStringLiteral("view.json"));
     view->addSeparator();
     QMenu* theme = view->addMenu(tr("Theme"));
     add(theme, QStringLiteral("view.theme.system"));
@@ -1032,7 +1082,7 @@ void ShellWindow::build_central()
                 }
             });
     connect(topology_, &topology::TopologyView::inspect_requested, this,
-            [this](vss::endpoint_id) { focus_inspector(); });
+            [this](vss::endpoint_id id) { inspect_port(id); });
     connect(topology_, &topology::TopologyView::copy_name_requested, this,
             [this](vss::endpoint_id id) { copy_port_name(id); });
     connect(topology_, &topology::TopologyView::connect_requested, this,
@@ -1043,6 +1093,9 @@ void ShellWindow::build_central()
             [this](vss::link_id id) { remove_link(id); });
     connect(topology_, &topology::TopologyView::rename_requested, this,
             [this](vss::endpoint_id id) { show_rename(id); });
+    connect(topology_, &topology::TopologyView::run_requested, this,
+            [this](vss::endpoint_id id, bool run)
+            { set_port_running(id, run); });
     connect(topology_, &topology::TopologyView::status_message, this,
             [this](const QString& text) { status_->showMessage(text, 4000); });
     connect(topology_, &topology::TopologyView::selection_changed, this,
@@ -1135,6 +1188,15 @@ void ShellWindow::build_docks()
     monitor_dock_ = make_pane_dock(QStringLiteral("monitorDock"), tr("Monitor"),
                                    monitor_panel_, &monitor_header_);
 
+    // The dock title bar already names each pane, so the pane headers do not
+    // repeat it: Inspector and Send have nothing else in theirs and drop it,
+    // Ports and Monitor keep theirs for the buttons and controls.
+    inspector_header_->hide();
+    send_header_->hide();
+    ports_header_->title_label()->hide();
+    ports_header_->set_count(-1);
+    monitor_header_->title_label()->hide();
+
     // The Monitor controls share the pane's title row while it is wide enough.
     monitor_panel_->attach_header(monitor_header_);
 
@@ -1167,11 +1229,7 @@ void ShellWindow::build_docks()
     connect(ports_panel_, &PortsPanel::count_changed, this,
             [this](int) { update_dock_titles(); });
     connect(ports_panel_, &PortsPanel::inspect_requested, this,
-            [this](vss::endpoint_id id)
-            {
-                selection_.select_port(id);
-                focus_inspector();
-            });
+            [this](vss::endpoint_id id) { inspect_port(id); });
     connect(ports_panel_, &PortsPanel::remove_requested, this,
             [this](vss::endpoint_id id)
             {
@@ -1201,6 +1259,9 @@ void ShellWindow::build_docks()
             [this] { open_troubleshoot(); });
     connect(inspector_panel_, &InspectorPanel::advanced_tools_requested, this,
             [this] { open_wiring(); });
+    connect(inspector_panel_, &InspectorPanel::run_requested, this,
+            [this](vss::endpoint_id id, bool run)
+            { set_port_running(id, run); });
     connect(inspector_panel_, &InspectorPanel::com_number_requested, this,
             [this](vss::endpoint_id id) { show_com_number(id); });
     connect(inspector_panel_, &InspectorPanel::release_port_requested, this,
@@ -1249,19 +1310,16 @@ void ShellWindow::build_docks()
         connect(action, &QAction::toggled, this,
                 [this](bool shown)
                 {
+                    if (!shown && raise_if_behind(monitor_dock_))
+                        return;
                     if (monitor_dock_ != nullptr)
+                    {
                         monitor_dock_->setVisible(shown);
+                        if (shown)
+                            monitor_dock_->raise();
+                    }
                 });
     }
-    connect(monitor_dock_, &QDockWidget::visibilityChanged, this,
-            [this](bool visible)
-            {
-                if (monitor_action_ == nullptr)
-                    return;
-                const QSignalBlocker blocker(monitor_action_);
-                monitor_action_->setChecked(visible);
-            });
-
     ports_panel_->set_advanced(level_.advanced());
     inspector_panel_->set_advanced(level_.advanced());
     send_panel_->set_advanced(level_.advanced());
@@ -1295,16 +1353,13 @@ void ShellWindow::build_docks()
     {
         links_action_->setChecked(false);
         connect(links_action_, &QAction::toggled, this,
-                [this](bool shown) { show_links_dock(shown); });
+                [this](bool shown)
+                {
+                    if (!shown && raise_if_behind(links_dock_))
+                        return;
+                    show_links_dock(shown);
+                });
     }
-    connect(links_dock_, &QDockWidget::visibilityChanged, this,
-            [this](bool visible)
-            {
-                if (links_action_ == nullptr)
-                    return;
-                const QSignalBlocker blocker(links_action_);
-                links_action_->setChecked(visible);
-            });
 
     // Advanced bottom tabs.  Log and Topology JSON are tabified with the
     // Monitor dock; WP3 owns the Monitor pane, this package owns these two.
@@ -1320,10 +1375,12 @@ void ShellWindow::build_docks()
                     status_->showMessage(text, 10000);
                 log_local(text);
             });
-    log_dock_ = new QDockWidget(tr("Log"), this);
-    log_dock_->setObjectName(QStringLiteral("logDock"));
-    log_dock_->setAllowedAreas(Qt::AllDockWidgetAreas);
-    log_dock_->setWidget(event_log_);
+    // The Log is a pane like the Monitor it is tabbed with: one title row,
+    // with Clear on it, and the table straight under.
+    PaneHeader* log_header = nullptr;
+    log_dock_ = make_pane_dock(QStringLiteral("logDock"), tr("Log"),
+                               event_log_, &log_header);
+    event_log_->attach_header(log_header);
     log_dock_->setMinimumHeight(
         Theme::instance().metric(QStringLiteral("layout.monitor.min")));
 
@@ -1362,6 +1419,8 @@ void ShellWindow::build_docks()
                 {
                     if (dock == nullptr)
                         return;
+                    if (!shown && raise_if_behind(dock))
+                        return;
                     dock->setVisible(shown && level_.advanced());
                     // The Log and the JSON editor are tabs behind the Monitor:
                     // choosing one from the View menu has to bring it up, or
@@ -1369,19 +1428,51 @@ void ShellWindow::build_docks()
                     if (shown && level_.advanced())
                         dock->raise();
                 });
-        connect(dock, &QDockWidget::visibilityChanged, this,
-                [this, action](bool visible)
-                {
-                    // Hiding every advanced dock in Simple mode is the shell's
-                    // own action; keep the user's tab choice for later.
-                    if (!level_.advanced())
-                        return;
-                    const QSignalBlocker blocker(action);
-                    action->setChecked(visible);
-                });
     };
     wire_tab(log_action_, log_dock_);
     wire_tab(json_action_, json_dock_);
+
+    // The bottom panes can be dragged, tabbed, split and floated.
+    dock_panes_ = new DockPanes(this);
+    for (auto* slot : {&ports_action_, &inspector_action_, &send_action_})
+    {
+        QAction* action = *slot;
+        QDockWidget* dock = slot == &ports_action_       ? ports_dock_
+                            : slot == &inspector_action_ ? inspector_dock_
+                                                         : send_dock_;
+        if (action == nullptr)
+            continue;
+        {
+            const QSignalBlocker blocker(action);
+            action->setChecked(true);
+        }
+        connect(action, &QAction::toggled, this,
+                [this, dock](bool shown)
+                {
+                    if (!shown && raise_if_behind(dock))
+                        return;
+                    dock->setVisible(shown && level_.advanced());
+                    if (shown && level_.advanced())
+                        dock->raise();
+                });
+    }
+    dock_panes_->manage(ports_dock_);
+    dock_panes_->manage(inspector_dock_);
+    dock_panes_->manage(send_dock_);
+    dock_panes_->manage(monitor_dock_);
+    dock_panes_->manage(links_dock_);
+    dock_panes_->manage(log_dock_);
+    dock_panes_->manage(json_dock_);
+    // Closing a pane is the user's choice, so the View entry unchecks. Hiding
+    // for Simple mode or a tab change does not come through here.
+    connect(dock_panes_, &DockPanes::pane_closed, this,
+            [this](QDockWidget* dock)
+            {
+                if (QAction* action = pane_action(dock))
+                    action->setChecked(false);
+            });
+    connect(dock_panes_, &DockPanes::layout_changed, this,
+            [this] { layout_customised_ = true; });
 
     resizeDocks(
         {ports_dock_},
@@ -1475,6 +1566,8 @@ void ShellWindow::connect_plugins()
             [this](const QString&, const QString&)
             { status_->showMessage(tr("Not available in this build"), 4000); });
     }
+    connect(inspector_panel_, &InspectorPanel::monitor_requested, this,
+            [this](vss::endpoint_id id) { open_in_monitor(id); });
     connect(inspector_panel_, &InspectorPanel::plugin_action_requested, this,
             [this](const QString& id, int action)
             { handle_part_action(id, action); });
@@ -1494,7 +1587,8 @@ void ShellWindow::update_plugin_surfaces()
     {
         std::vector<topology::plugin_tile> tiles;
         for (const support::plugin_tile_text& each :
-             support::plugin_toolbox_tiles(*snapshot))
+             support::plugin_toolbox_tiles(
+                 *snapshot, backend_.caps().plugin_fixtures))
         {
             topology::plugin_tile tile;
             tile.plugin_id = each.plugin_id;
@@ -1697,18 +1791,76 @@ void ShellWindow::update_level_ui()
     status_->set_advanced(level_.advanced());
 }
 
+QAction* ShellWindow::pane_action(const QDockWidget* dock) const
+{
+    if (dock == ports_dock_)
+        return ports_action_;
+    if (dock == inspector_dock_)
+        return inspector_action_;
+    if (dock == send_dock_)
+        return send_action_;
+    if (dock == monitor_dock_)
+        return monitor_action_;
+    if (dock == links_dock_)
+        return links_action_;
+    if (dock == log_dock_)
+        return log_action_;
+    if (dock == json_dock_)
+        return json_action_;
+    return nullptr;
+}
+
+bool ShellWindow::raise_if_behind(QDockWidget* dock)
+{
+    // Choosing an open pane that is a tab behind another brings it to the
+    // front; it closes only when it is already showing.
+    if (dock == nullptr || dock->isHidden() || dock->isFloating() ||
+        !level_.advanced() || tabifiedDockWidgets(dock).isEmpty() ||
+        !dock->visibleRegion().isEmpty())
+        return false;
+    if (QAction* action = pane_action(dock))
+    {
+        const QSignalBlocker blocker(action);
+        action->setChecked(true);
+    }
+    dock->raise();
+    return true;
+}
+
+void ShellWindow::show_pane(QDockWidget* dock)
+{
+    if (dock == nullptr)
+        return;
+    if (QAction* action = pane_action(dock))
+    {
+        const QSignalBlocker blocker(action);
+        action->setChecked(true);
+    }
+    dock->show();
+    dock->raise();
+}
+
+void ShellWindow::hide_all_docks()
+{
+    // The shell hides the panes for Simple mode and the launcher; that is not
+    // the user closing them, so the View menu keeps its check marks.
+    shell_hiding_docks_ = true;
+    for (QDockWidget* dock : {ports_dock_, inspector_dock_, send_dock_,
+                              monitor_dock_, links_dock_, log_dock_,
+                              json_dock_})
+    {
+        if (dock != nullptr)
+            dock->hide();
+    }
+    shell_hiding_docks_ = false;
+}
+
 void ShellWindow::update_content()
 {
     if (!level_.advanced())
     {
         central_->setCurrentWidget(simple_page_);
-        for (QDockWidget* dock :
-             {ports_dock_, inspector_dock_, send_dock_, monitor_dock_,
-              links_dock_, log_dock_, json_dock_})
-        {
-            if (dock != nullptr)
-                dock->hide();
-        }
+        hide_all_docks();
         sync_selection();
         status_->refresh();
         return;
@@ -1720,34 +1872,26 @@ void ShellWindow::update_content()
     {
         central_->setCurrentWidget(launcher_);
         launcher_->refresh();
-        for (QDockWidget* dock :
-             {ports_dock_, inspector_dock_, send_dock_, monitor_dock_,
-              links_dock_, log_dock_, json_dock_})
-        {
-            if (dock != nullptr)
-                dock->hide();
-        }
+        hide_all_docks();
     }
     else
     {
         central_->setCurrentWidget(workspace_);
         refresh_topology();
-        for (QDockWidget* dock :
-             {ports_dock_, inspector_dock_, send_dock_, monitor_dock_})
+        for (QDockWidget* dock : {ports_dock_, inspector_dock_, send_dock_})
         {
+            QAction* action = pane_action(dock);
             if (dock != nullptr)
-                dock->show();
+                dock->setVisible(action == nullptr || action->isChecked());
         }
+        // The Monitor stays closed if the user closed it.
+        monitor_dock_->setVisible(monitor_action_ == nullptr ||
+                                  monitor_action_->isChecked());
         const bool links_shown =
             links_action_ != nullptr && links_action_->isChecked();
         if (links_dock_ != nullptr)
             links_dock_->setVisible(links_shown);
         sync_advanced_docks();
-        if (monitor_action_ != nullptr)
-        {
-            const QSignalBlocker blocker(monitor_action_);
-            monitor_action_->setChecked(monitor_dock_->isVisible());
-        }
     }
     sync_selection();
     status_->refresh();
@@ -1883,11 +2027,6 @@ void ShellWindow::update_dock_titles()
             inspector = tr("Inspector %1").arg(port->name);
     }
     inspector_dock_->setWindowTitle(inspector);
-
-    // The Ports pane header shows the count as a badge rather than running
-    // it into the title.  The inspector shows the port's name in its body.
-    if (ports_header_ != nullptr)
-        ports_header_->set_count(static_cast<int>(ports.size()));
 }
 
 QString ShellWindow::document_signature() const
@@ -1964,12 +2103,21 @@ void ShellWindow::copy_selected_port()
     status_->showMessage(tr("Copied %1.").arg(port->path), 2500);
 }
 
+void ShellWindow::inspect_port(vss::endpoint_id id)
+{
+    // The same port chosen again changes nothing in the selection, so the
+    // Inspector is read again here: it shows the port in whatever state it is
+    // in, connecting, open or failed, and is brought forward.
+    selection_.select_port(id);
+    inspector_panel_->set_selected_port(id);
+    focus_inspector();
+}
+
 void ShellWindow::focus_inspector()
 {
     if (inspector_dock_ == nullptr)
         return;
-    inspector_dock_->show();
-    inspector_dock_->raise();
+    show_pane(inspector_dock_);
     inspector_panel_->setFocus(Qt::ShortcutFocusReason);
 }
 
@@ -1982,7 +2130,11 @@ void ShellWindow::apply_compact()
     VSS_PROFILE_ZONE("gui.shell.apply_compact");
 
     update_toolbar_style();
-    if (compact)
+    // A pane the user has moved is not put back by a window size change.
+    if (layout_customised_)
+    {
+    }
+    else if (compact)
     {
         if (!tabifiedDockWidgets(inspector_dock_).contains(send_dock_))
         {
@@ -2327,8 +2479,7 @@ void ShellWindow::show_send()
 {
     if (send_dock_ == nullptr)
         return;
-    send_dock_->show();
-    send_dock_->raise();
+    show_pane(send_dock_);
 }
 
 port_menu_state ShellWindow::port_menu_state_for(vss::endpoint_id id) const
@@ -2347,7 +2498,83 @@ port_menu_state ShellWindow::port_menu_state_for(vss::endpoint_id id) const
         state.echoing = behaviours_->echoing(id);
         state.echo_available = behaviours_->echo_available();
     }
+    // "Decode as..." is shown while a plugin with a decoder is on. When none
+    // can be used now it is disabled and says why.
+    if (state.advanced)
+    {
+        if (PluginBackend* host = backend_.plugin_backend(); host != nullptr)
+        {
+            if (const plugin_snapshot_ptr snapshot = host->snapshot())
+            {
+                const auto choices = support::decoder_choices(*snapshot);
+                state.decode_shown = !choices.empty();
+                for (const support::decoder_choice& each : choices)
+                {
+                    if (each.usable)
+                        state.decode_enabled = true;
+                }
+                if (state.decode_shown && !state.decode_enabled)
+                    state.decode_reason = choices.front().reason;
+            }
+        }
+    }
     return state;
+}
+
+void ShellWindow::open_in_monitor(vss::endpoint_id id)
+{
+    const auto port = backend_.port(id);
+    show_monitor();
+    const bool only = monitor_panel_->show_only_port(id);
+    if (!port)
+        return;
+    status_->showMessage(
+        only ? tr("The Monitor shows only %1. Choose All ports in its port "
+                  "filter to see every port.")
+                   .arg(port->name)
+             : tr("The Monitor shows %1.").arg(port->name),
+        6000);
+}
+
+void ShellWindow::show_decode(vss::endpoint_id id)
+{
+    PluginBackend* host = backend_.plugin_backend();
+    const auto port = backend_.port(id);
+    if (host == nullptr || !port)
+        return;
+    const plugin_snapshot_ptr snapshot = host->snapshot();
+    if (!snapshot)
+        return;
+    DecodeDialog dialog(port->name, support::decoder_choices(*snapshot), this);
+    if (dialog.exec() != QDialog::Accepted || dialog.chosen() == nullptr)
+        return;
+    const support::decoder_choice choice = *dialog.chosen();
+    QMap<QString, QString> values;
+    if (!choice.place_setting.isEmpty())
+        values.insert(choice.place_setting, port->name);
+    host->add_instance(choice.plugin_id, choice.type_id, values);
+    status_->showMessage(tr("Decoding %1 as %2. What it finds is in Decoded "
+                            "traffic, under Tools.")
+                             .arg(port->name, choice.type_name),
+                         8000);
+    QTimer::singleShot(0, this, [this] { show_decoded(); });
+}
+
+void ShellWindow::show_decoded()
+{
+    PluginBackend* host = backend_.plugin_backend();
+    if (host == nullptr)
+        return;
+    // One window, kept: a second request brings it forward.
+    if (decoded_dialog_ == nullptr)
+    {
+        decoded_dialog_ = new support::DecodedDialog(*host, this);
+        decoded_dialog_->setAttribute(Qt::WA_DeleteOnClose);
+    }
+    decoded_dialog_->refresh();
+    decoded_dialog_->show();
+    decoded_dialog_->raise();
+    decoded_dialog_->activateWindow();
 }
 
 void ShellWindow::run_port_action(vss::endpoint_id id, port_menu_action action)
@@ -2364,8 +2591,10 @@ void ShellWindow::run_port_action(vss::endpoint_id id, port_menu_action action)
         send_panel_->toggle_repeat(id);
         break;
     case port_menu_action::open_monitor:
-        monitor_panel_->set_selected_port(id);
-        show_monitor();
+        open_in_monitor(id);
+        break;
+    case port_menu_action::decode_as:
+        show_decode(id);
         break;
     case port_menu_action::toggle_generator:
         behaviours_->toggle_generator(id);
@@ -2959,6 +3188,26 @@ void ShellWindow::add_program_port()
         tr("Added %1 to %2.")
             .arg(port ? port_display_name(*port) : tr("a port"), device_name),
         4000);
+}
+
+void ShellWindow::set_port_running(vss::endpoint_id id, bool run)
+{
+    if (id == 0 || !backend_.caps().port_stop)
+        return;
+    const auto port = backend_.port(id);
+    if (!port)
+        return;
+    const auto done = backend_.set_port_running(id, run);
+    if (!done)
+    {
+        ToastManager::instance().show(
+            this, run ? tr("Could not start %1.").arg(port->name)
+                      : tr("Could not stop %1.").arg(port->name));
+        return;
+    }
+    status_->showMessage(run ? tr("Started %1.").arg(port->name)
+                             : tr("Stopped %1.").arg(port->name),
+                         3000);
 }
 
 void ShellWindow::show_rename(vss::endpoint_id id)
@@ -3612,11 +3861,52 @@ void ShellWindow::set_dirty(bool dirty)
     update_title();
 }
 
+namespace
+{
+
+/// Bumped whenever the set of panes or their object names change, so an old
+/// saved state is dropped instead of half applied.
+constexpr int kLayoutVersion = 2;
+
+} // namespace
+
+QByteArray ShellWindow::layout_state() const
+{
+    return saveState(kLayoutVersion);
+}
+
+bool ShellWindow::apply_layout_state(const QByteArray& state)
+{
+    if (state.isEmpty() || !restoreState(state, kLayoutVersion))
+        return false;
+    // A floating pane saved on a screen that is gone would be unreachable.
+    if (dock_panes_ != nullptr)
+        dock_panes_->rescue_offscreen();
+    return true;
+}
+
 void ShellWindow::save_layout()
 {
     QSettings settings;
     settings.setValue(QStringLiteral("ui/geometry"), saveGeometry());
-    settings.setValue(QStringLiteral("ui/windowState"), saveState());
+    settings.setValue(QStringLiteral("ui/windowState"), layout_state());
+    // Which panes are open is the View menu's state. The window state alone
+    // cannot say: Simple mode hides every pane without closing it.
+    QStringList open;
+    for (const auto& [name, action] :
+         {std::pair{QStringLiteral("ports"), ports_action_},
+         std::pair{QStringLiteral("inspector"), inspector_action_},
+         std::pair{QStringLiteral("send"), send_action_},
+         std::pair{QStringLiteral("monitor"), monitor_action_},
+          std::pair{QStringLiteral("links"), links_action_},
+          std::pair{QStringLiteral("log"), log_action_},
+          std::pair{QStringLiteral("json"), json_action_}})
+    {
+        if (action != nullptr && action->isChecked())
+            open.push_back(name);
+    }
+    settings.setValue(QStringLiteral("ui/panesOpen"), open);
+    settings.setValue(QStringLiteral("ui/layoutCustom"), layout_customised_);
 }
 
 void ShellWindow::restore_layout()
@@ -3630,22 +3920,92 @@ void ShellWindow::restore_layout()
         settings.value(QStringLiteral("ui/windowState")).toByteArray();
     if (!state.isEmpty())
     {
-        restored_state_ = restoreState(state);
+        restored_state_ = apply_layout_state(state);
+        if (!restored_state_)
+            settings.remove(QStringLiteral("ui/windowState"));
+    }
+    if (restored_state_)
+    {
+        layout_customised_ =
+            settings.value(QStringLiteral("ui/layoutCustom"), false).toBool();
+    }
+    if (restored_state_ && settings.contains(QStringLiteral("ui/panesOpen")))
+    {
+        const QStringList open =
+            settings.value(QStringLiteral("ui/panesOpen")).toStringList();
+        for (const auto& [name, action] :
+             {std::pair{QStringLiteral("ports"), ports_action_},
+             std::pair{QStringLiteral("inspector"), inspector_action_},
+             std::pair{QStringLiteral("send"), send_action_},
+             std::pair{QStringLiteral("monitor"), monitor_action_},
+              std::pair{QStringLiteral("links"), links_action_},
+              std::pair{QStringLiteral("log"), log_action_},
+              std::pair{QStringLiteral("json"), json_action_}})
+        {
+            if (action == nullptr)
+                continue;
+            const QSignalBlocker blocker(action);
+            action->setChecked(open.contains(name));
+        }
     }
 }
 
 void ShellWindow::reset_layout()
 {
-    resizeDocks(
-        {ports_dock_},
-        {Theme::instance().metric(QStringLiteral("layout.ports.default"))},
-        Qt::Horizontal);
-    resizeDocks(
-        {inspector_dock_},
-        {Theme::instance().metric(QStringLiteral("layout.inspector.default"))},
-        Qt::Horizontal);
-    apply_dock_sizes();
+    // The bottom panes go back to one tab group at the bottom, Monitor in
+    // front, and the panes that start open are open.
+    if (dock_panes_ != nullptr)
+    {
+        const QVector<QDockWidget*> bottom = {monitor_dock_, links_dock_,
+                                              log_dock_, json_dock_};
+        for (QDockWidget* dock : bottom)
+        {
+            if (dock == nullptr)
+                continue;
+            if (dock->isFloating())
+                dock->setFloating(false);
+            removeDockWidget(dock);
+            addDockWidget(Qt::BottomDockWidgetArea, dock);
+        }
+        for (QDockWidget* dock : bottom)
+        {
+            if (dock != nullptr && dock != monitor_dock_)
+                tabifyDockWidget(monitor_dock_, dock);
+        }
+        // Every pane that starts open is open again; the links list starts
+        // closed.
+        for (QAction* action : {ports_action_, inspector_action_, send_action_,
+                                monitor_action_, log_action_, json_action_})
+        {
+            if (action != nullptr)
+                action->setChecked(true);
+        }
+        if (links_action_ != nullptr)
+            links_action_->setChecked(false);
+    }
+    for (QDockWidget* dock : {ports_dock_, inspector_dock_, send_dock_})
+    {
+        if (dock->isFloating())
+            dock->setFloating(false);
+        removeDockWidget(dock);
+    }
+    addDockWidget(Qt::LeftDockWidgetArea, ports_dock_);
+    addDockWidget(Qt::RightDockWidgetArea, inspector_dock_);
+    addDockWidget(Qt::RightDockWidgetArea, send_dock_);
+    splitDockWidget(inspector_dock_, send_dock_, Qt::Vertical);
+    layout_customised_ = false;
+    // The compact window tabs Inspector and Send; apply that again.
+    compact_ = !compact_;
+    apply_compact();
     show_workspace();
+    if (monitor_dock_ != nullptr)
+        monitor_dock_->raise();
+    // QMainWindow lays the docks out after this returns; a queued resize is
+    // what makes the default sizes stick, as at start-up.
+    apply_dock_sizes();
+    QTimer::singleShot(0, this, [this] { apply_dock_sizes(); });
+    if (dock_panes_ != nullptr)
+        dock_panes_->refresh_tab_bars();
     status_->showMessage(tr("Layout reset."), 2500);
 }
 
@@ -3706,17 +4066,26 @@ void ShellWindow::apply_density_setting()
     Theme::instance().set_density(density == QLatin1String("compact")
                                       ? density_mode::compact
                                       : density_mode::comfortable);
-    for (const QString& name :
-         {QStringLiteral("comfortable"), QStringLiteral("compact")})
-    {
-        QAction* action =
-            registry_.action(QStringLiteral("view.density.") + name);
-        if (action != nullptr)
-        {
-            const QSignalBlocker blocker(action);
-            action->setChecked(density == name);
-        }
-    }
+    sync_density_actions();
+}
+
+/// Ticks the one density action that matches the theme.  The actions are in an
+/// exclusive group, which tracks the checked action through the action's
+/// changed signal, so the action is not blocked here: a blocked change would
+/// leave the group with no current action and the old tick in place.  The
+/// registry runs an action on triggered, not toggled, so this does not feed
+/// back into the theme or the saved setting.
+void ShellWindow::sync_density_actions()
+{
+    const bool compact = Theme::instance().density() == density_mode::compact;
+    QAction* comfortable_action =
+        registry_.action(QStringLiteral("view.density.comfortable"));
+    QAction* compact_action =
+        registry_.action(QStringLiteral("view.density.compact"));
+    if (comfortable_action == nullptr || compact_action == nullptr)
+        return;
+    (compact ? compact_action : comfortable_action)->setChecked(true);
+    (compact ? comfortable_action : compact_action)->setChecked(false);
 }
 
 void ShellWindow::apply_menu_palette()

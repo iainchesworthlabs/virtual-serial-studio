@@ -39,6 +39,7 @@ namespace vss {
 class bus_line;
 class bus_wire;
 class delay_line;
+struct visited_chunk;
 
 struct hub_options
 {
@@ -130,8 +131,10 @@ public:
     result<link_id> redirect(endpoint_id from, endpoint_id to,
                              link_options options = {});
 
-    /// Passive one-way copy, for a monitor port.
-    result<link_id> monitor(endpoint_id from, endpoint_id to);
+    /// Passive one-way copy, for a monitor port.  `options.direction` says
+    /// which bytes of `from` it copies; the modem lines are always off.
+    result<link_id> monitor(endpoint_id from, endpoint_id to,
+                            link_options options = {});
 
     /// A shared multi-drop bus: every byte a member publishes goes to every
     /// other member and never back to its sender, as on an RS-485 pair.
@@ -466,6 +469,18 @@ private:
     endpoint_id cycle_node(endpoint_id id) const;
     bool reaches(endpoint_id start,
                  const std::unordered_set<endpoint_id>& goals) const;
+    /// Routes a chunk that `from` read, or that a link wrote into `from`.
+    /// `visited` is null for a chunk read from `from`; for a chunk that is
+    /// carried on it holds every endpoint the chunk has been read from or
+    /// written to and every link it has crossed, and no route into one of
+    /// those endpoints or over one of those links is taken.
+    void route_chunk(endpoint_id from, bytes_view data, time_point when,
+                     const visited_chunk* visited);
+    /// What the delay lines and the bus wires call after they have written a
+    /// chunk into an endpoint, to carry it on.
+    std::function<void(endpoint_id, bytes_view,
+                       const std::shared_ptr<const visited_chunk>&, time_point)>
+    make_forwarder();
     route_entry make_route(const link_record& link, endpoint_id from,
                            endpoint_id to);
     /// The delay line for a route to `to` under `options`; null when they

@@ -12,6 +12,7 @@
 
 #include <QMap>
 #include <QSet>
+#include <QTransform>
 
 #include <algorithm>
 #include <cmath>
@@ -38,6 +39,21 @@ QPointF right_centre(const QRectF& rect)
 QPointF left_centre(const QRectF& rect)
 {
     return QPointF(rect.left(), rect.center().y());
+}
+
+QPointF mirror_point(const QPointF& point)
+{
+    return QPointF(-point.x(), point.y());
+}
+
+QRectF mirror_rect(const QRectF& rect)
+{
+    return QRectF(-rect.right(), rect.top(), rect.width(), rect.height());
+}
+
+QPainterPath mirror_path(const QPainterPath& path)
+{
+    return QTransform(-1.0, 0.0, 0.0, 1.0, 0.0, 0.0).map(path);
 }
 
 QPolygonF arrow_head(const QPointF& tip, const QPointF& from)
@@ -1068,6 +1084,25 @@ QRectF push_clear(const QRectF& rect, const QVector<QRectF>& occupied,
     return result;
 }
 
+link_sides facing_sides(const QRectF& source, const QRectF& target)
+{
+    // The gap a link has to cross going right (out of the source's right edge
+    // into the target's left) and going left; negative when the nodes overlap.
+    const qreal rightward = target.left() - source.right();
+    const qreal leftward = source.left() - target.right();
+    if (leftward > rightward)
+        return {link_side::left, link_side::right};
+    return {link_side::right, link_side::left};
+}
+
+link_sides sides_for_drag(link_side dragged, bool dragged_is_source)
+{
+    const link_side other =
+        dragged == link_side::left ? link_side::right : link_side::left;
+    return dragged_is_source ? link_sides{dragged, other}
+                             : link_sides{other, dragged};
+}
+
 QVector<topo_link_placement>
 compute_link_geometry(const QVector<topo_link_input>& links,
                       const QHash<vss::endpoint_id, QRectF>& rects,
@@ -1087,9 +1122,16 @@ compute_link_geometry(const QVector<topo_link_input>& links,
             {
                 if (!rects.contains(source) || !rects.contains(target))
                     continue;
-                proxies.append({source, target,
-                                QLineF(right_centre(rects.value(source)),
-                                       left_centre(rects.value(target)))});
+                const QRectF from = rects.value(source);
+                const QRectF to = rects.value(target);
+                const link_sides sides =
+                    link.sides.value_or(facing_sides(from, to));
+                proxies.append(
+                    {source, target,
+                     QLineF(sides.from == link_side::right ? right_centre(from)
+                                                           : left_centre(from),
+                            sides.to == link_side::left ? left_centre(to)
+                                                        : right_centre(to))});
             }
         }
     }
@@ -1291,13 +1333,42 @@ compute_link_geometry(const QVector<topo_link_input>& links,
             {
                 for (qsizetype to = 0; to < target_ids.size(); ++to)
                 {
-                    const QRectF source = rects.value(source_ids.at(from));
-                    const QRectF target = rects.value(target_ids.at(to));
+                    QRectF source = rects.value(source_ids.at(from));
+                    QRectF target = rects.value(target_ids.at(to));
+                    // A link runs between the connectors that face each other.
+                    // One that runs leftward is routed mirrored, as a rightward
+                    // one, and the result is mirrored back.
+                    const bool flipped =
+                        link.sides.value_or(facing_sides(source, target))
+                            .from == link_side::left;
+                    QVector<QRectF> work_others = others;
+                    QVector<proxy_edge> work_proxies = proxies;
+                    if (flipped)
+                    {
+                        source = mirror_rect(source);
+                        target = mirror_rect(target);
+                        for (QRectF& rect : work_others)
+                            rect = mirror_rect(rect);
+                        work_others = sorted_rects(work_others);
+                        for (proxy_edge& proxy : work_proxies)
+                        {
+                            proxy.line = QLineF(mirror_point(proxy.line.p1()),
+                                                mirror_point(proxy.line.p2()));
+                        }
+                    }
                     const QVector<QPointF> path = edge_path(
                         source_ids.at(from), target_ids.at(to), source, target,
-                        others, clearance, proxies, style);
+                        work_others, clearance, work_proxies, style);
                     for (qsizetype index = 1; index < path.size(); ++index)
-                        add_segment(QLineF(path.at(index - 1), path.at(index)));
+                    {
+                        QLineF line(path.at(index - 1), path.at(index));
+                        if (flipped)
+                        {
+                            line = QLineF(mirror_point(line.p1()),
+                                          mirror_point(line.p2()));
+                        }
+                        add_segment(line);
+                    }
 
                     const int lane =
                         lanes[{source_ids.at(from), target_ids.at(to)}]++;
@@ -1306,9 +1377,9 @@ compute_link_geometry(const QVector<topo_link_input>& links,
                     {
                         curve = style == link_style::curved
                                     ? lane_curve(path.first(), path.last(),
-                                                 lane, others, soft)
+                                                 lane, work_others, soft)
                                     : lane_elbow(path.first(), path.last(),
-                                                 lane, others, soft);
+                                                 lane, work_others, soft);
                     }
                     else
                     {
@@ -1317,7 +1388,7 @@ compute_link_geometry(const QVector<topo_link_input>& links,
                         QVector<QPointF> route = path;
                         if (lane > 0)
                         {
-                            QVector<QRectF> obstacles = others;
+                            QVector<QRectF> obstacles = work_others;
                             obstacles.append(source);
                             obstacles.append(target);
                             const QVector<QPointF> aside =
@@ -1327,12 +1398,14 @@ compute_link_geometry(const QVector<topo_link_input>& links,
                                 route = aside;
                         }
                         curve = style == link_style::curved
-                                    ? fitted_route(route, others,
+                                    ? fitted_route(route, work_others,
                                                    {source, target}, clearance)
-                                    : fitted_elbow_route(route, others,
+                                    : fitted_elbow_route(route, work_others,
                                                          {source, target},
                                                          clearance);
                     }
+                    if (flipped)
+                        curve = mirror_path(curve);
                     placement.stroke.addPath(curve);
                     if (link.arrow && path.size() >= 2)
                         placement.arrows.append(arrow_at_end(curve));

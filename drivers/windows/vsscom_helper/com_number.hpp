@@ -14,6 +14,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace vss::helper
 {
@@ -58,6 +59,81 @@ inline std::optional<unsigned long> parse_com_name(std::wstring_view name)
         number = number * 10 + static_cast<unsigned long>(name[i] - L'0');
     }
     return number;
+}
+
+/// What holds a COM number, as far as the helper can tell.
+enum class holder_kind
+{
+    /// A device that is present: a real port, com0com, or a Studio port that
+    /// is running. The number is taken.
+    live_device,
+    /// A Studio port that is gone. Windows keeps its device entry, with the
+    /// PortName, and the number stays marked in the COM name database. Studio
+    /// made it, so Studio may remove it and take the number back.
+    studio_ghost,
+    /// A port of something else that is not plugged in (a USB adapter that
+    /// comes back to the same number). Not Studio's to take.
+    other_ghost
+};
+
+struct number_holder
+{
+    holder_kind kind = holder_kind::live_device;
+    /// The device instance id, for the helper to remove a Studio ghost.
+    std::wstring instance;
+};
+
+/// What to do when a program wants a COM number. `allowed` is false when the
+/// number belongs to something that is not Studio's to take; otherwise the
+/// helper removes `remove` (Studio ghosts holding the number), and then claims
+/// the number, releasing it first if the database still marks it with no
+/// device behind it.
+struct claim_plan
+{
+    bool allowed = false;
+    std::vector<std::wstring> remove;
+};
+
+/// `name_resolves` is true when \\.\COMn already resolves to something.
+/// `holders` are the devices (present or not) whose PortName is that number,
+/// other than the port being renamed. A number that only the database marks,
+/// with no device named in `holders`, is free to take: nothing owns it.
+inline claim_plan plan_claim(bool name_resolves,
+                             const std::vector<number_holder>& holders)
+{
+    claim_plan plan;
+    if (name_resolves)
+        return plan;
+    for (const auto& holder : holders)
+    {
+        if (holder.kind != holder_kind::studio_ghost)
+            return plan;
+    }
+    plan.allowed = true;
+    for (const auto& holder : holders)
+        plan.remove.push_back(holder.instance);
+    return plan;
+}
+
+/// True when the device instance id is one of Studio's ports: the user-mode
+/// driver's (SWD\VSSCOMUM\...) or the kernel-mode driver's (VSSCOM\PORT\...).
+inline bool is_studio_port_instance(std::wstring_view instance)
+{
+    const auto starts_with = [&](std::wstring_view prefix)
+    {
+        if (instance.size() < prefix.size())
+            return false;
+        for (std::size_t i = 0; i < prefix.size(); ++i)
+        {
+            wchar_t c = instance[i];
+            if (c >= L'a' && c <= L'z')
+                c = static_cast<wchar_t>(c - L'a' + L'A');
+            if (c != prefix[i])
+                return false;
+        }
+        return true;
+    };
+    return starts_with(L"SWD\\VSSCOMUM\\") || starts_with(L"VSSCOM\\PORT\\");
 }
 
 /// The friendly name of a port after its number changed: "Name (COM4)" becomes

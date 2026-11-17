@@ -77,6 +77,17 @@ const char* to_string(collision_action value) noexcept
     return "unknown";
 }
 
+const char* to_string(monitor_direction value) noexcept
+{
+    switch (value)
+    {
+    case monitor_direction::both: return "both";
+    case monitor_direction::transmit: return "transmit";
+    case monitor_direction::receive: return "receive";
+    }
+    return "unknown";
+}
+
 const char* to_string(bus_fault value) noexcept
 {
     switch (value)

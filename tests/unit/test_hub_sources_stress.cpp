@@ -176,9 +176,17 @@ void join_churn(const link_options& options, int messages)
     }
 
     // One-way: nothing went back, and the short-lived endpoints sent nothing.
-    for (const mock_endpoint* port :
-         {&stay_1, &stay_2, &comes, &goes, &tap, &back})
+    for (const mock_endpoint* port : {&stay_1, &stay_2, &comes, &goes, &tap})
         REQUIRE_EQ(port->written(), std::string());
+
+    // What the join wrote into the target is carried on to the port the
+    // target sends to, once and in order for each source.
+    for (const auto& [sender, numbers] : by_sender(back.written()))
+    {
+        REQUIRE(sender == 'A' || sender == 'B' || sender == 'C' ||
+                sender == 'G');
+        REQUIRE(strictly_rising(numbers));
+    }
 
     // The link is the one that was made, with what it should have now.
     const auto info = hub->find_link(*link);
@@ -307,11 +315,18 @@ void bus_churn(const link_options& options, int messages)
         }
     }
 
-    // A receiver beside the bus heard each stayer once.
+    // A receiver beside the bus heard each stayer once.  What the others
+    // sent is written into the stayers and carried on to it, once, so it
+    // hears them too, in order.
     const auto beside = by_sender(tap.written());
-    REQUIRE_EQ(beside.size(), std::size_t{3});
     for (const char tag : {'a', 'b', 'c'})
         REQUIRE(complete(beside.at(tag), messages));
+    for (const auto& [sender, numbers] : beside)
+    {
+        REQUIRE(sender == 'a' || sender == 'b' || sender == 'c' ||
+                sender == 'C' || sender == 'G');
+        REQUIRE(strictly_rising(numbers));
+    }
 
     // The goer is off the bus and heard only while it was on.
     for (const auto& [sender, numbers] : by_sender(goes.written()))

@@ -30,6 +30,8 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+#include <algorithm>
+
 namespace vss::gui::support
 {
 namespace
@@ -230,6 +232,8 @@ void SetupCheckDialog::build()
     header_chip_ =
         new StatusChip(QCoreApplication::translate("SetupCheck", "Ready"),
                        StatusChip::kind::healthy, header);
+    // The same size as a state chip in the Ports table and the Inspector.
+    header_chip_->set_small(true);
     header_layout->addWidget(header_chip_, 0, Qt::AlignTop);
     outer->addWidget(header);
 
@@ -345,6 +349,12 @@ void SetupCheckDialog::rebuild()
         rows_layout_->addWidget(widget);
         rows_.push_back(widget);
     }
+
+    int status_width = 0;
+    for (const CheckRowWidget* row : rows_)
+        status_width = std::max(status_width, row->chip_width());
+    for (CheckRowWidget* row : rows_)
+        row->set_status_column_width(status_width);
 
     switch (report_.state)
     {

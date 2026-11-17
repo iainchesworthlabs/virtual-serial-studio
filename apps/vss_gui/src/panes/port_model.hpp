@@ -11,6 +11,7 @@
 
 #include <QAbstractTableModel>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 
 #include <cstdint>
@@ -55,6 +56,28 @@ public:
         format_warning_role
     };
 
+    /// The columns. The first five are the default view; the rest are offered
+    /// by the header menu. The numbers are fixed, because saved settings name
+    /// columns by them.
+    enum column
+    {
+        port_column,
+        state_column,
+        rx_column,
+        tx_column,
+        dropped_column,
+        kind_column,
+        address_column,
+        settings_column,
+        baud_column,
+        data_bits_column,
+        parity_column,
+        stop_bits_column,
+        flow_control_column,
+        errors_column,
+        column_count
+    };
+
     explicit PortModel(QObject* parent = nullptr);
 
     void set_snapshot(std::vector<port_view> ports,
@@ -80,6 +103,13 @@ public:
                              const std::vector<port_view>& ports,
                              const std::vector<link_view>& links);
     static QString serial_text(const port_view& port);
+    /// What the cell of `column` shows for `port`; a dash where the engine
+    /// does not know the value for this kind of port.
+    static QString cell_text(const port_view& port, int column);
+    /// The kind of endpoint in words, such as "Network client".
+    static QString kind_text(const port_view& port);
+    /// True for the columns that hold numbers, which are right aligned.
+    static bool is_numeric_column(int column);
     /// What the engine knows about the other side of the port, in one line: the
     /// baud rate and framing a program set, who is connected to a listener, and
     /// a warning when the port runs at a different speed from the others on its
@@ -92,6 +122,12 @@ public:
 private:
     void rebuild_visible();
     bool matches(const port_view& port) const;
+
+    /// What each visible row showed when it was last published, one string
+    /// per column and a last one for what only the row delegate reads, so an
+    /// update tells the views which cells changed.
+    QStringList row_signature(const port_view& port) const;
+    void publish_changes(const std::vector<QStringList>& before);
 
     std::vector<port_view> ports_;
     std::vector<link_view> links_;

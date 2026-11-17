@@ -14,6 +14,7 @@
 #include "test_framework.hpp"
 
 #include "backend/fake_plugin_backend.hpp"
+#include "support/decoded_dialog.hpp"
 #include "support/licence_text.hpp"
 #include "support/plugin_dialogs.hpp"
 #include "support/plugin_text.hpp"
@@ -2289,4 +2290,86 @@ TEST_CASE(
     REQUIRE(counts->text().contains(QStringLiteral("1 refused")));
     REQUIRE(
         counts->text().contains(QStringLiteral("Showing the newest 2 of 5.")));
+}
+
+TEST_CASE("plugins page: an invalid description file says what is wrong")
+{
+    plugin_view plugin;
+    plugin.id = QStringLiteral("org.example.invalid");
+    plugin.state = plugin_state::cannot_be_used;
+    plugin.note = plugin_note::invalid_manifest;
+
+    // Without a line from the host, only the general sentence.
+    REQUIRE_EQ(note_for(plugin).text,
+               QStringLiteral("Its description file is not valid, so Studio "
+                              "cannot tell what it is."));
+
+    plugin.detail = QStringLiteral("an official plugin must have not_after");
+    REQUIRE_EQ(note_for(plugin).text,
+               QStringLiteral("Its description file is not valid, so Studio "
+                              "cannot tell what it is. What is wrong: an "
+                              "official plugin must have not_after"));
+}
+
+TEST_CASE("decoded traffic: frames and triggers of every decoder, newest "
+          "first, as plain text, with a filter for triggers")
+{
+    plugin_view plugin = plugin_with_points();
+    plugin_instance_view decoder;
+    decoder.number = 3;
+    decoder.point_id = QStringLiteral("pulse");
+    decoder.point_name = QStringLiteral("Pulse");
+    decoder.state = plugin_instance_state::running;
+    decoder.decoder = true;
+    plugin.instances = {decoder};
+    fixture env({plugin});
+
+    DecodedDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    // Nothing found yet: the window says so and how to start.
+    REQUIRE_EQ(dialog.row_count(), 0);
+    REQUIRE_EQ(dialog.empty_label()->text(),
+               QStringLiteral("Nothing found yet."));
+
+    auto what = std::make_shared<plugin_found>();
+    plugin_found_row frame;
+    frame.time_ns = 12'345'000'000;
+    frame.place = QStringLiteral("Alpha");
+    frame.received = true;
+    frame.what = QStringLiteral("<b>hello</b>");
+    frame.kind = QStringLiteral("greeting");
+    plugin_found_row trigger;
+    trigger.time_ns = 13'000'000'000;
+    trigger.place = QStringLiteral("Alpha");
+    trigger.received = false;
+    trigger.trigger = true;
+    trigger.what = QStringLiteral("no end byte");
+    trigger.kind = QStringLiteral("Framing");
+    what->rows = {frame, trigger};
+    what->revision = 1;
+    env.backend.set_found(plugin.id, 3, what);
+    dialog.refresh();
+
+    // Newest first, with the type, and the plugin's words as they are.
+    REQUIRE_EQ(dialog.row_count(), 2);
+    REQUIRE_EQ(dialog.cell(0, 3), QStringLiteral("Trigger"));
+    REQUIRE_EQ(dialog.cell(0, 2), QStringLiteral("Sent"));
+    REQUIRE_EQ(dialog.cell(0, 5), QStringLiteral("no end byte"));
+    REQUIRE_EQ(dialog.cell(1, 3), QStringLiteral("Frame"));
+    REQUIRE_EQ(dialog.cell(1, 5), QStringLiteral("<b>hello</b>"));
+
+    dialog.triggers_only_check()->setChecked(true);
+    REQUIRE_EQ(dialog.row_count(), 1);
+    REQUIRE_EQ(dialog.cell(0, 3), QStringLiteral("Trigger"));
+
+    // With no decoder at all, it says how to start one.
+    plugin.instances.clear();
+    env.backend.set_plugins({plugin});
+    env.backend.flush();
+    dialog.triggers_only_check()->setChecked(false);
+    dialog.refresh();
+    REQUIRE_EQ(dialog.row_count(), 0);
+    REQUIRE(dialog.empty_label()->text().contains(
+        QStringLiteral("Decode as...")));
 }

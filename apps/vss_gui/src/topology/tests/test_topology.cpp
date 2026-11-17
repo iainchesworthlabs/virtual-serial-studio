@@ -121,6 +121,11 @@ void double_click(QWidget* target, const QPoint& position)
     QMouseEvent press(QEvent::MouseButtonDblClick, local, global,
                       Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
     QApplication::sendEvent(target, &press);
+    // The release that ends a real double-click, so the item does not keep
+    // the mouse.
+    QMouseEvent release(QEvent::MouseButtonRelease, local, global,
+                        Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(target, &release);
     QApplication::processEvents();
 }
 
@@ -272,6 +277,116 @@ TEST_CASE("topology: owner, dropped and unlinked badges")
     // The target of a join uses the taller 64 px box even when it is virtual.
     REQUIRE_EQ(view.node_size(1).height(), 64.0);
     REQUIRE_EQ(view.node_size(2).height(), 56.0);
+}
+
+TEST_CASE("topology: a network client shows where it connects and its state")
+{
+    std::vector<vss::gui::port_view> ports(4);
+    const char* const names[] = {"server", "connecting", "failed", "up"};
+    for (std::size_t index = 0; index < ports.size(); ++index)
+    {
+        ports[index].id = static_cast<vss::endpoint_id>(index + 1);
+        ports[index].name = QString::fromLatin1(names[index]);
+        ports[index].kind = vss::endpoint_kind::rfc2217;
+        ports[index].path = QStringLiteral("rfc2217://10.0.0.%1:4001")
+                                .arg(index + 1);
+    }
+    ports[0].path = QStringLiteral("rfc2217-listen://0.0.0.0:4001");
+    for (std::size_t index = 1; index < ports.size(); ++index)
+    {
+        vss::gui::connection_view connection;
+        connection.target = ports[index].path;
+        ports[index].connection = connection;
+    }
+    ports[2].connection->phase = vss::gui::connect_phase::failed;
+    ports[2].connection->reason = QStringLiteral("Connection refused");
+    ports[3].connection->phase = vss::gui::connect_phase::connected;
+
+    topo::TopologyView view;
+    view.set_topology(ports, {});
+
+    // The address is on the pill, as a server's bind address is.
+    REQUIRE_EQ(vss::gui::topology_text::node_detail(ports[1]),
+               QStringLiteral("rfc2217://10.0.0.2:4001"));
+    // Only a failure gets a chip; a try under way turns the icon.
+    REQUIRE(!view.node_badges(2).contains(QStringLiteral("Failed")));
+    REQUIRE(view.node_badges(3).contains(QStringLiteral("Failed")));
+    REQUIRE(!view.node_badges(4).contains(QStringLiteral("Failed")));
+    // An open connection says so on the pill too.
+    REQUIRE(view.node_badges(4).contains(QStringLiteral("Connected")));
+    REQUIRE(!view.node_badges(2).contains(QStringLiteral("Connected")));
+    REQUIRE(vss::gui::topology_text::node_tooltip(ports[2], true)
+                .contains(QStringLiteral("Could not connect to "
+                                         "rfc2217://10.0.0.3:4001: "
+                                         "Connection refused.")));
+    REQUIRE(view.node_spins(2));
+    REQUIRE(!view.node_spins(3));
+    REQUIRE(!view.node_spins(4));
+    REQUIRE(!view.node_spins(1));
+    // Reduced motion keeps the icon still.
+    REQUIRE(view.node_spin_timer_running());
+    qputenv("VSS_REDUCE_MOTION", QByteArrayLiteral("1"));
+    topo::TopologyView still;
+    still.set_topology(ports, {});
+    REQUIRE(!still.node_spin_timer_running());
+    qunsetenv("VSS_REDUCE_MOTION");
+    // A change of state reaches the canvas.
+    ports[1].connection->phase = vss::gui::connect_phase::connected;
+    view.set_topology(ports, {});
+    REQUIRE(!view.node_spins(2));
+    REQUIRE(view.node_badges(2).contains(QStringLiteral("Connected")));
+    ports[1].connection->phase = vss::gui::connect_phase::connecting;
+    view.set_topology(ports, {});
+
+    // For a person to review: connecting, failed, connected and a server.
+    const QString directory = QDir(QCoreApplication::applicationDirPath())
+                                  .filePath(QStringLiteral("../gui-shots"));
+    REQUIRE(QDir().mkpath(directory));
+    view.resize(760, 360);
+    view.show();
+    QApplication::processEvents();
+    REQUIRE(view.grab().save(QDir(directory).filePath(
+        QStringLiteral("network-client-states.png"))));
+    view.hide();
+}
+
+TEST_CASE("topology: a stopped port says so and offers Start")
+{
+    std::vector<vss::gui::port_view> ports(2);
+    ports[0].id = 1;
+    ports[0].name = QStringLiteral("client");
+    ports[0].path = QStringLiteral("tcp://10.0.0.9:9001");
+    ports[0].kind = vss::endpoint_kind::tcp;
+    ports[0].can_stop = true;
+    vss::gui::connection_view connection;
+    connection.target = ports[0].path;
+    ports[0].connection = connection;
+    ports[1].id = 2;
+    ports[1].name = QStringLiteral("plain");
+    ports[1].path = QStringLiteral("COM9");
+    ports[1].kind = vss::endpoint_kind::virtual_port;
+
+    vss::gui::capabilities caps;
+    caps.port_stop = true;
+    topo::TopologyView view;
+    view.set_capabilities(caps);
+    view.set_topology(ports, {});
+    REQUIRE(view.node_menu_labels(1).contains(QStringLiteral("Stop")));
+    REQUIRE(!view.node_menu_labels(1).contains(QStringLiteral("Start")));
+    // A virtual port cannot be stopped.
+    REQUIRE(!view.node_menu_labels(2).contains(QStringLiteral("Stop")));
+
+    ports[0].stopped = true;
+    ports[0].connection->phase = vss::gui::connect_phase::stopped;
+    view.set_topology(ports, {});
+    REQUIRE(view.node_menu_labels(1).contains(QStringLiteral("Start")));
+    // Stopped is its own state: a chip, no spinning icon, no failure.
+    REQUIRE(view.node_badges(1).contains(QStringLiteral("Stopped")));
+    REQUIRE(!view.node_badges(1).contains(QStringLiteral("Failed")));
+    REQUIRE(!view.node_spins(1));
+    REQUIRE(vss::gui::topology_text::node_tooltip(ports[0], true)
+                .contains(QStringLiteral("Stopped. Not connecting to "
+                                         "tcp://10.0.0.9:9001.")));
 }
 
 TEST_CASE("topology: layout for split, join, straight, chain and unlinked")
@@ -515,6 +630,64 @@ TEST_CASE("topology: Tab visits nodes then links, Enter and Delete act")
     REQUIRE_EQ(removed_link, fixture.link);
 
     view.close();
+}
+
+TEST_CASE("topology: double-click opens Settings while editing, for a port "
+          "and for a link, and does nothing on empty canvas")
+{
+    graph_fixture fixture;
+    topo::TopologyView view;
+    view.resize(1000, 700);
+    view.show();
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    view.set_editing(true);
+    QApplication::processEvents();
+
+    QVector<vss::endpoint_id> settings;
+    vss::link_id link_settings = 0;
+    int inspected = 0;
+    QObject::connect(&view, &topo::TopologyView::settings_requested,
+                     [&settings](const QVector<vss::endpoint_id>& ports)
+                     { settings = ports; });
+    QObject::connect(&view, &topo::TopologyView::link_settings_requested,
+                     [&link_settings](vss::link_id id) { link_settings = id; });
+    QObject::connect(&view, &topo::TopologyView::inspect_requested,
+                     [&inspected](vss::endpoint_id) { ++inspected; });
+
+    double_click(view.viewport(),
+                 view.mapFromScene(view.node_rect(fixture.terminal).center()));
+    REQUIRE_EQ(settings, QVector<vss::endpoint_id>{fixture.terminal});
+    REQUIRE_EQ(inspected, 0);
+    // The double-click leaves the node selected, not toggled off.
+    REQUIRE_EQ(view.selected_port(), fixture.terminal);
+
+    double_click(view.viewport(),
+                 view.mapFromScene(view.link_anchor(fixture.link)));
+    REQUIRE_EQ(link_settings, fixture.link);
+
+    settings.clear();
+    link_settings = 0;
+    double_click(view.viewport(), QPoint(6, 6));
+    REQUIRE(settings.isEmpty());
+    REQUIRE_EQ(link_settings, vss::link_id{0});
+    REQUIRE_EQ(inspected, 0);
+
+    // A monitor link has settings too (its direction).
+    const auto monitor = fixture.backend.monitor(fixture.terminal, fixture.logger);
+    REQUIRE(monitor.has_value());
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+    link_settings = 0;
+    double_click(view.viewport(),
+                 view.mapFromScene(view.link_anchor(*monitor)));
+    REQUIRE_EQ(link_settings, *monitor);
+
+    // Not being edited, a double-click inspects, as the design had it.
+    view.set_editing(false);
+    double_click(view.viewport(),
+                 view.mapFromScene(view.node_rect(fixture.terminal).center()));
+    REQUIRE_EQ(inspected, 1);
+    REQUIRE(settings.isEmpty());
 }
 
 TEST_CASE("topology: double-click and the context menu")

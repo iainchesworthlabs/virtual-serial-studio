@@ -178,6 +178,7 @@ void fill_from_manifest(plugin_view& view, const plug::manifest& declared)
             from_std(best.empty() ? point.id : std::string(best));
         addition.type_id = from_std(point.id);
         addition.max_instances = static_cast<int>(point.max_instances);
+        addition.decoder = point.kind == plug::extension_kind::decoder;
         // A setting with no default must be given. Studio asks for the ones
         // that are text in a small dialog; a point with another kind of
         // setting that has no default cannot be started yet.

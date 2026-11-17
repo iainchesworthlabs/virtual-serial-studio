@@ -187,6 +187,7 @@ std::optional<config::link_entry> entry_of_link(
     entry.delay_ms = link.options.delay_ms;
     entry.jitter_ms = link.options.jitter_ms;
     entry.half_duplex = link.options.half_duplex;
+    entry.direction = link.options.direction;
     if (const auto kept = plugins.find(link.id); kept != plugins.end())
         entry.plugins = kept->second;
     return entry;
@@ -1497,6 +1498,99 @@ result<void> studio::set_address(endpoint_id id, const std::string& uri,
     return {};
 }
 
+namespace
+{
+
+/// A port that was made from an address can be closed and opened again.
+bool stoppable_record(const std::string& kind, const std::string& uri)
+{
+    return !uri.empty() && kind != "mock" && kind != "virtual";
+}
+
+} // namespace
+
+std::optional<bool> studio::port_stopped(endpoint_id id) const
+{
+    bool flagged = false;
+    {
+        std::lock_guard lock(record_mutex_);
+        const auto it = records_.find(id);
+        if (it == records_.end() ||
+            !stoppable_record(it->second.kind, it->second.uri))
+            return std::nullopt;
+        flagged = it->second.stopped;
+    }
+    const auto found = hub_->find_endpoint(id);
+    return flagged && found && !found->is_open();
+}
+
+result<void> studio::stop_port(endpoint_id id)
+{
+    VSS_PROFILE_ZONE("studio.stop_port");
+    {
+        std::lock_guard lock(record_mutex_);
+        const auto it = records_.find(id);
+        if (it == records_.end())
+            return make_error_code(errc::not_found);
+        if (!stoppable_record(it->second.kind, it->second.uri))
+            return make_error_code(errc::unsupported);
+        it->second.stopped = true;
+    }
+    const auto found = hub_->find_endpoint(id);
+    if (!found)
+        return make_error_code(errc::not_found);
+    // No retry, and none already waiting, before the port stops: its stop
+    // would otherwise look like a lost connection.
+    if (reconnector_)
+    {
+        reconnector_->disallow(id);
+        reconnector_->forget(id);
+    }
+    auto closed = std::make_shared<std::promise<void>>();
+    auto done = closed->get_future();
+    found->shutdown([closed] { closed->set_value(); });
+    done.wait();
+    return {};
+}
+
+result<void> studio::start_port(endpoint_id id)
+{
+    VSS_PROFILE_ZONE("studio.start_port");
+    port_record record;
+    {
+        std::lock_guard lock(record_mutex_);
+        const auto it = records_.find(id);
+        if (it == records_.end())
+            return make_error_code(errc::not_found);
+        if (!stoppable_record(it->second.kind, it->second.uri))
+            return make_error_code(errc::unsupported);
+        it->second.stopped = false;
+        record = it->second;
+    }
+    const bool client = reconnects(record);
+    if (client && reconnector_)
+        reconnector_->allow(id);
+    const auto opened = reopen(id);
+    if (opened)
+        return {};
+    if (!client || !reconnector_)
+    {
+        std::lock_guard lock(record_mutex_);
+        if (const auto it = records_.find(id); it != records_.end())
+            it->second.stopped = true;
+        return opened;
+    }
+    // The remote end refused: keep trying, as a client made to wait does.
+    if (!reconnector_->policy().enabled)
+    {
+        reconnect_policy policy;
+        policy.enabled = true;
+        reconnector_->set_policy(policy);
+    }
+    reconnector_->lost(id);
+    return {};
+}
+
 result<void> studio::reconnect_attempt(endpoint_id id)
 {
     VSS_PROFILE_ZONE("studio.reconnect_attempt");
@@ -1516,6 +1610,26 @@ result<void> studio::reconnect_attempt(endpoint_id id)
 void studio::set_reconnect_policy(const reconnect_policy& policy)
 {
     reconnector_->set_policy(policy);
+}
+
+std::optional<studio::connection_status>
+studio::connection(endpoint_id id) const
+{
+    connection_status out;
+    {
+        std::lock_guard lock(record_mutex_);
+        const auto it = records_.find(id);
+        if (it == records_.end() || it->second.uri.empty())
+            return std::nullopt;
+        out.uri = it->second.uri;
+    }
+    const auto progress = reconnector_->status(id);
+    out.retrying = progress.retrying;
+    out.attempts = progress.attempts;
+    out.last_error = progress.last_error;
+    out.last_error_code = progress.last_error_code;
+    out.next_try_in = progress.next_in;
+    return out;
 }
 
 reconnect_policy studio::current_reconnect_policy() const
@@ -2015,6 +2129,7 @@ studio::make_links(const std::vector<config::link_entry>& links,
         options.delay_ms = link.delay_ms;
         options.jitter_ms = link.jitter_ms;
         options.half_duplex = link.half_duplex;
+        options.direction = link.direction;
 
         result<link_id> added = make_error_code(errc::config_error);
         if (link.mode == "bus")

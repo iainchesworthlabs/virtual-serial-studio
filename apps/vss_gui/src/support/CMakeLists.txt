@@ -36,6 +36,8 @@ add_library(vss_gui_support STATIC
   permission_dialog.hpp
   plugin_parts.cpp
   plugin_parts.hpp
+  decoded_dialog.cpp
+  decoded_dialog.hpp
   plugin_dialogs.cpp
   plugin_dialogs.hpp
   plugin_prompts.cpp

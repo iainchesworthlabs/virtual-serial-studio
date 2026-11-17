@@ -84,6 +84,7 @@ private:
     QScrollArea* scroll_ = nullptr;
     QWidget* body_ = nullptr;
     QVBoxLayout* body_layout_ = nullptr;
+    QVBoxLayout* content_layout_ = nullptr;
     QHBoxLayout* footer_layout_ = nullptr;
     QPushButton* primary_ = nullptr;
 

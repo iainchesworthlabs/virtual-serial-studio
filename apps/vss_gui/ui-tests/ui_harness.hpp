@@ -309,6 +309,9 @@ bool menu_has(const QMenu* menu, const QString& text);
 /// `prefix` the entry only has to start with `entry` (Undo, Undo Add port).
 void choose_menu(Session& session, const QString& menu, const QString& entry,
                  bool prefix = false);
+/// Opens a menu of the menu bar, then the submenus in `path` but the last,
+/// and chooses the last entry: View, Panes, Topology JSON.
+void choose_menu_path(Session& session, const QStringList& path);
 /// Opens the submenu of an entry with a click and returns it, or throws when
 /// it did not open.
 QMenu* open_submenu(QMenu* menu, const QString& text);

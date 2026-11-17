@@ -135,6 +135,43 @@ void FakeStudioBackend::set_peer_state(vss::endpoint_id id, peer_state state)
     }
 }
 
+void FakeStudioBackend::set_stoppable(vss::endpoint_id id, bool stoppable)
+{
+    if (port_view* view = find_port(id))
+    {
+        view->can_stop = stoppable;
+        refresh();
+    }
+}
+
+vss::result<void> FakeStudioBackend::set_port_running(vss::endpoint_id id,
+                                                      bool run)
+{
+    if (const auto error = take_error())
+        return *error;
+    port_view* view = find_port(id);
+    if (view == nullptr)
+        return vss::make_error_code(vss::errc::not_found);
+    if (!view->can_stop)
+        return vss::make_error_code(vss::errc::unsupported);
+    view->stopped = !run;
+    if (view->connection)
+        view->connection->phase = run ? connect_phase::connecting
+                                      : connect_phase::stopped;
+    refresh();
+    return {};
+}
+
+void FakeStudioBackend::set_connection(vss::endpoint_id id,
+                                       const connection_view& connection)
+{
+    if (port_view* view = find_port(id))
+    {
+        view->connection = connection;
+        refresh();
+    }
+}
+
 void FakeStudioBackend::set_devices(std::vector<device_view> devices)
 {
     devices_ = std::move(devices);
@@ -294,6 +331,7 @@ vss::result<QString> FakeStudioBackend::set_com_number(vss::endpoint_id id,
     if (view->com_number == com_number)
         return view->path;
     if (taken_com_numbers_.contains(com_number) ||
+        hidden_com_numbers_.contains(com_number) ||
         std::any_of(ports_.begin(), ports_.end(),
                     [com_number](const port_view& other)
                     { return other.com_number == com_number; }))
@@ -797,6 +835,10 @@ FakeStudioBackend::set_link_options(vss::link_id id,
     link_view* view = find_link(id);
     if (view == nullptr)
         return vss::make_error_code(vss::errc::not_found);
+    // Only a monitor chooses which bytes it copies, as in the engine.
+    if (view->shape != link_shape::monitor &&
+        options.direction != vss::monitor_direction::both)
+        return vss::make_error_code(vss::errc::unsupported);
     const bool bus = view->mode == vss::link_mode::bus;
     if (bus && options.policy != vss::merge_policy::interleave)
         return vss::make_error_code(vss::errc::unsupported);
@@ -1117,6 +1159,7 @@ vss::config::document FakeStudioBackend::snapshot() const
         }
         entry.emulate_modem_lines = view.options.emulate_modem_lines;
         entry.policy = view.options.policy;
+        entry.direction = view.options.direction;
         entry.delay_ms = view.options.delay_ms;
         entry.jitter_ms = view.options.jitter_ms;
         if (view.shape == link_shape::bus)
@@ -1279,6 +1322,7 @@ FakeStudioBackend::build_document(const vss::config::document& document,
         view.id = next_link++;
         view.options.emulate_modem_lines = entry.emulate_modem_lines;
         view.options.policy = entry.policy;
+        view.options.direction = entry.direction;
         view.options.delay_ms = entry.delay_ms;
         view.options.jitter_ms = entry.jitter_ms;
         // Map the document's mode name to a shape.  Any other mode is

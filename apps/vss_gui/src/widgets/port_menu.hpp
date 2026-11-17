@@ -23,6 +23,7 @@ enum class port_menu_action
     send_bytes,
     toggle_repeat,
     open_monitor,
+    decode_as,
     toggle_generator,
     toggle_echo
 };
@@ -43,6 +44,13 @@ struct port_menu_state
     bool echoing = false;
     /// The build can echo (`Capabilities::fixture_echo`).
     bool echo_available = false;
+    /// "Decode as..." is shown (Advanced): a plugin with a decoder is
+    /// installed and on, or was and cannot be used now.
+    bool decode_shown = false;
+    /// "Decode as..." can be used now. When it cannot, `decode_reason` is its
+    /// tooltip.
+    bool decode_enabled = false;
+    QString decode_reason;
 };
 
 /// The labels `add_port_menu_actions` adds, in order.  One place for the
