@@ -37,7 +37,7 @@ namespace
 {
 
 constexpr int kMinBaud = 50;
-constexpr int kMaxBaud = 4'000'000;
+constexpr int kMaxBaud = 12'000'000;
 constexpr int kMaxTimeout = 60'000;
 
 QComboBox* make_combo(const QString& name, QWidget* parent)
@@ -212,7 +212,8 @@ void PortSettingsDialog::build()
     baud_ = make_combo(tr("Baud rate"), this);
     baud_->setEditable(true);
     for (const int value : {300, 1200, 2400, 4800, 9600, 19200, 38400, 57600,
-                            115200, 230400, 460800, 921600})
+                            115200, 230400, 460800, 921600, 1000000, 2000000,
+                            3000000, 4000000, 12000000})
         baud_->addItem(QString::number(value), value);
     baud_->setValidator(new QIntValidator(kMinBaud, kMaxBaud, baud_));
     baud_->lineEdit()->setAccessibleName(tr("Baud rate"));
