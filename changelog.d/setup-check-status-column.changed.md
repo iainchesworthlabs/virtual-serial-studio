@@ -1,0 +1,1 @@
+**Setup check lines up its status chips.** Each row now has the icon at the left, the title and text in the middle, and the status chip in its own column at the right, so the **OK** chips of all rows sit in one straight line and the text never runs under them. **Refresh** and **Continue in test mode** sit under the text of their row instead of beside the chip.
