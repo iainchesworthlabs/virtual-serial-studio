@@ -120,6 +120,29 @@ compute_link_geometry(const QVector<topo_link_input>& links,
                       const QHash<vss::endpoint_id, QRectF>& rects,
                       const topology_metrics& metrics = {});
 
+/// The sides of two nodes a link is attached to.  A node has a connector on its
+/// left and on its right edge only.
+enum class link_side
+{
+    left,
+    right,
+};
+
+struct link_sides
+{
+    link_side from = link_side::right;
+    link_side to = link_side::left;
+
+    bool operator==(const link_sides&) const = default;
+};
+
+/// The pair of connectors that face each other: the link leaves `source` on the
+/// side towards `target` and enters `target` on the side towards `source`.
+/// When one node is wholly right of the other these are the two inner edges;
+/// when they overlap in x the pair with the larger gap (the least backtracking)
+/// is taken, and a tie keeps right-to-left, the way a link flows.
+link_sides facing_sides(const QRectF& source, const QRectF& target);
+
 /// True when the segment passes through any obstacle grown by `clearance`.
 bool segment_blocked(const QLineF& line, const QVector<QRectF>& obstacles,
                      qreal clearance);
