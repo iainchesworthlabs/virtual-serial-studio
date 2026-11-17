@@ -46,6 +46,8 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSettings>
+#include <QToolButton>
+#include <QScrollBar>
 #include <QSpinBox>
 #include <QStandardItemModel>
 #include <QStyledItemDelegate>
@@ -53,7 +55,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cstdio>
 #include <thread>
 
 namespace
@@ -857,9 +858,14 @@ TEST_CASE("ports panel: a removed selected port clears the selection")
     REQUIRE_EQ(selection.port(), 0);
 }
 
+namespace
+{
+void clear_ports_layout_settings();
+}
+
 TEST_CASE("ports panel: table columns resize, fit, stretch and persist")
 {
-    QSettings().remove(QStringLiteral("ui/portsColumnWidths"));
+    clear_ports_layout_settings();
     vss::gui::FakeStudioBackend backend;
     vss::gui::SelectionService selection;
     REQUIRE(backend
@@ -877,11 +883,11 @@ TEST_CASE("ports panel: table columns resize, fit, stretch and persist")
         REQUIRE(table != nullptr);
 
         // Every column is user-resizable; the last takes the spare width.
-        for (int column = 0; column < 4; ++column)
+        for (int column = 0; column < header->count(); ++column)
             REQUIRE_EQ(header->sectionResizeMode(column),
                        QHeaderView::Interactive);
         REQUIRE(header->stretchLastSection());
-        REQUIRE(!header->sectionsMovable());
+        REQUIRE(header->sectionsMovable());
         REQUIRE_EQ(header->minimumSectionSize(),
                    vss::gui::PortsPanel::kMinimumColumnWidth);
         int total = 0;
@@ -921,14 +927,334 @@ TEST_CASE("ports panel: table columns resize, fit, stretch and persist")
         REQUIRE(header->sectionSize(2) >=
                 vss::gui::PortsPanel::kMinimumColumnWidth);
 
-        panel.save_column_widths();
+        panel.save_column_layout();
     }
 
     // A new panel starts with the saved widths.
     vss::gui::PortsPanel again(backend, selection);
     again.set_advanced(true);
     REQUIRE_EQ(again.table()->horizontalHeader()->sectionSize(1), 220);
-    QSettings().remove(QStringLiteral("ui/portsColumnWidths"));
+    clear_ports_layout_settings();
+}
+
+namespace
+{
+
+void clear_ports_layout_settings()
+{
+    QSettings settings;
+    settings.remove(QStringLiteral("ui/portsColumnWidths"));
+    settings.remove(QStringLiteral("ui/portsColumnsShown"));
+    settings.remove(QStringLiteral("ui/portsColumnOrder"));
+}
+
+} // namespace
+
+TEST_CASE("ports panel: updates keep the table's scroll, current cell and "
+          "selection")
+{
+    clear_ports_layout_settings();
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::SelectionService selection;
+    const auto first = backend.create_virtual_port(
+        QStringLiteral("one"), vss::virtual_port_kind::pty, true);
+    const auto second = backend.create_virtual_port(
+        QStringLiteral("two"), vss::virtual_port_kind::pty, true);
+    REQUIRE(first.has_value());
+    REQUIRE(second.has_value());
+
+    vss::gui::PortsPanel panel(backend, selection);
+    panel.resize(420, 300);
+    panel.set_advanced(true);
+    for (int column = vss::gui::PortModel::kind_column;
+         column < vss::gui::PortModel::column_count; ++column)
+        panel.set_column_visible(column, true);
+    panel.show();
+    QApplication::processEvents();
+
+    QTableView* table = panel.table();
+    QScrollBar* across = table->horizontalScrollBar();
+    REQUIRE(across->maximum() > 0);
+    panel.select_port(*second);
+    table->setCurrentIndex(table->model()->index(1, 4));
+    QApplication::processEvents();
+    across->setValue(across->maximum());
+    const int scrolled = across->value();
+    REQUIRE(scrolled > 0);
+
+    // A state change, a counter change and a filter change all redraw the
+    // table; none takes the view back to the first column.
+    int resets = 0;
+    QObject::connect(table->model(), &QAbstractItemModel::modelReset,
+                     [&resets] { ++resets; });
+    std::vector<int> changed_rows;
+    QObject::connect(table->model(), &QAbstractItemModel::dataChanged,
+                     [&changed_rows](const QModelIndex& top,
+                                     const QModelIndex& bottom)
+                     {
+                         for (int row = top.row(); row <= bottom.row(); ++row)
+                             changed_rows.push_back(row);
+                     });
+    backend.set_peer_state(*first, vss::gui::peer_state::open);
+    QApplication::processEvents();
+    REQUIRE_EQ(across->value(), scrolled);
+    REQUIRE_EQ(resets, 0);
+    // Only the first row is told it changed.
+    REQUIRE(!changed_rows.empty());
+    for (const int row : changed_rows)
+        REQUIRE_EQ(row, 0);
+
+    REQUIRE(backend.send(*first, QByteArrayLiteral("hello")).has_value());
+    Q_EMIT backend.stats_changed();
+    Q_EMIT backend.stats_changed();
+    QApplication::processEvents();
+    REQUIRE_EQ(across->value(), scrolled);
+    REQUIRE_EQ(resets, 0);
+    REQUIRE_EQ(selection.port(), *second);
+    REQUIRE_EQ(table->currentIndex().row(), 1);
+    REQUIRE_EQ(table->currentIndex().column(), 4);
+
+    // Even a reset (a filter change) leaves the scroll where it was.
+    panel.filter_edit()->setText(QStringLiteral("o"));
+    QApplication::processEvents();
+    REQUIRE_EQ(across->value(), scrolled);
+    REQUIRE_EQ(panel.filter_edit()->text(), QStringLiteral("o"));
+    clear_ports_layout_settings();
+}
+
+TEST_CASE("ports panel: the filter box is a full height input and Escape "
+          "clears it")
+{
+    clear_ports_layout_settings();
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::SelectionService selection;
+    REQUIRE(backend
+                .create_virtual_port(QStringLiteral("one"),
+                                     vss::virtual_port_kind::pty, true)
+                .has_value());
+    vss::gui::PortsPanel panel(backend, selection);
+    panel.resize(360, 300);
+    panel.set_advanced(true);
+    panel.show();
+    QApplication::processEvents();
+
+    QLineEdit* filter = panel.filter_edit();
+    REQUIRE(filter != nullptr);
+    // As tall as any input (the style sheet's 30 px), never under the 24 px
+    // target, and with no margins of its own squeezing the text area.
+    REQUIRE(filter->height() >= 30);
+    REQUIRE(filter->contentsMargins().isNull());
+
+    // The clear button sits inside the box, vertically centred.
+    filter->setText(QStringLiteral("zzz"));
+    QApplication::processEvents();
+    QToolButton* clear = filter->findChild<QToolButton*>();
+    REQUIRE(clear != nullptr);
+    REQUIRE(clear->isVisible());
+    REQUIRE(clear->height() >= 24);
+    REQUIRE(filter->rect().contains(clear->geometry()));
+    REQUIRE(std::abs(clear->geometry().center().y() -
+                     filter->rect().center().y()) <= 1);
+
+    filter->setFocus();
+    QKeyEvent escape(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+    QApplication::sendEvent(filter, &escape);
+    QApplication::processEvents();
+    REQUIRE(filter->text().isEmpty());
+    REQUIRE_EQ(panel.table()->model()->rowCount(), 1);
+
+    // The dark theme and larger text keep the box as tall as its text needs.
+    vss::gui::Theme& theme = vss::gui::Theme::instance();
+    theme.set_mode(vss::gui::theme_mode::dark);
+    QFont big = filter->font();
+    big.setPointSizeF(big.pointSizeF() * 2);
+    filter->setFont(big);
+    QApplication::processEvents();
+    REQUIRE(filter->height() >= 30);
+    REQUIRE(filter->height() >= QFontMetrics(big).height());
+    theme.set_mode(vss::gui::theme_mode::light);
+    QApplication::processEvents();
+}
+
+TEST_CASE("ports panel: extra columns show what is known and a dash otherwise")
+{
+    vss::gui::port_view device;
+    device.id = 1;
+    device.name = QStringLiteral("device");
+    device.path = QStringLiteral("COM3");
+    device.kind = vss::endpoint_kind::physical;
+    device.serial.baud_rate = 9600;
+    device.serial.flow_control = vss::flow_control_mode::hardware;
+    device.stats.errors = 3;
+
+    using vss::gui::PortModel;
+    REQUIRE_EQ(PortModel::cell_text(device, PortModel::kind_column),
+               PortModel::tr("Serial port"));
+    REQUIRE_EQ(PortModel::cell_text(device, PortModel::address_column),
+               QStringLiteral("COM3"));
+    REQUIRE_EQ(PortModel::cell_text(device, PortModel::settings_column),
+               QStringLiteral("9600 8N1"));
+    REQUIRE_EQ(PortModel::cell_text(device, PortModel::baud_column),
+               QStringLiteral("9600"));
+    REQUIRE_EQ(PortModel::cell_text(device, PortModel::data_bits_column),
+               QStringLiteral("8"));
+    REQUIRE_EQ(PortModel::cell_text(device, PortModel::parity_column),
+               PortModel::tr("None"));
+    REQUIRE_EQ(PortModel::cell_text(device, PortModel::stop_bits_column),
+               QStringLiteral("1"));
+    REQUIRE_EQ(PortModel::cell_text(device, PortModel::flow_control_column),
+               PortModel::tr("RTS/CTS"));
+    REQUIRE_EQ(PortModel::cell_text(device, PortModel::errors_column),
+               QStringLiteral("3"));
+
+    // A virtual port nobody has opened has no settings the engine knows; a
+    // program that set only a baud rate gives only that.
+    vss::gui::port_view virtual_port;
+    virtual_port.id = 2;
+    virtual_port.name = QStringLiteral("virtual");
+    const QString dash = QStringLiteral("–");
+    for (const int column :
+         {static_cast<int>(PortModel::address_column),
+          static_cast<int>(PortModel::settings_column),
+          static_cast<int>(PortModel::baud_column),
+          static_cast<int>(PortModel::data_bits_column),
+          static_cast<int>(PortModel::parity_column),
+          static_cast<int>(PortModel::stop_bits_column),
+          static_cast<int>(PortModel::flow_control_column)})
+        REQUIRE_EQ(PortModel::cell_text(virtual_port, column), dash);
+    vss::line_format format;
+    format.baud_rate = 19200;
+    format.framing_known = false;
+    virtual_port.peer_format = format;
+    REQUIRE_EQ(PortModel::cell_text(virtual_port, PortModel::baud_column),
+               QStringLiteral("19200"));
+    REQUIRE_EQ(PortModel::cell_text(virtual_port, PortModel::parity_column),
+               dash);
+    REQUIRE_EQ(
+        PortModel::cell_text(virtual_port, PortModel::flow_control_column),
+        dash);
+
+    // Network ends: a listener reports its clients, a client does not.
+    vss::gui::port_view network;
+    network.id = 3;
+    network.kind = vss::endpoint_kind::tcp;
+    REQUIRE_EQ(PortModel::kind_text(network),
+               PortModel::tr("Network client (TCP)"));
+    network.clients = 0;
+    REQUIRE_EQ(PortModel::kind_text(network),
+               PortModel::tr("Network server (TCP)"));
+}
+
+TEST_CASE("ports panel: columns can be moved and hidden and are remembered")
+{
+    clear_ports_layout_settings();
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::SelectionService selection;
+    REQUIRE(backend
+                .create_virtual_port(QStringLiteral("one"),
+                                     vss::virtual_port_kind::pty, true)
+                .has_value());
+    using vss::gui::PortModel;
+    {
+        vss::gui::PortsPanel panel(backend, selection);
+        panel.resize(700, 300);
+        panel.set_advanced(true);
+        panel.show();
+        QApplication::processEvents();
+        QTableView* table = panel.table();
+        QHeaderView* header = table->horizontalHeader();
+
+        // The five usual columns show and the rest are offered.
+        for (int column = 0; column < PortModel::column_count; ++column)
+            REQUIRE_EQ(table->isColumnHidden(column),
+                       column > PortModel::dropped_column);
+
+        panel.set_column_visible(PortModel::settings_column, true);
+        panel.set_column_visible(PortModel::dropped_column, false);
+        // The Port column cannot be hidden.
+        panel.set_column_visible(PortModel::port_column, false);
+        REQUIRE(!table->isColumnHidden(PortModel::port_column));
+        header->moveSection(header->visualIndex(PortModel::settings_column),
+                            1);
+        header->resizeSection(PortModel::settings_column, 150);
+        REQUIRE_EQ(header->logicalIndex(1),
+                   static_cast<int>(PortModel::settings_column));
+
+        // Ctrl+Alt+Shift+Right moves the column the cursor is in.
+        table->setFocus();
+        table->setCurrentIndex(
+            table->model()->index(0, PortModel::settings_column));
+        QKeyEvent move(QEvent::KeyPress, Qt::Key_Right,
+                       Qt::ControlModifier | Qt::AltModifier |
+                           Qt::ShiftModifier);
+        QApplication::sendEvent(table, &move);
+        REQUIRE_EQ(header->visualIndex(PortModel::settings_column), 2);
+
+        panel.save_column_layout();
+    }
+
+    vss::gui::PortsPanel again(backend, selection);
+    again.set_advanced(true);
+    QTableView* table = again.table();
+    QHeaderView* header = table->horizontalHeader();
+    REQUIRE(!table->isColumnHidden(PortModel::settings_column));
+    REQUIRE(table->isColumnHidden(PortModel::dropped_column));
+    REQUIRE_EQ(header->visualIndex(PortModel::settings_column), 2);
+    REQUIRE_EQ(header->sectionSize(PortModel::settings_column), 150);
+
+    // Reset puts everything back.
+    again.reset_columns();
+    for (int column = 0; column < PortModel::column_count; ++column)
+    {
+        REQUIRE_EQ(header->visualIndex(column), column);
+        REQUIRE_EQ(table->isColumnHidden(column),
+                   column > PortModel::dropped_column);
+    }
+    clear_ports_layout_settings();
+}
+
+TEST_CASE("ports panel: review pictures with the extra columns")
+{
+    // For a person to look at, never committed: written only when
+    // VSS_PORTS_SHOT_DIR names a directory.
+    const QString directory = qEnvironmentVariable("VSS_PORTS_SHOT_DIR");
+    if (directory.isEmpty())
+        return;
+    clear_ports_layout_settings();
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::SelectionService selection;
+    const auto one = backend.create_virtual_port(
+        QStringLiteral("onetouch"), vss::virtual_port_kind::pty, true);
+    REQUIRE(one.has_value());
+    REQUIRE(backend
+                .create_virtual_port(QStringLiteral("port-2"),
+                                     vss::virtual_port_kind::pty, true)
+                .has_value());
+    REQUIRE(backend
+                .attach_serial(QStringLiteral("held"), QStringLiteral("COM41"),
+                               vss::serial_settings{}, true)
+                .has_value());
+    REQUIRE(backend.send(*one, QByteArrayLiteral("hello")).has_value());
+
+    vss::gui::PortsPanel panel(backend, selection);
+    panel.resize(1000, 260);
+    panel.set_advanced(true);
+    for (int column = vss::gui::PortModel::kind_column;
+         column < vss::gui::PortModel::column_count; ++column)
+        panel.set_column_visible(column, true);
+    panel.filter_edit()->setText(QStringLiteral("o"));
+    panel.show();
+    QApplication::processEvents();
+    REQUIRE(QDir().mkpath(directory));
+    REQUIRE(panel.grab().save(
+        QDir(directory).filePath(QStringLiteral("ports-columns-light.png"))));
+    vss::gui::Theme::instance().set_mode(vss::gui::theme_mode::dark);
+    QApplication::processEvents();
+    REQUIRE(panel.grab().save(
+        QDir(directory).filePath(QStringLiteral("ports-columns-dark.png"))));
+    vss::gui::Theme::instance().set_mode(vss::gui::theme_mode::light);
+    QApplication::processEvents();
+    clear_ports_layout_settings();
 }
 
 TEST_CASE("ports panel: ports another program made are named, not shown")
