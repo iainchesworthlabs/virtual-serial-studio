@@ -888,7 +888,7 @@ void PluginsDialog::refresh_found()
     for (found_view& each : found_views_)
     {
         if (each.table.isNull() ||
-            !each.table->isVisibleTo(this) && !each.empty->isVisibleTo(this))
+            (!each.table->isVisibleTo(this) && !each.empty->isVisibleTo(this)))
             continue;
         const plugin_found_ptr found =
             backend_.found(each.plugin_id, each.number);
