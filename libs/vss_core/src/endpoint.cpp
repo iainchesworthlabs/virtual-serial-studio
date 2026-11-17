@@ -453,7 +453,12 @@ void endpoint::on_read(std::uint64_t generation, boost::system::error_code ec,
 
     // The chunk's one time: for a stage, for a half-duplex bus and for the
     // data event.  Read before routing, so it does not include it.
-    const time_point read_at = owner_.now();
+    time_point read_at = owner_.now();
+    // A transport that knows when the sender made these bytes says so (the
+    // Windows driver stamps each WriteFile).  Never later than the read.
+    if (const auto current = active_transport())
+        if (const auto stamp = current->read_stamp())
+            read_at = std::min(*stamp, read_at);
 
     {
         std::lock_guard lock(stats_mutex_);

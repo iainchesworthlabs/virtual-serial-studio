@@ -88,6 +88,9 @@ typedef struct _VSSCOM_PIPE_CONTEXT
     // (IOCTL_VSSCOM_HUB_LINE_ERROR): no buffer, and LineError says what to raise.
     BOOLEAN IsLineError;
     vsscom_line_error LineError;
+    // For an application write: the performance counter when it was called, for
+    // the write mark of its first byte.
+    ULONGLONG CallTime;
 } VSSCOM_PIPE_CONTEXT, *PVSSCOM_PIPE_CONTEXT;
 
 WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(VSSCOM_PIPE_CONTEXT, VssComPipeContext)
@@ -176,6 +179,9 @@ typedef struct _VSSCOM_DEVICE_CONTEXT
     // When the bytes the application wrote will all have left, in interrupt time
     // (100 ns units); 0 for none. Only RTS toggle looks at it.
     ULONGLONG TxBusyUntil;
+    // Where the application's break and write calls fell among the bytes it wrote
+    // (IOCTL_VSSCOM_HUB_READ_BREAKS). Changed together with Tx, under Lock.
+    vsscom_marks Marks;
 } VSSCOM_DEVICE_CONTEXT, *PVSSCOM_DEVICE_CONTEXT;
 
 WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(VSSCOM_DEVICE_CONTEXT, VssComGetContext)
@@ -283,6 +289,9 @@ VOID VssComAbortAppWritesOnError(_In_ PVSSCOM_DEVICE_CONTEXT Context);
 // Completes the application's waiting writes with `Status`.
 VOID VssComAbortAppWrites(_In_ PVSSCOM_DEVICE_CONTEXT Context,
                           _In_ NTSTATUS Status);
+// Ends the break the application holds, if it holds one: its marks and its
+// flag. Call with the lock held; the caller bumps the state.
+VOID VssComEndBreakLocked(_In_ PVSSCOM_DEVICE_CONTEXT Context);
 // Adds one to Generation and answers the hub's waiting state requests.
 VOID VssComBumpState(_In_ PVSSCOM_DEVICE_CONTEXT Context);
 // The write timeout timer: runs the pump, which ends a write that is past due.

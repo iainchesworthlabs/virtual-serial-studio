@@ -107,6 +107,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_studio_sources.cpp
   unit/test_studio_targets.cpp
   unit/test_tool_paths.cpp
+  unit/test_tx_order.cpp
   unit/test_update_feed.cpp
   unit/test_update_select.cpp
   unit/test_update_version.cpp
@@ -196,6 +197,8 @@ target_include_directories(vss_unit_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/support
   # The private headers of the control library, for the tests of its files.
   ${PROJECT_SOURCE_DIR}/libs/vss_control/src
+  # tx_order.hpp of the ports library, for the test of the break and write marks.
+  ${PROJECT_SOURCE_DIR}/libs/vss_ports/src
   # replay_inputs.hpp and perf_common.hpp, which test_tool_paths.cpp exercises.
   ${CMAKE_CURRENT_SOURCE_DIR}/fuzz
   ${PROJECT_SOURCE_DIR}/perf)

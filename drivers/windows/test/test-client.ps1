@@ -83,6 +83,17 @@ try {
     $status = if ($code -eq 0 -and $ran) { 'pass' } else { 'fail' }
     $tests += New-TestRecord 'C4' 'the studio drops DCD and DSR for a hang-up and takes the port back for a disconnect' $status "$detail ($($watch.Elapsed.TotalSeconds.ToString('0.0')) s)"
 
+    # C5: a break the program makes reaches the studio's transport in order with the bytes around it.
+    $watch = [Diagnostics.Stopwatch]::StartNew()
+    $run = Invoke-Case 'a break falls between the bytes written around it'
+    $output = $run.Output
+    $code = $run.Code
+    $detail = ($output -split "?
+" | Select-Object -Last 6) -join '; '
+    $ran = $output -match '1 tests?, 1 passed, 0 failed, 0 skipped'
+    $status = if ($code -eq 0 -and $ran) { 'pass' } else { 'fail' }
+    $tests += New-TestRecord 'C5' 'the studio client reports a break between the bytes written around it, with the time of the call on its own clock' $status "$detail ($($watch.Elapsed.TotalSeconds.ToString('0.0')) s)"
+
     # C2: COM numbers and the program on the port, through the helper service. Without
     # the helper service it is skipped.
     $helperRunning = [bool]([IO.Directory]::GetFiles('\\.\pipe\') -contains "\\.\pipe\$HelperPipeName")
