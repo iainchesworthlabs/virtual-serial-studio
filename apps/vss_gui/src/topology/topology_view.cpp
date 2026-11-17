@@ -2932,15 +2932,6 @@ void TopologyView::open_link(vss::link_id id)
                      [id](const link_view& view) { return view.id == id; });
     if (link == links_.end())
         return;
-    // A monitor link has no settings; what can be done with it is to read the
-    // port it watches.
-    if (link->shape == link_shape::monitor)
-    {
-        if (!link->sources.isEmpty())
-            Q_EMIT port_action_requested(link->sources.front(),
-                                         port_menu_action::open_monitor);
-        return;
-    }
     if (editing_)
         Q_EMIT link_settings_requested(id);
 }
@@ -3093,15 +3084,10 @@ void TopologyView::populate_link_menu(QMenu* menu, vss::link_id id)
     settings->setShortcutVisibleInContextMenu(true);
     if (link != links_.end() && link->shape == link_shape::monitor)
     {
-        // A monitor link only copies; its choices belong to the port it
-        // watches, so the menu offers those.
+        // Beside its own settings (which bytes it copies), the menu offers
+        // what can be done with the port it watches.
         const vss::endpoint_id watched =
             link->sources.isEmpty() ? 0 : link->sources.front();
-        settings->setEnabled(false);
-        settings->setToolTip(
-            tr("A monitor link has no settings. It copies the traffic of %1. "
-               "Open that port in the Monitor to read it.")
-                .arg(names_.value(watched)));
         if (watched != 0)
         {
             menu->addAction(

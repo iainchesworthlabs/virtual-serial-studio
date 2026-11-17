@@ -3079,6 +3079,26 @@ Networks: %5</source>
             <source>&lt;a href="faults"&gt;Open line matrix and faults&lt;/a&gt;</source>
             <translation>&lt;a href="faults"&gt;ライン配線と障害を開く&lt;/a&gt;</translation>
         </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="263" />
+            <source>Direction</source>
+            <translation>方向</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="281" />
+            <source>The monitor's direction could not be changed.</source>
+            <translation>モニターの方向を変更できませんでした。</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="628" />
+            <source>This port is a monitor. It receives a copy of the traffic on %1, and what is written to it does not reach %1.</source>
+            <translation>このポートはモニターです。%1 の通信のコピーを受け取り、ここに書き込んだ内容は %1 には届きません。</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="639" />
+            <source>Open %1 in the Monitor</source>
+            <translation>%1 をモニターで開く</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -4637,6 +4657,11 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_panel.cpp" line="800" />
             <source>%1 column is %2 px wide.</source>
             <translation>%1列の幅は%2 pxです。</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="1127" />
+            <source>No traffic on %1 yet. %2.</source>
+            <translation>%1 にはまだ通信がありません。%2。</translation>
         </message>
     </context>
     <context>
@@ -10139,6 +10164,21 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="3551" />
             <source>Don't save</source>
             <translation>保存しない</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2487" />
+            <source>The Monitor shows only %1. Choose All ports in its port filter to see every port.</source>
+            <translation>モニターには %1 だけが表示されています。すべてのポートを見るには、ポートフィルターで「すべてのポート」を選びます。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2490" />
+            <source>The Monitor shows %1.</source>
+            <translation>モニターに %1 を表示しています。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2511" />
+            <source>Decoding %1 as %2. What it finds is in Plugins, under %3.</source>
+            <translation>%1 を %2 としてデコードしています。見つかった内容は、プラグインの %3 で確認できます。</translation>
         </message>
     </context>
     <context>
@@ -20219,6 +20259,11 @@ Networks: %5</source>
             <source>COM1 and COM2 are kept for real ports. Choose COM3 or higher.</source>
             <translation>COM1 と COM2 は実際のポート用に確保されています。COM3 以上を選んでください。</translation>
         </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="532" />
+            <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
+            <translation>%1 の設定です。モニターは、監視するポートと同じ速度で動作します。</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -20502,6 +20547,11 @@ Networks: %5</source>
             <source>Network port changed.</source>
             <translation>ネットワークポートを変更しました。</translation>
         </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="729" />
+            <source>The address of %1 is not known, so its settings cannot be shown.</source>
+            <translation>%1 のアドレスが分からないため、設定を表示できません。</translation>
+        </message>
     </context>
     <context>
         <name>PaneHeader</name>
@@ -20698,6 +20748,11 @@ Networks: %5</source>
             <translation>
                 <numerusform>このポートにリンクされている %n 個のポートにもこの設定を使う</numerusform>
             </translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="434" />
+            <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
+            <translation>%1 の設定です。モニターは、監視するポートと同じ速度で動作します。</translation>
         </message>
     </context>
     <context>
@@ -24044,6 +24099,16 @@ From the plugin %2
 プラグイン %2 から
 %3</translation>
         </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="357" />
+            <source>%1 cannot be placed yet. Standing in for a device needs the engine timeline, which this version of Studio does not have.</source>
+            <translation>%1 はまだ配置できません。デバイスの代わりをするにはエンジンのタイムラインが必要ですが、このバージョンの Studio にはありません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="466" />
+            <source>%1 needs settings that are set in Plugins.</source>
+            <translation>%1 には、プラグインで設定する項目が必要です。</translation>
+        </message>
     </context>
     <context>
         <name>PluginTrafficChip</name>
@@ -24399,6 +24464,82 @@ From the plugin %2
         <message>
             <source>Reserved by Windows</source>
             <translation>Windows が予約済み</translation>
+        </message>
+    </context>
+    <context>
+        <name>DecodeDialog</name>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="26" />
+            <source>Decode %1</source>
+            <translation>%1 をデコード</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="27" />
+            <source>Shows the data on %1 as messages of a protocol, and reports what does not fit. Decoding only reads. It never changes or delays the data.</source>
+            <translation>%1 のデータをプロトコルのメッセージとして表示し、合わないものを報告します。デコードは読み取るだけで、データを変更したり遅らせたりすることはありません。</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="41" />
+            <source>Protocol</source>
+            <translation>プロトコル</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="81" />
+            <source>Cancel</source>
+            <translation>キャンセル</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="84" />
+            <source>Start decoding</source>
+            <translation>デコードを開始</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="108" />
+            <source>From the plugin %1.</source>
+            <translation>プラグイン %1 によるものです。</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="110" />
+            <source>%1 will read the data that passes through %2.</source>
+            <translation>%1 は %2 を通るデータを読み取ります。</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="122" />
+            <source>Not available in this build</source>
+            <translation>このビルドでは利用できません</translation>
+        </message>
+    </context>
+    <context>
+        <name>MonitorDirection</name>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="21" />
+            <source>Both directions</source>
+            <translation>両方向</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="24" />
+            <source>Transmit only</source>
+            <translation>送信のみ</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="26" />
+            <source>Receive only</source>
+            <translation>受信のみ</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="36" />
+            <source>Copies what the program on the port writes and what is written into the port.</source>
+            <translation>ポートのプログラムが書き込む内容と、ポートに書き込まれる内容の両方をコピーします。</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="41" />
+            <source>Copies only what the program on the port writes.</source>
+            <translation>ポートのプログラムが書き込む内容だけをコピーします。</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="45" />
+            <source>Copies only what is written into the port.</source>
+            <translation>ポートに書き込まれる内容だけをコピーします。</translation>
         </message>
     </context>
 </TS>
