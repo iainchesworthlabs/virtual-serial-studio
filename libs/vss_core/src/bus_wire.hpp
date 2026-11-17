@@ -73,7 +73,7 @@ public:
     void close();
 
 private:
-    struct entry
+    struct slot
     {
         endpoint_id sender = 0;
         owned_item data;
@@ -86,9 +86,9 @@ private:
     void arm();
     void fire();
     /// Takes the chunks that have left the wire off the queue, in order.
-    std::vector<entry> take_due();
+    std::vector<slot> take_due();
     /// Hands each chunk to its receivers.  Called with `deliver_mutex_` held.
-    void deliver(std::vector<entry>& ready);
+    void deliver(std::vector<slot>& ready);
 
     const boost::asio::strand<boost::asio::any_io_executor> strand_;
     boost::asio::steady_timer timer_;
@@ -104,7 +104,7 @@ private:
     bool closed_ = false;
     /// By the time each leaves the wire; chunks due together keep the order
     /// they were pushed in.
-    std::multimap<time_point, entry> queue_;
+    std::multimap<time_point, slot> queue_;
 };
 
 } // namespace vss
