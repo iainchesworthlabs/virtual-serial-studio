@@ -135,9 +135,10 @@ void PaneHeader::set_fill(QWidget* widget)
 int PaneHeader::lead_width() const
 {
     const int count = count_->isHidden() ? 0 : count_->sizeHint().width();
+    const int title = title_->isHidden() ? 0 : title_->sizeHint().width();
     return layout_->contentsMargins().left() +
-           layout_->contentsMargins().right() + title_->sizeHint().width() +
-           count + 2 * layout_->spacing();
+           layout_->contentsMargins().right() + title + count +
+           2 * layout_->spacing();
 }
 
 Pane::Pane(const QString& title, QWidget* parent) : QFrame(parent)

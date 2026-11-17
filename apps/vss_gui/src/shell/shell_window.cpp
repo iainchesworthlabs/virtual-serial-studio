@@ -597,7 +597,7 @@ void ShellWindow::build_actions()
         },
         true);
     add(QStringLiteral("view.resetLayout"), tr("Reset layout"),
-        tr("docks window panes"), {}, {}, action_level::simple,
+        tr("docks window"), {}, {}, action_level::simple,
         [this] { reset_layout(); });
     add(QStringLiteral("view.nextPane"), tr("Next pane"),
         tr("panes switch cycle monitor log"), {},
@@ -1173,6 +1173,15 @@ void ShellWindow::build_docks()
     monitor_dock_ = make_pane_dock(QStringLiteral("monitorDock"), tr("Monitor"),
                                    monitor_panel_, &monitor_header_);
 
+    // The dock title bar already names each pane, so the pane headers do not
+    // repeat it: Inspector and Send have nothing else in theirs and drop it,
+    // Ports and Monitor keep theirs for the buttons and controls.
+    inspector_header_->hide();
+    send_header_->hide();
+    ports_header_->title_label()->hide();
+    ports_header_->set_count(-1);
+    monitor_header_->title_label()->hide();
+
     // The Monitor controls share the pane's title row while it is wide enough.
     monitor_panel_->attach_header(monitor_header_);
 
@@ -1287,6 +1296,8 @@ void ShellWindow::build_docks()
         connect(action, &QAction::toggled, this,
                 [this](bool shown)
                 {
+                    if (!shown && raise_if_behind(monitor_dock_))
+                        return;
                     if (monitor_dock_ != nullptr)
                     {
                         monitor_dock_->setVisible(shown);
@@ -1328,7 +1339,12 @@ void ShellWindow::build_docks()
     {
         links_action_->setChecked(false);
         connect(links_action_, &QAction::toggled, this,
-                [this](bool shown) { show_links_dock(shown); });
+                [this](bool shown)
+                {
+                    if (!shown && raise_if_behind(links_dock_))
+                        return;
+                    show_links_dock(shown);
+                });
     }
 
     // Advanced bottom tabs.  Log and Topology JSON are tabified with the
@@ -1387,6 +1403,8 @@ void ShellWindow::build_docks()
                 {
                     if (dock == nullptr)
                         return;
+                    if (!shown && raise_if_behind(dock))
+                        return;
                     dock->setVisible(shown && level_.advanced());
                     // The Log and the JSON editor are tabs behind the Monitor:
                     // choosing one from the View menu has to bring it up, or
@@ -1415,6 +1433,8 @@ void ShellWindow::build_docks()
         connect(action, &QAction::toggled, this,
                 [this, dock](bool shown)
                 {
+                    if (!shown && raise_if_behind(dock))
+                        return;
                     dock->setVisible(shown && level_.advanced());
                     if (shown && level_.advanced())
                         dock->raise();
@@ -1771,6 +1791,23 @@ QAction* ShellWindow::pane_action(const QDockWidget* dock) const
     return nullptr;
 }
 
+bool ShellWindow::raise_if_behind(QDockWidget* dock)
+{
+    // Choosing an open pane that is a tab behind another brings it to the
+    // front; it closes only when it is already showing.
+    if (dock == nullptr || dock->isHidden() || dock->isFloating() ||
+        !level_.advanced() || tabifiedDockWidgets(dock).isEmpty() ||
+        !dock->visibleRegion().isEmpty())
+        return false;
+    if (QAction* action = pane_action(dock))
+    {
+        const QSignalBlocker blocker(action);
+        action->setChecked(true);
+    }
+    dock->raise();
+    return true;
+}
+
 void ShellWindow::show_pane(QDockWidget* dock)
 {
     if (dock == nullptr)
@@ -1971,11 +2008,6 @@ void ShellWindow::update_dock_titles()
             inspector = tr("Inspector %1").arg(port->name);
     }
     inspector_dock_->setWindowTitle(inspector);
-
-    // The Ports pane header shows the count as a badge rather than running
-    // it into the title.  The inspector shows the port's name in its body.
-    if (ports_header_ != nullptr)
-        ports_header_->set_count(static_cast<int>(ports.size()));
 }
 
 QString ShellWindow::document_signature() const

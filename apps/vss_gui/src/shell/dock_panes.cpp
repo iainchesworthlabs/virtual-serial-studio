@@ -385,6 +385,9 @@ void DockDropOverlay::paintEvent(QPaintEvent*)
 DockPanes::DockPanes(QMainWindow* window) : QObject(window), window_(window)
 {
     overlay_ = new DockDropOverlay(window);
+    // Qt's own tab bars drag a tab by themselves; watching them lets a tab
+    // drag show the same guides as a title bar drag.
+    qApp->installEventFilter(this);
 }
 
 void DockPanes::manage(QDockWidget* dock)
@@ -740,8 +743,87 @@ void DockPanes::close_pane(QDockWidget* dock)
     Q_EMIT pane_closed(dock);
 }
 
+bool DockPanes::tab_bar_event(QTabBar* bar, QEvent* event)
+{
+    switch (event->type())
+    {
+    case QEvent::MouseButtonPress:
+    {
+        auto* mouse = static_cast<QMouseEvent*>(event);
+        tab_dock_ = nullptr;
+        tab_dragging_ = false;
+        if (mouse->button() != Qt::LeftButton)
+            return false;
+        const int index = bar->tabAt(mouse->position().toPoint());
+        if (index < 0)
+            return false;
+        // The tab's data is the dock widget it stands for.
+        const quintptr id = bar->tabData(index).value<quintptr>();
+        for (const auto& dock : docks_)
+        {
+            if (reinterpret_cast<quintptr>(dock.data()) == id)
+                tab_dock_ = dock;
+        }
+        tab_bar_ = bar;
+        tab_press_ = mouse->globalPosition().toPoint();
+        return false;
+    }
+    case QEvent::MouseMove:
+    {
+        if (tab_dock_ == nullptr || tab_bar_ != bar)
+            return false;
+        auto* mouse = static_cast<QMouseEvent*>(event);
+        const QPoint global = mouse->globalPosition().toPoint();
+        if (!tab_dragging_)
+        {
+            if ((global - tab_press_).manhattanLength() <
+                QApplication::startDragDistance())
+                return false;
+            tab_dragging_ = true;
+            begin_drag(tab_dock_, tab_press_);
+        }
+        update_drag(global);
+        return true;
+    }
+    case QEvent::MouseButtonRelease:
+    {
+        if (!tab_dragging_ || tab_bar_ != bar)
+        {
+            tab_dock_ = nullptr;
+            return false;
+        }
+        auto* mouse = static_cast<QMouseEvent*>(event);
+        tab_dragging_ = false;
+        tab_dock_ = nullptr;
+        finish_drag(mouse->globalPosition().toPoint());
+        return true;
+    }
+    default:
+        return false;
+    }
+}
+
 bool DockPanes::eventFilter(QObject* watched, QEvent* event)
 {
+    if (auto* bar = qobject_cast<QTabBar*>(watched);
+        bar != nullptr && bar->parent() == window_)
+    {
+        const auto type = event->type();
+        if (type == QEvent::MouseButtonPress ||
+            type == QEvent::MouseMove || type == QEvent::MouseButtonRelease)
+        {
+            if (tab_bar_event(bar, event))
+                return true;
+        }
+    }
+    if (tab_dragging_ && event->type() == QEvent::KeyPress &&
+        static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape)
+    {
+        tab_dragging_ = false;
+        tab_dock_ = nullptr;
+        cancel_drag();
+        return true;
+    }
     // Closing a floating pane from the window system.
     if (event->type() == QEvent::Close)
     {
