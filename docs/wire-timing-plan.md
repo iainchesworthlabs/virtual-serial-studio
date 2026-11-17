@@ -119,7 +119,7 @@ twice.
 G5 is a separate subsystem that shares nothing with G1 to G4 except the break item, and can run on its own after phase 1 of
 the break plan.
 
-## Decisions for the owner
+## Decisions
 
 1. **The `wire_timing` link option**, default `off`, written only when `on`. A schema addition, so it needs your yes.
 2. **Where the rate comes from:** the sender's program-set format, then the endpoint's setting, then a rate given with the option
@@ -131,3 +131,6 @@ the break plan.
 5. **The bus:** replace the flat ten bits a byte with the real framing now (changes the numbers a bus reports and the
    collision tests), or leave it until the owner's next bus change. The plan recommends now, in G2.
 6. **G5**, an RFC 2217 client: part of this work, or its own plan later.
+
+The owner approved all six on 17 November 2026, each as recommended: the `wire_timing` option (default off), the order for the
+rate, the spin limit, G1 inside driver version 5, the real framing on the bus now, and G5 as part of this work.
