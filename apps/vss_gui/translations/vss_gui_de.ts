@@ -3109,6 +3109,104 @@ Netzwerke: %5</translation>
             <source>Open %1 in the Monitor</source>
             <translation>%1 im Monitor öffnen</translation>
         </message>
+        <message>
+            <source>%1  %2</source>
+            <translation>%1  %2</translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n read(s)</source>
+            <translation>
+                <numerusform>%1, Lesevorgänge: %n</numerusform>
+                <numerusform>%1, Lesevorgänge: %n</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n write(s)</source>
+            <translation>
+                <numerusform>%1, Schreibvorgänge: %n</numerusform>
+                <numerusform>%1, Schreibvorgänge: %n</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>%1, port %2</source>
+            <translation>%1, Port %2</translation>
+        </message>
+        <message>
+            <source>Connected at</source>
+            <translation>Verbunden um</translation>
+        </message>
+        <message>
+            <source>Connection</source>
+            <translation>Verbindung</translation>
+        </message>
+        <message>
+            <source>Last error</source>
+            <translation>Letzter Fehler</translation>
+        </message>
+        <message>
+            <source>Local</source>
+            <translation>Lokal</translation>
+        </message>
+        <message>
+            <source>Next try</source>
+            <translation>Nächster Versuch</translation>
+        </message>
+        <message>
+            <source>None</source>
+            <translation>Keine</translation>
+        </message>
+        <message>
+            <source>None planned</source>
+            <translation>Keiner geplant</translation>
+        </message>
+        <message>
+            <source>None yet</source>
+            <translation>Noch keine</translation>
+        </message>
+        <message>
+            <source>Not connected</source>
+            <translation>Nicht verbunden</translation>
+        </message>
+        <message>
+            <source>Not reported</source>
+            <translation>Nicht gemeldet</translation>
+        </message>
+        <message>
+            <source>Received</source>
+            <translation>Empfangen</translation>
+        </message>
+        <message>
+            <source>Recent events</source>
+            <translation>Letzte Ereignisse</translation>
+        </message>
+        <message>
+            <source>Reconnects</source>
+            <translation>Wiederverbindungen</translation>
+        </message>
+        <message>
+            <source>Remote</source>
+            <translation>Gegenstelle</translation>
+        </message>
+        <message>
+            <source>Sent</source>
+            <translation>Gesendet</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>Starten</translation>
+        </message>
+        <message>
+            <source>Start %1</source>
+            <translation>%1 starten</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>Anhalten</translation>
+        </message>
+        <message>
+            <source>Stop %1</source>
+            <translation>%1 anhalten</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -10239,6 +10337,22 @@ Netzwerke: %5</translation>
             <source>panes switch cycle monitor log</source>
             <translation>bereiche wechseln monitor protokoll</translation>
         </message>
+        <message>
+            <source>Could not start %1.</source>
+            <translation>%1 konnte nicht gestartet werden.</translation>
+        </message>
+        <message>
+            <source>Could not stop %1.</source>
+            <translation>%1 konnte nicht angehalten werden.</translation>
+        </message>
+        <message>
+            <source>Started %1.</source>
+            <translation>%1 gestartet.</translation>
+        </message>
+        <message>
+            <source>Stopped %1.</source>
+            <translation>%1 angehalten.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -10986,6 +11100,14 @@ Netzwerke: %5</translation>
             <location filename="../src/topology/topology_text.cpp" line="389" />
             <source>Selected %1.</source>
             <translation>%1 ausgewählt.</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>Starten</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>Anhalten</translation>
         </message>
     </context>
     <context>
@@ -24840,6 +24962,69 @@ Aus dem Plug-in %2
         <message>
             <source>Close %1</source>
             <translation>%1 schließen</translation>
+        </message>
+    </context>
+    <context>
+        <name>Connection</name>
+        <message>
+            <source>%1 (%2)</source>
+            <translation>%1 (%2)</translation>
+        </message>
+        <message>
+            <source>Connected</source>
+            <translation>Verbunden</translation>
+        </message>
+        <message>
+            <source>Connected to %1.</source>
+            <translation>Mit %1 verbunden.</translation>
+        </message>
+        <message>
+            <source>Connecting</source>
+            <translation>Verbindung wird aufgebaut</translation>
+        </message>
+        <message>
+            <source>Connecting to %1.</source>
+            <translation>Verbindung zu %1 wird aufgebaut.</translation>
+        </message>
+        <message>
+            <source>Connection lost</source>
+            <translation>Verbindung verloren</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2.</source>
+            <translation>Keine Verbindung zu %1: %2.</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2. Trying again.</source>
+            <translation>Keine Verbindung zu %1: %2. Neuer Versuch folgt.</translation>
+        </message>
+        <message>
+            <source>Failed</source>
+            <translation>Fehlgeschlagen</translation>
+        </message>
+        <message>
+            <source>Not connected to %1.</source>
+            <translation>Nicht mit %1 verbunden.</translation>
+        </message>
+        <message>
+            <source>Retrying</source>
+            <translation>Neuer Versuch</translation>
+        </message>
+        <message>
+            <source>Started</source>
+            <translation>Gestartet</translation>
+        </message>
+        <message>
+            <source>Stopped</source>
+            <translation>Angehalten</translation>
+        </message>
+        <message>
+            <source>Stopped. Not connecting to %1.</source>
+            <translation>Angehalten. Verbindet sich nicht mit %1.</translation>
+        </message>
+        <message>
+            <source>Trying to connect to %1.</source>
+            <translation>Es wird versucht, %1 zu erreichen.</translation>
         </message>
     </context>
 </TS>

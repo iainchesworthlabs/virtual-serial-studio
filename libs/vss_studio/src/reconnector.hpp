@@ -18,6 +18,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <string>
 #include <thread>
 
 namespace vss {
@@ -62,6 +63,22 @@ public:
     /// Endpoints waiting for their next try.
     std::size_t pending() const;
 
+    /// Where the tries of one endpoint stand, for a window to show.
+    struct progress
+    {
+        /// A sequence is running: the endpoint waits for its next try.
+        bool retrying = false;
+        /// Tries that have failed in the sequence so far.
+        unsigned attempts = 0;
+        /// Why the last try failed, or empty before one has.
+        std::string last_error;
+        /// The same error as category and number, such as "system:10061".
+        std::string last_error_code;
+        /// How long until the next try, or zero when none is waiting.
+        std::chrono::milliseconds next_in{0};
+    };
+    progress status(endpoint_id id) const;
+
 private:
     struct entry
     {
@@ -78,6 +95,10 @@ private:
     std::condition_variable wake_;
     reconnect_policy policy_;
     std::map<endpoint_id, entry> waiting_;
+    /// The message of the last failed try of each endpoint, kept after the
+    /// sequence gives up and dropped when a try succeeds.
+    std::map<endpoint_id, std::string> last_errors_;
+    std::map<endpoint_id, std::string> last_codes_;
     std::set<endpoint_id> allowed_;
     bool stopping_ = false;
     std::thread thread_;

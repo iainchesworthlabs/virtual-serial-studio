@@ -3109,6 +3109,102 @@ Networks: %5</source>
             <source>Open %1 in the Monitor</source>
             <translation>在监视器中打开 %1</translation>
         </message>
+        <message>
+            <source>%1  %2</source>
+            <translation>%1  %2</translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n read(s)</source>
+            <translation>
+                <numerusform>%1，读取次数：%n</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n write(s)</source>
+            <translation>
+                <numerusform>%1，写入次数：%n</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>%1, port %2</source>
+            <translation>%1，端口 %2</translation>
+        </message>
+        <message>
+            <source>Connected at</source>
+            <translation>连接时间</translation>
+        </message>
+        <message>
+            <source>Connection</source>
+            <translation>连接</translation>
+        </message>
+        <message>
+            <source>Last error</source>
+            <translation>最近的错误</translation>
+        </message>
+        <message>
+            <source>Local</source>
+            <translation>本地</translation>
+        </message>
+        <message>
+            <source>Next try</source>
+            <translation>下次尝试</translation>
+        </message>
+        <message>
+            <source>None</source>
+            <translation>无</translation>
+        </message>
+        <message>
+            <source>None planned</source>
+            <translation>无计划</translation>
+        </message>
+        <message>
+            <source>None yet</source>
+            <translation>暂无</translation>
+        </message>
+        <message>
+            <source>Not connected</source>
+            <translation>未连接</translation>
+        </message>
+        <message>
+            <source>Not reported</source>
+            <translation>未报告</translation>
+        </message>
+        <message>
+            <source>Received</source>
+            <translation>已接收</translation>
+        </message>
+        <message>
+            <source>Recent events</source>
+            <translation>最近的事件</translation>
+        </message>
+        <message>
+            <source>Reconnects</source>
+            <translation>重新连接次数</translation>
+        </message>
+        <message>
+            <source>Remote</source>
+            <translation>远程</translation>
+        </message>
+        <message>
+            <source>Sent</source>
+            <translation>已发送</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>启动</translation>
+        </message>
+        <message>
+            <source>Start %1</source>
+            <translation>启动 %1</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>停止</translation>
+        </message>
+        <message>
+            <source>Stop %1</source>
+            <translation>停止 %1</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -10233,6 +10329,22 @@ Networks: %5</source>
             <source>panes switch cycle monitor log</source>
             <translation>面板 切换 循环 监视 日志</translation>
         </message>
+        <message>
+            <source>Could not start %1.</source>
+            <translation>无法启动 %1。</translation>
+        </message>
+        <message>
+            <source>Could not stop %1.</source>
+            <translation>无法停止 %1。</translation>
+        </message>
+        <message>
+            <source>Started %1.</source>
+            <translation>已启动 %1。</translation>
+        </message>
+        <message>
+            <source>Stopped %1.</source>
+            <translation>已停止 %1。</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -10979,6 +11091,14 @@ Networks: %5</source>
             <location filename="../src/topology/topology_text.cpp" line="389" />
             <source>Selected %1.</source>
             <translation>已选中 %1。</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>启动</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>停止</translation>
         </message>
     </context>
     <context>
@@ -24798,6 +24918,69 @@ From the plugin %2
         <message>
             <source>Close %1</source>
             <translation>关闭 %1</translation>
+        </message>
+    </context>
+    <context>
+        <name>Connection</name>
+        <message>
+            <source>%1 (%2)</source>
+            <translation>%1 (%2)</translation>
+        </message>
+        <message>
+            <source>Connected</source>
+            <translation>已连接</translation>
+        </message>
+        <message>
+            <source>Connected to %1.</source>
+            <translation>已连接到 %1。</translation>
+        </message>
+        <message>
+            <source>Connecting</source>
+            <translation>正在连接</translation>
+        </message>
+        <message>
+            <source>Connecting to %1.</source>
+            <translation>正在连接到 %1。</translation>
+        </message>
+        <message>
+            <source>Connection lost</source>
+            <translation>连接已断开</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2.</source>
+            <translation>无法连接到 %1：%2。</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2. Trying again.</source>
+            <translation>无法连接到 %1：%2。将重试。</translation>
+        </message>
+        <message>
+            <source>Failed</source>
+            <translation>失败</translation>
+        </message>
+        <message>
+            <source>Not connected to %1.</source>
+            <translation>未连接到 %1。</translation>
+        </message>
+        <message>
+            <source>Retrying</source>
+            <translation>正在重试</translation>
+        </message>
+        <message>
+            <source>Started</source>
+            <translation>已启动</translation>
+        </message>
+        <message>
+            <source>Stopped</source>
+            <translation>已停止</translation>
+        </message>
+        <message>
+            <source>Stopped. Not connecting to %1.</source>
+            <translation>已停止。不会连接到 %1。</translation>
+        </message>
+        <message>
+            <source>Trying to connect to %1.</source>
+            <translation>正在尝试连接到 %1。</translation>
         </message>
     </context>
 </TS>

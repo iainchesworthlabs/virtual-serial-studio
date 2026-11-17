@@ -3109,6 +3109,104 @@ Networks: %5</source>
             <source>Open %1 in the Monitor</source>
             <translation>פתח את %1 במוניטור</translation>
         </message>
+        <message>
+            <source>%1  %2</source>
+            <translation>%1  %2</translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n read(s)</source>
+            <translation>
+                <numerusform>%1, קריאות: %n</numerusform>
+                <numerusform>%1, קריאות: %n</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n write(s)</source>
+            <translation>
+                <numerusform>%1, כתיבות: %n</numerusform>
+                <numerusform>%1, כתיבות: %n</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>%1, port %2</source>
+            <translation>%1, יציאה %2</translation>
+        </message>
+        <message>
+            <source>Connected at</source>
+            <translation>מחובר מאז</translation>
+        </message>
+        <message>
+            <source>Connection</source>
+            <translation>חיבור</translation>
+        </message>
+        <message>
+            <source>Last error</source>
+            <translation>שגיאה אחרונה</translation>
+        </message>
+        <message>
+            <source>Local</source>
+            <translation>מקומי</translation>
+        </message>
+        <message>
+            <source>Next try</source>
+            <translation>ניסיון הבא</translation>
+        </message>
+        <message>
+            <source>None</source>
+            <translation>אין</translation>
+        </message>
+        <message>
+            <source>None planned</source>
+            <translation>אין מתוכנן</translation>
+        </message>
+        <message>
+            <source>None yet</source>
+            <translation>עדיין אין</translation>
+        </message>
+        <message>
+            <source>Not connected</source>
+            <translation>לא מחובר</translation>
+        </message>
+        <message>
+            <source>Not reported</source>
+            <translation>לא דווח</translation>
+        </message>
+        <message>
+            <source>Received</source>
+            <translation>התקבל</translation>
+        </message>
+        <message>
+            <source>Recent events</source>
+            <translation>אירועים אחרונים</translation>
+        </message>
+        <message>
+            <source>Reconnects</source>
+            <translation>חיבורים מחדש</translation>
+        </message>
+        <message>
+            <source>Remote</source>
+            <translation>מרוחק</translation>
+        </message>
+        <message>
+            <source>Sent</source>
+            <translation>נשלח</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>הפעל</translation>
+        </message>
+        <message>
+            <source>Start %1</source>
+            <translation>הפעל את %1</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>עצור</translation>
+        </message>
+        <message>
+            <source>Stop %1</source>
+            <translation>עצור את %1</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -10239,6 +10337,22 @@ Networks: %5</source>
             <source>panes switch cycle monitor log</source>
             <translation>חלוניות החלפה מעבר מוניטור יומן</translation>
         </message>
+        <message>
+            <source>Could not start %1.</source>
+            <translation>לא ניתן להפעיל את %1.</translation>
+        </message>
+        <message>
+            <source>Could not stop %1.</source>
+            <translation>לא ניתן לעצור את %1.</translation>
+        </message>
+        <message>
+            <source>Started %1.</source>
+            <translation>%1 הופעל.</translation>
+        </message>
+        <message>
+            <source>Stopped %1.</source>
+            <translation>%1 נעצר.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -10986,6 +11100,14 @@ Networks: %5</source>
             <location filename="../src/topology/topology_text.cpp" line="389" />
             <source>Selected %1.</source>
             <translation>נבחר: %1.</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>הפעל</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>עצור</translation>
         </message>
     </context>
     <context>
@@ -24840,6 +24962,69 @@ From the plugin %2
         <message>
             <source>Close %1</source>
             <translation>סגור את %1</translation>
+        </message>
+    </context>
+    <context>
+        <name>Connection</name>
+        <message>
+            <source>%1 (%2)</source>
+            <translation>%1 (%2)</translation>
+        </message>
+        <message>
+            <source>Connected</source>
+            <translation>מחובר</translation>
+        </message>
+        <message>
+            <source>Connected to %1.</source>
+            <translation>מחובר אל %1.</translation>
+        </message>
+        <message>
+            <source>Connecting</source>
+            <translation>מתחבר</translation>
+        </message>
+        <message>
+            <source>Connecting to %1.</source>
+            <translation>מתחבר אל %1.</translation>
+        </message>
+        <message>
+            <source>Connection lost</source>
+            <translation>החיבור אבד</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2.</source>
+            <translation>לא ניתן להתחבר אל %1: %2.</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2. Trying again.</source>
+            <translation>לא ניתן להתחבר אל %1: %2. ינסה שוב.</translation>
+        </message>
+        <message>
+            <source>Failed</source>
+            <translation>נכשל</translation>
+        </message>
+        <message>
+            <source>Not connected to %1.</source>
+            <translation>לא מחובר אל %1.</translation>
+        </message>
+        <message>
+            <source>Retrying</source>
+            <translation>מנסה שוב</translation>
+        </message>
+        <message>
+            <source>Started</source>
+            <translation>הופעל</translation>
+        </message>
+        <message>
+            <source>Stopped</source>
+            <translation>נעצר</translation>
+        </message>
+        <message>
+            <source>Stopped. Not connecting to %1.</source>
+            <translation>נעצר. לא מתחבר אל %1.</translation>
+        </message>
+        <message>
+            <source>Trying to connect to %1.</source>
+            <translation>מנסה להתחבר אל %1.</translation>
         </message>
     </context>
 </TS>

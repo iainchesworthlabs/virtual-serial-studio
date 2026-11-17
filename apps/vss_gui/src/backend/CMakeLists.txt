@@ -16,6 +16,8 @@ add_library(vss_gui_backend STATIC
   com_numbers.cpp
   com_number_uses.cpp
   driver_error.cpp
+  connection_text.cpp
+  connection_text.hpp
   licence_store.cpp
   licence_store.hpp
   licence_view.hpp

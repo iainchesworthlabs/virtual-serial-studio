@@ -6,6 +6,7 @@
 
 #include "panes/port_model.hpp"
 
+#include "backend/connection_text.hpp"
 #include "panes/format.hpp"
 #include "language/bidi.hpp"
 
@@ -350,6 +351,10 @@ std::optional<port_view> PortModel::port_at(int row) const
 
 QString PortModel::state_text(const port_view& port)
 {
+    if (port.stopped)
+        return connection_text::state(connect_phase::stopped);
+    if (port.connection)
+        return connection_text::state(port.connection->phase);
     if (port.state == vss::endpoint_state::failed)
         return tr("Failed");
     if (port.kind == vss::endpoint_kind::mock)
@@ -376,6 +381,22 @@ QString PortModel::state_text(const port_view& port)
 
 port_state_kind PortModel::state_kind(const port_view& port)
 {
+    // Stopped is a plain, neutral closed: it is not a fault.
+    if (port.stopped)
+        return port_state_kind::closed;
+    if (port.connection)
+    {
+        switch (port.connection->phase)
+        {
+        case connect_phase::connected:
+            return port_state_kind::connected;
+        case connect_phase::failed:
+            return port_state_kind::failed;
+        case connect_phase::connecting:
+        case connect_phase::retrying:
+            return port_state_kind::waiting;
+        }
+    }
     if (port.state == vss::endpoint_state::failed)
         return port_state_kind::failed;
     if (port.kind == vss::endpoint_kind::mock)
@@ -546,6 +567,14 @@ bool PortModel::has_format_warning(const port_view& port)
 QString PortModel::status_text(const port_view& port)
 {
     QStringList parts;
+    if (port.connection)
+    {
+        // The parts are joined with full stops, so this one gives its own up.
+        QString sentence = connection_text::sentence(*port.connection);
+        if (sentence.endsWith(QLatin1Char('.')))
+            sentence.chop(1);
+        parts << sentence;
+    }
     // A real device already shows the settings it runs at (serial_text), so
     // the format here is only what a program set on a port Studio made.
     if (port.peer_format && port.kind != vss::endpoint_kind::physical)

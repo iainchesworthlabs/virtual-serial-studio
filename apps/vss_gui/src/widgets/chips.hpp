@@ -51,6 +51,15 @@ public:
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
 
+    /// The one drawing of a state chip, used by this widget and by the Ports
+    /// table, so a chip is the same size and shape everywhere.  `small` is
+    /// the height of the Ports table's chip (token `chipSmall`).
+    static QFont chip_font();
+    static int chip_height(bool small);
+    static int chip_width(const QString& text, kind value);
+    static void paint(QPainter* painter, const QRect& rect,
+                      const QString& text, kind value);
+
 protected:
     void paintEvent(QPaintEvent* event) override;
 

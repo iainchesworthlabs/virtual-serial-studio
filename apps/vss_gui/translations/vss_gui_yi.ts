@@ -3109,6 +3109,104 @@ Networks: %5</source>
             <source>Open %1 in the Monitor</source>
             <translation>עפענען %1 אין דעם מאניטאר</translation>
         </message>
+        <message>
+            <source>%1  %2</source>
+            <translation>%1  %2</translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n read(s)</source>
+            <translation>
+                <numerusform>%1, לעזונגען: %n</numerusform>
+                <numerusform>%1, לעזונגען: %n</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n write(s)</source>
+            <translation>
+                <numerusform>%1, שרײַבונגען: %n</numerusform>
+                <numerusform>%1, שרײַבונגען: %n</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>%1, port %2</source>
+            <translation>%1, פּאָרט %2</translation>
+        </message>
+        <message>
+            <source>Connected at</source>
+            <translation>פֿאַרבונדן אום</translation>
+        </message>
+        <message>
+            <source>Connection</source>
+            <translation>פֿאַרבינדונג</translation>
+        </message>
+        <message>
+            <source>Last error</source>
+            <translation>לעצטער טעות</translation>
+        </message>
+        <message>
+            <source>Local</source>
+            <translation>לאָקאַל</translation>
+        </message>
+        <message>
+            <source>Next try</source>
+            <translation>ווייטערדיקער פּרוּוו</translation>
+        </message>
+        <message>
+            <source>None</source>
+            <translation>קײן</translation>
+        </message>
+        <message>
+            <source>None planned</source>
+            <translation>קײנער נישט פּלאַנירט</translation>
+        </message>
+        <message>
+            <source>None yet</source>
+            <translation>נאָך קײנע</translation>
+        </message>
+        <message>
+            <source>Not connected</source>
+            <translation>נישט פֿאַרבונדן</translation>
+        </message>
+        <message>
+            <source>Not reported</source>
+            <translation>נישט געמאָלדן</translation>
+        </message>
+        <message>
+            <source>Received</source>
+            <translation>באַקומען</translation>
+        </message>
+        <message>
+            <source>Recent events</source>
+            <translation>לעצטע געשעענישן</translation>
+        </message>
+        <message>
+            <source>Reconnects</source>
+            <translation>ווידער־פֿאַרבינדונגען</translation>
+        </message>
+        <message>
+            <source>Remote</source>
+            <translation>װײַטער</translation>
+        </message>
+        <message>
+            <source>Sent</source>
+            <translation>געשיקט</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>אָנהייבן</translation>
+        </message>
+        <message>
+            <source>Start %1</source>
+            <translation>אָנהייבן %1</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>אָפּשטעלן</translation>
+        </message>
+        <message>
+            <source>Stop %1</source>
+            <translation>אָפּשטעלן %1</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -10239,6 +10337,22 @@ Networks: %5</source>
             <source>panes switch cycle monitor log</source>
             <translation>פּאַנעלן וועקסלען מאָניטאָר לאָג</translation>
         </message>
+        <message>
+            <source>Could not start %1.</source>
+            <translation>קען נישט אָנהייבן %1.</translation>
+        </message>
+        <message>
+            <source>Could not stop %1.</source>
+            <translation>קען נישט אָפּשטעלן %1.</translation>
+        </message>
+        <message>
+            <source>Started %1.</source>
+            <translation>%1 אָנגעהויבן.</translation>
+        </message>
+        <message>
+            <source>Stopped %1.</source>
+            <translation>%1 אָפּגעשטעלט.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -10986,6 +11100,14 @@ Networks: %5</source>
             <location filename="../src/topology/topology_text.cpp" line="389" />
             <source>Selected %1.</source>
             <translation>אויסגעקליבן %1.</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>אָנהייבן</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>אָפּשטעלן</translation>
         </message>
     </context>
     <context>
@@ -24840,6 +24962,69 @@ From the plugin %2
         <message>
             <source>Close %1</source>
             <translation>פֿאַרמאַכן %1</translation>
+        </message>
+    </context>
+    <context>
+        <name>Connection</name>
+        <message>
+            <source>%1 (%2)</source>
+            <translation>%1 (%2)</translation>
+        </message>
+        <message>
+            <source>Connected</source>
+            <translation>פֿאַרבונדן</translation>
+        </message>
+        <message>
+            <source>Connected to %1.</source>
+            <translation>פֿאַרבונדן מיט %1.</translation>
+        </message>
+        <message>
+            <source>Connecting</source>
+            <translation>פֿאַרבינדט זיך</translation>
+        </message>
+        <message>
+            <source>Connecting to %1.</source>
+            <translation>פֿאַרבינדט זיך מיט %1.</translation>
+        </message>
+        <message>
+            <source>Connection lost</source>
+            <translation>די פֿאַרבינדונג איז פֿאַרלוירן</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2.</source>
+            <translation>קען נישט פֿאַרבינדן מיט %1: %2.</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2. Trying again.</source>
+            <translation>קען נישט פֿאַרבינדן מיט %1: %2. פּרובירט נאָכאַמאָל.</translation>
+        </message>
+        <message>
+            <source>Failed</source>
+            <translation>דורכגעפֿאַלן</translation>
+        </message>
+        <message>
+            <source>Not connected to %1.</source>
+            <translation>נישט פֿאַרבונדן מיט %1.</translation>
+        </message>
+        <message>
+            <source>Retrying</source>
+            <translation>פּרובירט נאָכאַמאָל</translation>
+        </message>
+        <message>
+            <source>Started</source>
+            <translation>אָנגעהויבן</translation>
+        </message>
+        <message>
+            <source>Stopped</source>
+            <translation>אָפּגעשטעלט</translation>
+        </message>
+        <message>
+            <source>Stopped. Not connecting to %1.</source>
+            <translation>אָפּגעשטעלט. פֿאַרבינדט זיך נישט מיט %1.</translation>
+        </message>
+        <message>
+            <source>Trying to connect to %1.</source>
+            <translation>פּרובירט זיך צו פֿאַרבינדן מיט %1.</translation>
         </message>
     </context>
 </TS>

@@ -3109,6 +3109,106 @@ Networks: %5</source>
             <source>Open %1 in the Monitor</source>
             <translation>فتح %1 في المراقب</translation>
         </message>
+        <message>
+            <source>%1  %2</source>
+            <translation>%1  %2</translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n read(s)</source>
+            <translation>
+                <numerusform>%1، القراءات: %n</numerusform>
+                <numerusform>%1، القراءات: %n</numerusform>
+                <numerusform>%1، القراءات: %n</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n write(s)</source>
+            <translation>
+                <numerusform>%1، عمليات الكتابة: %n</numerusform>
+                <numerusform>%1، عمليات الكتابة: %n</numerusform>
+                <numerusform>%1، عمليات الكتابة: %n</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>%1, port %2</source>
+            <translation>%1، المنفذ %2</translation>
+        </message>
+        <message>
+            <source>Connected at</source>
+            <translation>وقت الاتصال</translation>
+        </message>
+        <message>
+            <source>Connection</source>
+            <translation>الاتصال</translation>
+        </message>
+        <message>
+            <source>Last error</source>
+            <translation>آخر خطأ</translation>
+        </message>
+        <message>
+            <source>Local</source>
+            <translation>محلي</translation>
+        </message>
+        <message>
+            <source>Next try</source>
+            <translation>المحاولة التالية</translation>
+        </message>
+        <message>
+            <source>None</source>
+            <translation>لا شيء</translation>
+        </message>
+        <message>
+            <source>None planned</source>
+            <translation>لا شيء مخطط</translation>
+        </message>
+        <message>
+            <source>None yet</source>
+            <translation>لا شيء بعد</translation>
+        </message>
+        <message>
+            <source>Not connected</source>
+            <translation>غير متصل</translation>
+        </message>
+        <message>
+            <source>Not reported</source>
+            <translation>غير مُبلَّغ</translation>
+        </message>
+        <message>
+            <source>Received</source>
+            <translation>المستلَم</translation>
+        </message>
+        <message>
+            <source>Recent events</source>
+            <translation>الأحداث الأخيرة</translation>
+        </message>
+        <message>
+            <source>Reconnects</source>
+            <translation>مرات إعادة الاتصال</translation>
+        </message>
+        <message>
+            <source>Remote</source>
+            <translation>البعيد</translation>
+        </message>
+        <message>
+            <source>Sent</source>
+            <translation>المُرسَل</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>ابدأ</translation>
+        </message>
+        <message>
+            <source>Start %1</source>
+            <translation>ابدأ %1</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>أوقف</translation>
+        </message>
+        <message>
+            <source>Stop %1</source>
+            <translation>أوقف %1</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -10263,6 +10363,22 @@ Networks: %5</source>
             <source>panes switch cycle monitor log</source>
             <translation>اللوحات تبديل تنقل المراقب السجل</translation>
         </message>
+        <message>
+            <source>Could not start %1.</source>
+            <translation>تعذّر بدء %1.</translation>
+        </message>
+        <message>
+            <source>Could not stop %1.</source>
+            <translation>تعذّر إيقاف %1.</translation>
+        </message>
+        <message>
+            <source>Started %1.</source>
+            <translation>بدأ %1.</translation>
+        </message>
+        <message>
+            <source>Stopped %1.</source>
+            <translation>أُوقف %1.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -11014,6 +11130,14 @@ Networks: %5</source>
             <location filename="../src/topology/topology_text.cpp" line="389" />
             <source>Selected %1.</source>
             <translation>تم تحديد %1.</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>ابدأ</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>أوقف</translation>
         </message>
     </context>
     <context>
@@ -25008,6 +25132,69 @@ From the plugin %2
         <message>
             <source>Close %1</source>
             <translation>إغلاق %1</translation>
+        </message>
+    </context>
+    <context>
+        <name>Connection</name>
+        <message>
+            <source>%1 (%2)</source>
+            <translation>%1 (%2)</translation>
+        </message>
+        <message>
+            <source>Connected</source>
+            <translation>متصل</translation>
+        </message>
+        <message>
+            <source>Connected to %1.</source>
+            <translation>متصل بـ %1.</translation>
+        </message>
+        <message>
+            <source>Connecting</source>
+            <translation>جارٍ الاتصال</translation>
+        </message>
+        <message>
+            <source>Connecting to %1.</source>
+            <translation>جارٍ الاتصال بـ %1.</translation>
+        </message>
+        <message>
+            <source>Connection lost</source>
+            <translation>انقطع الاتصال</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2.</source>
+            <translation>تعذّر الاتصال بـ %1: %2.</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2. Trying again.</source>
+            <translation>تعذّر الاتصال بـ %1: %2. ستتم إعادة المحاولة.</translation>
+        </message>
+        <message>
+            <source>Failed</source>
+            <translation>فشل</translation>
+        </message>
+        <message>
+            <source>Not connected to %1.</source>
+            <translation>غير متصل بـ %1.</translation>
+        </message>
+        <message>
+            <source>Retrying</source>
+            <translation>إعادة المحاولة</translation>
+        </message>
+        <message>
+            <source>Started</source>
+            <translation>بدأ</translation>
+        </message>
+        <message>
+            <source>Stopped</source>
+            <translation>متوقف</translation>
+        </message>
+        <message>
+            <source>Stopped. Not connecting to %1.</source>
+            <translation>متوقف. لا يتصل بـ %1.</translation>
+        </message>
+        <message>
+            <source>Trying to connect to %1.</source>
+            <translation>جارٍ محاولة الاتصال بـ %1.</translation>
         </message>
     </context>
 </TS>

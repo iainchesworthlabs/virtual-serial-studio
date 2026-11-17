@@ -72,6 +72,8 @@ Q_SIGNALS:
     void advanced_tools_requested();
     void com_number_requested(vss::endpoint_id id);
     void release_port_requested(vss::endpoint_id id);
+    /// The Stop or Start button: `run` is true to start.
+    void run_requested(vss::endpoint_id id, bool run);
     /// "Open <port> in the Monitor", for a port that is a monitor.
     void monitor_requested(vss::endpoint_id id);
     void error_message(const QString& message);
@@ -82,6 +84,7 @@ Q_SIGNALS:
 private:
     void build();
     void update_content();
+    void update_connection_rows(const port_view& port);
     void update_lines();
     void update_plugin_part();
     void update_monitor_block();
@@ -102,6 +105,24 @@ private:
     QLabel* path_ = nullptr;
     CopyButton* copy_ = nullptr;
     QLabel* traffic_ = nullptr;
+    QLabel* run_caption_ = nullptr;
+    QPushButton* run_button_ = nullptr;
+    /// The rows of a network client's connection, in the order shown; all
+    /// hidden for any other port.  Each is a caption and its value.
+    struct connection_row
+    {
+        QLabel* caption = nullptr;
+        QLabel* value = nullptr;
+    };
+    connection_row remote_row_;
+    connection_row local_row_;
+    connection_row connected_row_;
+    connection_row error_row_;
+    connection_row next_try_row_;
+    connection_row history_row_;
+    connection_row received_row_;
+    connection_row sent_row_;
+    connection_row reconnects_row_;
     QLabel* com_caption_ = nullptr;
     QWidget* com_row_ = nullptr;
     QLabel* com_value_ = nullptr;

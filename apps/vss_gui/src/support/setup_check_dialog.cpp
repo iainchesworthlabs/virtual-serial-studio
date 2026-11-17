@@ -232,6 +232,8 @@ void SetupCheckDialog::build()
     header_chip_ =
         new StatusChip(QCoreApplication::translate("SetupCheck", "Ready"),
                        StatusChip::kind::healthy, header);
+    // The same size as a state chip in the Ports table and the Inspector.
+    header_chip_->set_small(true);
     header_layout->addWidget(header_chip_, 0, Qt::AlignTop);
     outer->addWidget(header);
 

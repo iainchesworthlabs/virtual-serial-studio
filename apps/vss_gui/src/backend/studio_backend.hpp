@@ -113,6 +113,16 @@ public:
         return vss::make_error_code(vss::errc::unsupported);
     }
 
+    /// Stops a port that was made from an address, or starts it again
+    /// (capability `port_stop`).  Its name, id and links are kept and no
+    /// retry runs while it is stopped.  `unsupported` for any other port and
+    /// without the capability.  The stopped state is not saved in the setup.
+    virtual vss::result<void> set_port_running(vss::endpoint_id /*id*/,
+                                               bool /*run*/)
+    {
+        return vss::make_error_code(vss::errc::unsupported);
+    }
+
     /// Renames a port everywhere the studio keeps its name.  The default is
     /// `unsupported`: a build without `Capabilities::rename_port` never
     /// changes only part of the records.

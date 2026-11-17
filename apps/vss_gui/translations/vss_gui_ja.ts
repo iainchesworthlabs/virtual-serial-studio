@@ -3109,6 +3109,102 @@ Networks: %5</source>
             <source>Open %1 in the Monitor</source>
             <translation>%1 をモニターで開く</translation>
         </message>
+        <message>
+            <source>%1  %2</source>
+            <translation>%1  %2</translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n read(s)</source>
+            <translation>
+                <numerusform>%1、読み取り: %n 回</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n write(s)</source>
+            <translation>
+                <numerusform>%1、書き込み: %n 回</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>%1, port %2</source>
+            <translation>%1、ポート %2</translation>
+        </message>
+        <message>
+            <source>Connected at</source>
+            <translation>接続時刻</translation>
+        </message>
+        <message>
+            <source>Connection</source>
+            <translation>接続</translation>
+        </message>
+        <message>
+            <source>Last error</source>
+            <translation>最後のエラー</translation>
+        </message>
+        <message>
+            <source>Local</source>
+            <translation>ローカル</translation>
+        </message>
+        <message>
+            <source>Next try</source>
+            <translation>次の試行</translation>
+        </message>
+        <message>
+            <source>None</source>
+            <translation>なし</translation>
+        </message>
+        <message>
+            <source>None planned</source>
+            <translation>予定なし</translation>
+        </message>
+        <message>
+            <source>None yet</source>
+            <translation>まだありません</translation>
+        </message>
+        <message>
+            <source>Not connected</source>
+            <translation>未接続</translation>
+        </message>
+        <message>
+            <source>Not reported</source>
+            <translation>報告されていません</translation>
+        </message>
+        <message>
+            <source>Received</source>
+            <translation>受信</translation>
+        </message>
+        <message>
+            <source>Recent events</source>
+            <translation>最近のイベント</translation>
+        </message>
+        <message>
+            <source>Reconnects</source>
+            <translation>再接続回数</translation>
+        </message>
+        <message>
+            <source>Remote</source>
+            <translation>リモート</translation>
+        </message>
+        <message>
+            <source>Sent</source>
+            <translation>送信</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>開始</translation>
+        </message>
+        <message>
+            <source>Start %1</source>
+            <translation>%1 を開始</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>停止</translation>
+        </message>
+        <message>
+            <source>Stop %1</source>
+            <translation>%1 を停止</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -10233,6 +10329,22 @@ Networks: %5</source>
             <source>panes switch cycle monitor log</source>
             <translation>ペイン 切り替え モニター ログ</translation>
         </message>
+        <message>
+            <source>Could not start %1.</source>
+            <translation>%1 を開始できませんでした。</translation>
+        </message>
+        <message>
+            <source>Could not stop %1.</source>
+            <translation>%1 を停止できませんでした。</translation>
+        </message>
+        <message>
+            <source>Started %1.</source>
+            <translation>%1 を開始しました。</translation>
+        </message>
+        <message>
+            <source>Stopped %1.</source>
+            <translation>%1 を停止しました。</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -10979,6 +11091,14 @@ Networks: %5</source>
             <location filename="../src/topology/topology_text.cpp" line="389" />
             <source>Selected %1.</source>
             <translation>%1を選択しました。</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>開始</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>停止</translation>
         </message>
     </context>
     <context>
@@ -24798,6 +24918,69 @@ From the plugin %2
         <message>
             <source>Close %1</source>
             <translation>%1 を閉じる</translation>
+        </message>
+    </context>
+    <context>
+        <name>Connection</name>
+        <message>
+            <source>%1 (%2)</source>
+            <translation>%1 (%2)</translation>
+        </message>
+        <message>
+            <source>Connected</source>
+            <translation>接続済み</translation>
+        </message>
+        <message>
+            <source>Connected to %1.</source>
+            <translation>%1 に接続しました。</translation>
+        </message>
+        <message>
+            <source>Connecting</source>
+            <translation>接続中</translation>
+        </message>
+        <message>
+            <source>Connecting to %1.</source>
+            <translation>%1 に接続しています。</translation>
+        </message>
+        <message>
+            <source>Connection lost</source>
+            <translation>接続が切れました</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2.</source>
+            <translation>%1 に接続できませんでした: %2。</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2. Trying again.</source>
+            <translation>%1 に接続できませんでした: %2。再試行します。</translation>
+        </message>
+        <message>
+            <source>Failed</source>
+            <translation>失敗</translation>
+        </message>
+        <message>
+            <source>Not connected to %1.</source>
+            <translation>%1 に接続されていません。</translation>
+        </message>
+        <message>
+            <source>Retrying</source>
+            <translation>再試行中</translation>
+        </message>
+        <message>
+            <source>Started</source>
+            <translation>開始しました</translation>
+        </message>
+        <message>
+            <source>Stopped</source>
+            <translation>停止中</translation>
+        </message>
+        <message>
+            <source>Stopped. Not connecting to %1.</source>
+            <translation>停止中です。%1 には接続しません。</translation>
+        </message>
+        <message>
+            <source>Trying to connect to %1.</source>
+            <translation>%1 への接続を試みています。</translation>
         </message>
     </context>
 </TS>

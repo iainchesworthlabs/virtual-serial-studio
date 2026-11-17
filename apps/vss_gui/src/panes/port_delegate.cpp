@@ -9,6 +9,7 @@
 #include "panes/port_model.hpp"
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
+#include "widgets/chips.hpp"
 
 #include <vss/core/profile.hpp>
 
@@ -34,109 +35,39 @@ QFont semibold(QFont font)
     return font;
 }
 
-struct chip_style
+StatusChip::kind chip_kind_of(port_state_kind kind)
 {
-    QColor fill;
-    QColor edge;
-    QColor text;
-    QColor mark;
-    bool hollow = false;
-    bool cross = false;
-};
-
-chip_style style_for(port_state_kind kind)
-{
-    // The same tinted capsules as StatusChip: no outline, the mark and text
-    // in the state's own colour.
-    const Theme& theme = Theme::instance();
-    const QColor none = Qt::transparent;
     switch (kind)
     {
     case port_state_kind::open:
+        return StatusChip::kind::open;
     case port_state_kind::connected:
-        return {theme.colour(colour_role::okSoft),
-                none,
-                theme.colour(colour_role::ok),
-                theme.colour(colour_role::ok),
-                false,
-                false};
+        return StatusChip::kind::connected;
     case port_state_kind::waiting:
-        return {theme.colour(colour_role::amberSoft),
-                none,
-                theme.colour(colour_role::amber),
-                theme.colour(colour_role::amber),
-                true,
-                false};
+        return StatusChip::kind::waiting;
     case port_state_kind::studio_only:
+        return StatusChip::kind::studio_only;
     case port_state_kind::closed:
-        return {theme.colour(colour_role::fill),
-                none,
-                theme.colour(colour_role::ink2),
-                theme.colour(colour_role::ink3),
-                true,
-                false};
+        return StatusChip::kind::closed;
     case port_state_kind::failed:
-        return {theme.colour(colour_role::badSoft),
-                none,
-                theme.colour(colour_role::bad),
-                theme.colour(colour_role::bad),
-                false,
-                true};
+        return StatusChip::kind::failed;
     case port_state_kind::fixture:
-        return {theme.colour(colour_role::violetSoft),
-                none,
-                theme.colour(colour_role::violet),
-                theme.colour(colour_role::violet),
-                true,
-                false};
+        return StatusChip::kind::fixture;
     }
-    return {};
+    return StatusChip::kind::closed;
 }
 
+// The chip is drawn by StatusChip, the same code as the Inspector's.  Its
+// width does not depend on the state, so the text alone gives it.
 int chip_width(const QString& text)
 {
-    const QFont font = Theme::instance().font(text_style::caption);
-    QFont bold = font;
-    bold.setWeight(QFont::DemiBold);
-    const QFontMetrics metrics(bold);
-    return metrics.horizontalAdvance(text) + 26;
+    return StatusChip::chip_width(text, StatusChip::kind::open);
 }
 
 void paint_chip(QPainter* painter, const QRect& rect, const QString& text,
                 port_state_kind kind)
 {
-    const chip_style style = style_for(kind);
-    painter->save();
-    painter->setRenderHint(QPainter::Antialiasing);
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(style.fill);
-    painter->drawRoundedRect(QRectF(rect), rect.height() / 2.0,
-                             rect.height() / 2.0);
-
-    QFont font = Theme::instance().font(text_style::caption);
-    font.setWeight(QFont::DemiBold);
-    painter->setFont(font);
-    painter->setPen(style.text);
-    const int dot_space = 14;
-    const QRect text_rect = rect.adjusted(dot_space, 0, -6, 0);
-    painter->drawText(text_rect, Qt::AlignVCenter | Qt::AlignLeft, text);
-
-    const QPointF centre(rect.left() + 8.0, rect.center().y() + 0.5);
-    painter->setPen(QPen(style.mark, 1.2));
-    painter->setBrush(style.hollow ? Qt::NoBrush : style.mark);
-    if (style.cross)
-    {
-        const qreal arm = 3.0;
-        painter->drawLine(QPointF(centre.x() - arm, centre.y() - arm),
-                          QPointF(centre.x() + arm, centre.y() + arm));
-        painter->drawLine(QPointF(centre.x() - arm, centre.y() + arm),
-                          QPointF(centre.x() + arm, centre.y() - arm));
-    }
-    else
-    {
-        painter->drawEllipse(centre, 3.0, 3.0);
-    }
-    painter->restore();
+    StatusChip::paint(painter, rect, text, chip_kind_of(kind));
 }
 
 } // namespace
