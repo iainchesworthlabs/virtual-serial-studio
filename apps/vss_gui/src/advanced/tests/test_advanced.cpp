@@ -24,6 +24,7 @@
 #include "widgets/chips.hpp"
 #include "widgets/controls.hpp"
 #include "widgets/half_duplex_fields.hpp"
+#include "widgets/wire_timing_fields.hpp"
 
 #include <QAbstractButton>
 #include <QAction>
@@ -1674,6 +1675,112 @@ TEST_CASE("link settings: a bus shows the half-duplex line and returns it")
     fields->enable_box()->setChecked(false);
     REQUIRE(!dialog.options().half_duplex.enabled);
     REQUIRE(!fields->rows_enabled());
+}
+
+TEST_CASE("link settings: wire timing is offered on every link but a bus")
+{
+    using namespace vss::gui;
+    link_view pair;
+    pair.shape = link_shape::two_way;
+    pair.sources = {1};
+    pair.targets = {2};
+    LinkSettingsDialog dialog(pair, QStringLiteral("a and b"), true);
+    dialog.show();
+    QApplication::processEvents();
+    REQUIRE(dialog.wire_timing_shown());
+    WireTimingFields* fields = dialog.wire_timing_fields();
+    REQUIRE(fields != nullptr);
+    REQUIRE(fields->isVisibleTo(&dialog));
+
+    // Off by default: nothing is written, whatever the rows hold.
+    REQUIRE(!fields->enable_box()->isChecked());
+    REQUIRE(!fields->rows_enabled());
+    REQUIRE(!dialog.options().wire_timing.enabled);
+    REQUIRE(dialog.options().wire_timing == vss::wire_timing_options{});
+
+    // On, with no rate: the rate comes from the port and the framing is
+    // not editable.
+    fields->enable_box()->setChecked(true);
+    REQUIRE(fields->rows_enabled());
+    REQUIRE(!fields->framing_enabled());
+    REQUIRE(dialog.options().wire_timing.enabled);
+    REQUIRE_EQ(dialog.options().wire_timing.bit_rate, 0u);
+    REQUIRE(!dialog.options().wire_timing.framing.has_value());
+    REQUIRE(dialog.apply_button()->isEnabled());
+
+    // A rate and a framing.
+    fields->bit_rate_spin()->setValue(250000);
+    REQUIRE(fields->framing_enabled());
+    fields->stop_bits_combo()->setCurrentIndex(
+        fields->stop_bits_combo()->findData(
+            static_cast<int>(vss::stop_bits_mode::two)));
+    const auto timing = dialog.options().wire_timing;
+    REQUIRE(timing.enabled);
+    REQUIRE_EQ(timing.bit_rate, 250000u);
+    REQUIRE(timing.framing ==
+            (vss::wire_framing{8, vss::parity_mode::none,
+                               vss::stop_bits_mode::two}));
+    REQUIRE(vss::valid_wire_timing(timing));
+
+    // 8N1 is no framing, so it is not written as one.
+    fields->stop_bits_combo()->setCurrentIndex(0);
+    REQUIRE(!dialog.options().wire_timing.framing.has_value());
+
+    // The dialog shows what the link has.
+    pair.options.wire_timing = timing;
+    LinkSettingsDialog again(pair, QStringLiteral("a and b"), true);
+    again.show();
+    QApplication::processEvents();
+    REQUIRE(again.wire_timing_fields()->enable_box()->isChecked());
+    REQUIRE_EQ(again.wire_timing_fields()->bit_rate_spin()->value(), 250000);
+    REQUIRE(again.options().wire_timing == timing);
+
+    // Unchecking it turns the option off.
+    again.wire_timing_fields()->enable_box()->setChecked(false);
+    REQUIRE(!again.options().wire_timing.enabled);
+
+    link_view bus;
+    bus.shape = link_shape::bus;
+    bus.mode = vss::link_mode::bus;
+    bus.sources = {1, 2};
+    LinkSettingsDialog on_bus(bus, QStringLiteral("a and b"), true);
+    on_bus.show();
+    QApplication::processEvents();
+    REQUIRE(!on_bus.wire_timing_shown());
+    REQUIRE(!on_bus.wire_timing_fields()->isVisibleTo(&on_bus));
+    REQUIRE(!on_bus.options().wire_timing.enabled);
+}
+
+TEST_CASE("link settings: wire timing has accessible names and keyboard order")
+{
+    using namespace vss::gui;
+    link_view pair;
+    pair.shape = link_shape::two_way;
+    pair.sources = {1};
+    pair.targets = {2};
+    LinkSettingsDialog dialog(pair, QStringLiteral("a and b"), true);
+    WireTimingFields* fields = dialog.wire_timing_fields();
+    REQUIRE_EQ(fields->enable_box()->accessibleName(),
+               QStringLiteral("Wire timing"));
+    REQUIRE(!fields->enable_box()->accessibleDescription().isEmpty());
+    REQUIRE_EQ(fields->bit_rate_spin()->findChild<QLineEdit*>()->accessibleName(),
+               QStringLiteral("Bit rate"));
+    REQUIRE_EQ(fields->data_bits_combo()->accessibleName(),
+               QStringLiteral("Data bits"));
+    REQUIRE_EQ(fields->parity_combo()->accessibleName(),
+               QStringLiteral("Parity"));
+    REQUIRE_EQ(fields->stop_bits_combo()->accessibleName(),
+               QStringLiteral("Stop bits"));
+    for (QWidget* control :
+         {static_cast<QWidget*>(fields->enable_box()),
+          static_cast<QWidget*>(fields->bit_rate_spin()),
+          static_cast<QWidget*>(fields->data_bits_combo()),
+          static_cast<QWidget*>(fields->parity_combo()),
+          static_cast<QWidget*>(fields->stop_bits_combo())})
+    {
+        REQUIRE(control->focusPolicy() != Qt::NoFocus);
+        REQUIRE(control->minimumSizeHint().height() >= 0);
+    }
 }
 
 TEST_CASE("link settings: a bus without the capability, and other links")

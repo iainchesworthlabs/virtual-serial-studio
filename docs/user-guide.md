@@ -632,6 +632,44 @@ Here every byte takes between 180 and 200 ms to reach each other member.
   the ports themselves take. It is accurate to a few milliseconds, and a busy
   machine can make a byte late but never early.
 
+## Wire timing on a link
+
+Without it, a link hands on what it reads as soon as it can: ten bytes written
+at once arrive at once, though a real wire would take a few milliseconds for
+them. Some protocols depend on that time. Modbus RTU ends a frame with 3.5
+characters of silence, DMX512 needs a gap after a break, and LIN a space before
+the answer. Turn on **Wire timing** in the link's **Settings...** (right-click
+the link at the Advanced level), or add `wire_timing` to the link in a topology
+file:
+
+```json
+{ "mode": "duplex", "sources": ["master"], "targets": ["device"],
+  "wire_timing": { "bit_rate": 115200, "framing": "8N1" } }
+```
+
+- **Each character takes its real bits**: a start bit, 5 to 8 data bits, a
+  parity bit if there is one, and 1, 1.5 or 2 stop bits. At 9600 bit/s a byte of
+  8N1 takes about 1.04 ms and a byte of 8E2 about 1.35 ms.
+- **A long write is spread over the time it would take**, in short pieces. The
+  next write waits until the one before it has finished. A break holds back what
+  follows it for the length of the break (one character when its length is not
+  known).
+- **Whose rate**: the sending port's. If a program has set a rate on the port
+  (a Windows driver port), that is used, then the port's own setting for a real
+  serial port, then the **Bit rate** and **Framing** on the link. With none of
+  them the link is not paced, and the Log says "no rate for this link" once.
+  Leave **Bit rate** at "From the port" to use the first two.
+- It is off unless you turn it on, it is not saved when off, and a bus does not
+  have it because a half-duplex bus already has a wire of its own.
+- A Studio from before wire timing will not open a file that has it.
+- **Accuracy**: on Windows 10 (version 1803) and later a pace is kept to about
+  half a millisecond; elsewhere it is a little better than that, and for a gap
+  under a millisecond Studio waits on the processor for the last part of it. That
+  uses at most a tenth of one processor core, and past that the release is made
+  from the timer and may be late. The link counts how many releases were late.
+  Over RFC 2217 the gaps a client sees are not reliable, because TCP joins and
+  splits what it sends as it likes.
+
 ## RS-232, RS-422 and RS-485
 
 A Studio port has no electrical mode. A program cannot see the wiring, so a

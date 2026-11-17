@@ -107,6 +107,10 @@ public:
     endpoint_state state() const noexcept;
     bool is_open() const noexcept;
 
+    /// The baud rate and framing the program on the other side has set, where
+    /// the transport can tell (see #transport::peer_format).
+    std::optional<line_format> peer_format() const;
+
     std::string public_path() const;
     std::string description() const;
     const endpoint_options& options() const noexcept { return options_; }

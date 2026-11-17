@@ -280,7 +280,7 @@ touched. Before it, the GUI made the link again with a new id for any of these.
 
 | Option | What a change does |
 |---|---|
-| `delay_ms`, `jitter_ms` | Every route gets a new delay line (none when both are now zero) and the old lines are closed, so the bytes they still hold are **discarded**, as when a target is removed. If neither changed, the lines are the same objects and keep their bytes. |
+| `delay_ms`, `jitter_ms`, `wire_timing` | Every route gets a new delay line (none when the delay, the jitter and the wire timing are all off) and the old lines are closed, so the bytes they still hold are **discarded**, as when a target is removed. If neither changed, the lines are the same objects and keep their bytes. |
 | `policy` | Each route's `arbitrated` flag is worked out again. Into `owner` the link has no owner until a publisher on an arbitrated route sends first or `set_owner` names one. Out of `owner` the stored owner is cleared. `owner` to `owner` leaves the owner as it is. |
 | `emulate_modem_lines` on, or `wiring` while on | The current outputs of every sender are pushed along the link through the new wiring, as `set_link_wiring` does, so the receivers' inputs follow at once. |
 | `emulate_modem_lines` off | Each endpoint the link drove loses the inputs it drove, as when a cable is pulled, unless another link still drives it, and then it shows that link's sender, as after `remove_target`. |
@@ -541,6 +541,100 @@ Any endpoint kind may be a member: a driver port, a pseudo terminal, a loopback
 port, a real serial port, and TCP, UDP and RFC 2217 ports, so a port on another
 computer can sit on the same bus.
 
+### Wire timing
+
+`link_options::wire_timing` (off by default, `unsupported` on a bus, which has a
+wire of its own) makes a link carry its traffic at the speed a serial wire would,
+and not as fast as the program wrote it. The plan and the reasons are in
+[`wire-timing-plan.md`](wire-timing-plan.md); this is what is built.
+
+**Wire time.** `wire_time(bit_rate, framing, bytes)` in `vss/core/wire_time.hpp`
+is `bytes * bits_per_character / bit_rate`, where a character is a start bit,
+5 to 8 data bits, an optional parity bit and 1, 1.5 or 2 stop bits. It is counted
+in half bits so that 1.5 stop bits stay whole: 8N1 is 20 half bits, 8E1 and 8N2
+are 22, 5N1.5 is 15. `bus_line::wire_time` is this function, with 8N1 as the
+default framing, so a bus that knows no framing gives the numbers it always did.
+
+**Pacing.** `wire_pacer` (`vss/core/wire_pacer.hpp`) is the model, with no clock:
+every call is given the time the item would be released without pacing. One
+pacer belongs to each route's delay line. An item is released at
+
+    release = max(source_time + delay + jitter, previous_release + previous_wire_time)
+
+so a long chunk holds back the next item for as long as it takes on the wire, and
+a break holds it for its own length (one character at the sender's rate when the
+length was not measured; a `begin` holds nothing, the `end` or `complete` holds).
+Items keep their order, so the line is still a queue. A route with the option off
+has no pacer and pays nothing; a link with the option on but no delay still gets
+a delay line, with a delay of zero.
+
+**Runs.** A chunk whose wire time is within the timer's accuracy is one release.
+A longer one is split at character boundaries into runs of at most the larger of
+the accuracy and one character, each released when its first character would
+begin on the wire, so a 513-slot DMX512 frame (8N2 at 250000 bit/s, 22.5 ms) is
+47 releases at 500 us accuracy and not 513. Each run is copied once into the
+queue; a chunk that is one run is moved.
+
+**The rate.** The sender's, in this order: the format the program set on the
+sender's port (`peer_format`, a driver port), the sender's own setting when it is
+a real line (`physical` and `rfc2217`; a virtual port's setting is a default and
+not a choice for the wire, so it does not count), then `wire_timing.bit_rate` and
+`framing` of the link (framing 8N1 when not given). When none is known the link
+is not paced for that item, and a `log_message` event says "no rate for this
+link" once for the route. The far port's rate is never used. A rate difference
+between the ends stays the warning it was.
+
+**The file.** A link with the option on is saved with the object `wire_timing`
+and, inside it, `bit_rate` and `framing` (`8N1`, `7E2`, `5N1.5`) only when
+given. A link with it off is saved without the member, so every file from before
+reads as off, the schema version is still 1, and `to_json` of a setup that never
+used it is byte for byte what it was. A Studio from before the option refuses a
+file that has it ("is not a member of a setup"), as it does for any member it
+does not know; it does not read the link as unpaced.
+
+**Changing it.** It is one of the options `set_link_options` changes in place. A
+change of `wire_timing` makes every route a new delay line and closes the old,
+so what they still hold is discarded, as for a changed delay.
+
+**Counters.** `link_stats` has `paced_releases` (items released through the
+pacer), `late_releases` (more than 250 us after the time the pacer gave),
+`max_late_us` and `spin_refused` (see below). They are shared by the routes of
+the link, are shown by `hub::find_link` and are zero for a link that is not
+paced. A release is late against the time the wire gave it, not against when the
+program wrote.
+
+#### Timer accuracy, spinning and what each platform gives
+
+A normal timer is no better than about a millisecond (15 ms on Windows without
+the 1 ms timer period), and 3.5 characters at 115200 baud is 330 us. A paced line
+therefore does three things:
+
+1. **The timer.** On Windows a paced route waits on a high resolution waitable
+   timer (`CreateWaitableTimerExW` with `CREATE_WAITABLE_TIMER_HIGH_RESOLUTION`,
+   Windows 10 version 1803 and later) through asio's `object_handle`, about
+   0.5 ms. Where the system refuses to make one the route keeps asio's steady
+   timer, which is as good as the multimedia timer period the hub asks for
+   (`hub_options::fine_timers`), about 1 ms. Linux and macOS use the steady
+   timer, which is already within about 0.2 ms (`platform::timer_accuracy`).
+   The platform code is `src/platform/<windows|posix>/precise_timer_*.cpp`,
+   picked by CMake.
+2. **The spin.** The timer is set for the release time minus the timer's
+   accuracy. When it fires early the line spins on the clock for the rest, never
+   for more than 1 ms for one release. All paced routes of a hub share one
+   allowance of 100 ms of spinning for every second, one tenth of a core
+   (`spin_budget`). A release that wants to spin when the allowance is used up is
+   refused, counted in `spin_refused`, and made from the timer at its own time,
+   so it is late by the timer's accuracy and counted in `late_releases` if that
+   is over 250 us. The line never claims a time it did not keep. A route on a
+   hub clock a test moves does not spin and polls every millisecond, as every
+   delay line does.
+3. **The count.** Every release is compared with its time, so the cost of the
+   platform is a number on the link, not a belief.
+
+Measured lateness on this repository's Windows 11 machine is in
+[`wire-timing-lateness.md`](wire-timing-lateness.md). Linux and macOS have not
+been measured; `tests/bench` has the run that does it.
+
 ### The half-duplex line
 
 A bus made as above gives the hearing of a two-wire RS-485 pair and none of its
@@ -550,9 +644,12 @@ so when two do not. A bus without the option takes none of the paths below, and
 its routing, its counters, its events and its saved file are what they were.
 
 **What "the line is busy" means.** The bus has a line rate, `bit_rate`, in bits
-per second (50 to 4,000,000; a byte is ten bits, as 8N1). A chunk of `n` bytes
-that the hub reads from a member at time `t` occupies the wire from `t` until
-`t + 10n / bit_rate`. A second chunk from the same member waits for the first, as
+per second (50 to 12,000,000). A chunk of `n` bytes that the hub reads from a
+member at time `t` occupies the wire from `t` until `t + n * bits / bit_rate`,
+where `bits` is what one character of the sender takes (see *Wire timing*): ten
+for 8N1, 11 for 8E1 or 8N2, 10.5 for 8N1.5. The framing is the one the program
+set on the sender's port when the transport can tell (`peer_format`), and 8N1
+when it cannot. A second chunk from the same member waits for the first, as
 bytes leave a UART one after another. The other members hear a chunk when its
 last byte has left the wire, and not when the hub read it.
 

@@ -125,6 +125,12 @@ struct link_entry
     /// on.  Left out of the file when the option is off, so a bus without
     /// it is written as before.
     half_duplex_options half_duplex;
+    /// Carries the link at wire speed (`vss::wire_timing_options`), on any
+    /// link but a `bus`.  In the file it is the object `wire_timing` with an
+    /// optional `bit_rate` and `framing` (such as `8N1`); the object being
+    /// there turns the option on.  Left out of the file when the option is
+    /// off, so a link without it is written as before.
+    wire_timing_options wire_timing;
     /// For `monitor` only: which bytes of the monitored port it copies.  In
     /// the file it is the text `direction`, `both`, `transmit` or `receive`,
     /// left out when it is `both`, so a file without it, which every file
