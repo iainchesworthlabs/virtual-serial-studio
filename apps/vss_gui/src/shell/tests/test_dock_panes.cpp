@@ -728,3 +728,40 @@ TEST_CASE("dock panes: choosing a pane behind a tab brings it forward")
     REQUIRE(!log_action->isChecked());
     REQUIRE(!panes.log->isVisible());
 }
+
+TEST_CASE("dock panes: no pane is squeezed below what its controls need")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::ShellWindow window(backend);
+    const Panes panes = find_panes(window);
+    for (const QSize size : {QSize(1280, 800), QSize(960, 640)})
+    {
+        window.resize(size);
+        window.show();
+        QApplication::processEvents();
+        if (!panes.advanced->isChecked())
+            panes.advanced->trigger();
+        QApplication::processEvents();
+        // A dock given less room than its minimum spills over its neighbour,
+        // which is how a title bar once covered the Stop repeat button.
+        for (const char* name :
+             {"portsDock", "inspectorDock", "sendDock", "monitorDock"})
+        {
+            auto* dock = window.findChild<QDockWidget*>(QString::fromLatin1(name));
+            REQUIRE(dock != nullptr);
+            REQUIRE(dock->isVisible());
+            REQUIRE(dock->height() >= dock->minimumSizeHint().height());
+            REQUIRE(dock->width() >= dock->minimumSizeHint().width());
+        }
+        // The docks in the right column do not overlap each other or the
+        // Monitor.
+        const QRect inspector =
+            rect_in(window, window.findChild<QDockWidget*>(
+                                QStringLiteral("inspectorDock")));
+        const QRect send = rect_in(window, window.findChild<QDockWidget*>(
+                                               QStringLiteral("sendDock")));
+        REQUIRE(!inspector.intersects(send));
+        REQUIRE(!send.intersects(rect_in(window, panes.monitor)));
+    }
+}
