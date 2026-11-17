@@ -52,10 +52,12 @@
 #include <QSettings>
 #include <QSlider>
 #include <QStandardPaths>
+#include <QTabBar>
 #include <QTabWidget>
 #include <QTemporaryDir>
 
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 
 namespace
@@ -1154,6 +1156,22 @@ TEST_CASE("support: About reports the build and environment and copies them")
     REQUIRE_EQ(tabs->tabText(2), QStringLiteral("Environment"));
     REQUIRE_EQ(tabs->tabText(3), QStringLiteral("Licences"));
     REQUIRE_EQ(tabs->tabText(4), QStringLiteral("Fonts"));
+
+    // The first tab starts level with the text of the page below it.
+    dialog.resize(760, 520);
+    dialog.show();
+    QApplication::processEvents();
+    QLabel* notice = nullptr;
+    for (QLabel* label : dialog.findChildren<QLabel*>())
+    {
+        if (label->text().startsWith(QStringLiteral("This program is free")))
+            notice = label;
+    }
+    REQUIRE(notice != nullptr);
+    const int tab_left =
+        tabs->tabBar()->mapTo(&dialog, tabs->tabBar()->tabRect(0).topLeft()).x();
+    const int text_left = notice->mapTo(&dialog, QPoint(0, 0)).x();
+    REQUIRE(std::abs(tab_left - text_left) <= 2);
 
     // The header carries the single full version string.
     bool has_version = false;
