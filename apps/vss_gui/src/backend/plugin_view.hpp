@@ -141,7 +141,7 @@ struct plugin_addition
     /// How many instances of it the plugin allows.
     int max_instances = 1;
     /// Settings with no default that Studio asks for in a small dialog.
-    std::vector<plugin_parameter_ask> asks;
+    std::vector<plugin_parameter_ask> asks{};
     /// It has another setting with no default, which Studio cannot ask for
     /// yet, so Studio cannot make an instance of it.
     bool needs_settings = false;
