@@ -212,6 +212,7 @@ void AboutDialog::build()
     // second.
     // page() makes each tab's content page and its vertical layout.
     tabs_ = new QTabWidget(this);
+    tabs_->setObjectName(QStringLiteral("aboutTabs"));
     tabs_->setAccessibleName(
         QCoreApplication::translate("About", "About details"));
     tabs_->setDocumentMode(true);
