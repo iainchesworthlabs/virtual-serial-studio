@@ -2290,3 +2290,22 @@ TEST_CASE(
     REQUIRE(
         counts->text().contains(QStringLiteral("Showing the newest 2 of 5.")));
 }
+
+TEST_CASE("plugins page: an invalid description file says what is wrong")
+{
+    plugin_view plugin;
+    plugin.id = QStringLiteral("org.example.invalid");
+    plugin.state = plugin_state::cannot_be_used;
+    plugin.note = plugin_note::invalid_manifest;
+
+    // Without a line from the host, only the general sentence.
+    REQUIRE_EQ(note_for(plugin).text,
+               QStringLiteral("Its description file is not valid, so Studio "
+                              "cannot tell what it is."));
+
+    plugin.detail = QStringLiteral("an official plugin must have not_after");
+    REQUIRE_EQ(note_for(plugin).text,
+               QStringLiteral("Its description file is not valid, so Studio "
+                              "cannot tell what it is. What is wrong: an "
+                              "official plugin must have not_after"));
+}
