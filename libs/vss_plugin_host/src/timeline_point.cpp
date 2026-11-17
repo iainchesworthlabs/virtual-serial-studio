@@ -74,6 +74,8 @@ struct batch
 struct source
 {
     place_reader reader;
+    /// Whether the bytes the place sent are played too.
+    bool include_sent = false;
 };
 
 batch read_some(source& from)
@@ -100,7 +102,7 @@ batch read_some(source& from)
         {
         case recording_event_kind::data:
         {
-            if (event.direction != data_direction::rx)
+            if (event.direction != data_direction::rx && !from.include_sent)
             {
                 ++out.sent;
                 break;
@@ -143,7 +145,7 @@ struct opened
 /// that is to be played and reads the first block.  Runs on the slow
 /// executor and touches no shared state.
 opened open_timeline(const std::filesystem::path& folder,
-                     const std::string& place)
+                     const std::string& place, bool include_sent)
 {
     opened out;
     std::string detail;
@@ -174,7 +176,7 @@ opened open_timeline(const std::filesystem::path& folder,
         out.problem = "the recording could not be read";
         return out;
     }
-    out.from = std::make_shared<source>(source{std::move(*reader)});
+    out.from = std::make_shared<source>(source{std::move(*reader), include_sent});
     out.first = read_some(*out.from);
     if (!out.first.problem.empty())
     {
@@ -328,12 +330,13 @@ private:
             [alive = alive_, this, executor = context_.executor,
              id = message.id, instance = asked->instance,
              scale = asked->time_scale, folder, place = asked->place,
+             include_sent = asked->include_sent,
              port = std::move(port)]() mutable
             {
                 opened result;
                 try
                 {
-                    result = open_timeline(folder, place);
+                    result = open_timeline(folder, place, include_sent);
                 }
                 catch (...)
                 {
