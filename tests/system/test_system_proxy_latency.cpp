@@ -314,3 +314,53 @@ TEST_CASE("system: a network client keeps its connection when the device "
     REQUIRE(wait_until([&] { return (*client)->stats().errors >= 5; }, 3000ms));
     REQUIRE_EQ((*client)->state(), endpoint_state::open);
 }
+
+TEST_CASE("system: a network client asks the device for its serial settings "
+          "and does not set them")
+{
+    // The port belongs to the server. A client that sets 115200 8N1 on a
+    // device that runs a 9600 bus makes every byte of the bus a framing error.
+    boost::asio::io_context device_io;
+    boost::asio::ip::tcp::acceptor acceptor(
+        device_io, {boost::asio::ip::make_address("127.0.0.1"), 0});
+
+    studio app;
+    const auto client = app.attach_serial(
+        "device",
+        "rfc2217://127.0.0.1:" + std::to_string(acceptor.local_endpoint().port()),
+        serial_settings{});
+    REQUIRE(client);
+
+    boost::asio::ip::tcp::socket device(device_io);
+    acceptor.accept(device);
+
+    // What the client sends in its first moments.
+    std::string received;
+    const auto until = clock_type::now() + 1s;
+    device.non_blocking(true);
+    std::array<char, 512> buffer{};
+    while (clock_type::now() < until)
+    {
+        boost::system::error_code ec;
+        const std::size_t n = device.read_some(boost::asio::buffer(buffer), ec);
+        if (!ec)
+            received.append(buffer.data(), n);
+        else
+            std::this_thread::sleep_for(5ms);
+    }
+
+    // IAC SB COM-PORT <code> <value> ... : every setting is the request form.
+    const std::string baud = {'\xFF', '\xFA', '\x2C', '\x01'};
+    const auto at = received.find(baud);
+    REQUIRE(at != std::string::npos);
+    REQUIRE(received.size() >= at + 8);
+    for (std::size_t i = 4; i < 8; ++i)
+        REQUIRE_EQ(static_cast<int>(received[at + i]), 0);
+    for (const char code : {'\x02', '\x03', '\x04', '\x05'})
+    {
+        const std::string head = {'\xFF', '\xFA', '\x2C', code};
+        const auto found = received.find(head);
+        REQUIRE(found != std::string::npos);
+        REQUIRE_EQ(static_cast<int>(received[found + 4]), 0);
+    }
+}

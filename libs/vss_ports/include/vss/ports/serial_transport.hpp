@@ -62,6 +62,7 @@ public:
     void cancel() override;
 
     bool is_line_error(boost::system::error_code ec) const noexcept override;
+    std::optional<line_format> peer_format() const override;
 
     /// A scripted fixture takes a break and says nothing; a real port has
     /// no way to raise one in step with the bytes yet, so it does not
