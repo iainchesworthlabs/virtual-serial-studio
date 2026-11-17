@@ -210,6 +210,7 @@ private:
     void on_write(const std::shared_ptr<pending_write>& write,
                   std::uint64_t generation, boost::system::error_code ec,
                   std::size_t count);
+    void on_line_error(const boost::system::error_code& ec);
     void handle_read_failure(std::uint64_t generation,
                              const boost::system::error_code& ec,
                              std::string_view what);
@@ -240,6 +241,11 @@ private:
     /// strand only.  At most one read is armed per generation, so two never
     /// share `read_buffer_`.
     std::optional<std::uint64_t> read_armed_;
+    /// When a line error was last logged, and how many were left out since
+    /// (on the strand only), so a line that errs on every byte logs once a
+    /// second and not once a byte.
+    time_point line_error_logged_{};
+    std::uint64_t line_errors_unlogged_ = 0;
     /// Read and written on the strand only, so a read costs one test of it.
     std::shared_ptr<read_stage> read_stage_;
     mutable std::mutex write_mutex_;
