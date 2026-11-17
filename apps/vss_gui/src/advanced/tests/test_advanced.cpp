@@ -1676,6 +1676,38 @@ TEST_CASE("link settings: a bus without the capability, and other links")
     REQUIRE(plain.options().half_duplex == vss::half_duplex_options{});
 }
 
+TEST_CASE("link settings: a monitor chooses its direction and has no delay")
+{
+    using namespace vss::gui;
+    link_view monitor;
+    monitor.shape = link_shape::monitor;
+    monitor.sources = {1};
+    monitor.targets = {2};
+    LinkSettingsDialog dialog(monitor, QStringLiteral("a and b"), true);
+    dialog.show();
+    QApplication::processEvents();
+    REQUIRE(dialog.direction_shown());
+    REQUIRE(!dialog.delay_spin()->isVisibleTo(&dialog));
+    auto* direction = dialog.direction_combo();
+    REQUIRE_EQ(direction->count(), 3);
+    REQUIRE_EQ(direction->itemText(0), QStringLiteral("Both directions"));
+    REQUIRE_EQ(direction->itemText(1), QStringLiteral("Transmit only"));
+    REQUIRE_EQ(direction->itemText(2), QStringLiteral("Receive only"));
+    // Both is the default and is what an old file means.
+    REQUIRE(dialog.options().direction == vss::monitor_direction::both);
+    direction->setCurrentIndex(2);
+    REQUIRE(dialog.options().direction == vss::monitor_direction::receive);
+
+    // A link that is not a monitor has no direction to choose.
+    link_view pair;
+    pair.shape = link_shape::two_way;
+    pair.sources = {1};
+    pair.targets = {2};
+    LinkSettingsDialog plain(pair, QStringLiteral("a and b"), true);
+    REQUIRE(!plain.direction_shown());
+    REQUIRE(plain.options().direction == vss::monitor_direction::both);
+}
+
 TEST_CASE("event log: rows and heading follow the density like the Monitor")
 {
     using namespace vss::gui;

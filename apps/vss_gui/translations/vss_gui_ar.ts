@@ -3079,6 +3079,26 @@ Networks: %5</source>
             <source>&lt;a href="faults"&gt;Open line matrix and faults&lt;/a&gt;</source>
             <translation>&lt;a href="faults"&gt;فتح مصفوفة الخطوط والأعطال&lt;/a&gt;</translation>
         </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="263" />
+            <source>Direction</source>
+            <translation>الاتجاه</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="281" />
+            <source>The monitor's direction could not be changed.</source>
+            <translation>تعذّر تغيير اتجاه المراقب.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="628" />
+            <source>This port is a monitor. It receives a copy of the traffic on %1, and what is written to it does not reach %1.</source>
+            <translation>هذا المنفذ مراقب. يتلقى نسخة من حركة البيانات على %1، وما يُكتب فيه لا يصل إلى %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="639" />
+            <source>Open %1 in the Monitor</source>
+            <translation>فتح %1 في المراقب</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -4372,6 +4392,11 @@ Networks: %5</source>
             <source>The jitter can be no more than the delay.</source>
             <translation>يجب ألا يزيد التذبذب على التأخير.</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="82" />
+            <source>Direction</source>
+            <translation>الاتجاه</translation>
+        </message>
     </context>
     <context>
         <name>MonitorModel</name>
@@ -4642,6 +4667,11 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_panel.cpp" line="800" />
             <source>%1 column is %2 px wide.</source>
             <translation>عرض العمود %1 هو %2 بكسل.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="1127" />
+            <source>No traffic on %1 yet. %2.</source>
+            <translation>لا توجد حركة بيانات على %1 بعد. %2.</translation>
         </message>
     </context>
     <context>
@@ -10169,6 +10199,31 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="3551" />
             <source>Don't save</source>
             <translation>عدم الحفظ</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2487" />
+            <source>The Monitor shows only %1. Choose All ports in its port filter to see every port.</source>
+            <translation>يعرض المراقب %1 فقط. اختر «كل المنافذ» في مرشح المنافذ لرؤية كل المنافذ.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2490" />
+            <source>The Monitor shows %1.</source>
+            <translation>يعرض المراقب %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="511" />
+            <source>Decoded traffic...</source>
+            <translation>البيانات المفكوكة الترميز…</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="512" />
+            <source>decode decoder frames triggers protocol plugin</source>
+            <translation>فك ترميز مفكك إطارات مشغّلات بروتوكول ملحق</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2518" />
+            <source>Decoding %1 as %2. What it finds is in Decoded traffic, under Tools.</source>
+            <translation>جارٍ فك ترميز %1 على أنه %2. ما يتم العثور عليه موجود في الأدوات، ضمن «البيانات المفكوكة الترميز».</translation>
         </message>
     </context>
     <context>
@@ -20309,6 +20364,11 @@ Networks: %5</source>
             <source>COM1 and COM2 are kept for real ports. Choose COM3 or higher.</source>
             <translation>الرقمان COM1 وCOM2 محجوزان للمنافذ الحقيقية. اختر COM3 أو أعلى.</translation>
         </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="532" />
+            <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
+            <translation>مأخوذة من %1. يعمل المراقب بسرعة المنفذ الذي يراقبه.</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -20602,6 +20662,11 @@ Networks: %5</source>
             <source>Network port changed.</source>
             <translation>تم تغيير المنفذ الشبكي.</translation>
         </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="729" />
+            <source>The address of %1 is not known, so its settings cannot be shown.</source>
+            <translation>عنوان %1 غير معروف، لذلك لا يمكن عرض إعداداته.</translation>
+        </message>
     </context>
     <context>
         <name>PaneHeader</name>
@@ -20808,6 +20873,11 @@ Networks: %5</source>
             <translation>
                 <numerusform>استخدام هذه الإعدادات لعدد %n من المنافذ المرتبطة بهذا المنفذ</numerusform>
             </translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="434" />
+            <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
+            <translation>مأخوذة من %1. يعمل المراقب بسرعة المنفذ الذي يراقبه.</translation>
         </message>
     </context>
     <context>
@@ -24234,6 +24304,16 @@ From the plugin %2
 من الإضافة %2
 %3</translation>
         </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="357" />
+            <source>%1 cannot be placed yet. Standing in for a device needs the engine timeline, which this version of Studio does not have.</source>
+            <translation>لا يمكن وضع %1 بعد. استبدال جهاز يحتاج إلى الخط الزمني للمحرك، وهذا الإصدار من Studio لا يملكه.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="466" />
+            <source>%1 needs settings that are set in Plugins.</source>
+            <translation>يحتاج %1 إلى إعدادات تُضبط في الملحقات.</translation>
+        </message>
     </context>
     <context>
         <name>PluginTrafficChip</name>
@@ -24614,6 +24694,185 @@ From the plugin %2
         <message>
             <source>Reserved by Windows</source>
             <translation>محجوز من Windows</translation>
+        </message>
+    </context>
+    <context>
+        <name>DecodeDialog</name>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="26" />
+            <source>Decode %1</source>
+            <translation>فك ترميز %1</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="27" />
+            <source>Shows the data on %1 as messages of a protocol, and reports what does not fit. Decoding only reads. It never changes or delays the data.</source>
+            <translation>يعرض البيانات على %1 كرسائل لبروتوكول ويبلغ عمّا لا يتوافق. فك الترميز يقرأ فقط، ولا يغيّر البيانات أو يؤخرها أبدًا.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="41" />
+            <source>Protocol</source>
+            <translation>البروتوكول</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="81" />
+            <source>Cancel</source>
+            <translation>إلغاء</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="84" />
+            <source>Start decoding</source>
+            <translation>بدء فك الترميز</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="108" />
+            <source>From the plugin %1.</source>
+            <translation>من الملحق %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="110" />
+            <source>%1 will read the data that passes through %2.</source>
+            <translation>سيقرأ %1 البيانات التي تمر عبر %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="122" />
+            <source>Not available in this build</source>
+            <translation>غير متاح في هذا الإصدار</translation>
+        </message>
+    </context>
+    <context>
+        <name>MonitorDirection</name>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="21" />
+            <source>Both directions</source>
+            <translation>الاتجاهان</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="24" />
+            <source>Transmit only</source>
+            <translation>الإرسال فقط</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="26" />
+            <source>Receive only</source>
+            <translation>الاستقبال فقط</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="36" />
+            <source>Copies what the program on the port writes and what is written into the port.</source>
+            <translation>ينسخ ما يكتبه البرنامج على المنفذ وما يُكتب في المنفذ.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="41" />
+            <source>Copies only what the program on the port writes.</source>
+            <translation>ينسخ ما يكتبه البرنامج على المنفذ فقط.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="45" />
+            <source>Copies only what is written into the port.</source>
+            <translation>ينسخ ما يُكتب في المنفذ فقط.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DecodedDialog</name>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="41" />
+            <source>Decoded traffic</source>
+            <translation>البيانات المفكوكة الترميز</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="53" />
+            <source>What the decoders found on your ports. Decoding only reads. The words in the table come from the plugin.</source>
+            <translation>ما وجدته أدوات فك الترميز على منافذك. فك الترميز يقرأ فقط. الكلمات في الجدول تأتي من الملحق.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="61" />
+            <source>Triggers only</source>
+            <translation>المشغّلات فقط</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Time</source>
+            <translation>الوقت</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Place</source>
+            <translation>المكان</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Direction</source>
+            <translation>الاتجاه</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>Type</source>
+            <translation>النوع</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>Message</source>
+            <translation>الرسالة</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>What</source>
+            <translation>الوصف</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="92" />
+            <source>Close</source>
+            <translation>إغلاق</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="167" />
+            <source>%1 s</source>
+            <translation>%1 ث</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="169" />
+            <source>Received</source>
+            <translation>المُستلَم</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="169" />
+            <source>Sent</source>
+            <translation>المُرسَل</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="170" />
+            <source>Trigger</source>
+            <translation>مشغّل</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="170" />
+            <source>Frame</source>
+            <translation>إطار</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="181" />
+            <source>Nothing is being decoded. Choose Decode as... in the menu of a port to start.</source>
+            <translation>لا يُفكّ ترميز أي شيء. اختر «فك الترميز كـ…» من قائمة منفذ للبدء.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="185" />
+            <source>No triggers. Everything decoded so far has fitted the protocol.</source>
+            <translation>لا توجد مشغّلات. كل ما فُكّ ترميزه حتى الآن يتوافق مع البروتوكول.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="188" />
+            <source>Nothing found yet.</source>
+            <translation>لم يُعثر على شيء بعد.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="192" />
+            <source>Showing the newest %1 of %2.</source>
+            <translation>عرض أحدث %1 من %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="194" />
+            <source>%1 left out to stay within the limits.</source>
+            <translation>تم تجاهل %1 للبقاء ضمن الحدود.</translation>
         </message>
     </context>
 </TS>
