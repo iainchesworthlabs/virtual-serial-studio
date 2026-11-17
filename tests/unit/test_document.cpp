@@ -938,6 +938,42 @@ TEST_CASE("document: a virtual port can ask for its COM number")
     REQUIRE(*parsed == value);
 }
 
+TEST_CASE("document: a port can be paused, and a file without it means running")
+{
+    document value;
+    value.name = "paused";
+    port_entry remote;
+    remote.name = "remote";
+    remote.kind = "tcp";
+    remote.uri = "tcp://127.0.0.1:4000";
+    remote.paused = true;
+    value.ports.push_back(remote);
+    port_entry running;
+    running.name = "running";
+    running.kind = "tcp";
+    running.uri = "tcp://127.0.0.1:4001";
+    value.ports.push_back(running);
+
+    REQUIRE(!validate(value));
+    const auto text = to_json(value, false);
+    REQUIRE(text.has_value());
+    // Only a paused port writes the field.
+    const auto first = text->find("\"paused\":true");
+    REQUIRE(first != std::string::npos);
+    REQUIRE_EQ(text->find("\"paused\"", first + 1), std::string::npos);
+    const auto parsed = from_json(*text);
+    REQUIRE(parsed.has_value());
+    REQUIRE(parsed->ports[0].paused);
+    REQUIRE(!parsed->ports[1].paused);
+    REQUIRE(*parsed == value);
+
+    // A fixture and a virtual port have no address to close.
+    value.ports[1].paused = true;
+    value.ports[1].kind = "virtual";
+    value.ports[1].uri.clear();
+    REQUIRE(validate(value));
+}
+
 TEST_CASE("document: a COM number must be a number a COM port can have, on a port that has one")
 {
     const auto parse = [](const char* port_fields)

@@ -831,6 +831,10 @@ error_code validate(const document& value)
             return make_error_code(errc::config_error);
         }
 
+        // A pause is for a port made from an address.
+        if (port.paused && (port.kind == "virtual" || port.kind == "mock"))
+            return make_error_code(errc::config_error);
+
         // A COM number means something to the Windows driver only.
         if (port.com_number != 0)
         {
@@ -968,6 +972,8 @@ result<std::string> to_json(const document& value, bool pretty)
         object["capture"] = port.capture;
         if (port.com_number != 0)
             object["com_number"] = port.com_number;
+        if (port.paused)
+            object["paused"] = true;
         bindings_to_json(port.plugins, object);
         ports.push_back(std::move(object));
     }
@@ -1096,7 +1102,8 @@ result<document> from_json(std::string_view text, std::string& problem)
                 !entry.text("uri", port.uri) ||
                 !entry.text("virtual_kind", port.virtual_kind) ||
                 !entry.text("mock_target", port.mock_target) ||
-                !entry.flag("capture", port.capture))
+                !entry.flag("capture", port.capture) ||
+                !entry.flag("paused", port.paused))
                 return refused();
 
             // A com_number must be an integer in the allowed range.  Whether

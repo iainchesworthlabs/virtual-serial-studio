@@ -1539,6 +1539,17 @@ bool stoppable_record(const std::string& kind, const std::string& uri)
 
 std::optional<bool> studio::port_stopped(endpoint_id id) const
 {
+    return held_as(id, port_record::run_state::stopped);
+}
+
+std::optional<bool> studio::port_paused(endpoint_id id) const
+{
+    return held_as(id, port_record::run_state::paused);
+}
+
+std::optional<bool> studio::held_as(endpoint_id id,
+                                    port_record::run_state wanted) const
+{
     bool flagged = false;
     {
         std::lock_guard lock(record_mutex_);
@@ -1546,7 +1557,7 @@ std::optional<bool> studio::port_stopped(endpoint_id id) const
         if (it == records_.end() ||
             !stoppable_record(it->second.kind, it->second.uri))
             return std::nullopt;
-        flagged = it->second.stopped;
+        flagged = it->second.run == wanted;
     }
     const auto found = hub_->find_endpoint(id);
     return flagged && found && !found->is_open();
@@ -1555,6 +1566,17 @@ std::optional<bool> studio::port_stopped(endpoint_id id) const
 result<void> studio::stop_port(endpoint_id id)
 {
     VSS_PROFILE_ZONE("studio.stop_port");
+    return hold_port(id, port_record::run_state::stopped);
+}
+
+result<void> studio::pause_port(endpoint_id id)
+{
+    VSS_PROFILE_ZONE("studio.pause_port");
+    return hold_port(id, port_record::run_state::paused);
+}
+
+result<void> studio::hold_port(endpoint_id id, port_record::run_state how)
+{
     {
         std::lock_guard lock(record_mutex_);
         const auto it = records_.find(id);
@@ -1562,7 +1584,7 @@ result<void> studio::stop_port(endpoint_id id)
             return make_error_code(errc::not_found);
         if (!stoppable_record(it->second.kind, it->second.uri))
             return make_error_code(errc::unsupported);
-        it->second.stopped = true;
+        it->second.run = how;
     }
     const auto found = hub_->find_endpoint(id);
     if (!found)
@@ -1584,7 +1606,19 @@ result<void> studio::stop_port(endpoint_id id)
 result<void> studio::start_port(endpoint_id id)
 {
     VSS_PROFILE_ZONE("studio.start_port");
+    return release_port(id);
+}
+
+result<void> studio::resume_port(endpoint_id id)
+{
+    VSS_PROFILE_ZONE("studio.resume_port");
+    return release_port(id);
+}
+
+result<void> studio::release_port(endpoint_id id)
+{
     port_record record;
+    auto before = port_record::run_state::running;
     {
         std::lock_guard lock(record_mutex_);
         const auto it = records_.find(id);
@@ -1592,7 +1626,8 @@ result<void> studio::start_port(endpoint_id id)
             return make_error_code(errc::not_found);
         if (!stoppable_record(it->second.kind, it->second.uri))
             return make_error_code(errc::unsupported);
-        it->second.stopped = false;
+        before = it->second.run;
+        it->second.run = port_record::run_state::running;
         record = it->second;
     }
     const bool client = reconnects(record);
@@ -1605,7 +1640,7 @@ result<void> studio::start_port(endpoint_id id)
     {
         std::lock_guard lock(record_mutex_);
         if (const auto it = records_.find(id); it != records_.end())
-            it->second.stopped = true;
+            it->second.run = before;
         return opened;
     }
     // The remote end refused: keep trying, as a client made to wait does.
@@ -2500,6 +2535,11 @@ result<void> studio::apply(const config::document& value,
         }
         created.push_back((*added)->id());
         ids.emplace(port.name, (*added)->id());
+        // A paused port is made, then held, as it was when the setup was
+        // written.  A port that cannot be held (a pause is only for ports
+        // made from an address) stays as made.
+        if (port.paused)
+            static_cast<void>(pause_port((*added)->id()));
     }
 
     std::vector<link_id> made;
@@ -2538,6 +2578,7 @@ config::port_entry studio::entry_of(const port_record& record)
         record.virtual_kind, record.serial, record.capture);
     entry.com_number = record.com_number;
     entry.plugins = record.plugins;
+    entry.paused = record.run == port_record::run_state::paused;
     if (record.kind == "mock")
     {
         // A fixture made from an address has no target of its own: the
