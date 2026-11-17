@@ -15,10 +15,12 @@
 #include "theme/theme.hpp"
 #include "widgets/chips.hpp"
 #include "widgets/controls.hpp"
+#include "widgets/monitor_direction.hpp"
 #include "widgets/notes.hpp"
 
 #include <vss/core/serial_settings.hpp>
 
+#include <QComboBox>
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -31,6 +33,7 @@
 #include <QUrl>
 #include <QVBoxLayout>
 
+#include <algorithm>
 #include <array>
 
 namespace vss::gui
@@ -229,6 +232,75 @@ void InspectorPanel::build()
     plugin_layout->addWidget(plugin_kept_);
     plugin_block_->hide();
     layout->addWidget(plugin_block_);
+
+    // "Watching", for a port that is the end of a monitor link: it says what
+    // the port is, because "waiting for program" alone does not.
+    monitor_block_ = new QWidget(content_);
+    monitor_block_->setObjectName(QStringLiteral("inspectorMonitor"));
+    auto* monitor_layout = new QVBoxLayout(monitor_block_);
+    monitor_layout->setContentsMargins(0, 0, 0, 0);
+    monitor_layout->setSpacing(6);
+    monitor_text_ = new QLabel(monitor_block_);
+    monitor_text_->setObjectName(QStringLiteral("inspectorMonitorText"));
+    monitor_text_->setTextFormat(Qt::PlainText);
+    monitor_text_->setWordWrap(true);
+    monitor_text_->setFont(Theme::instance().font(text_style::body));
+    monitor_layout->addWidget(monitor_text_);
+    auto* monitor_row = new QHBoxLayout();
+    monitor_row->setSpacing(8);
+    monitor_open_ = new QPushButton(monitor_block_);
+    monitor_open_->setObjectName(QStringLiteral("inspectorMonitorOpen"));
+    set_role(monitor_open_, "quiet");
+    monitor_open_->setProperty("size", QStringLiteral("small"));
+    monitor_open_->setCursor(Qt::PointingHandCursor);
+    polish(monitor_open_);
+    connect(monitor_open_, &QPushButton::clicked, this,
+            [this]
+            {
+                if (watched_ != 0)
+                    Q_EMIT monitor_requested(watched_);
+            });
+    monitor_row->addWidget(monitor_open_, 0, Qt::AlignVCenter);
+    monitor_direction_ = new QComboBox(monitor_block_);
+    monitor_direction_->setObjectName(QStringLiteral("inspectorMonitorDirection"));
+    monitor_direction_->setAccessibleName(tr("Direction"));
+    fill_monitor_direction(monitor_direction_, vss::monitor_direction::both);
+    connect(monitor_direction_, &QComboBox::activated, this,
+            [this]
+            {
+                if (refreshing_ || monitor_link_ == 0)
+                    return;
+                const auto link = backend_.link(monitor_link_);
+                if (!link)
+                    return;
+                vss::link_options options = link->options;
+                options.direction = static_cast<vss::monitor_direction>(
+                    monitor_direction_->currentData().toInt());
+                if (const auto done =
+                        backend_.set_link_options(monitor_link_, options);
+                    !done)
+                {
+                    Q_EMIT error_message(
+                        tr("The monitor's direction could not be changed."));
+                }
+                refresh();
+            });
+    auto* direction_caption = new QLabel(tr("Direction"), monitor_block_);
+    direction_caption->setFont(Theme::instance().font(text_style::caption));
+    direction_caption->setProperty("muted", true);
+    monitor_layout->insertWidget(1, direction_caption);
+    monitor_layout->insertWidget(2, monitor_direction_);
+    monitor_direction_hint_ = new QLabel(monitor_block_);
+    monitor_direction_hint_->setObjectName(
+        QStringLiteral("inspectorMonitorDirectionHint"));
+    monitor_direction_hint_->setWordWrap(true);
+    monitor_direction_hint_->setFont(Theme::instance().font(text_style::caption));
+    monitor_direction_hint_->setProperty("muted", true);
+    monitor_layout->insertWidget(3, monitor_direction_hint_);
+    monitor_row->addStretch(1);
+    monitor_layout->addLayout(monitor_row);
+    monitor_block_->hide();
+    layout->addWidget(monitor_block_);
 
     // Details form: captions in column 0, values in column 1, which stretches.
     auto* form = new QGridLayout();
@@ -653,6 +725,47 @@ void InspectorPanel::update_connection_rows(const port_view& port)
     reconnects_row_.value->setText(QString::number(connection.reconnects));
 }
 
+void InspectorPanel::update_monitor_block()
+{
+    watched_ = 0;
+    monitor_link_ = 0;
+    vss::monitor_direction direction = vss::monitor_direction::both;
+    if (port_.has_value())
+    {
+        for (const link_view& link : backend_.links())
+        {
+            if (link.shape == link_shape::monitor &&
+                link.targets.contains(port_->id) && !link.sources.isEmpty())
+            {
+                watched_ = link.sources.front();
+                monitor_link_ = link.id;
+                direction = link.options.direction;
+                break;
+            }
+        }
+    }
+    const auto source = watched_ != 0 ? backend_.port(watched_)
+                                      : std::optional<port_view>{};
+    monitor_block_->setVisible(source.has_value());
+    if (!source)
+        return;
+    monitor_text_->setText(
+        tr("This port is a monitor. It receives a copy of the traffic on %1, "
+           "and what is written to it does not reach %1.")
+            .arg(source->name));
+    {
+        const QSignalBlocker blocker(monitor_direction_);
+        monitor_direction_->setCurrentIndex(std::max(
+            0, monitor_direction_->findData(static_cast<int>(direction))));
+    }
+    monitor_direction_hint_->setText(monitor_direction_description(direction));
+    monitor_direction_->setAccessibleDescription(
+        monitor_direction_description(direction));
+    monitor_open_->setText(tr("Open %1 in the Monitor").arg(source->name));
+    monitor_open_->setAccessibleName(
+        tr("Open %1 in the Monitor").arg(source->name));
+}
+
 void InspectorPanel::update_content()
 {
     const bool has_port = port_.has_value();
@@ -665,6 +778,7 @@ void InspectorPanel::update_content()
     const port_view& port = *port_;
     name_->setText(port.name);
     update_plugin_part();
+    update_monitor_block();
     state_->set_kind(chip_kind(PortModel::state_kind(port)));
     state_->set_text(PortModel::state_text(port));
     state_->setToolTip(port.state == vss::endpoint_state::failed

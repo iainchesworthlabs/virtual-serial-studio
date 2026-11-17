@@ -121,6 +121,11 @@ void double_click(QWidget* target, const QPoint& position)
     QMouseEvent press(QEvent::MouseButtonDblClick, local, global,
                       Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
     QApplication::sendEvent(target, &press);
+    // The release that ends a real double-click, so the item does not keep
+    // the mouse.
+    QMouseEvent release(QEvent::MouseButtonRelease, local, global,
+                        Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(target, &release);
     QApplication::processEvents();
 }
 
@@ -625,6 +630,64 @@ TEST_CASE("topology: Tab visits nodes then links, Enter and Delete act")
     REQUIRE_EQ(removed_link, fixture.link);
 
     view.close();
+}
+
+TEST_CASE("topology: double-click opens Settings while editing, for a port "
+          "and for a link, and does nothing on empty canvas")
+{
+    graph_fixture fixture;
+    topo::TopologyView view;
+    view.resize(1000, 700);
+    view.show();
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    view.set_editing(true);
+    QApplication::processEvents();
+
+    QVector<vss::endpoint_id> settings;
+    vss::link_id link_settings = 0;
+    int inspected = 0;
+    QObject::connect(&view, &topo::TopologyView::settings_requested,
+                     [&settings](const QVector<vss::endpoint_id>& ports)
+                     { settings = ports; });
+    QObject::connect(&view, &topo::TopologyView::link_settings_requested,
+                     [&link_settings](vss::link_id id) { link_settings = id; });
+    QObject::connect(&view, &topo::TopologyView::inspect_requested,
+                     [&inspected](vss::endpoint_id) { ++inspected; });
+
+    double_click(view.viewport(),
+                 view.mapFromScene(view.node_rect(fixture.terminal).center()));
+    REQUIRE_EQ(settings, QVector<vss::endpoint_id>{fixture.terminal});
+    REQUIRE_EQ(inspected, 0);
+    // The double-click leaves the node selected, not toggled off.
+    REQUIRE_EQ(view.selected_port(), fixture.terminal);
+
+    double_click(view.viewport(),
+                 view.mapFromScene(view.link_anchor(fixture.link)));
+    REQUIRE_EQ(link_settings, fixture.link);
+
+    settings.clear();
+    link_settings = 0;
+    double_click(view.viewport(), QPoint(6, 6));
+    REQUIRE(settings.isEmpty());
+    REQUIRE_EQ(link_settings, vss::link_id{0});
+    REQUIRE_EQ(inspected, 0);
+
+    // A monitor link has settings too (its direction).
+    const auto monitor = fixture.backend.monitor(fixture.terminal, fixture.logger);
+    REQUIRE(monitor.has_value());
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+    link_settings = 0;
+    double_click(view.viewport(),
+                 view.mapFromScene(view.link_anchor(*monitor)));
+    REQUIRE_EQ(link_settings, *monitor);
+
+    // Not being edited, a double-click inspects, as the design had it.
+    view.set_editing(false);
+    double_click(view.viewport(),
+                 view.mapFromScene(view.node_rect(fixture.terminal).center()));
+    REQUIRE_EQ(inspected, 1);
+    REQUIRE(settings.isEmpty());
 }
 
 TEST_CASE("topology: double-click and the context menu")

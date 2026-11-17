@@ -19,6 +19,7 @@
 #include <QHash>
 #include <QLineF>
 #include <QPainterPath>
+#include <QPair>
 #include <QPointF>
 #include <QRectF>
 #include <QSet>
@@ -115,6 +116,9 @@ public:
                     wire_kind kind = wire_kind::two_way) const;
     /// Ends the wire on a port with the chosen kind of link.
     void finish_wire(vss::endpoint_id to, wire_kind kind);
+    /// Asks for the link and remembers the connector the wire came from.
+    void request_wire(vss::endpoint_id from, vss::endpoint_id to,
+                      wire_kind kind, std::optional<link_side> side);
     /// Ends the wire on empty canvas: a new port there, linked as chosen.
     void finish_wire_new(slot_kind kind, wire_kind wire,
                          const QPointF& scene_point);
@@ -343,6 +347,11 @@ private:
     bool is_selected_link(vss::link_id id) const;
     void clear_multi();
     void emit_selection_count();
+    /// Double-click on a node: Settings while editing, else Inspect.
+    void open_item(vss::endpoint_id id);
+    /// Double-click on a link: its settings, or for a monitor link the
+    /// watched port in the Monitor.
+    void open_link(vss::link_id id);
     void populate_node_menu(QMenu* menu, vss::endpoint_id id);
     void populate_selection_menu(QMenu* menu, vss::endpoint_id id);
     void populate_link_menu(QMenu* menu, vss::link_id id);
@@ -423,6 +432,12 @@ private:
     QSet<vss::link_id> multi_links_;
     std::optional<QPointF> pending_drop_;
     vss::endpoint_id wire_from_ = 0;
+    /// The connector the wire was dragged from; empty when it was started from
+    /// the keyboard or a menu.
+    std::optional<link_side> wire_from_side_;
+    /// The connector each wire drawn in this session was dragged from, by the
+    /// ports it joins, so its link keeps to the side the user used.
+    QHash<QPair<vss::endpoint_id, vss::endpoint_id>, link_side> drawn_sides_;
     QPointF wire_start_;
     QGraphicsPathItem* wire_item_ = nullptr;
     QGraphicsRectItem* ghost_ = nullptr;

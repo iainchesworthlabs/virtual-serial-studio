@@ -187,6 +187,7 @@ std::optional<config::link_entry> entry_of_link(
     entry.delay_ms = link.options.delay_ms;
     entry.jitter_ms = link.options.jitter_ms;
     entry.half_duplex = link.options.half_duplex;
+    entry.direction = link.options.direction;
     if (const auto kept = plugins.find(link.id); kept != plugins.end())
         entry.plugins = kept->second;
     return entry;
@@ -2128,6 +2129,7 @@ studio::make_links(const std::vector<config::link_entry>& links,
         options.delay_ms = link.delay_ms;
         options.jitter_ms = link.jitter_ms;
         options.half_duplex = link.half_duplex;
+        options.direction = link.direction;
 
         result<link_id> added = make_error_code(errc::config_error);
         if (link.mode == "bus")

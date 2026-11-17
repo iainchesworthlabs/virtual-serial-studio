@@ -46,6 +46,10 @@ public:
     bool policy_shown() const;
     bool modem_lines_shown() const;
     bool half_duplex_shown() const;
+    /// A monitor link chooses which bytes it copies; it has no delay.
+    bool direction_shown() const;
+    QComboBox* direction_combo() const noexcept { return direction_; }
+    QSpinBox* delay_spin() const noexcept { return delay_; }
     HalfDuplexFields* half_duplex_fields() const noexcept
     {
         return half_duplex_;
@@ -58,6 +62,7 @@ private:
     QSpinBox* delay_ = nullptr;
     QSpinBox* jitter_ = nullptr;
     QComboBox* policy_ = nullptr;
+    QComboBox* direction_ = nullptr;
     QCheckBox* modem_lines_ = nullptr;
     HalfDuplexFields* half_duplex_ = nullptr;
     QLabel* error_ = nullptr;

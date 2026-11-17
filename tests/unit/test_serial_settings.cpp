@@ -70,6 +70,10 @@ TEST_CASE("settings: validation bounds")
     REQUIRE_EQ(validate(settings), make_error_code(errc::invalid_argument));
 
     settings.read_timeout = std::chrono::milliseconds(10);
+    settings.baud_rate = 12'000'000;
+    REQUIRE(!validate(settings));
+    settings.baud_rate = 40'000'000;
+    REQUIRE(!validate(settings));
     settings.baud_rate = 40'000'001;
     REQUIRE_EQ(validate(settings), make_error_code(errc::invalid_argument));
 }

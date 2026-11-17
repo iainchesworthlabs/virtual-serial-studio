@@ -47,6 +47,7 @@
 #include <QAccessibleInterface>
 #include <QApplication>
 #include <QComboBox>
+#include <QDockWidget>
 #include <QDialog>
 #include <QDir>
 #include <QFontDatabase>
@@ -201,6 +202,17 @@ private:
         }
     }
 
+    static const QDockWidget* enclosing_dock(const QWidget* widget)
+    {
+        for (const QWidget* parent = widget->parentWidget(); parent != nullptr;
+             parent = parent->parentWidget())
+        {
+            if (const auto* dock = qobject_cast<const QDockWidget*>(parent))
+                return dock;
+        }
+        return nullptr;
+    }
+
     void check_tree(QWidget& root, const QString& label)
     {
         QSet<QWidget*> seen;
@@ -209,6 +221,11 @@ private:
         for (QWidget* widget : root.findChildren<QWidget*>())
         {
             if (!widget->isVisible() || !widget->isEnabled())
+                continue;
+            // A pane that is a tab behind another is not on screen, though Qt
+            // calls it visible; it has no size worth measuring.
+            if (const auto* dock = enclosing_dock(widget);
+                dock != nullptr && dock->visibleRegion().isEmpty())
                 continue;
             if (qobject_cast<QScrollBar*>(widget) != nullptr)
                 continue;

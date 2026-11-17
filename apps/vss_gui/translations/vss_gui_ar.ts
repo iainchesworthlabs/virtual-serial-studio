@@ -1703,6 +1703,30 @@
             <source>Could not change the COM number</source>
             <translation>تعذر تغيير رقم COM</translation>
         </message>
+        <message>
+            <source>Windows restarts the port to change its number, so no program may have it open. The list holds free numbers. You can type another.</source>
+            <translation>يعيد Windows تشغيل المنفذ لتغيير رقمه، لذلك يجب ألا يكون أي برنامج قد فتحه. تحتوي القائمة على الأرقام الحرة. يمكنك كتابة رقم آخر.</translation>
+        </message>
+        <message>
+            <source>Numbers in use</source>
+            <translation>الأرقام المستخدمة</translation>
+        </message>
+        <message>
+            <source>%1: %2</source>
+            <translation>%1: %2</translation>
+        </message>
+        <message>
+            <source>%1: this port now</source>
+            <translation>%1: هذا المنفذ الآن</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255.</source>
+            <translation>اختر رقمًا من 1 إلى 255.</translation>
+        </message>
+        <message>
+            <source>%1 is used by %2. Choose a free number.</source>
+            <translation>الرقم %1 مستخدم من %2. اختر رقمًا حرًا.</translation>
+        </message>
     </context>
     <context>
         <name>CommandPalette</name>
@@ -2353,6 +2377,61 @@
             <location filename="../src/advanced/event_log.cpp" line="130" />
             <source>Studio</source>
             <translation>Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="155" />
+            <source>All ports</source>
+            <translation>كل المنافذ</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="154" />
+            <source>Filter by port</source>
+            <translation>تصفية حسب المنفذ</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="157" />
+            <source>Started</source>
+            <translation>بدأ</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="158" />
+            <source>Stopped</source>
+            <translation>توقف</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="156" />
+            <source>Errors</source>
+            <translation>الأخطاء</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="168" />
+            <source>Search events</source>
+            <translation>ابحث في الأحداث</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="498" />
+            <source>No events match the filters.</source>
+            <translation>لا توجد أحداث تطابق عوامل التصفية.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="159" />
+            <source>Other</source>
+            <translation>أخرى</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="165" />
+            <source>Events</source>
+            <translation>الأحداث</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="166" />
+            <source>Event kinds</source>
+            <translation>أنواع الأحداث</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="167" />
+            <source>Choose which kinds of event are shown.</source>
+            <translation>اختر أنواع الأحداث التي تُعرض.</translation>
         </message>
     </context>
     <context>
@@ -3009,6 +3088,126 @@ Networks: %5</source>
             <location filename="../src/panes/inspector_panel.cpp" line="409" />
             <source>&lt;a href="faults"&gt;Open line matrix and faults&lt;/a&gt;</source>
             <translation>&lt;a href="faults"&gt;فتح مصفوفة الخطوط والأعطال&lt;/a&gt;</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="263" />
+            <source>Direction</source>
+            <translation>الاتجاه</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="281" />
+            <source>The monitor's direction could not be changed.</source>
+            <translation>تعذّر تغيير اتجاه المراقب.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="628" />
+            <source>This port is a monitor. It receives a copy of the traffic on %1, and what is written to it does not reach %1.</source>
+            <translation>هذا المنفذ مراقب. يتلقى نسخة من حركة البيانات على %1، وما يُكتب فيه لا يصل إلى %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="639" />
+            <source>Open %1 in the Monitor</source>
+            <translation>فتح %1 في المراقب</translation>
+        </message>
+        <message>
+            <source>%1  %2</source>
+            <translation>%1  %2</translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n read(s)</source>
+            <translation>
+                <numerusform>%1، القراءات: %n</numerusform>
+                <numerusform>%1، القراءات: %n</numerusform>
+                <numerusform>%1، القراءات: %n</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n write(s)</source>
+            <translation>
+                <numerusform>%1، عمليات الكتابة: %n</numerusform>
+                <numerusform>%1، عمليات الكتابة: %n</numerusform>
+                <numerusform>%1، عمليات الكتابة: %n</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>%1, port %2</source>
+            <translation>%1، المنفذ %2</translation>
+        </message>
+        <message>
+            <source>Connected at</source>
+            <translation>وقت الاتصال</translation>
+        </message>
+        <message>
+            <source>Connection</source>
+            <translation>الاتصال</translation>
+        </message>
+        <message>
+            <source>Last error</source>
+            <translation>آخر خطأ</translation>
+        </message>
+        <message>
+            <source>Local</source>
+            <translation>محلي</translation>
+        </message>
+        <message>
+            <source>Next try</source>
+            <translation>المحاولة التالية</translation>
+        </message>
+        <message>
+            <source>None</source>
+            <translation>لا شيء</translation>
+        </message>
+        <message>
+            <source>None planned</source>
+            <translation>لا شيء مخطط</translation>
+        </message>
+        <message>
+            <source>None yet</source>
+            <translation>لا شيء بعد</translation>
+        </message>
+        <message>
+            <source>Not connected</source>
+            <translation>غير متصل</translation>
+        </message>
+        <message>
+            <source>Not reported</source>
+            <translation>غير مُبلَّغ</translation>
+        </message>
+        <message>
+            <source>Received</source>
+            <translation>المستلَم</translation>
+        </message>
+        <message>
+            <source>Recent events</source>
+            <translation>الأحداث الأخيرة</translation>
+        </message>
+        <message>
+            <source>Reconnects</source>
+            <translation>مرات إعادة الاتصال</translation>
+        </message>
+        <message>
+            <source>Remote</source>
+            <translation>البعيد</translation>
+        </message>
+        <message>
+            <source>Sent</source>
+            <translation>المُرسَل</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>ابدأ</translation>
+        </message>
+        <message>
+            <source>Start %1</source>
+            <translation>ابدأ %1</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>أوقف</translation>
+        </message>
+        <message>
+            <source>Stop %1</source>
+            <translation>أوقف %1</translation>
         </message>
     </context>
     <context>
@@ -4303,6 +4502,11 @@ Networks: %5</source>
             <source>The jitter can be no more than the delay.</source>
             <translation>يجب ألا يزيد التذبذب على التأخير.</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="82" />
+            <source>Direction</source>
+            <translation>الاتجاه</translation>
+        </message>
     </context>
     <context>
         <name>MonitorModel</name>
@@ -4573,6 +4777,11 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_panel.cpp" line="800" />
             <source>%1 column is %2 px wide.</source>
             <translation>عرض العمود %1 هو %2 بكسل.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="1127" />
+            <source>No traffic on %1 yet. %2.</source>
+            <translation>لا توجد حركة بيانات على %1 بعد. %2.</translation>
         </message>
     </context>
     <context>
@@ -10101,6 +10310,75 @@ Networks: %5</source>
             <source>Don't save</source>
             <translation>عدم الحفظ</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2487" />
+            <source>The Monitor shows only %1. Choose All ports in its port filter to see every port.</source>
+            <translation>يعرض المراقب %1 فقط. اختر «كل المنافذ» في مرشح المنافذ لرؤية كل المنافذ.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2490" />
+            <source>The Monitor shows %1.</source>
+            <translation>يعرض المراقب %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="511" />
+            <source>Decoded traffic...</source>
+            <translation>البيانات المفكوكة الترميز…</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="512" />
+            <source>decode decoder frames triggers protocol plugin</source>
+            <translation>فك ترميز مفكك إطارات مشغّلات بروتوكول ملحق</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2518" />
+            <source>Decoding %1 as %2. What it finds is in Decoded traffic, under Tools.</source>
+            <translation>جارٍ فك ترميز %1 على أنه %2. ما يتم العثور عليه موجود في الأدوات، ضمن «البيانات المفكوكة الترميز».</translation>
+        </message>
+        <message>
+            <source>Panes</source>
+            <translation>اللوحات</translation>
+        </message>
+        <message>
+            <source>Next pane</source>
+            <translation>اللوحة التالية</translation>
+        </message>
+        <message>
+            <source>Previous pane</source>
+            <translation>اللوحة السابقة</translation>
+        </message>
+        <message>
+            <source>ports list</source>
+            <translation>المنافذ قائمة</translation>
+        </message>
+        <message>
+            <source>port settings</source>
+            <translation>المنفذ إعدادات</translation>
+        </message>
+        <message>
+            <source>send bytes</source>
+            <translation>إرسال بايتات</translation>
+        </message>
+        <message>
+            <source>panes switch cycle monitor log</source>
+            <translation>اللوحات تبديل تنقل المراقب السجل</translation>
+        </message>
+        <message>
+            <source>Could not start %1.</source>
+            <translation>تعذّر بدء %1.</translation>
+        </message>
+        <message>
+            <source>Could not stop %1.</source>
+            <translation>تعذّر إيقاف %1.</translation>
+        </message>
+        <message>
+            <source>Started %1.</source>
+            <translation>بدأ %1.</translation>
+        </message>
+        <message>
+            <source>Stopped %1.</source>
+            <translation>أُوقف %1.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -10852,6 +11130,14 @@ Networks: %5</source>
             <location filename="../src/topology/topology_text.cpp" line="389" />
             <source>Selected %1.</source>
             <translation>تم تحديد %1.</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>ابدأ</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>أوقف</translation>
         </message>
     </context>
     <context>
@@ -20216,6 +20502,35 @@ Networks: %5</source>
             <source>%1 name</source>
             <translation>اسم %1</translation>
         </message>
+        <message>
+            <source>COM number</source>
+            <translation>رقم COM</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>تلقائي</translation>
+        </message>
+        <message>
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one. COM1 and COM2 are kept for real ports.</source>
+            <translation>يحتاج البرنامج الذي يفتح اسمًا ثابتًا مثل COM3 إلى الرقم نفسه في كل مرة. يختار الوضع التلقائي رقمًا حرًا. الرقمان COM1 وCOM2 محجوزان للمنافذ الحقيقية.</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255, or Automatic.</source>
+            <translation>اختر رقمًا من 1 إلى 255، أو تلقائي.</translation>
+        </message>
+        <message>
+            <source>COM%1 is used by %2. Choose a free number.</source>
+            <translation>COM%1 مستخدم من %2. اختر رقمًا حرًا.</translation>
+        </message>
+        <message>
+            <source>COM1 and COM2 are kept for real ports. Choose COM3 or higher.</source>
+            <translation>الرقمان COM1 وCOM2 محجوزان للمنافذ الحقيقية. اختر COM3 أو أعلى.</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="532" />
+            <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
+            <translation>مأخوذة من %1. يعمل المراقب بسرعة المنفذ الذي يراقبه.</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -20509,6 +20824,11 @@ Networks: %5</source>
             <source>Network port changed.</source>
             <translation>تم تغيير المنفذ الشبكي.</translation>
         </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="729" />
+            <source>The address of %1 is not known, so its settings cannot be shown.</source>
+            <translation>عنوان %1 غير معروف، لذلك لا يمكن عرض إعداداته.</translation>
+        </message>
     </context>
     <context>
         <name>PaneHeader</name>
@@ -20715,6 +21035,11 @@ Networks: %5</source>
             <translation>
                 <numerusform>استخدام هذه الإعدادات لعدد %n من المنافذ المرتبطة بهذا المنفذ</numerusform>
             </translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="434" />
+            <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
+            <translation>مأخوذة من %1. يعمل المراقب بسرعة المنفذ الذي يراقبه.</translation>
         </message>
     </context>
     <context>
@@ -23337,6 +23662,11 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>What is wrong: %1</source>
+            <translation>ما الخطأ: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
             <source>Its signature does not match its files. They may have been changed. Get the plugin again from its author.</source>
             <translation>توقيعها لا يطابق ملفاتها. ربما جرى تغيير الملفات. احصل على الإضافة من مؤلفها من جديد.</translation>
         </message>
@@ -24136,6 +24466,16 @@ From the plugin %2
 من الإضافة %2
 %3</translation>
         </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="357" />
+            <source>%1 cannot be placed yet. Standing in for a device needs the engine timeline, which this version of Studio does not have.</source>
+            <translation>لا يمكن وضع %1 بعد. استبدال جهاز يحتاج إلى الخط الزمني للمحرك، وهذا الإصدار من Studio لا يملكه.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="466" />
+            <source>%1 needs settings that are set in Plugins.</source>
+            <translation>يحتاج %1 إلى إعدادات تُضبط في الملحقات.</translation>
+        </message>
     </context>
     <context>
         <name>PluginTrafficChip</name>
@@ -24501,6 +24841,360 @@ From the plugin %2
             <location filename="../src/support/plugin_dialogs.cpp" line="878" />
             <source>Add</source>
             <translation>إضافة</translation>
+        </message>
+    </context>
+    <context>
+        <name>com_use</name>
+        <message>
+            <source>Studio port %1</source>
+            <translation>منفذ Studio ‏%1</translation>
+        </message>
+        <message>
+            <source>Windows device %1</source>
+            <translation>جهاز Windows ‏%1</translation>
+        </message>
+        <message>
+            <source>Reserved by Windows</source>
+            <translation>محجوز من Windows</translation>
+        </message>
+    </context>
+    <context>
+        <name>DecodeDialog</name>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="26" />
+            <source>Decode %1</source>
+            <translation>فك ترميز %1</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="27" />
+            <source>Shows the data on %1 as messages of a protocol, and reports what does not fit. Decoding only reads. It never changes or delays the data.</source>
+            <translation>يعرض البيانات على %1 كرسائل لبروتوكول ويبلغ عمّا لا يتوافق. فك الترميز يقرأ فقط، ولا يغيّر البيانات أو يؤخرها أبدًا.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="41" />
+            <source>Protocol</source>
+            <translation>البروتوكول</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="81" />
+            <source>Cancel</source>
+            <translation>إلغاء</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="84" />
+            <source>Start decoding</source>
+            <translation>بدء فك الترميز</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="108" />
+            <source>From the plugin %1.</source>
+            <translation>من الملحق %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="110" />
+            <source>%1 will read the data that passes through %2.</source>
+            <translation>سيقرأ %1 البيانات التي تمر عبر %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="122" />
+            <source>Not available in this build</source>
+            <translation>غير متاح في هذا الإصدار</translation>
+        </message>
+    </context>
+    <context>
+        <name>MonitorDirection</name>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="21" />
+            <source>Both directions</source>
+            <translation>الاتجاهان</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="24" />
+            <source>Transmit only</source>
+            <translation>الإرسال فقط</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="26" />
+            <source>Receive only</source>
+            <translation>الاستقبال فقط</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="36" />
+            <source>Copies what the program on the port writes and what is written into the port.</source>
+            <translation>ينسخ ما يكتبه البرنامج على المنفذ وما يُكتب في المنفذ.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="41" />
+            <source>Copies only what the program on the port writes.</source>
+            <translation>ينسخ ما يكتبه البرنامج على المنفذ فقط.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="45" />
+            <source>Copies only what is written into the port.</source>
+            <translation>ينسخ ما يُكتب في المنفذ فقط.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DecodedDialog</name>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="41" />
+            <source>Decoded traffic</source>
+            <translation>البيانات المفكوكة الترميز</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="53" />
+            <source>What the decoders found on your ports. Decoding only reads. The words in the table come from the plugin.</source>
+            <translation>ما وجدته أدوات فك الترميز على منافذك. فك الترميز يقرأ فقط. الكلمات في الجدول تأتي من الملحق.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="61" />
+            <source>Triggers only</source>
+            <translation>المشغّلات فقط</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Time</source>
+            <translation>الوقت</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Place</source>
+            <translation>المكان</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Direction</source>
+            <translation>الاتجاه</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>Type</source>
+            <translation>النوع</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>Message</source>
+            <translation>الرسالة</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>What</source>
+            <translation>الوصف</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="92" />
+            <source>Close</source>
+            <translation>إغلاق</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="167" />
+            <source>%1 s</source>
+            <translation>%1 ث</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="169" />
+            <source>Received</source>
+            <translation>المُستلَم</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="169" />
+            <source>Sent</source>
+            <translation>المُرسَل</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="170" />
+            <source>Trigger</source>
+            <translation>مشغّل</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="170" />
+            <source>Frame</source>
+            <translation>إطار</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="181" />
+            <source>Nothing is being decoded. Choose Decode as... in the menu of a port to start.</source>
+            <translation>لا يُفكّ ترميز أي شيء. اختر «فك الترميز كـ…» من قائمة منفذ للبدء.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="185" />
+            <source>No triggers. Everything decoded so far has fitted the protocol.</source>
+            <translation>لا توجد مشغّلات. كل ما فُكّ ترميزه حتى الآن يتوافق مع البروتوكول.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="188" />
+            <source>Nothing found yet.</source>
+            <translation>لم يُعثر على شيء بعد.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="192" />
+            <source>Showing the newest %1 of %2.</source>
+            <translation>عرض أحدث %1 من %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="194" />
+            <source>%1 left out to stay within the limits.</source>
+            <translation>تم تجاهل %1 للبقاء ضمن الحدود.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockDropOverlay</name>
+        <message>
+            <source>Drop guides</source>
+            <translation>أدلة الإفلات</translation>
+        </message>
+        <message>
+            <source>Shows where the pane will go. Use the pane menu to move a pane without the mouse.</source>
+            <translation>يعرض المكان الذي ستنتقل إليه اللوحة. استخدم قائمة اللوحة لنقلها دون الفأرة.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockPanes</name>
+        <message>
+            <source>Dock</source>
+            <translation>إرساء</translation>
+        </message>
+        <message>
+            <source>Float</source>
+            <translation>عائم</translation>
+        </message>
+        <message>
+            <source>Move to the window edge</source>
+            <translation>انقل إلى حافة النافذة</translation>
+        </message>
+        <message>
+            <source>Left</source>
+            <translation>يسار</translation>
+        </message>
+        <message>
+            <source>Right</source>
+            <translation>يمين</translation>
+        </message>
+        <message>
+            <source>Top</source>
+            <translation>أعلى</translation>
+        </message>
+        <message>
+            <source>Bottom</source>
+            <translation>أسفل</translation>
+        </message>
+        <message>
+            <source>Beside %1</source>
+            <translation>بجانب %1</translation>
+        </message>
+        <message>
+            <source>Tab with %1</source>
+            <translation>علامة تبويب مع %1</translation>
+        </message>
+        <message>
+            <source>Left of %1</source>
+            <translation>يسار %1</translation>
+        </message>
+        <message>
+            <source>Right of %1</source>
+            <translation>يمين %1</translation>
+        </message>
+        <message>
+            <source>Above %1</source>
+            <translation>فوق %1</translation>
+        </message>
+        <message>
+            <source>Below %1</source>
+            <translation>تحت %1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>إغلاق</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockTitleBar</name>
+        <message>
+            <source>%1 title bar</source>
+            <translation>شريط عنوان %1</translation>
+        </message>
+        <message>
+            <source>Drag to move the pane. The menu has every move command.</source>
+            <translation>اسحب لنقل اللوحة. تحتوي القائمة على كل أوامر النقل.</translation>
+        </message>
+        <message>
+            <source>Pane menu</source>
+            <translation>قائمة اللوحة</translation>
+        </message>
+        <message>
+            <source>%1 pane menu</source>
+            <translation>قائمة لوحة %1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>إغلاق</translation>
+        </message>
+        <message>
+            <source>Close %1</source>
+            <translation>إغلاق %1</translation>
+        </message>
+    </context>
+    <context>
+        <name>Connection</name>
+        <message>
+            <source>%1 (%2)</source>
+            <translation>%1 (%2)</translation>
+        </message>
+        <message>
+            <source>Connected</source>
+            <translation>متصل</translation>
+        </message>
+        <message>
+            <source>Connected to %1.</source>
+            <translation>متصل بـ %1.</translation>
+        </message>
+        <message>
+            <source>Connecting</source>
+            <translation>جارٍ الاتصال</translation>
+        </message>
+        <message>
+            <source>Connecting to %1.</source>
+            <translation>جارٍ الاتصال بـ %1.</translation>
+        </message>
+        <message>
+            <source>Connection lost</source>
+            <translation>انقطع الاتصال</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2.</source>
+            <translation>تعذّر الاتصال بـ %1: %2.</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2. Trying again.</source>
+            <translation>تعذّر الاتصال بـ %1: %2. ستتم إعادة المحاولة.</translation>
+        </message>
+        <message>
+            <source>Failed</source>
+            <translation>فشل</translation>
+        </message>
+        <message>
+            <source>Not connected to %1.</source>
+            <translation>غير متصل بـ %1.</translation>
+        </message>
+        <message>
+            <source>Retrying</source>
+            <translation>إعادة المحاولة</translation>
+        </message>
+        <message>
+            <source>Started</source>
+            <translation>بدأ</translation>
+        </message>
+        <message>
+            <source>Stopped</source>
+            <translation>متوقف</translation>
+        </message>
+        <message>
+            <source>Stopped. Not connecting to %1.</source>
+            <translation>متوقف. لا يتصل بـ %1.</translation>
+        </message>
+        <message>
+            <source>Trying to connect to %1.</source>
+            <translation>جارٍ محاولة الاتصال بـ %1.</translation>
         </message>
     </context>
 </TS>

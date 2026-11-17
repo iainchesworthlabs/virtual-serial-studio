@@ -13,6 +13,10 @@ add_library(vss_gui_shell STATIC
   canvas_controller.hpp
   command_palette.cpp
   command_palette.hpp
+  dock_panes.cpp
+  dock_panes.hpp
+  dock_zones.cpp
+  dock_zones.hpp
   format.hpp
   launcher.cpp
   launcher.hpp

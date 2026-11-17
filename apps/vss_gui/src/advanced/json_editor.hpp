@@ -127,7 +127,6 @@ private:
 
     JsonCodeEdit* editor_ = nullptr;
     StatusChip* status_ = nullptr;
-    QLabel* caption_ = nullptr;
     QPushButton* revert_ = nullptr;
     QPushButton* format_ = nullptr;
     QPushButton* apply_ = nullptr;

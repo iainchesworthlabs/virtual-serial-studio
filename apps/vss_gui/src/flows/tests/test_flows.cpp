@@ -34,6 +34,7 @@
 #include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
+#include <QListWidget>
 #include <QCoreApplication>
 #include <QDialog>
 #include <QDir>
@@ -1423,36 +1424,80 @@ TEST_CASE("flows: change COM number applies, and says why it was refused")
     clear_settings();
     driver_fixture fixture;
     fixture.backend.set_taken_com_numbers({5});
+    // Windows keeps COM6 too, but the database could not be read in full.
+    fixture.backend.set_hidden_com_numbers({6});
 
     vss::gui::ComNumberDialog dialog(fixture.backend, fixture.port);
     dialog.show();
     settle();
-    REQUIRE_EQ(dialog.number_spin()->value(), 7);
+    REQUIRE_EQ(dialog.number(), 7U);
     // Nothing has changed yet, so there is nothing to apply.
     REQUIRE(!dialog.primary_button()->isEnabled());
 
-    // A number another device has: the reason comes back beside the number.
-    dialog.number_spin()->setValue(5);
+    // The list holds free numbers only, and the used ones are listed apart.
+    REQUIRE(dialog.number_combo()->findText(QStringLiteral("COM5")) < 0);
+    REQUIRE(dialog.number_combo()->findText(QStringLiteral("COM3")) >= 0);
+    bool listed = false;
+    for (int row = 0; row < dialog.uses_list()->count(); ++row)
+    {
+        listed = listed || dialog.uses_list()->item(row)->text().startsWith(
+                               QStringLiteral("COM5: Reserved by Windows"));
+    }
+    REQUIRE(listed);
+
+    // A number that is used is refused before anything is tried.
+    dialog.set_number(5);
+    settle();
+    REQUIRE(!dialog.primary_button()->isEnabled());
+    REQUIRE(dialog.number_combo()->accessibleDescription().contains(
+        QStringLiteral("COM5 is used by Reserved by Windows")));
+    dialog.set_number(300);
+    settle();
+    REQUIRE(!dialog.primary_button()->isEnabled());
+    dialog.number_combo()->setEditText(QString());
+    settle();
+    REQUIRE(!dialog.primary_button()->isEnabled());
+
+    // A number only the driver knows is refused, and the reason comes back
+    // beside the number.
+    dialog.set_number(6);
     settle();
     REQUIRE(dialog.primary_button()->isEnabled());
     dialog.primary_button()->click();
     REQUIRE(dialog.changing());
     REQUIRE(vss_test::wait_until([&] { return !dialog.changing(); }));
     REQUIRE(dialog.result() != QDialog::Accepted);
-    REQUIRE(dialog.number_spin()->accessibleDescription().contains(
-        QStringLiteral("COM5 already belongs to another device")));
+    REQUIRE(dialog.number_combo()->accessibleDescription().contains(
+        QStringLiteral("COM6 already belongs to another device")));
     REQUIRE_EQ(fixture.backend.port(fixture.port)->path,
                QStringLiteral("COM7"));
     REQUIRE(dialog.primary_button()->isEnabled());
 
     // A free number is applied and the dialog closes.
-    dialog.number_spin()->setValue(12);
+    dialog.set_number(12);
     settle();
-    REQUIRE(dialog.number_spin()->accessibleDescription().isEmpty());
+    REQUIRE(dialog.number_combo()->accessibleDescription().isEmpty());
     dialog.primary_button()->click();
     REQUIRE(vss_test::wait_until([&] { return dialog.result() == QDialog::Accepted; }));
     REQUIRE_EQ(dialog.com_name(), QStringLiteral("COM12"));
     REQUIRE_EQ(fixture.backend.port(fixture.port)->com_number, 12U);
+}
+
+TEST_CASE("flows: change COM number names the Studio port that holds a number")
+{
+    clear_settings();
+    driver_fixture fixture;
+    REQUIRE(fixture.backend.create_driver_port(QStringLiteral("other"), true, 9)
+                .has_value());
+
+    vss::gui::ComNumberDialog dialog(fixture.backend, fixture.port);
+    dialog.show();
+    settle();
+    dialog.set_number(9);
+    settle();
+    REQUIRE(!dialog.primary_button()->isEnabled());
+    REQUIRE(dialog.number_combo()->accessibleDescription().contains(
+        QStringLiteral("COM9 is used by Studio port other")));
 }
 
 TEST_CASE("flows: change COM number explains a missing helper and a held port")
@@ -1464,12 +1509,12 @@ TEST_CASE("flows: change COM number explains a missing helper and a held port")
         vss::gui::ComNumberDialog dialog(fixture.backend, fixture.port);
         dialog.show();
         settle();
-        dialog.number_spin()->setValue(9);
+        dialog.set_number(9);
         settle();
         fixture.backend.fail_next(vss::make_error_code(vss::errc::unsupported));
         dialog.primary_button()->click();
         REQUIRE(vss_test::wait_until([&] { return !dialog.changing(); }));
-        REQUIRE(dialog.number_spin()->accessibleDescription().contains(
+        REQUIRE(dialog.number_combo()->accessibleDescription().contains(
             QStringLiteral("needs the Virtual Serial Studio helper service")));
         dialog.close();
     }
@@ -1479,12 +1524,12 @@ TEST_CASE("flows: change COM number explains a missing helper and a held port")
     vss::gui::ComNumberDialog held(fixture.backend, fixture.port);
     held.show();
     settle();
-    held.number_spin()->setValue(9);
+    held.set_number(9);
     settle();
     REQUIRE(!held.primary_button()->isEnabled());
-    REQUIRE(held.number_spin()->accessibleDescription().contains(
+    REQUIRE(held.number_combo()->accessibleDescription().contains(
         QStringLiteral("A program has this port open")));
-    REQUIRE(held.number_spin()->accessibleDescription().contains(
+    REQUIRE(held.number_combo()->accessibleDescription().contains(
         QStringLiteral("Release port")));
     held.close();
 
@@ -1494,7 +1539,7 @@ TEST_CASE("flows: change COM number explains a missing helper and a held port")
     vss::gui::ComNumberDialog unavailable(fixture.backend, fixture.port);
     unavailable.show();
     settle();
-    unavailable.number_spin()->setValue(9);
+    unavailable.set_number(9);
     settle();
     REQUIRE(!unavailable.primary_button()->isEnabled());
 }

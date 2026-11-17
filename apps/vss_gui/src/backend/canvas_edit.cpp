@@ -117,7 +117,10 @@ make_slot_port(StudioBackend& backend, const bundle_slot& slot,
             slot.name, vss::virtual_port_kind::loopback, true);
         break;
     case slot_kind::new_port:
-        made = backend.create_auto_port(slot.name, true);
+        made = slot.com_number != 0 && backend.caps().com_numbers
+                   ? backend.create_driver_port(slot.name, true,
+                                                slot.com_number)
+                   : backend.create_auto_port(slot.name, true);
         // A refused driver port is said in words, with the set-up to run.
         if (!made)
             return driver_aware_error(backend, made.error());

@@ -61,6 +61,8 @@ public:
     void close() override;
     void cancel() override;
 
+    bool is_line_error(boost::system::error_code ec) const noexcept override;
+
     bool supports_control_lines() const noexcept override;
     void set_control_line(control_line line, bool state) override;
     control_lines lines() const override;

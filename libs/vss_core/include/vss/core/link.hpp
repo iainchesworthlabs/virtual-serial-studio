@@ -28,7 +28,7 @@ inline constexpr std::uint32_t max_link_delay_ms = 60'000;
 /// The slowest and the fastest line rate a half-duplex bus takes, in bits
 /// per second.
 inline constexpr std::uint32_t min_bus_bit_rate = 50;
-inline constexpr std::uint32_t max_bus_bit_rate = 4'000'000;
+inline constexpr std::uint32_t max_bus_bit_rate = 12'000'000;
 
 /// The bits one byte takes on the wire of a half-duplex bus: a start bit,
 /// eight data bits and a stop bit.
@@ -114,6 +114,13 @@ struct link_options
     /// The half-duplex line of a bus.  Off by default, and
     /// `errc::unsupported` on any link but a bus.
     half_duplex_options half_duplex;
+
+    /// For a monitor (a one-way link of one source without modem lines): which
+    /// bytes of the monitored port it copies.  `both` (the default) copies
+    /// what the port's program writes and what links write into the port,
+    /// `transmit` the first and `receive` the second.  `errc::unsupported`
+    /// on any other link.
+    monitor_direction direction = monitor_direction::both;
 
     bool has_latency() const noexcept
     {

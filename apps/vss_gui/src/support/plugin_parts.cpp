@@ -301,7 +301,7 @@ describe_port_parts(const std::vector<port_view>& ports,
 // -- the toolbox --------------------------------------------------------------
 
 std::vector<plugin_tile_text>
-plugin_toolbox_tiles(const plugin_snapshot& snapshot)
+plugin_toolbox_tiles(const plugin_snapshot& snapshot, bool fixtures_can_run)
 {
     struct entry
     {
@@ -352,8 +352,20 @@ plugin_toolbox_tiles(const plugin_snapshot& snapshot)
             tile.plugin_id = plugin.id;
             tile.type_id = addition.type_id;
             tile.label = plain_text(addition.type_name);
-            tile.enabled = enabled;
-            tile.reason = reason;
+            // A plugin that is available still cannot stand in for a device
+            // until the engine can play its timeline.
+            const QString no_timeline = QCoreApplication::translate(
+                "PluginToolbox",
+                "%1 cannot be placed yet. Standing in for a device needs the "
+                "engine timeline, which this version of Studio does not "
+                "have.");
+            const bool usable = enabled && fixtures_can_run;
+            const QString why =
+                enabled && !fixtures_can_run
+                    ? no_timeline.arg(plain_text(addition.type_name))
+                    : reason;
+            tile.enabled = usable;
+            tile.reason = why;
             tile.accessible_name =
                 QCoreApplication::translate("PluginToolbox", "%1, plugin")
                     .arg(tile.label);
@@ -364,12 +376,12 @@ plugin_toolbox_tiles(const plugin_snapshot& snapshot)
             const QString own = plain_text(addition.description);
             if (!own.isEmpty())
                 description += QLatin1Char(' ') + own;
-            tile.accessible_description = enabled ? description : reason;
+            tile.accessible_description = usable ? description : why;
             tile.tooltip =
-                enabled ? QCoreApplication::translate(
+                usable ? QCoreApplication::translate(
                               "PluginToolbox", "%1\nFrom the plugin %2\n%3")
                               .arg(tile.label, name, trust_line(plugin))
-                        : reason;
+                        : why;
             entries.push_back({name, tile});
         }
     }
@@ -389,6 +401,87 @@ plugin_toolbox_tiles(const plugin_snapshot& snapshot)
     for (entry& each : entries)
         tiles.push_back(std::move(each.tile));
     return tiles;
+}
+
+// -- decoders -----------------------------------------------------------------
+
+std::vector<decoder_choice> decoder_choices(const plugin_snapshot& snapshot)
+{
+    std::vector<decoder_choice> out;
+    for (const plugin_view& plugin : snapshot.plugins)
+    {
+        QString reason;
+        bool enabled = false;
+        const QString name = plain_text(plugin.name);
+        switch (plugin.state)
+        {
+        case plugin_state::available:
+            enabled = true;
+            break;
+        case plugin_state::starting:
+            reason =
+                QCoreApplication::translate("PluginToolbox", "%1 is starting.")
+                    .arg(name);
+            break;
+        case plugin_state::needs_licence:
+            reason =
+                reason_sentence(plugin.licence_reason, plugin.licence_status);
+            break;
+        case plugin_state::stopped:
+            reason = QCoreApplication::translate(
+                         "PluginToolbox",
+                         "%1 has stopped. Open Plugins to start it again.")
+                         .arg(name);
+            break;
+        case plugin_state::off:
+        case plugin_state::needs_decision:
+        case plugin_state::blocked:
+        case plugin_state::needs_isolation:
+        case plugin_state::not_used:
+        case plugin_state::needs_newer_studio:
+        case plugin_state::cannot_be_used:
+        case plugin_state::not_installed:
+            continue;
+        }
+        for (const plugin_addition& addition : plugin.adds)
+        {
+            if (!addition.decoder)
+                continue;
+            decoder_choice choice;
+            choice.plugin_id = plugin.id;
+            choice.plugin_name = name;
+            choice.type_id = addition.type_id;
+            choice.type_name = plain_text(addition.type_name);
+            bool other_setting = addition.needs_settings;
+            for (const plugin_parameter_ask& ask : addition.asks)
+            {
+                if (ask.place_name && choice.place_setting.isEmpty())
+                    choice.place_setting = ask.id;
+                else
+                    other_setting = true;
+            }
+            choice.usable = enabled && !other_setting;
+            choice.reason = reason;
+            if (enabled && other_setting)
+                choice.reason = QCoreApplication::translate(
+                                    "PluginToolbox",
+                                    "%1 needs settings that are set in Plugins.")
+                                    .arg(choice.type_name);
+            out.push_back(std::move(choice));
+        }
+    }
+    std::stable_sort(
+        out.begin(), out.end(),
+        [](const decoder_choice& left, const decoder_choice& right)
+        {
+            const int by_plugin = QString::compare(
+                left.plugin_name, right.plugin_name, Qt::CaseInsensitive);
+            if (by_plugin != 0)
+                return by_plugin < 0;
+            return QString::compare(left.type_name, right.type_name,
+                                    Qt::CaseInsensitive) < 0;
+        });
+    return out;
 }
 
 // -- the chip in the status bar -----------------------------------------------

@@ -682,7 +682,7 @@ Every member of `half_duplex` may be left out; `"half_duplex": {}` is a line at
 9600 bit/s that reports and changes nothing. A bus without `half_duplex` is the
 plain bus, as before, and Studio writes nothing for it.
 
-- **The line rate** (`bit_rate`, 50 to 4000000 bit/s; **Line rate**). A byte
+- **The line rate** (`bit_rate`, 50 to 12000000 bit/s; **Line rate**). A byte
   takes ten bits, as at 8N1. A message of `n` bytes is on the line for
   `10 × n ÷ bit_rate` seconds from the moment its program sent it, and **the
   other stations hear it when its last byte has left the line**, not before: 8
@@ -915,6 +915,22 @@ Inspector is an Advanced pane.
 
 Some of these depend on what the engine can do; see
 [what this build cannot do](#what-this-build-cannot-do).
+
+## Data passes through a port
+
+When a link writes bytes into a port, Studio sends them on along that port's
+other links. If port 1 has a two-way link to port 4, port 4 has a two-way link to
+a network server and port 4 is on a bus, the bytes from port 1 reach the server
+and the other ports on the bus, and the bytes from the server reach port 1 and
+the bus.
+
+- A port never gets the same bytes twice, and bytes never go back to the port
+  they came from, so a two-way link or a bus does not echo.
+- A one-way link passes bytes on in its own direction only.
+- A monitor on a port shows what the port reads and what is written into it,
+  each once.
+- The listeners of a split still do not hear each other.
+- A delay on a link is added to the delay of the next link.
 
 ## Choosing a COM number (Windows)
 

@@ -152,10 +152,21 @@ void PortDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
         }
         else
         {
-            painter->setFont(theme.font(text_style::data));
+            const QFont font = theme.font(text_style::data);
+            painter->setFont(font);
             painter->setPen(theme.colour(colour_role::ink2));
-            painter->drawText(option.rect.adjusted(6, 0, -8, 0),
-                              Qt::AlignRight | Qt::AlignVCenter, text);
+            // The model says which side a column's text sits on; a long
+            // address or kind is cut with an ellipsis, not run into the
+            // next column.
+            const QRect cell = option.rect.adjusted(8, 0, -8, 0);
+            const auto alignment = static_cast<Qt::Alignment>(
+                index.data(Qt::TextAlignmentRole).toInt());
+            const bool right = alignment.testFlag(Qt::AlignRight);
+            painter->drawText(
+                cell,
+                (right ? Qt::AlignRight : Qt::AlignLeft) | Qt::AlignVCenter,
+                QFontMetrics(font).elidedText(text, Qt::ElideRight,
+                                              cell.width()));
         }
         painter->restore();
         return;
@@ -279,7 +290,7 @@ QSize PortDelegate::sizeHint(const QStyleOptionViewItem& option,
         default:
             return QSize(QFontMetrics(Theme::instance().font(text_style::data))
                                  .horizontalAdvance(text) +
-                             14,
+                             16,
                          44);
         }
     }

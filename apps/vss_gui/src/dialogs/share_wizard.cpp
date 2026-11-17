@@ -173,7 +173,7 @@ ShareWizard::ShareWizard(StudioBackend& backend, bool advanced, QWidget* parent)
 {
     const int configured_baud =
         QSettings().value(QStringLiteral("ui/defaultBaud"), 115200).toInt();
-    if (configured_baud >= 50 && configured_baud <= 40000000)
+    if (configured_baud >= 50 && configured_baud <= 12000000)
         settings_.baud_rate = static_cast<unsigned>(configured_baud);
     build();
     refresh_devices();
@@ -338,9 +338,12 @@ QWidget* ShareWizard::build_device_page()
     baud_->addItems({QStringLiteral("9600"), QStringLiteral("19200"),
                      QStringLiteral("38400"), QStringLiteral("57600"),
                      QStringLiteral("115200"), QStringLiteral("230400"),
-                     QStringLiteral("460800"), QStringLiteral("921600")});
+                     QStringLiteral("460800"), QStringLiteral("921600"),
+                     QStringLiteral("1000000"), QStringLiteral("2000000"),
+                     QStringLiteral("3000000"), QStringLiteral("4000000"),
+                     QStringLiteral("12000000")});
     baud_->setCurrentText(QString::number(settings_.baud_rate));
-    baud_->setValidator(new QIntValidator(50, 40000000, baud_));
+    baud_->setValidator(new QIntValidator(50, 12000000, baud_));
     data_bits_ = new QComboBox(settings_panel_);
     for (int bits = 5; bits <= 8; ++bits)
         data_bits_->addItem(QString::number(bits), bits);

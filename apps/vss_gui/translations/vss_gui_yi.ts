@@ -1703,6 +1703,30 @@
             <source>Could not change the COM number</source>
             <translation>מע האט נישט געקענט ענדערן די COM־נומער</translation>
         </message>
+        <message>
+            <source>Windows restarts the port to change its number, so no program may have it open. The list holds free numbers. You can type another.</source>
+            <translation>Windows שטארט איבער דעם פּאָרט כּדי צו ענדערן זײַן נומער, דעריבער טאָר קיין פּראָגראַם נישט האָבן אים אָפֿן. די ליסטע האַלט פֿרײַע נומערן. איר קענט אויך אײַנטיפּן אַן אַנדערן.</translation>
+        </message>
+        <message>
+            <source>Numbers in use</source>
+            <translation>נומערן אין באַנוץ</translation>
+        </message>
+        <message>
+            <source>%1: %2</source>
+            <translation>%1: %2</translation>
+        </message>
+        <message>
+            <source>%1: this port now</source>
+            <translation>%1: דער פּאָרט איצט</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255.</source>
+            <translation>קלײַבט אַ נומער פֿון 1 ביז 255.</translation>
+        </message>
+        <message>
+            <source>%1 is used by %2. Choose a free number.</source>
+            <translation>%1 װערט באַנוצט פֿון %2. קלײַבט אױס אַ פֿרײַע נומער.</translation>
+        </message>
     </context>
     <context>
         <name>CommandPalette</name>
@@ -2353,6 +2377,61 @@
             <location filename="../src/advanced/event_log.cpp" line="130" />
             <source>Studio</source>
             <translation>Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="155" />
+            <source>All ports</source>
+            <translation>אַלע פּאָרטן</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="154" />
+            <source>Filter by port</source>
+            <translation>פֿילטערן לויט פּאָרט</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="157" />
+            <source>Started</source>
+            <translation>אָנגעהויבן</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="158" />
+            <source>Stopped</source>
+            <translation>אָפּגעשטעלט</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="156" />
+            <source>Errors</source>
+            <translation>טעותן</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="168" />
+            <source>Search events</source>
+            <translation>זוך געשעענישן</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="498" />
+            <source>No events match the filters.</source>
+            <translation>קיין געשעענישן פּאַסן נישט צו די פילטערס.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="159" />
+            <source>Other</source>
+            <translation>אנדערע</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="165" />
+            <source>Events</source>
+            <translation>געשעענישן</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="166" />
+            <source>Event kinds</source>
+            <translation>סאָרטן געשעענישן</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="167" />
+            <source>Choose which kinds of event are shown.</source>
+            <translation>קלײַבט וועלכע סאָרטן געשעענישן ווערן געוויזן.</translation>
         </message>
     </context>
     <context>
@@ -3009,6 +3088,124 @@ Networks: %5</source>
             <location filename="../src/panes/inspector_panel.cpp" line="409" />
             <source>&lt;a href="faults"&gt;Open line matrix and faults&lt;/a&gt;</source>
             <translation>&lt;a href="faults"&gt;עפֿענען ליניע־מאַטריץ און דעפֿעקטן&lt;/a&gt;</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="263" />
+            <source>Direction</source>
+            <translation>ריכטונג</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="281" />
+            <source>The monitor's direction could not be changed.</source>
+            <translation>מען האט נישט געקענט ענדערן די ריכטונג פון דעם מאניטאר.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="628" />
+            <source>This port is a monitor. It receives a copy of the traffic on %1, and what is written to it does not reach %1.</source>
+            <translation>די פארט איז א מאניטאר. ער באקומט א קאפיע פון דעם טראפיק אויף %1, און וואס מען שרייבט אין אים קומט נישט צו %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="639" />
+            <source>Open %1 in the Monitor</source>
+            <translation>עפענען %1 אין דעם מאניטאר</translation>
+        </message>
+        <message>
+            <source>%1  %2</source>
+            <translation>%1  %2</translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n read(s)</source>
+            <translation>
+                <numerusform>%1, לעזונגען: %n</numerusform>
+                <numerusform>%1, לעזונגען: %n</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n write(s)</source>
+            <translation>
+                <numerusform>%1, שרײַבונגען: %n</numerusform>
+                <numerusform>%1, שרײַבונגען: %n</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>%1, port %2</source>
+            <translation>%1, פּאָרט %2</translation>
+        </message>
+        <message>
+            <source>Connected at</source>
+            <translation>פֿאַרבונדן אום</translation>
+        </message>
+        <message>
+            <source>Connection</source>
+            <translation>פֿאַרבינדונג</translation>
+        </message>
+        <message>
+            <source>Last error</source>
+            <translation>לעצטער טעות</translation>
+        </message>
+        <message>
+            <source>Local</source>
+            <translation>לאָקאַל</translation>
+        </message>
+        <message>
+            <source>Next try</source>
+            <translation>ווייטערדיקער פּרוּוו</translation>
+        </message>
+        <message>
+            <source>None</source>
+            <translation>קײן</translation>
+        </message>
+        <message>
+            <source>None planned</source>
+            <translation>קײנער נישט פּלאַנירט</translation>
+        </message>
+        <message>
+            <source>None yet</source>
+            <translation>נאָך קײנע</translation>
+        </message>
+        <message>
+            <source>Not connected</source>
+            <translation>נישט פֿאַרבונדן</translation>
+        </message>
+        <message>
+            <source>Not reported</source>
+            <translation>נישט געמאָלדן</translation>
+        </message>
+        <message>
+            <source>Received</source>
+            <translation>באַקומען</translation>
+        </message>
+        <message>
+            <source>Recent events</source>
+            <translation>לעצטע געשעענישן</translation>
+        </message>
+        <message>
+            <source>Reconnects</source>
+            <translation>ווידער־פֿאַרבינדונגען</translation>
+        </message>
+        <message>
+            <source>Remote</source>
+            <translation>װײַטער</translation>
+        </message>
+        <message>
+            <source>Sent</source>
+            <translation>געשיקט</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>אָנהייבן</translation>
+        </message>
+        <message>
+            <source>Start %1</source>
+            <translation>אָנהייבן %1</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>אָפּשטעלן</translation>
+        </message>
+        <message>
+            <source>Stop %1</source>
+            <translation>אָפּשטעלן %1</translation>
         </message>
     </context>
     <context>
@@ -4299,6 +4496,11 @@ Networks: %5</source>
             <source>The jitter can be no more than the delay.</source>
             <translation>דער דזשיטער קען נישט זײַן גרעסער ווי די פֿאַרהאַלטונג.</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="82" />
+            <source>Direction</source>
+            <translation>ריכטונג</translation>
+        </message>
     </context>
     <context>
         <name>MonitorModel</name>
@@ -4569,6 +4771,11 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_panel.cpp" line="800" />
             <source>%1 column is %2 px wide.</source>
             <translation>שפּאַלט %1 איז %2 px ברייט.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="1127" />
+            <source>No traffic on %1 yet. %2.</source>
+            <translation>נאך קיין טראפיק אויף %1. %2.</translation>
         </message>
     </context>
     <context>
@@ -10077,6 +10284,75 @@ Networks: %5</source>
             <source>Don't save</source>
             <translation>נישט אָפּהיטן</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2487" />
+            <source>The Monitor shows only %1. Choose All ports in its port filter to see every port.</source>
+            <translation>דער מאניטאר ווייזט נאר %1. קלויבט אויס „אלע פארטן“ אין זיין פילטער צו זען יעדן פארט.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2490" />
+            <source>The Monitor shows %1.</source>
+            <translation>דער מאניטאר ווייזט %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="511" />
+            <source>Decoded traffic...</source>
+            <translation>דעקאדירטער טראפיק…</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="512" />
+            <source>decode decoder frames triggers protocol plugin</source>
+            <translation>דעקאדירן דעקאדער פֿריימס טריגערס פראטאקאל פּלאגין</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2518" />
+            <source>Decoding %1 as %2. What it finds is in Decoded traffic, under Tools.</source>
+            <translation>דעקאדירט %1 ווי %2. וואס עס געפינט זיך אין געצייג, אונטער „דעקאדירטער טראפיק“.</translation>
+        </message>
+        <message>
+            <source>Panes</source>
+            <translation>פּאַנעלן</translation>
+        </message>
+        <message>
+            <source>Next pane</source>
+            <translation>דער קומענדיקער פּאַנעל</translation>
+        </message>
+        <message>
+            <source>Previous pane</source>
+            <translation>דער פֿריִערדיקער פּאַנעל</translation>
+        </message>
+        <message>
+            <source>ports list</source>
+            <translation>פּאָרץ ליסטע</translation>
+        </message>
+        <message>
+            <source>port settings</source>
+            <translation>פּאָרט סעטינגס</translation>
+        </message>
+        <message>
+            <source>send bytes</source>
+            <translation>שיקן בײַטן</translation>
+        </message>
+        <message>
+            <source>panes switch cycle monitor log</source>
+            <translation>פּאַנעלן וועקסלען מאָניטאָר לאָג</translation>
+        </message>
+        <message>
+            <source>Could not start %1.</source>
+            <translation>קען נישט אָנהייבן %1.</translation>
+        </message>
+        <message>
+            <source>Could not stop %1.</source>
+            <translation>קען נישט אָפּשטעלן %1.</translation>
+        </message>
+        <message>
+            <source>Started %1.</source>
+            <translation>%1 אָנגעהויבן.</translation>
+        </message>
+        <message>
+            <source>Stopped %1.</source>
+            <translation>%1 אָפּגעשטעלט.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -10824,6 +11100,14 @@ Networks: %5</source>
             <location filename="../src/topology/topology_text.cpp" line="389" />
             <source>Selected %1.</source>
             <translation>אויסגעקליבן %1.</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>אָנהייבן</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>אָפּשטעלן</translation>
         </message>
     </context>
     <context>
@@ -20144,6 +20428,35 @@ Networks: %5</source>
             <source>%1 name</source>
             <translation>נאָמען פֿון %1</translation>
         </message>
+        <message>
+            <source>COM number</source>
+            <translation>COM־נומער</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>אויטאָמאַטיש</translation>
+        </message>
+        <message>
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one. COM1 and COM2 are kept for real ports.</source>
+            <translation>אַ פּראָגראַם װאָס עפֿנט אַ פֿעסטן נאָמען װי COM3 דאַרף דעם זעלבן נומער יעדעס מאָל. אויטאָמאַטיש קלײַבט אױס אַ פֿרײַע. COM1 און COM2 זענען פֿאַרהאַלטן פֿאַר עכטע פּאָרטן.</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255, or Automatic.</source>
+            <translation>קלײַבט אױס אַ נומער פֿון 1 ביז 255, אָדער אויטאָמאַטיש.</translation>
+        </message>
+        <message>
+            <source>COM%1 is used by %2. Choose a free number.</source>
+            <translation>COM%1 װערט באַנוצט פֿון %2. קלײַבט אױס אַ פֿרײַע נומער.</translation>
+        </message>
+        <message>
+            <source>COM1 and COM2 are kept for real ports. Choose COM3 or higher.</source>
+            <translation>COM1 און COM2 זענען פֿאַרהאַלטן פֿאַר עכטע פּאָרטן. קלײַבט אױס COM3 אָדער העכער.</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="532" />
+            <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
+            <translation>גענומען פון %1. א מאניטאר ארבעט מיט דער גיכקייט פון דער פארט וואס ער קוקט אויף.</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -20429,6 +20742,11 @@ Networks: %5</source>
             <source>Network port changed.</source>
             <translation>נעץ־פּאָרט געביטן.</translation>
         </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="729" />
+            <source>The address of %1 is not known, so its settings cannot be shown.</source>
+            <translation>די אדרעס פון %1 איז נישט באקאנט, דעריבער קען מען נישט ווייזן זיינע סעטינגס.</translation>
+        </message>
     </context>
     <context>
         <name>PaneHeader</name>
@@ -20627,6 +20945,11 @@ Networks: %5</source>
             <translation>
                 <numerusform>נוצן די סעטינגס פֿאַר די %n פּאָרט(ן) וואָס זענען פֿאַרבונדן מיט דעם דאָזיקן</numerusform>
             </translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="434" />
+            <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
+            <translation>גענומען פון %1. א מאניטאר ארבעט מיט דער גיכקייט פון דער פארט וואס ער קוקט אויף.</translation>
         </message>
     </context>
     <context>
@@ -23201,6 +23524,11 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>What is wrong: %1</source>
+            <translation>וואס איז פאַלש: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
             <source>Its signature does not match its files. They may have been changed. Get the plugin again from its author.</source>
             <translation>זײַן אונטערשריפֿט פּאַסט נישט צו זײַנע טעקעס. זיי קענען זײַן געביטן געוואָרן. באַקומט דעם פּלאַגין ווידער פֿון זײַן מחבר.</translation>
         </message>
@@ -23988,6 +24316,16 @@ From the plugin %2
 פֿון דעם פּלאַגין %2
 %3</translation>
         </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="357" />
+            <source>%1 cannot be placed yet. Standing in for a device needs the engine timeline, which this version of Studio does not have.</source>
+            <translation>מען קען נאך נישט אוועקשטעלן %1. צו פארנעמען דעם פלאץ פון א מכשיר דארף מען די צייט-ליניע פון דעם מאטאר, וואס די ווערסיע פון Studio האט נאך נישט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="466" />
+            <source>%1 needs settings that are set in Plugins.</source>
+            <translation>%1 דארף סעטינגס וואס מען שטעלט אין פּלאגינס.</translation>
+        </message>
     </context>
     <context>
         <name>PluginTrafficChip</name>
@@ -24333,6 +24671,360 @@ From the plugin %2
             <location filename="../src/support/plugin_dialogs.cpp" line="878" />
             <source>Add</source>
             <translation>צולייגן</translation>
+        </message>
+    </context>
+    <context>
+        <name>com_use</name>
+        <message>
+            <source>Studio port %1</source>
+            <translation>Studio־פּאָרט %1</translation>
+        </message>
+        <message>
+            <source>Windows device %1</source>
+            <translation>Windows־מיטל %1</translation>
+        </message>
+        <message>
+            <source>Reserved by Windows</source>
+            <translation>פֿאַרהאַלטן דורך Windows</translation>
+        </message>
+    </context>
+    <context>
+        <name>DecodeDialog</name>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="26" />
+            <source>Decode %1</source>
+            <translation>דעקאדירן %1</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="27" />
+            <source>Shows the data on %1 as messages of a protocol, and reports what does not fit. Decoding only reads. It never changes or delays the data.</source>
+            <translation>ווייזט די דאטן אויף %1 ווי מעסעדזשעס פון א פראטאקאל און מעלדט וואס פאסט נישט. דעקאדירן לייענט נאר. עס ענדערט אדער פארשפעטיקט קיינמאל נישט די דאטן.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="41" />
+            <source>Protocol</source>
+            <translation>פראטאקאל</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="81" />
+            <source>Cancel</source>
+            <translation>אַנולירן</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="84" />
+            <source>Start decoding</source>
+            <translation>אנהייבן דעקאדירן</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="108" />
+            <source>From the plugin %1.</source>
+            <translation>פון דער פּלאגין %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="110" />
+            <source>%1 will read the data that passes through %2.</source>
+            <translation>%1 וועט לייענען די דאטן וואס גייען דורך %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="122" />
+            <source>Not available in this build</source>
+            <translation>נישט פֿאַראַנען אין דער דאָזיקער ווערסיע</translation>
+        </message>
+    </context>
+    <context>
+        <name>MonitorDirection</name>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="21" />
+            <source>Both directions</source>
+            <translation>ביידע ריכטונגען</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="24" />
+            <source>Transmit only</source>
+            <translation>נאר שיקן</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="26" />
+            <source>Receive only</source>
+            <translation>נאר באקומען</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="36" />
+            <source>Copies what the program on the port writes and what is written into the port.</source>
+            <translation>קאפירט וואס די פראגראם אויף דעם פארט שרייבט און וואס מען שרייבט אין דעם פארט.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="41" />
+            <source>Copies only what the program on the port writes.</source>
+            <translation>קאפירט נאר וואס די פראגראם אויף דעם פארט שרייבט.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="45" />
+            <source>Copies only what is written into the port.</source>
+            <translation>קאפירט נאר וואס מען שרייבט אין דעם פארט.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DecodedDialog</name>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="41" />
+            <source>Decoded traffic</source>
+            <translation>דעקאדירטער טראפיק</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="53" />
+            <source>What the decoders found on your ports. Decoding only reads. The words in the table come from the plugin.</source>
+            <translation>וואס די דעקאדערס האבן געפונען אויף אייערע פארטן. דעקאדירן לייענט נאר. די ווערטער אין דער טאבעל קומען פון דער פּלאגין.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="61" />
+            <source>Triggers only</source>
+            <translation>נאר טריגערס</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Time</source>
+            <translation>צײַט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Place</source>
+            <translation>אָרט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Direction</source>
+            <translation>ריכטונג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>Type</source>
+            <translation>סארט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>Message</source>
+            <translation>מעלדונג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>What</source>
+            <translation>וואָס</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="92" />
+            <source>Close</source>
+            <translation>פֿאַרמאַכן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="167" />
+            <source>%1 s</source>
+            <translation>%1 סעק</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="169" />
+            <source>Received</source>
+            <translation>באקומען</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="169" />
+            <source>Sent</source>
+            <translation>געשיקט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="170" />
+            <source>Trigger</source>
+            <translation>טריגער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="170" />
+            <source>Frame</source>
+            <translation>פֿריים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="181" />
+            <source>Nothing is being decoded. Choose Decode as... in the menu of a port to start.</source>
+            <translation>גאָרנישט ווערט נישט דעקאדירט. קלויבט אויס „דעקאדירן ווי…“ אין דעם מעניו פון א פארט צו אנהייבן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="185" />
+            <source>No triggers. Everything decoded so far has fitted the protocol.</source>
+            <translation>קיין טריגערס. אלעס וואס איז ביז יעצט דעקאדירט געווארן האט געפאסט צום פראטאקאל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="188" />
+            <source>Nothing found yet.</source>
+            <translation>נאָך גאָרנישט געפֿונען.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="192" />
+            <source>Showing the newest %1 of %2.</source>
+            <translation>ווײַזט די נײַסטע %1 פֿון %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="194" />
+            <source>%1 left out to stay within the limits.</source>
+            <translation>%1 אויסגעלאזט צו בלייבן אין די גרענעצן.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockDropOverlay</name>
+        <message>
+            <source>Drop guides</source>
+            <translation>אַראָפּלאָזן־גידעס</translation>
+        </message>
+        <message>
+            <source>Shows where the pane will go. Use the pane menu to move a pane without the mouse.</source>
+            <translation>ווײַזט וווּהין דער פּאַנעל גייט. ניצט דעם פּאַנעל־מעניו כדי אים צו באַוועגן אָן דער מויז.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockPanes</name>
+        <message>
+            <source>Dock</source>
+            <translation>אָנדאַקן</translation>
+        </message>
+        <message>
+            <source>Float</source>
+            <translation>שוועבן</translation>
+        </message>
+        <message>
+            <source>Move to the window edge</source>
+            <translation>באַוועגן צום ראַנד פֿון פֿענצטער</translation>
+        </message>
+        <message>
+            <source>Left</source>
+            <translation>לינקס</translation>
+        </message>
+        <message>
+            <source>Right</source>
+            <translation>רעכטס</translation>
+        </message>
+        <message>
+            <source>Top</source>
+            <translation>אויבן</translation>
+        </message>
+        <message>
+            <source>Bottom</source>
+            <translation>אונטן</translation>
+        </message>
+        <message>
+            <source>Beside %1</source>
+            <translation>לעבן %1</translation>
+        </message>
+        <message>
+            <source>Tab with %1</source>
+            <translation>טאַב מיט %1</translation>
+        </message>
+        <message>
+            <source>Left of %1</source>
+            <translation>לינקס פֿון %1</translation>
+        </message>
+        <message>
+            <source>Right of %1</source>
+            <translation>רעכטס פֿון %1</translation>
+        </message>
+        <message>
+            <source>Above %1</source>
+            <translation>איבער %1</translation>
+        </message>
+        <message>
+            <source>Below %1</source>
+            <translation>אונטער %1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>פֿאַרמאַכן</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockTitleBar</name>
+        <message>
+            <source>%1 title bar</source>
+            <translation>טיטל־באַר פֿון %1</translation>
+        </message>
+        <message>
+            <source>Drag to move the pane. The menu has every move command.</source>
+            <translation>שלעפּט צו באַוועגן דעם פּאַנעל. אין מעניו זענען אַלע באַוועגונג־באַפֿעלן.</translation>
+        </message>
+        <message>
+            <source>Pane menu</source>
+            <translation>פּאַנעל־מעניו</translation>
+        </message>
+        <message>
+            <source>%1 pane menu</source>
+            <translation>פּאַנעל־מעניו פֿון %1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>פֿאַרמאַכן</translation>
+        </message>
+        <message>
+            <source>Close %1</source>
+            <translation>פֿאַרמאַכן %1</translation>
+        </message>
+    </context>
+    <context>
+        <name>Connection</name>
+        <message>
+            <source>%1 (%2)</source>
+            <translation>%1 (%2)</translation>
+        </message>
+        <message>
+            <source>Connected</source>
+            <translation>פֿאַרבונדן</translation>
+        </message>
+        <message>
+            <source>Connected to %1.</source>
+            <translation>פֿאַרבונדן מיט %1.</translation>
+        </message>
+        <message>
+            <source>Connecting</source>
+            <translation>פֿאַרבינדט זיך</translation>
+        </message>
+        <message>
+            <source>Connecting to %1.</source>
+            <translation>פֿאַרבינדט זיך מיט %1.</translation>
+        </message>
+        <message>
+            <source>Connection lost</source>
+            <translation>די פֿאַרבינדונג איז פֿאַרלוירן</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2.</source>
+            <translation>קען נישט פֿאַרבינדן מיט %1: %2.</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2. Trying again.</source>
+            <translation>קען נישט פֿאַרבינדן מיט %1: %2. פּרובירט נאָכאַמאָל.</translation>
+        </message>
+        <message>
+            <source>Failed</source>
+            <translation>דורכגעפֿאַלן</translation>
+        </message>
+        <message>
+            <source>Not connected to %1.</source>
+            <translation>נישט פֿאַרבונדן מיט %1.</translation>
+        </message>
+        <message>
+            <source>Retrying</source>
+            <translation>פּרובירט נאָכאַמאָל</translation>
+        </message>
+        <message>
+            <source>Started</source>
+            <translation>אָנגעהויבן</translation>
+        </message>
+        <message>
+            <source>Stopped</source>
+            <translation>אָפּגעשטעלט</translation>
+        </message>
+        <message>
+            <source>Stopped. Not connecting to %1.</source>
+            <translation>אָפּגעשטעלט. פֿאַרבינדט זיך נישט מיט %1.</translation>
+        </message>
+        <message>
+            <source>Trying to connect to %1.</source>
+            <translation>פּרובירט זיך צו פֿאַרבינדן מיט %1.</translation>
         </message>
     </context>
 </TS>

@@ -69,6 +69,30 @@ QString other_endpoint_names(const port_view& port,
     return names.join(QStringLiteral(", "));
 }
 
+/// What a cell shows when the engine does not know the value.
+QString dash()
+{
+    return QStringLiteral("\u2013");
+}
+
+/// The baud rate and framing known for a port: what a real device runs at, or
+/// what a program set on a port Studio made. Empty means not known.
+std::optional<vss::line_format> known_format(const port_view& port)
+{
+    if (port.kind == vss::endpoint_kind::physical)
+    {
+        vss::line_format format;
+        format.baud_rate = port.serial.baud_rate;
+        format.data_bits = port.serial.data_bits;
+        format.parity = port.serial.parity;
+        format.stop_bits = port.serial.stop_bits;
+        return format;
+    }
+    if (port.peer_format && port.peer_format->baud_rate != 0)
+        return port.peer_format;
+    return std::nullopt;
+}
+
 } // namespace
 
 PortModel::PortModel(QObject* parent) : QAbstractTableModel(parent) {}
@@ -93,8 +117,14 @@ void PortModel::set_snapshot(std::vector<port_view> ports,
         return;
     }
 
-    // Counters change on every traffic batch.  Keep the rows and selection,
-    // and let the views repaint instead of resetting the model.
+    // Counters change on every traffic batch.  Keep the rows, the selection
+    // and the views' scroll positions, and tell the views only which cells
+    // changed.
+    std::vector<QStringList> before;
+    before.reserve(static_cast<std::size_t>(visible_.size()));
+    for (const int index : visible_)
+        before.push_back(
+            row_signature(ports_[static_cast<std::size_t>(index)]));
     ports_ = std::move(ports);
     links_ = std::move(links);
     const QVector<int> previous = visible_;
@@ -105,10 +135,50 @@ void PortModel::set_snapshot(std::vector<port_view> ports,
         endResetModel();
         return;
     }
-    if (!visible_.isEmpty())
+    publish_changes(before);
+}
+
+QStringList PortModel::row_signature(const port_view& port) const
+{
+    QStringList signature;
+    signature.reserve(column_count + 1);
+    for (int column = 0; column < column_count; ++column)
+        signature << cell_text(port, column);
+    // What the row delegate and the tooltip read besides the cell texts.
+    signature << port.path + QLatin1Char('\n') +
+                     role_text(port, ports_, links_) + QLatin1Char('\n') +
+                     status_text(port) + QLatin1Char('\n') +
+                     QString::number(static_cast<int>(state_kind(port)));
+    return signature;
+}
+
+void PortModel::publish_changes(const std::vector<QStringList>& before)
+{
+    for (int row = 0; row < static_cast<int>(visible_.size()); ++row)
     {
-        Q_EMIT dataChanged(index(0, 0),
-                           index(rowCount() - 1, columnCount() - 1));
+        const QStringList after =
+            row_signature(ports_[static_cast<std::size_t>(visible_[row])]);
+        const QStringList& old = before[static_cast<std::size_t>(row)];
+        if (after.back() != old.back())
+        {
+            Q_EMIT dataChanged(index(row, 0), index(row, column_count - 1));
+            continue;
+        }
+        int column = 0;
+        while (column < column_count)
+        {
+            if (after.at(column) == old.at(column))
+            {
+                ++column;
+                continue;
+            }
+            int last = column;
+            while (last + 1 < column_count &&
+                   after.at(last + 1) != old.at(last + 1))
+                ++last;
+            Q_EMIT dataChanged(index(row, column), index(row, last));
+            column = last + 1;
+        }
     }
 }
 
@@ -153,7 +223,7 @@ int PortModel::rowCount(const QModelIndex& parent) const
 
 int PortModel::columnCount(const QModelIndex& parent) const
 {
-    return parent.isValid() ? 0 : 5;
+    return parent.isValid() ? 0 : column_count;
 }
 
 QVariant PortModel::data(const QModelIndex& index, int item_role) const
@@ -165,23 +235,9 @@ QVariant PortModel::data(const QModelIndex& index, int item_role) const
     switch (item_role)
     {
     case Qt::DisplayRole:
-        switch (index.column())
-        {
-        case 0:
-            return port.name;
-        case 1:
-            return state_text(port);
-        case 2:
-            return format_bytes(port.stats.bytes_rx);
-        case 3:
-            return format_bytes(port.stats.bytes_tx);
-        case 4:
-            return format_bytes(port.stats.dropped);
-        default:
-            return {};
-        }
+        return cell_text(port, index.column());
     case Qt::TextAlignmentRole:
-        if (index.column() >= 2)
+        if (is_numeric_column(index.column()))
             return QVariant::fromValue(Qt::AlignRight | Qt::AlignVCenter);
         return QVariant::fromValue(Qt::AlignLeft | Qt::AlignVCenter);
     case Qt::ToolTipRole:
@@ -236,16 +292,34 @@ QVariant PortModel::headerData(int section, Qt::Orientation orientation,
         return QAbstractTableModel::headerData(section, orientation, item_role);
     switch (section)
     {
-    case 0:
+    case port_column:
         return tr("Port");
-    case 1:
+    case state_column:
         return tr("State");
-    case 2:
+    case rx_column:
         return tr("RX");
-    case 3:
+    case tx_column:
         return tr("TX");
-    case 4:
+    case dropped_column:
         return tr("Dropped");
+    case kind_column:
+        return tr("Kind");
+    case address_column:
+        return tr("Address");
+    case settings_column:
+        return tr("Settings");
+    case baud_column:
+        return tr("Baud rate");
+    case data_bits_column:
+        return tr("Data bits");
+    case parity_column:
+        return tr("Parity");
+    case stop_bits_column:
+        return tr("Stop bits");
+    case flow_control_column:
+        return tr("Flow control");
+    case errors_column:
+        return tr("Errors");
     default:
         return {};
     }
@@ -369,6 +443,113 @@ QString PortModel::role_text(const port_view& port,
     if (!others.isEmpty())
         return tr("Virtual port, linked to %1").arg(others);
     return tr("Virtual port");
+}
+
+bool PortModel::is_numeric_column(int column)
+{
+    return column == rx_column || column == tx_column ||
+           column == dropped_column || column == baud_column ||
+           column == data_bits_column || column == errors_column;
+}
+
+QString PortModel::kind_text(const port_view& port)
+{
+    switch (port.kind)
+    {
+    case vss::endpoint_kind::virtual_port:
+        return tr("Virtual port");
+    case vss::endpoint_kind::physical:
+        return tr("Serial port");
+    case vss::endpoint_kind::tcp:
+        // Only a listener reports how many clients it has.
+        return port.clients ? tr("Network server (TCP)")
+                            : tr("Network client (TCP)");
+    case vss::endpoint_kind::udp:
+        return tr("Network client (UDP)");
+    case vss::endpoint_kind::rfc2217:
+        return tr("Network client (RFC 2217)");
+    case vss::endpoint_kind::mock:
+        return tr("Fixture");
+    }
+    return dash();
+}
+
+QString PortModel::cell_text(const port_view& port, int column)
+{
+    const auto format = known_format(port);
+    const bool framing = format && format->framing_known;
+    switch (column)
+    {
+    case port_column:
+        return port.name;
+    case state_column:
+        return state_text(port);
+    case rx_column:
+        return format_bytes(port.stats.bytes_rx);
+    case tx_column:
+        return format_bytes(port.stats.bytes_tx);
+    case dropped_column:
+        return format_bytes(port.stats.dropped);
+    case kind_column:
+        return kind_text(port);
+    case address_column:
+        return port.path.isEmpty() ? dash() : port.path;
+    case settings_column:
+        return format ? QString::fromStdString(vss::to_label(*format))
+                      : dash();
+    case baud_column:
+        return format ? QString::number(format->baud_rate) : dash();
+    case data_bits_column:
+        return framing ? QString::number(format->data_bits) : dash();
+    case parity_column:
+        if (!framing)
+            return dash();
+        switch (format->parity)
+        {
+        case vss::parity_mode::none:
+            return tr("None");
+        case vss::parity_mode::odd:
+            return tr("Odd");
+        case vss::parity_mode::even:
+            return tr("Even");
+        case vss::parity_mode::mark:
+            return tr("Mark");
+        case vss::parity_mode::space:
+            return tr("Space");
+        }
+        return dash();
+    case stop_bits_column:
+        if (!framing)
+            return dash();
+        switch (format->stop_bits)
+        {
+        case vss::stop_bits_mode::one:
+            return QStringLiteral("1");
+        case vss::stop_bits_mode::one_point_five:
+            return QStringLiteral("1.5");
+        case vss::stop_bits_mode::two:
+            return QStringLiteral("2");
+        }
+        return dash();
+    case flow_control_column:
+        // Only a real device is told its flow control.
+        if (port.kind != vss::endpoint_kind::physical)
+            return dash();
+        switch (port.serial.flow_control)
+        {
+        case vss::flow_control_mode::none:
+            return tr("None");
+        case vss::flow_control_mode::software:
+            return tr("XON/XOFF");
+        case vss::flow_control_mode::hardware:
+            return tr("RTS/CTS");
+        }
+        return dash();
+    case errors_column:
+        return QString::number(port.stats.errors);
+    default:
+        return {};
+    }
 }
 
 QString PortModel::serial_text(const port_view& port)

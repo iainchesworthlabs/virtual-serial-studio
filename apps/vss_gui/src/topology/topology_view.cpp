@@ -382,6 +382,7 @@ void TopologyView::set_topology(const std::vector<port_view>& ports,
     }
     std::sort(node_ids_.begin(), node_ids_.end());
 
+    QSet<QPair<vss::endpoint_id, vss::endpoint_id>> kept;
     for (const auto& link : links_)
     {
         topo_link_input input;
@@ -391,7 +392,31 @@ void TopologyView::set_topology(const std::vector<port_view>& ports,
         input.targets = link.targets;
         input.arrow = link.shape == link_shape::one_way ||
                       link.shape == link_shape::monitor;
+        // A link drawn from a connector keeps to it, as long as it joins just
+        // the two ports it was drawn between.
+        if (input.sources.size() == 1 && input.targets.size() == 1)
+        {
+            const vss::endpoint_id source = input.sources.first();
+            const vss::endpoint_id target = input.targets.first();
+            if (const auto it = drawn_sides_.constFind({source, target});
+                it != drawn_sides_.cend())
+                input.sides = sides_for_drag(it.value(), true);
+            else if (const auto back = drawn_sides_.constFind({target, source});
+                     back != drawn_sides_.cend())
+                input.sides = sides_for_drag(back.value(), false);
+            if (input.sides)
+                kept.insert({source, target});
+        }
         link_inputs_.append(input);
+    }
+    // Forget the wires whose link is gone.
+    for (auto it = drawn_sides_.begin(); it != drawn_sides_.end();)
+    {
+        if (kept.contains({it.key().first, it.key().second}) ||
+            kept.contains({it.key().second, it.key().first}))
+            ++it;
+        else
+            it = drawn_sides_.erase(it);
     }
     std::sort(link_inputs_.begin(), link_inputs_.end(),
               [](const topo_link_input& left, const topo_link_input& right)
@@ -570,7 +595,7 @@ void TopologyView::rebuild_items()
             const qsizetype index = focus_index_of_port(id);
             if (index >= 0)
                 focus_at(index, true);
-            Q_EMIT inspect_requested(id);
+            open_item(id);
         };
         callbacks.hover_entered = [](vss::endpoint_id) {};
         callbacks.hover_left = [](vss::endpoint_id) {};
@@ -639,6 +664,14 @@ void TopologyView::rebuild_items()
             const qsizetype index = focus_index_of_link(id);
             if (index >= 0)
                 focus_at(index, true);
+        };
+        callbacks.double_clicked = [this](vss::link_id id)
+        {
+            setFocus(Qt::MouseFocusReason);
+            const qsizetype index = focus_index_of_link(id);
+            if (index >= 0)
+                focus_at(index, true);
+            open_link(id);
         };
         callbacks.hover_entered = [](vss::link_id) {};
         callbacks.hover_left = [](vss::link_id) {};
@@ -1535,6 +1568,8 @@ void TopologyView::mousePressEvent(QMouseEvent* event)
             {
                 setFocus(Qt::MouseFocusReason);
                 begin_wire(handle->first);
+                wire_from_side_ =
+                    handle->second ? link_side::right : link_side::left;
                 const QRectF rect = node_rect(handle->first);
                 wire_start_ = handle->second
                                   ? QPointF(rect.right(), rect.center().y())
@@ -2745,6 +2780,7 @@ void TopologyView::begin_wire(vss::endpoint_id from)
 void TopologyView::cancel_wire()
 {
     wire_from_ = 0;
+    wire_from_side_.reset();
     delete wire_item_;
     wire_item_ = nullptr;
     for (const vss::endpoint_id id : node_order_)
@@ -2852,9 +2888,21 @@ bool TopologyView::would_loop(vss::endpoint_id from, vss::endpoint_id to,
 void TopologyView::finish_wire(vss::endpoint_id to, wire_kind kind)
 {
     const vss::endpoint_id from = wire_from_;
+    const std::optional<link_side> side = wire_from_side_;
     cancel_wire();
     if (from != 0 && to != 0 && from != to)
-        Q_EMIT wire_requested(from, to, kind);
+        request_wire(from, to, kind, side);
+}
+
+void TopologyView::request_wire(vss::endpoint_id from, vss::endpoint_id to,
+                                wire_kind kind, std::optional<link_side> side)
+{
+    const auto key = qMakePair(from, to);
+    if (side)
+        drawn_sides_.insert(key, *side);
+    else
+        drawn_sides_.remove(key);
+    Q_EMIT wire_requested(from, to, kind);
 }
 
 void TopologyView::finish_wire_new(slot_kind kind, wire_kind wire,
@@ -2895,6 +2943,7 @@ void TopologyView::open_wire_menu(vss::endpoint_id to,
     menu->setAccessibleName(
         tr("Link %1 and %2").arg(names_.value(from), names_.value(to)));
     const QStringList labels = wire_menu_labels(from, to);
+    const std::optional<link_side> side = wire_from_side_;
     const wire_kind kinds[] = {wire_kind::two_way, wire_kind::one_way,
                                wire_kind::monitor};
     QAction* first = nullptr;
@@ -2902,8 +2951,8 @@ void TopologyView::open_wire_menu(vss::endpoint_id to,
     {
         const wire_kind kind = kinds[index];
         QAction* action =
-            menu->addAction(labels.value(index), this, [this, from, to, kind]
-                            { Q_EMIT wire_requested(from, to, kind); });
+            menu->addAction(labels.value(index), this, [this, from, to, kind, side]
+                            { request_wire(from, to, kind, side); });
         if (would_loop(from, to, kind))
         {
             action->setEnabled(false);
@@ -3008,6 +3057,35 @@ void TopologyView::open_wire_new_menu(const QPoint& viewport_position)
                     this, [this] { cancel_wire(); }, Qt::QueuedConnection);
             });
     menu->popup(viewport()->mapToGlobal(viewport_position));
+}
+
+void TopologyView::open_item(vss::endpoint_id id)
+{
+    // A double-click does what Settings in the menu does. Where the view is
+    // not being edited, or Settings is not available for the port (a network
+    // port in a build that cannot edit one), it inspects, as it always did.
+    const auto port =
+        std::find_if(ports_.begin(), ports_.end(),
+                     [id](const port_view& view) { return view.id == id; });
+    const bool network =
+        port != ports_.end() && (port->kind == vss::endpoint_kind::tcp ||
+                                 port->kind == vss::endpoint_kind::udp ||
+                                 port->kind == vss::endpoint_kind::rfc2217);
+    if (editing_ && !(network && !caps_.network_edit))
+        Q_EMIT settings_requested({id});
+    else
+        Q_EMIT inspect_requested(id);
+}
+
+void TopologyView::open_link(vss::link_id id)
+{
+    const auto link =
+        std::find_if(links_.begin(), links_.end(),
+                     [id](const link_view& view) { return view.id == id; });
+    if (link == links_.end())
+        return;
+    if (editing_)
+        Q_EMIT link_settings_requested(id);
 }
 
 void TopologyView::populate_node_menu(QMenu* menu, vss::endpoint_id id)
@@ -3159,8 +3237,37 @@ void TopologyView::populate_link_menu(QMenu* menu, vss::link_id id)
     settings->setShortcutVisibleInContextMenu(true);
     if (link != links_.end() && link->shape == link_shape::monitor)
     {
-        settings->setEnabled(false);
-        settings->setToolTip(tr("A monitor link has no settings."));
+        // Beside its own settings (which bytes it copies), the menu offers
+        // what can be done with the port it watches.
+        const vss::endpoint_id watched =
+            link->sources.isEmpty() ? 0 : link->sources.front();
+        if (watched != 0)
+        {
+            menu->addAction(
+                QCoreApplication::translate("PortMenu", "Open in monitor"),
+                this,
+                [this, watched]
+                {
+                    Q_EMIT port_action_requested(
+                        watched, port_menu_action::open_monitor);
+                });
+            const port_menu_state state =
+                menu_state_ ? menu_state_(watched) : port_menu_state{};
+            if (state.advanced && state.decode_shown)
+            {
+                QAction* decode = menu->addAction(
+                    QCoreApplication::translate("PortMenu", "Decode as..."),
+                    this,
+                    [this, watched]
+                    {
+                        Q_EMIT port_action_requested(
+                            watched, port_menu_action::decode_as);
+                    });
+                decode->setEnabled(state.decode_enabled);
+                if (!state.decode_enabled)
+                    decode->setToolTip(state.decode_reason);
+            }
+        }
     }
     if (link != links_.end() && link->shape == link_shape::one_way)
     {

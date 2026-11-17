@@ -260,8 +260,21 @@ whose value is `unsupported`. These are the names:
 | `timeline` | The engine plays a recording as a timeline (`timeline.load`) | 19.4 |
 | `licence_file` | The host sends the licence file to an official plugin, or to one that has the permission `licence.read`, when it asks (`licence.get`) | 8.7 |
 
-`timeline` is not offered in release candidate 6. `timeline.load` is answered with an `error` whose value is
-`unsupported`, and a plugin that replays a recording checks for the capability and shows that it cannot.
+Studio offers `timeline` from release candidate 7. A host without it answers `timeline.load` with an `error` whose value
+is `unsupported`, and a plugin that replays a recording checks for the capability and shows that it cannot.
+
+What Studio does with `timeline.load`: it needs `ports.write` and an instance of kind generator or fixture that the
+plugin holds and runs. It checks the recording whole, as the open format of section 19.6 says, then reads it as it plays,
+a block ahead, so a recording of any size plays. It plays the `data` lines the recorded place received (`R`) onto the
+port named by `place`, one write for each line, so the chunk boundaries and times of the recording are kept. Each is at
+its recorded time multiplied by `time_scale`, counted from the `ok`. It is never early, and the latest lateness is
+counted. Where the port follows control lines it also sets CTS, DSR, DCD and RI as the recording has them after each
+recorded line change. The recorded place is the one named like the port, or the only place of a recording that has one.
+It answers `refused` for a recording that is missing, breaks the format or has no fitting place, and for a port the
+plugin may not write to; `busy` while the instance plays another. Not played, and counted by the host: faults, line
+changes on a port that does not follow control lines, and the bytes the recorded place sent (`W`), which the program
+wrote and not the device. A read that fails part way ends the replay after what was read. `seed` has no effect, since a
+replay has no random choice.
 
 ## Not built yet
 

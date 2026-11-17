@@ -265,9 +265,14 @@ TEST_CASE("bus: a member may also be in a split")
     fixture.ports[3].inject_read("s");
     REQUIRE(fixture.wait_written(0, 1));
     REQUIRE_EQ(fixture.ports[0].written(), std::string("s"));
-    // The bus never heard the listener.
-    REQUIRE_EQ(fixture.ports[1].written(), std::string("m"));
-    REQUIRE_EQ(fixture.ports[2].written(), std::string("m"));
+    // What the listener says is written into the member, which carries it on
+    // to the bus, so the bus hears it after the member's own bytes.
+    REQUIRE(wait_until([&] { return fixture.ports[1].written() == "ms"; },
+                       5000ms));
+    REQUIRE(wait_until([&] { return fixture.ports[2].written() == "ms"; },
+                       5000ms));
+    // The other listener is not on the member's links in that direction.
+    REQUIRE_EQ(fixture.ports[4].written(), std::string("m"));
 }
 
 TEST_CASE("bus: the arguments are checked")
@@ -522,4 +527,263 @@ TEST_CASE("bus: a plain bus forwards two senders at once and reports nothing")
     REQUIRE(wait_until([&] { return events.count(event_kind::data) == 6; },
                        5000ms));
     REQUIRE_EQ(events.count(event_kind::error), std::size_t{0});
+}
+
+namespace
+{
+/// Waits until `port` has written exactly `text`, then a little longer, to
+/// show that nothing more follows.
+bool settles_on(const bus_fixture& fixture, std::size_t port,
+                const std::string& text)
+{
+    if (!wait_until([&] { return fixture.ports[port].written() == text; },
+                    5000ms))
+        return false;
+    std::this_thread::sleep_for(150ms);
+    return fixture.ports[port].written() == text;
+}
+} // namespace
+
+// A link writes into a port, and what is written is carried on along the
+// other links of that port, as if the port had read it, except back to where
+// it came from.  This is a polled client behind a bus member that is also
+// linked to a server.
+TEST_CASE("relay: a client reaches a server and a bus through a bus member")
+{
+    // 0 client, 1 member that is linked both ways to the client and to the
+    // server, 2 and 3 other members, 4 server, 5 monitor of the client.
+    bus_fixture fixture(6);
+    REQUIRE(fixture.hub->bus({fixture.id(1), fixture.id(2), fixture.id(3)}));
+    REQUIRE(fixture.hub->connect(fixture.id(0), fixture.id(1)));
+    REQUIRE(fixture.hub->connect(fixture.id(1), fixture.id(4)));
+    REQUIRE(fixture.hub->monitor(fixture.id(0), fixture.id(5)));
+
+    // The request goes to the member, the server and the other members, and
+    // the monitor has it once.  Nothing goes back to the client.
+    fixture.ports[0].inject_read("REQ");
+    REQUIRE(settles_on(fixture, 1, "REQ"));
+    REQUIRE(settles_on(fixture, 4, "REQ"));
+    REQUIRE(settles_on(fixture, 2, "REQ"));
+    REQUIRE(settles_on(fixture, 3, "REQ"));
+    REQUIRE(settles_on(fixture, 5, "REQ"));
+    REQUIRE_EQ(fixture.ports[0].written(), std::string());
+
+    // The server's answer goes to the member, the other members and the
+    // client, and the monitor of the client has it once more.
+    fixture.ports[4].inject_read("RSP");
+    REQUIRE(settles_on(fixture, 0, "RSP"));
+    REQUIRE(settles_on(fixture, 1, "REQRSP"));
+    REQUIRE(settles_on(fixture, 2, "REQRSP"));
+    REQUIRE(settles_on(fixture, 3, "REQRSP"));
+    REQUIRE(settles_on(fixture, 5, "REQRSP"));
+    REQUIRE_EQ(fixture.ports[4].written(), std::string("REQ"));
+
+    // What a member reads goes to the client, the server and the others.
+    fixture.ports[2].inject_read("X");
+    REQUIRE(settles_on(fixture, 0, "RSPX"));
+    REQUIRE(settles_on(fixture, 4, "REQX"));
+    REQUIRE(settles_on(fixture, 1, "REQRSPX"));
+    REQUIRE(settles_on(fixture, 3, "REQRSPX"));
+    REQUIRE(settles_on(fixture, 5, "REQRSPXX") == false);
+    REQUIRE(settles_on(fixture, 5, "REQRSPX"));
+}
+
+TEST_CASE("relay: a chain of two-way links passes data on, and not back")
+{
+    bus_fixture fixture(3);
+    REQUIRE(fixture.hub->connect(fixture.id(0), fixture.id(1)));
+    REQUIRE(fixture.hub->connect(fixture.id(1), fixture.id(2)));
+
+    fixture.ports[0].inject_read("A");
+    REQUIRE(settles_on(fixture, 2, "A"));
+    REQUIRE(settles_on(fixture, 1, "A"));
+    REQUIRE_EQ(fixture.ports[0].written(), std::string());
+
+    fixture.ports[2].inject_read("C");
+    REQUIRE(settles_on(fixture, 0, "C"));
+    REQUIRE(settles_on(fixture, 1, "AC"));
+    REQUIRE_EQ(fixture.ports[2].written(), std::string("A"));
+}
+
+TEST_CASE("relay: a ring of three ports is refused, so nothing can loop")
+{
+    bus_fixture fixture(3);
+    REQUIRE(fixture.hub->connect(fixture.id(0), fixture.id(1)));
+    REQUIRE(fixture.hub->connect(fixture.id(1), fixture.id(2)));
+    REQUIRE(!fixture.hub->connect(fixture.id(2), fixture.id(0)));
+}
+
+TEST_CASE("relay: one-way links stay one way")
+{
+    bus_fixture fixture(3);
+    REQUIRE(fixture.hub->redirect(fixture.id(0), fixture.id(1)));
+    REQUIRE(fixture.hub->redirect(fixture.id(1), fixture.id(2)));
+
+    fixture.ports[0].inject_read("A");
+    REQUIRE(settles_on(fixture, 1, "A"));
+    REQUIRE(settles_on(fixture, 2, "A"));
+
+    // The far end speaks, and nothing flows against the links.
+    fixture.ports[2].inject_read("C");
+    std::this_thread::sleep_for(200ms);
+    REQUIRE_EQ(fixture.ports[0].written(), std::string());
+    REQUIRE_EQ(fixture.ports[1].written(), std::string("A"));
+}
+
+TEST_CASE("relay: a link with a delay passes data on after the delay")
+{
+    bus_fixture fixture(3);
+    link_options delayed;
+    delayed.delay_ms = 20;
+    REQUIRE(fixture.hub->connect(fixture.id(0), fixture.id(1), delayed));
+    REQUIRE(fixture.hub->connect(fixture.id(1), fixture.id(2), delayed));
+
+    fixture.ports[0].inject_read("A");
+    REQUIRE(settles_on(fixture, 1, "A"));
+    REQUIRE(settles_on(fixture, 2, "A"));
+    REQUIRE_EQ(fixture.ports[0].written(), std::string());
+}
+
+TEST_CASE("relay: a half-duplex bus carries what a link wrote into a member")
+{
+    bus_fixture fixture(4);
+    link_options options;
+    options.half_duplex.enabled = true;
+    options.half_duplex.bit_rate = 1000000;
+    REQUIRE(fixture.hub->bus({fixture.id(1), fixture.id(2), fixture.id(3)},
+                             options));
+    REQUIRE(fixture.hub->connect(fixture.id(0), fixture.id(1)));
+
+    fixture.ports[0].inject_read("REQ");
+    REQUIRE(settles_on(fixture, 1, "REQ"));
+    REQUIRE(settles_on(fixture, 2, "REQ"));
+    REQUIRE(settles_on(fixture, 3, "REQ"));
+    REQUIRE_EQ(fixture.ports[0].written(), std::string());
+}
+
+// An outside port reaches a bus through one member.  Reaching it through two
+// would deliver each chunk to the bus twice, so the cycle rule refuses it, and
+// so it refuses to make a port that is linked to a member a member too.
+TEST_CASE("relay: an outside port attaches to a bus once and hears each "
+          "member once")
+{
+    bus_fixture fixture(5);
+    const auto bus = fixture.hub->bus(
+        {fixture.id(1), fixture.id(2), fixture.id(3)});
+    REQUIRE(bus);
+    REQUIRE(fixture.hub->connect(fixture.id(0), fixture.id(1)));
+
+    REQUIRE(!fixture.hub->connect(fixture.id(0), fixture.id(2)));
+    REQUIRE(!fixture.hub->redirect(fixture.id(3), fixture.id(0)));
+    REQUIRE(!fixture.hub->add_member(*bus, fixture.id(0)));
+
+    // A second outside port on another member is a different path and is
+    // fine; it hears each chunk once.
+    REQUIRE(fixture.hub->connect(fixture.id(4), fixture.id(3)));
+    fixture.ports[2].inject_read("M");
+    REQUIRE(settles_on(fixture, 0, "M"));
+    REQUIRE(settles_on(fixture, 4, "M"));
+    REQUIRE(settles_on(fixture, 1, "M"));
+    REQUIRE(settles_on(fixture, 3, "M"));
+    REQUIRE_EQ(fixture.ports[2].written(), std::string());
+
+    fixture.ports[0].inject_read("O");
+    REQUIRE(settles_on(fixture, 4, "MO"));
+    REQUIRE(settles_on(fixture, 2, "O"));
+    REQUIRE(settles_on(fixture, 1, "MO"));
+    REQUIRE(settles_on(fixture, 3, "MO"));
+    REQUIRE_EQ(fixture.ports[0].written(), std::string("M"));
+}
+
+// A monitor copies what its port reads and, now that links pass data on, what
+// the links write into it, so it shows both directions of the port, each
+// chunk once and in the order the port saw them.  It is read-only: what a
+// program writes into the monitor port goes nowhere.
+TEST_CASE("relay: a monitor shows both directions of a port, once, in order")
+{
+    // 0 is COM2 with a program, 1 the network server linked two-way to it,
+    // 2 the monitor port.
+    bus_fixture fixture(3);
+    REQUIRE(fixture.hub->connect(fixture.id(0), fixture.id(1)));
+    REQUIRE(fixture.hub->monitor(fixture.id(0), fixture.id(2)));
+
+    fixture.ports[0].inject_read("T1"); // the program writes
+    REQUIRE(settles_on(fixture, 2, "T1"));
+    fixture.ports[1].inject_read("R1"); // the server's link writes in
+    REQUIRE(settles_on(fixture, 2, "T1R1"));
+    fixture.ports[0].inject_read("T2");
+    REQUIRE(settles_on(fixture, 2, "T1R1T2"));
+
+    REQUIRE(settles_on(fixture, 1, "T1T2"));
+    REQUIRE(settles_on(fixture, 0, "R1"));
+
+    // Whatever a program writes to the monitor port goes nowhere.
+    fixture.ports[2].inject_read("X");
+    std::this_thread::sleep_for(200ms);
+    REQUIRE_EQ(fixture.ports[0].written(), std::string("R1"));
+    REQUIRE_EQ(fixture.ports[1].written(), std::string("T1T2"));
+    REQUIRE_EQ(fixture.ports[2].written(), std::string("T1R1T2"));
+}
+
+// A monitor's direction says which bytes of its port it copies: what the
+// port's program writes (transmit), what links write into it (receive), or
+// both.  The monitor port never sends anything on.
+TEST_CASE("relay: a monitor copies the direction it was asked for")
+{
+    const auto run = [](monitor_direction direction)
+    {
+        bus_fixture fixture(3);
+        REQUIRE(fixture.hub->connect(fixture.id(0), fixture.id(1)));
+        link_options options;
+        options.direction = direction;
+        const auto link =
+            fixture.hub->monitor(fixture.id(0), fixture.id(2), options);
+        REQUIRE(link);
+        REQUIRE(fixture.hub->find_link(*link)->options.direction == direction);
+
+        fixture.ports[0].inject_read("T1");
+        std::this_thread::sleep_for(100ms);
+        fixture.ports[1].inject_read("R1");
+        std::this_thread::sleep_for(100ms);
+        fixture.ports[0].inject_read("T2");
+        fixture.ports[2].inject_read("X");
+        std::this_thread::sleep_for(200ms);
+
+        // The link itself is not affected.
+        REQUIRE_EQ(fixture.ports[1].written(), std::string("T1T2"));
+        REQUIRE_EQ(fixture.ports[0].written(), std::string("R1"));
+        return fixture.ports[2].written();
+    };
+
+    REQUIRE_EQ(run(monitor_direction::both), std::string("T1R1T2"));
+    REQUIRE_EQ(run(monitor_direction::transmit), std::string("T1T2"));
+    REQUIRE_EQ(run(monitor_direction::receive), std::string("R1"));
+}
+
+TEST_CASE("relay: only a monitor takes a direction, and it can be changed")
+{
+    bus_fixture fixture(3);
+    link_options options;
+    options.direction = monitor_direction::receive;
+    REQUIRE_EQ(fixture.hub->connect(fixture.id(0), fixture.id(1), options),
+               make_error_code(errc::unsupported));
+    REQUIRE_EQ(fixture.hub->redirect(fixture.id(0), fixture.id(1), options),
+               make_error_code(errc::unsupported));
+    REQUIRE_EQ(fixture.hub->bus({fixture.id(0), fixture.id(1)}, options),
+               make_error_code(errc::unsupported));
+
+    const auto link = fixture.hub->monitor(fixture.id(0), fixture.id(2));
+    REQUIRE(link);
+    auto changed = fixture.hub->find_link(*link)->options;
+    changed.direction = monitor_direction::transmit;
+    REQUIRE(fixture.hub->set_link_options(*link, changed));
+    fixture.ports[0].inject_read("T");
+    REQUIRE(settles_on(fixture, 2, "T"));
+
+    const auto plain = fixture.hub->connect(fixture.id(0), fixture.id(1));
+    REQUIRE(plain);
+    auto bad = fixture.hub->find_link(*plain)->options;
+    bad.direction = monitor_direction::receive;
+    REQUIRE_EQ(fixture.hub->set_link_options(*plain, bad),
+               make_error_code(errc::unsupported));
 }
