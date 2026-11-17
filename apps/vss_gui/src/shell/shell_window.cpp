@@ -1324,10 +1324,12 @@ void ShellWindow::build_docks()
                     status_->showMessage(text, 10000);
                 log_local(text);
             });
-    log_dock_ = new QDockWidget(tr("Log"), this);
-    log_dock_->setObjectName(QStringLiteral("logDock"));
-    log_dock_->setAllowedAreas(Qt::AllDockWidgetAreas);
-    log_dock_->setWidget(event_log_);
+    // The Log is a pane like the Monitor it is tabbed with: one title row,
+    // with Clear on it, and the table straight under.
+    PaneHeader* log_header = nullptr;
+    log_dock_ = make_pane_dock(QStringLiteral("logDock"), tr("Log"),
+                               event_log_, &log_header);
+    event_log_->attach_header(log_header);
     log_dock_->setMinimumHeight(
         Theme::instance().metric(QStringLiteral("layout.monitor.min")));
 
