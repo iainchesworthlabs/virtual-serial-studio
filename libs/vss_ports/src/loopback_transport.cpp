@@ -54,6 +54,13 @@ std::string loopback_transport::describe() const
     return "loopback device '" + name_ + "'";
 }
 
+void loopback_transport::async_write_break(const line_break&,
+                                           io_handler handler)
+{
+    complete_on(executor_, handler, boost::system::error_code{},
+                std::size_t{0});
+}
+
 std::size_t loopback_transport::available() const
 {
     std::lock_guard lock(mutex_);
@@ -80,17 +87,34 @@ void loopback_transport::async_read_some(boost::asio::mutable_buffer buffer,
         return;
     }
 
+    // A break that has no bytes ahead of it goes first, with a read of no
+    // bytes; the bytes after it are read by the next read.
+    if (auto due = take_due_breaks_locked(); !due.empty())
+    {
+        complete_with(std::move(handler), boost::system::error_code{}, 0,
+                      std::move(due));
+        return;
+    }
+
     if (!buffer_.empty())
     {
-        const std::size_t count =
-            std::min<std::size_t>(buffer.size(), buffer_.size());
+        // Not past a break: the bytes after it are read by the next read,
+        // once the break has been reported.
+        std::size_t available = buffer_.size();
+        if (!breaks_.empty())
+            available = std::min<std::size_t>(
+                available,
+                static_cast<std::size_t>(breaks_.front().at - consumed_));
+        const std::size_t count = std::min<std::size_t>(buffer.size(), available);
         auto* target = static_cast<byte*>(buffer.data());
         for (std::size_t index = 0; index < count; ++index)
         {
             target[index] = buffer_.front();
             buffer_.pop_front();
         }
-        complete_on(executor_, handler, boost::system::error_code{}, count);
+        consumed_ += count;
+        complete_with(std::move(handler), boost::system::error_code{}, count,
+                      take_due_breaks_locked());
         return;
     }
 
@@ -125,6 +149,8 @@ void loopback_transport::async_write_some(boost::asio::const_buffer buffer,
             std::copy_n(data, count, destination);
             for (std::size_t index = count; index < size; ++index)
                 buffer_.push_back(data[index]);
+            injected_ += size;
+            consumed_ += count;
 
             complete_on(executor_, parked, boost::system::error_code{}, count);
             complete_on(executor_, handler, boost::system::error_code{}, size);
@@ -132,6 +158,7 @@ void loopback_transport::async_write_some(boost::asio::const_buffer buffer,
         }
 
         buffer_.insert(buffer_.end(), data, data + size);
+        injected_ += size;
         VSS_PROFILE_PLOT("ports.loopback.buffered", buffer_.size());
     }
 
@@ -154,11 +181,67 @@ void loopback_transport::inject(bytes_view data)
         std::copy_n(data.data(), count, static_cast<byte*>(target.data()));
         for (std::size_t index = count; index < data.size(); ++index)
             buffer_.push_back(data[index]);
+        injected_ += data.size();
+        consumed_ += count;
         complete_on(executor_, parked, boost::system::error_code{}, count);
         return;
     }
 
     buffer_.insert(buffer_.end(), data.begin(), data.end());
+    injected_ += data.size();
+}
+
+void loopback_transport::inject_break(const line_break& item)
+{
+    VSS_PROFILE_ZONE("ports.loopback.inject_break");
+    std::lock_guard lock(mutex_);
+    if (!open_.load())
+        return;
+    breaks_.push_back({injected_, item});
+    if (pending_read_)
+    {
+        // Nothing is ahead of it and a read waits: ride it with no bytes.
+        auto due = take_due_breaks_locked();
+        if (!due.empty())
+            complete_with(take_pending_read(), boost::system::error_code{}, 0,
+                          std::move(due));
+    }
+}
+
+void loopback_transport::set_break_sink(break_sink sink)
+{
+    std::lock_guard lock(mutex_);
+    break_sink_ = std::move(sink);
+}
+
+std::vector<line_break> loopback_transport::take_due_breaks_locked()
+{
+    std::vector<line_break> due;
+    while (!breaks_.empty() && breaks_.front().at <= consumed_)
+    {
+        due.push_back(breaks_.front().item);
+        breaks_.pop_front();
+    }
+    return due;
+}
+
+void loopback_transport::complete_with(io_handler handler,
+                                       boost::system::error_code ec,
+                                       std::size_t count,
+                                       std::vector<line_break> items)
+{
+    auto executor = boost::asio::get_associated_executor(handler, executor_);
+    boost::asio::post(executor,
+                      [handler = std::move(handler), ec, count,
+                       items = std::move(items), sink = break_sink_]() mutable
+                      {
+                          handler(ec, count);
+                          // The same task, straight after the completion:
+                          // both only post to the endpoint's strand.
+                          if (sink)
+                              for (const line_break& item : items)
+                                  sink(item);
+                      });
 }
 
 void loopback_transport::set_control_line(control_line line, bool state)
@@ -193,6 +276,7 @@ void loopback_transport::close()
         if (!open_.exchange(false))
             return;
         buffer_.clear();
+        breaks_.clear();
     }
     finish_pending_read();
 }

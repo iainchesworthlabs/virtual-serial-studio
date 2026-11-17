@@ -135,14 +135,14 @@ TEST_CASE("studio: mock ports are scriptable")
     REQUIRE_EQ((*created)->stats().bytes_rx, std::uint64_t{0});
 }
 
-TEST_CASE("studio: every fault stops a fixture with an error")
+TEST_CASE("studio: every fault but a break stops a fixture with an error")
 {
     using namespace std::chrono_literals;
 
     const fault_kind faults[] = {
         fault_kind::parity,  fault_kind::framing,
-        fault_kind::overrun, fault_kind::break_condition,
-        fault_kind::hangup,  fault_kind::disconnect,
+        fault_kind::overrun, fault_kind::hangup,
+        fault_kind::disconnect,
     };
     for (const fault_kind fault : faults)
     {
@@ -2275,4 +2275,49 @@ TEST_CASE("studio: a COM number that was just freed is tried again")
     REQUIRE(!given_up);
     REQUIRE_EQ(given_up.error(), make_error_code(errc::already_exists));
     REQUIRE_EQ(calls, 1);
+}
+
+TEST_CASE("studio: a break at a fixture is a break of one character, in order with its data")
+{
+    using namespace std::chrono_literals;
+
+    studio app;
+    const auto fixture = app.create_mock_port("device");
+    const auto peer = app.create_mock_port("peer");
+    REQUIRE(fixture);
+    REQUIRE(peer);
+    REQUIRE(app.connect("device", "peer"));
+
+    event_recorder events;
+    app.engine().subscribe({}, [events](const endpoint_event& e)
+                           { events.record(e); });
+
+    const std::string before = "ab";
+    const std::string after = "cd";
+    REQUIRE(app.inject_data((*fixture)->id(), as_bytes(before)));
+    REQUIRE(wait_until(
+        [&] { return data_on(events, "peer", data_direction::tx) == before; },
+        2000ms));
+    REQUIRE(app.inject_fault((*fixture)->id(), fault_kind::break_condition));
+    REQUIRE(wait_until([&] { return events.count(event_kind::line_break) >= 2; },
+                       2000ms));
+    REQUIRE(app.inject_data((*fixture)->id(), as_bytes(after)));
+    REQUIRE(wait_until(
+        [&] { return data_on(events, "peer", data_direction::tx) == before + after; },
+        2000ms));
+
+    // The fixture is still open, and the break is one character long and not
+    // measured.  The peer was shown it, and the fixture counts it received.
+    REQUIRE_EQ((*fixture)->state(), endpoint_state::open);
+    REQUIRE_EQ((*fixture)->stats().breaks_rx, std::uint64_t{1});
+    REQUIRE(wait_until([&] { return (*peer)->stats().breaks_tx == 1; }, 2000ms));
+    for (const auto& event : events.snapshot())
+    {
+        if (event.kind != event_kind::line_break)
+            continue;
+        REQUIRE_EQ(event.phase, break_phase::complete);
+        REQUIRE(!event.measured);
+        REQUIRE_EQ(event.duration,
+                   (*fixture)->options().serial.character_duration());
+    }
 }

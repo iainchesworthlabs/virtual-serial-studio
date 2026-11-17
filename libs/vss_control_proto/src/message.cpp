@@ -149,6 +149,19 @@ bool read_u64(const json::object& object, std::string_view key,
     return item != nullptr && to_u64(*item, out);
 }
 
+/// A counter an older sender does not have: absent reads as zero, present
+/// must be a number.
+bool read_u64_or_zero(const json::object& object, std::string_view key,
+                      std::uint64_t& out) noexcept
+{
+    if (!object.contains(key))
+    {
+        out = 0;
+        return true;
+    }
+    return read_u64(object, key, out);
+}
+
 bool read_u32(const json::object& object, std::string_view key,
               std::uint32_t& out) noexcept
 {
@@ -609,6 +622,12 @@ json::object write_port(const port_entry& port)
     out["open"] = port.open;
     out["bytes_rx"] = port.bytes_rx;
     out["bytes_tx"] = port.bytes_tx;
+    // Written only when there is something, so a reader that does not know
+    // breaks sees the message it always saw.
+    if (port.breaks_rx != 0)
+        out["breaks_rx"] = port.breaks_rx;
+    if (port.breaks_tx != 0)
+        out["breaks_tx"] = port.breaks_tx;
     return out;
 }
 
@@ -624,7 +643,9 @@ bool read_port(const json::value& item, port_entry& out)
            read_text(object, "state", out.state) &&
            read_bool(object, "open", out.open) &&
            read_u64(object, "bytes_rx", out.bytes_rx) &&
-           read_u64(object, "bytes_tx", out.bytes_tx);
+           read_u64(object, "bytes_tx", out.bytes_tx) &&
+           read_u64_or_zero(object, "breaks_rx", out.breaks_rx) &&
+           read_u64_or_zero(object, "breaks_tx", out.breaks_tx);
 }
 
 json::object write_link(const link_entry& link)
@@ -635,6 +656,8 @@ json::object write_link(const link_entry& link)
     out["sources"] = text_list(link.sources);
     out["targets"] = text_list(link.targets);
     out["bytes"] = link.bytes;
+    if (link.breaks != 0)
+        out["breaks"] = link.breaks;
     return out;
 }
 
@@ -647,7 +670,8 @@ bool read_link(const json::value& item, link_entry& out)
            read_text(object, "mode", out.mode) &&
            read_text_list(object, "sources", out.sources) &&
            read_text_list(object, "targets", out.targets) &&
-           read_u64(object, "bytes", out.bytes);
+           read_u64(object, "bytes", out.bytes) &&
+           read_u64_or_zero(object, "breaks", out.breaks);
 }
 
 json::object write_token(const token_entry& token)

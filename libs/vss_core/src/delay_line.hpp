@@ -48,11 +48,12 @@ public:
     delay_line(const delay_line&) = delete;
     delay_line& operator=(const delay_line&) = delete;
 
-    /// Copies `data` and writes it to the target once its delay has passed.
-    /// Safe to call from any thread; calls from one thread keep their order.
-    /// When `visited` is set the line hands the chunk to its forward function
-    /// after the write, with that set.
-    void push(bytes_view data, visited_set visited = {});
+    /// Copies `item` and writes it to the target once its delay has passed.
+    /// A break is held and delivered in its place among the bytes, as the
+    /// bytes are.  Safe to call from any thread; calls from one thread keep
+    /// their order.  When `visited` is set the line hands the item to its
+    /// forward function after the write, with that set.
+    void push(const stream_item& item, visited_set visited = {});
 
     /// Discards what is waiting and refuses what comes later.  When it
     /// returns, the line has written its last byte to the target: a write
@@ -63,10 +64,10 @@ public:
     void close();
 
 private:
-    struct item
+    struct entry
     {
         time_point due;
-        byte_buffer data;
+        owned_item data;
         visited_set visited;
     };
 
@@ -88,7 +89,7 @@ private:
     std::mutex deliver_mutex_;
     std::mutex mutex_;
     bool closed_ = false;
-    std::deque<item> queue_;
+    std::deque<entry> queue_;
     time_point last_due_{};
     std::mt19937 random_;
 };

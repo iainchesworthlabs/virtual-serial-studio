@@ -297,6 +297,8 @@ port_entry summarise(const agent::port_summary& port)
     out.open = port.open;
     out.bytes_rx = port.bytes_rx;
     out.bytes_tx = port.bytes_tx;
+    out.breaks_rx = port.breaks_rx;
+    out.breaks_tx = port.breaks_tx;
     return out;
 }
 
@@ -310,6 +312,7 @@ link_entry summarise(const agent::link_summary& link)
     for (const endpoint_id target : link.targets)
         out.targets.push_back(port_id_text(target));
     out.bytes = link.bytes;
+    out.breaks = link.breaks;
     return out;
 }
 

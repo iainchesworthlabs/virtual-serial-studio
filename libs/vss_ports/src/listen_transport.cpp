@@ -538,6 +538,12 @@ public:
             notice_sink_ = std::move(sink);
     }
 
+    void set_break_sink(transport::break_sink sink)
+    {
+        std::lock_guard lock(read_mutex_);
+        break_sink_ = std::move(sink);
+    }
+
     /// Only the RFC 2217 role has control lines.
     bool has_lines() const noexcept { return serial_role(); }
 
@@ -629,6 +635,8 @@ private:
         /// Set once the client is closed and forgotten. Handlers that were
         /// already waiting for it find out here.
         bool dropped = false;
+        /// When this client turned break on, while it is on.
+        std::optional<time_point> break_since;
         /// Fires when the write in progress has made no progress for the
         /// write deadline. The generation tells a stale wait from the
         /// current one.
@@ -831,7 +839,22 @@ private:
         rfc2217::session& session = *slot;
         const auto fed = session.feed(
             std::string_view(peer->buffer.data(), count));
-        received_.insert(received_.end(), fed.data.begin(), fed.data.end());
+        // Bytes and breaks in the order the client sent them: a break waits
+        // for the bytes that came before it.
+        std::size_t taken = 0;
+        for (const auto& command : fed.breaks)
+        {
+            const std::size_t upto = std::min(command.at, fed.data.size());
+            received_.insert(received_.end(), fed.data.begin() +
+                                                  static_cast<std::ptrdiff_t>(taken),
+                             fed.data.begin() +
+                                 static_cast<std::ptrdiff_t>(upto));
+            taken = upto;
+            note_break(*peer, command.on);
+        }
+        received_.insert(received_.end(),
+                         fed.data.begin() + static_cast<std::ptrdiff_t>(taken),
+                         fed.data.end());
         if (!fed.reply.empty())
             enqueue(peer, std::make_shared<std::string>(fed.reply), true);
         if (fed.modem_state_requested)
@@ -856,6 +879,37 @@ private:
             std::lock_guard lock(read_mutex_);
             lines_dirty_ = true;
         }
+    }
+
+    /// A client turned break on or off.  The listener stamps both commands
+    /// with the clock and the break is the time between them, which includes
+    /// the delay of the network.  The break waits behind the bytes received
+    /// before it.
+    void note_break(client& peer, bool on)
+    {
+        const time_point now = clock_type::now();
+        line_break item;
+        item.measured = true;
+        if (on)
+        {
+            if (peer.break_since)
+                return;
+            peer.break_since = now;
+            item.phase = break_phase::begin;
+            item.start = now;
+        }
+        else
+        {
+            if (!peer.break_since)
+                return;
+            item.phase = break_phase::end;
+            item.start = *peer.break_since;
+            item.duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                now - *peer.break_since);
+            peer.break_since.reset();
+        }
+        break_marks_.push_back(
+            {consumed_ + received_.size(), item});
     }
 
     control_lines current_inputs() const
@@ -968,6 +1022,10 @@ private:
             return;
         VSS_PROFILE_ZONE("ports.tcp.drop");
         peer->dropped = true;
+        // A client that goes with its break on ends it.
+        const bool ended_break = peer->break_since.has_value();
+        if (ended_break)
+            note_break(*peer, false);
         boost::system::error_code ignored;
         peer->socket.close(ignored);
         peer->deadline.cancel();
@@ -983,6 +1041,8 @@ private:
         // The one that held the hub's write back may have been this one, or
         // the last.
         release_held();
+        if (ended_break)
+            deliver();
     }
 
     /// Completes the hub's write that is waiting for the clients, when they
@@ -1067,27 +1127,62 @@ private:
     {
         VSS_PROFILE_ZONE("ports.listen.deliver");
         std::optional<pending> taken;
+        transport::break_sink sink;
         {
             std::lock_guard lock(read_mutex_);
+            // A read stops at a break: the bytes behind it come with the next
+            // read, once the break has been reported.
+            std::size_t ahead = received_.size();
+            bool break_first = false;
+            if (!break_marks_.empty())
+            {
+                ahead = std::min<std::size_t>(
+                    ahead,
+                    static_cast<std::size_t>(break_marks_.front().at -
+                                             consumed_));
+                break_first = break_marks_.front().at <= consumed_;
+            }
             // A read with no bytes tells the endpoint that only the control
-            // lines changed.
-            if (pending_read_ && (!received_.empty() || lines_dirty_))
+            // lines changed, or that a break is the next thing there is.
+            if (pending_read_ && (ahead != 0 || lines_dirty_ || break_first))
             {
                 taken = std::move(pending_read_);
                 pending_read_.reset();
                 lines_dirty_ = false;
+                sink = break_sink_;
             }
         }
         if (taken)
         {
-            const std::size_t count =
-                std::min(taken->buffer.size(), received_.size());
+            std::size_t ahead = received_.size();
+            if (!break_marks_.empty())
+                ahead = std::min<std::size_t>(
+                    ahead, static_cast<std::size_t>(
+                               break_marks_.front().at - consumed_));
+            const std::size_t count = std::min(taken->buffer.size(), ahead);
             std::copy_n(received_.begin(), count,
                         static_cast<char*>(taken->buffer.data()));
             received_.erase(received_.begin(),
                             received_.begin() +
                                 static_cast<std::ptrdiff_t>(count));
-            complete(std::move(taken->handler), {}, count);
+            consumed_ += count;
+            std::vector<line_break> due;
+            while (!break_marks_.empty() && break_marks_.front().at <= consumed_)
+            {
+                due.push_back(break_marks_.front().item);
+                break_marks_.pop_front();
+            }
+            // The breaks go in the same task as the completion, after it, so
+            // they cannot overtake the bytes before them.
+            asio::post(executor_,
+                       [handler = std::move(taken->handler), count,
+                        due = std::move(due), sink = std::move(sink)]() mutable
+                       {
+                           handler({}, count);
+                           if (sink)
+                               for (const line_break& item : due)
+                                   sink(item);
+                       });
         }
         if (received_.size() < receive_limit)
         {
@@ -1238,6 +1333,18 @@ private:
     std::optional<pending> pending_read_;
     /// A client changed DTR, RTS or break and the endpoint has not heard.
     bool lines_dirty_ = false;
+    /// The breaks clients made, each behind the bytes received before it:
+    /// `at` counts the bytes ever delivered to the endpoint when the break
+    /// is due.  Touched on the strand, with `received_`.
+    struct break_mark
+    {
+        std::uint64_t at = 0;
+        line_break item;
+    };
+    std::deque<break_mark> break_marks_;
+    std::uint64_t consumed_ = 0;
+    /// Where breaks are reported; guarded by read_mutex_.
+    transport::break_sink break_sink_;
     bool closed_ = false;
     /// The allow list, parsed when the transport is opened.
     std::vector<allow_rule> rules_;
@@ -1368,6 +1475,11 @@ std::size_t listen_transport::refused_count() const noexcept
 void listen_transport::set_notice_sink(notice_sink sink)
 {
     state_->set_notice_sink(std::move(sink));
+}
+
+void listen_transport::set_break_sink(break_sink sink)
+{
+    state_->set_break_sink(std::move(sink));
 }
 
 } // namespace vss

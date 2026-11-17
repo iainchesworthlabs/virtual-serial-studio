@@ -333,6 +333,7 @@ unsigned session::set_control(unsigned request, feed_result& result)
     case 6:
         outputs_.set(control_line::break_signal, request == 5);
         result.outputs_changed = true;
+        result.breaks.push_back({result.data.size(), request == 5});
         break;
     case 7:
         answer = outputs_.dtr() ? 8U : 9U;

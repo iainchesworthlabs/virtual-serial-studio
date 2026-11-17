@@ -63,6 +63,15 @@ public:
 
     bool is_line_error(boost::system::error_code ec) const noexcept override;
 
+    /// A scripted fixture takes a break and says nothing; a real port has
+    /// no way to raise one in step with the bytes yet, so it does not
+    /// deliver one.
+    bool can_deliver_break() const noexcept override
+    {
+        return kind_ == endpoint_kind::mock;
+    }
+    void async_write_break(const line_break& item, io_handler handler) override;
+
     bool supports_control_lines() const noexcept override;
     void set_control_line(control_line line, bool state) override;
     control_lines lines() const override;

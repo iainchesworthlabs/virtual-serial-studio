@@ -416,6 +416,11 @@ public:
     void route_data(endpoint_id from, bytes_view data, time_point when);
     /// The same, for a chunk read now.
     void route_data(endpoint_id from, bytes_view data);
+    /// Routes a break that `from` received, in order with the bytes it
+    /// routed before it, over the same links and buses and by the same rules
+    /// as bytes (see #route_data).  The time of the break is its own
+    /// (#line_break::when).
+    void route_break(endpoint_id from, const line_break& item);
     void route_lines(endpoint_id from, control_lines lines);
     void publish(endpoint_event event);
 
@@ -441,6 +446,7 @@ private:
         std::atomic<std::uint64_t> bytes{0};
         std::atomic<std::uint64_t> messages{0};
         std::atomic<std::uint64_t> dropped{0};
+        std::atomic<std::uint64_t> breaks{0};
         /// Above zero while #set_link_options closes the delay lines it has
         /// replaced.  A chunk routed in that time is discarded, so none can
         /// take the new route and pass one that is still in an old line.
@@ -469,16 +475,19 @@ private:
     endpoint_id cycle_node(endpoint_id id) const;
     bool reaches(endpoint_id start,
                  const std::unordered_set<endpoint_id>& goals) const;
-    /// Routes a chunk that `from` read, or that a link wrote into `from`.
-    /// `visited` is null for a chunk read from `from`; for a chunk that is
-    /// carried on it holds every endpoint the chunk has been read from or
-    /// written to and every link it has crossed, and no route into one of
-    /// those endpoints or over one of those links is taken.
-    void route_chunk(endpoint_id from, bytes_view data, time_point when,
-                     const visited_chunk* visited);
+    /// Routes an item (bytes or a break) that `from` read, or that a link
+    /// wrote into `from`.  `visited` is null for an item read from `from`;
+    /// for an item that is carried on it holds every endpoint the item has
+    /// been read from or written to and every link it has crossed, and no
+    /// route into one of those endpoints or over one of those links is
+    /// taken.  Bytes and breaks take this one path, so the loop checks, the
+    /// monitor direction test, the owner arbitration and the bus line apply
+    /// to both.
+    void route_chunk(endpoint_id from, const stream_item& item,
+                     time_point when, const visited_chunk* visited);
     /// What the delay lines and the bus wires call after they have written a
     /// chunk into an endpoint, to carry it on.
-    std::function<void(endpoint_id, bytes_view,
+    std::function<void(endpoint_id, const stream_item&,
                        const std::shared_ptr<const visited_chunk>&, time_point)>
     make_forwarder();
     route_entry make_route(const link_record& link, endpoint_id from,
