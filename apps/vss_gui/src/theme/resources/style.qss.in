@@ -146,6 +146,8 @@ QPlainTextEdit, QTextEdit { border: 1px solid transparent; }
 
 /* tabs are pills on a track; docks are panes */
 QTabWidget::pane { border: 0; }
+/* The About tabs sit 24 px in, level with the page text; the tab's own 2 px margin makes up the rest. */
+QTabWidget#aboutTabs::tab-bar { left: 22px; }
 QTabBar { background: transparent; }
 QTabBar::tab { padding: 0 12px; min-height: 28px; margin: 2px; border: 0; border-radius: %radius.control%; background: transparent; color: %ink2%; }
 QTabBar::tab:selected { background: %fill%; color: %ink%; font-weight: 600; }
