@@ -724,3 +724,66 @@ TEST_CASE("relay: a monitor shows both directions of a port, once, in order")
     REQUIRE_EQ(fixture.ports[1].written(), std::string("T1T2"));
     REQUIRE_EQ(fixture.ports[2].written(), std::string("T1R1T2"));
 }
+
+// A monitor's direction says which bytes of its port it copies: what the
+// port's program writes (transmit), what links write into it (receive), or
+// both.  The monitor port never sends anything on.
+TEST_CASE("relay: a monitor copies the direction it was asked for")
+{
+    const auto run = [](monitor_direction direction)
+    {
+        bus_fixture fixture(3);
+        REQUIRE(fixture.hub->connect(fixture.id(0), fixture.id(1)));
+        link_options options;
+        options.direction = direction;
+        const auto link =
+            fixture.hub->monitor(fixture.id(0), fixture.id(2), options);
+        REQUIRE(link);
+        REQUIRE(fixture.hub->find_link(*link)->options.direction == direction);
+
+        fixture.ports[0].inject_read("T1");
+        std::this_thread::sleep_for(100ms);
+        fixture.ports[1].inject_read("R1");
+        std::this_thread::sleep_for(100ms);
+        fixture.ports[0].inject_read("T2");
+        fixture.ports[2].inject_read("X");
+        std::this_thread::sleep_for(200ms);
+
+        // The link itself is not affected.
+        REQUIRE_EQ(fixture.ports[1].written(), std::string("T1T2"));
+        REQUIRE_EQ(fixture.ports[0].written(), std::string("R1"));
+        return fixture.ports[2].written();
+    };
+
+    REQUIRE_EQ(run(monitor_direction::both), std::string("T1R1T2"));
+    REQUIRE_EQ(run(monitor_direction::transmit), std::string("T1T2"));
+    REQUIRE_EQ(run(monitor_direction::receive), std::string("R1"));
+}
+
+TEST_CASE("relay: only a monitor takes a direction, and it can be changed")
+{
+    bus_fixture fixture(3);
+    link_options options;
+    options.direction = monitor_direction::receive;
+    REQUIRE_EQ(fixture.hub->connect(fixture.id(0), fixture.id(1), options),
+               make_error_code(errc::unsupported));
+    REQUIRE_EQ(fixture.hub->redirect(fixture.id(0), fixture.id(1), options),
+               make_error_code(errc::unsupported));
+    REQUIRE_EQ(fixture.hub->bus({fixture.id(0), fixture.id(1)}, options),
+               make_error_code(errc::unsupported));
+
+    const auto link = fixture.hub->monitor(fixture.id(0), fixture.id(2));
+    REQUIRE(link);
+    auto changed = fixture.hub->find_link(*link)->options;
+    changed.direction = monitor_direction::transmit;
+    REQUIRE(fixture.hub->set_link_options(*link, changed));
+    fixture.ports[0].inject_read("T");
+    REQUIRE(settles_on(fixture, 2, "T"));
+
+    const auto plain = fixture.hub->connect(fixture.id(0), fixture.id(1));
+    REQUIRE(plain);
+    auto bad = fixture.hub->find_link(*plain)->options;
+    bad.direction = monitor_direction::receive;
+    REQUIRE_EQ(fixture.hub->set_link_options(*plain, bad),
+               make_error_code(errc::unsupported));
+}

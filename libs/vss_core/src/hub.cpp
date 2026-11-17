@@ -381,9 +381,9 @@ result<link_id> hub::redirect(endpoint_id from, endpoint_id to,
     return add_link(link_mode::one_way, {from}, {to}, options);
 }
 
-result<link_id> hub::monitor(endpoint_id from, endpoint_id to)
+result<link_id> hub::monitor(endpoint_id from, endpoint_id to,
+                             link_options options)
 {
-    link_options options;
     options.emulate_modem_lines = false;
     return add_link(link_mode::one_way, {from}, {to}, options);
 }
@@ -394,7 +394,8 @@ result<link_id> hub::bus(const std::vector<endpoint_id>& members,
     VSS_PROFILE_ZONE("hub.add_bus");
     if (members.size() < 2 || members.size() > max_bus_members)
         return make_error_code(errc::invalid_argument);
-    if (options.policy != merge_policy::interleave)
+    if (options.policy != merge_policy::interleave ||
+        options.direction != monitor_direction::both)
         return make_error_code(errc::unsupported);
     if (!valid_latency(options) || !valid_half_duplex(options.half_duplex))
         return make_error_code(errc::invalid_argument);
@@ -463,6 +464,11 @@ result<link_id> hub::add_link(link_mode mode,
         return make_error_code(errc::invalid_argument);
     // Only a bus is one wire that its members take turns on.
     if (options.half_duplex.enabled)
+        return make_error_code(errc::unsupported);
+    // Only a monitor chooses which bytes of its port it copies.
+    if (options.direction != monitor_direction::both &&
+        (mode != link_mode::one_way || sources.size() != 1 ||
+         options.emulate_modem_lines))
         return make_error_code(errc::unsupported);
 
     std::unique_lock lock(mutex_);
@@ -1238,6 +1244,11 @@ result<void> hub::set_link_options(link_id id, const link_options& options)
         // Only a bus is one wire that its members take turns on.
         if (!bus && options.half_duplex.enabled)
             return make_error_code(errc::unsupported);
+        // Only a monitor chooses which bytes of its port it copies.
+        if (options.direction != monitor_direction::both &&
+            (record->mode != link_mode::one_way ||
+             record->sources.size() != 1 || options.emulate_modem_lines))
+            return make_error_code(errc::unsupported);
 
         // A bus has no modem lines to switch or wire.
         link_options next = options;
@@ -1481,6 +1492,13 @@ void hub::route_chunk(endpoint_id from, bytes_view data, time_point when,
                 (visited->trace->seen(route.to) ||
                  std::find(visited->via.begin(), visited->via.end(),
                            route.link) != visited->via.end()))
+                continue;
+
+            // A monitor copies the bytes its port reads (transmit), the bytes
+            // links write into it (receive), or both.
+            if (record.options.direction != monitor_direction::both &&
+                (record.options.direction == monitor_direction::transmit) ==
+                    (visited != nullptr))
                 continue;
 
             // set_link_options is closing the lines it replaced.
