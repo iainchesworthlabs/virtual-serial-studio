@@ -3079,6 +3079,26 @@ Netzwerke: %5</translation>
             <source>&lt;a href="faults"&gt;Open line matrix and faults&lt;/a&gt;</source>
             <translation>&lt;a href="faults"&gt;Leitungsmatrix und Fehler öffnen&lt;/a&gt;</translation>
         </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="263" />
+            <source>Direction</source>
+            <translation>Richtung</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="281" />
+            <source>The monitor's direction could not be changed.</source>
+            <translation>Die Richtung des Monitors konnte nicht geändert werden.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="628" />
+            <source>This port is a monitor. It receives a copy of the traffic on %1, and what is written to it does not reach %1.</source>
+            <translation>Dieser Port ist ein Monitor. Er erhält eine Kopie des Datenverkehrs auf %1, und was darauf geschrieben wird, erreicht %1 nicht.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="639" />
+            <source>Open %1 in the Monitor</source>
+            <translation>%1 im Monitor öffnen</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -4638,6 +4658,11 @@ Netzwerke: %5</translation>
             <location filename="../src/panes/monitor_panel.cpp" line="800" />
             <source>%1 column is %2 px wide.</source>
             <translation>Spalte %1 ist %2 px breit.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="1127" />
+            <source>No traffic on %1 yet. %2.</source>
+            <translation>Auf %1 gibt es noch keinen Datenverkehr. %2.</translation>
         </message>
     </context>
     <context>
@@ -10145,6 +10170,21 @@ Netzwerke: %5</translation>
             <location filename="../src/shell/shell_window.cpp" line="3551" />
             <source>Don't save</source>
             <translation>Nicht speichern</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2487" />
+            <source>The Monitor shows only %1. Choose All ports in its port filter to see every port.</source>
+            <translation>Der Monitor zeigt nur %1. Wählen Sie im Port-Filter „Alle Ports“, um alle Ports zu sehen.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2490" />
+            <source>The Monitor shows %1.</source>
+            <translation>Der Monitor zeigt %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2511" />
+            <source>Decoding %1 as %2. What it finds is in Plugins, under %3.</source>
+            <translation>%1 wird als %2 dekodiert. Was gefunden wird, steht unter Plug-ins bei %3.</translation>
         </message>
     </context>
     <context>
@@ -20237,6 +20277,11 @@ Netzwerke: %5</translation>
             <source>COM1 and COM2 are kept for real ports. Choose COM3 or higher.</source>
             <translation>COM1 und COM2 bleiben echten Ports vorbehalten. Wählen Sie COM3 oder höher.</translation>
         </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="532" />
+            <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
+            <translation>Von %1 übernommen. Ein Monitor läuft mit der Geschwindigkeit des Ports, den er beobachtet.</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -20522,6 +20567,11 @@ Netzwerke: %5</translation>
             <source>Network port changed.</source>
             <translation>Netzwerkport geändert.</translation>
         </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="729" />
+            <source>The address of %1 is not known, so its settings cannot be shown.</source>
+            <translation>Die Adresse von %1 ist nicht bekannt, daher können die Einstellungen nicht angezeigt werden.</translation>
+        </message>
     </context>
     <context>
         <name>PaneHeader</name>
@@ -20720,6 +20770,11 @@ Netzwerke: %5</translation>
             <translation>
                 <numerusform>Diese Einstellungen für die %n verbundenen Port(s) verwenden</numerusform>
             </translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="434" />
+            <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
+            <translation>Von %1 übernommen. Ein Monitor läuft mit der Geschwindigkeit des Ports, den er beobachtet.</translation>
         </message>
     </context>
     <context>
@@ -24081,6 +24136,16 @@ From the plugin %2
 Aus dem Plug-in %2
 %3</translation>
         </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="357" />
+            <source>%1 cannot be placed yet. Standing in for a device needs the engine timeline, which this version of Studio does not have.</source>
+            <translation>%1 kann noch nicht platziert werden. Ein Gerät zu ersetzen braucht die Zeitleiste der Engine, die diese Version von Studio noch nicht hat.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="466" />
+            <source>%1 needs settings that are set in Plugins.</source>
+            <translation>%1 braucht Einstellungen, die unter Plug-ins vorgenommen werden.</translation>
+        </message>
     </context>
     <context>
         <name>PluginTrafficChip</name>
@@ -24441,6 +24506,82 @@ Aus dem Plug-in %2
         <message>
             <source>Reserved by Windows</source>
             <translation>Von Windows reserviert</translation>
+        </message>
+    </context>
+    <context>
+        <name>DecodeDialog</name>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="26" />
+            <source>Decode %1</source>
+            <translation>%1 dekodieren</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="27" />
+            <source>Shows the data on %1 as messages of a protocol, and reports what does not fit. Decoding only reads. It never changes or delays the data.</source>
+            <translation>Zeigt die Daten auf %1 als Nachrichten eines Protokolls und meldet, was nicht passt. Dekodieren liest nur. Die Daten werden nie verändert oder verzögert.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="41" />
+            <source>Protocol</source>
+            <translation>Protokoll</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="81" />
+            <source>Cancel</source>
+            <translation>Abbrechen</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="84" />
+            <source>Start decoding</source>
+            <translation>Dekodieren starten</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="108" />
+            <source>From the plugin %1.</source>
+            <translation>Vom Plug-in %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="110" />
+            <source>%1 will read the data that passes through %2.</source>
+            <translation>%1 liest die Daten, die durch %2 laufen.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="122" />
+            <source>Not available in this build</source>
+            <translation>In diesem Build nicht verfügbar</translation>
+        </message>
+    </context>
+    <context>
+        <name>MonitorDirection</name>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="21" />
+            <source>Both directions</source>
+            <translation>Beide Richtungen</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="24" />
+            <source>Transmit only</source>
+            <translation>Nur senden</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="26" />
+            <source>Receive only</source>
+            <translation>Nur empfangen</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="36" />
+            <source>Copies what the program on the port writes and what is written into the port.</source>
+            <translation>Kopiert, was das Programm am Port schreibt und was in den Port geschrieben wird.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="41" />
+            <source>Copies only what the program on the port writes.</source>
+            <translation>Kopiert nur, was das Programm am Port schreibt.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="45" />
+            <source>Copies only what is written into the port.</source>
+            <translation>Kopiert nur, was in den Port geschrieben wird.</translation>
         </message>
     </context>
 </TS>

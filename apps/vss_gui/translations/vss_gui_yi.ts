@@ -3079,6 +3079,26 @@ Networks: %5</source>
             <source>&lt;a href="faults"&gt;Open line matrix and faults&lt;/a&gt;</source>
             <translation>&lt;a href="faults"&gt;עפֿענען ליניע־מאַטריץ און דעפֿעקטן&lt;/a&gt;</translation>
         </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="263" />
+            <source>Direction</source>
+            <translation>ריכטונג</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="281" />
+            <source>The monitor's direction could not be changed.</source>
+            <translation>מען האט נישט געקענט ענדערן די ריכטונג פון דעם מאניטאר.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="628" />
+            <source>This port is a monitor. It receives a copy of the traffic on %1, and what is written to it does not reach %1.</source>
+            <translation>די פארט איז א מאניטאר. ער באקומט א קאפיע פון דעם טראפיק אויף %1, און וואס מען שרייבט אין אים קומט נישט צו %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="639" />
+            <source>Open %1 in the Monitor</source>
+            <translation>עפענען %1 אין דעם מאניטאר</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -4638,6 +4658,11 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_panel.cpp" line="800" />
             <source>%1 column is %2 px wide.</source>
             <translation>שפּאַלט %1 איז %2 px ברייט.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="1127" />
+            <source>No traffic on %1 yet. %2.</source>
+            <translation>נאך קיין טראפיק אויף %1. %2.</translation>
         </message>
     </context>
     <context>
@@ -10145,6 +10170,21 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="3551" />
             <source>Don't save</source>
             <translation>נישט אָפּהיטן</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2487" />
+            <source>The Monitor shows only %1. Choose All ports in its port filter to see every port.</source>
+            <translation>דער מאניטאר ווייזט נאר %1. קלויבט אויס „אלע פארטן“ אין זיין פילטער צו זען יעדן פארט.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2490" />
+            <source>The Monitor shows %1.</source>
+            <translation>דער מאניטאר ווייזט %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2511" />
+            <source>Decoding %1 as %2. What it finds is in Plugins, under %3.</source>
+            <translation>דעקאדירט %1 ווי %2. וואס עס געפינט זיך אין פּלאגינס, אונטער %3.</translation>
         </message>
     </context>
     <context>
@@ -20237,6 +20277,11 @@ Networks: %5</source>
             <source>COM1 and COM2 are kept for real ports. Choose COM3 or higher.</source>
             <translation>COM1 און COM2 זענען פֿאַרהאַלטן פֿאַר עכטע פּאָרטן. קלײַבט אױס COM3 אָדער העכער.</translation>
         </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="532" />
+            <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
+            <translation>גענומען פון %1. א מאניטאר ארבעט מיט דער גיכקייט פון דער פארט וואס ער קוקט אויף.</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -20522,6 +20567,11 @@ Networks: %5</source>
             <source>Network port changed.</source>
             <translation>נעץ־פּאָרט געביטן.</translation>
         </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="729" />
+            <source>The address of %1 is not known, so its settings cannot be shown.</source>
+            <translation>די אדרעס פון %1 איז נישט באקאנט, דעריבער קען מען נישט ווייזן זיינע סעטינגס.</translation>
+        </message>
     </context>
     <context>
         <name>PaneHeader</name>
@@ -20720,6 +20770,11 @@ Networks: %5</source>
             <translation>
                 <numerusform>נוצן די סעטינגס פֿאַר די %n פּאָרט(ן) וואָס זענען פֿאַרבונדן מיט דעם דאָזיקן</numerusform>
             </translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="434" />
+            <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
+            <translation>גענומען פון %1. א מאניטאר ארבעט מיט דער גיכקייט פון דער פארט וואס ער קוקט אויף.</translation>
         </message>
     </context>
     <context>
@@ -24081,6 +24136,16 @@ From the plugin %2
 פֿון דעם פּלאַגין %2
 %3</translation>
         </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="357" />
+            <source>%1 cannot be placed yet. Standing in for a device needs the engine timeline, which this version of Studio does not have.</source>
+            <translation>מען קען נאך נישט אוועקשטעלן %1. צו פארנעמען דעם פלאץ פון א מכשיר דארף מען די צייט-ליניע פון דעם מאטאר, וואס די ווערסיע פון Studio האט נאך נישט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="466" />
+            <source>%1 needs settings that are set in Plugins.</source>
+            <translation>%1 דארף סעטינגס וואס מען שטעלט אין פּלאגינס.</translation>
+        </message>
     </context>
     <context>
         <name>PluginTrafficChip</name>
@@ -24441,6 +24506,82 @@ From the plugin %2
         <message>
             <source>Reserved by Windows</source>
             <translation>פֿאַרהאַלטן דורך Windows</translation>
+        </message>
+    </context>
+    <context>
+        <name>DecodeDialog</name>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="26" />
+            <source>Decode %1</source>
+            <translation>דעקאדירן %1</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="27" />
+            <source>Shows the data on %1 as messages of a protocol, and reports what does not fit. Decoding only reads. It never changes or delays the data.</source>
+            <translation>ווייזט די דאטן אויף %1 ווי מעסעדזשעס פון א פראטאקאל און מעלדט וואס פאסט נישט. דעקאדירן לייענט נאר. עס ענדערט אדער פארשפעטיקט קיינמאל נישט די דאטן.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="41" />
+            <source>Protocol</source>
+            <translation>פראטאקאל</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="81" />
+            <source>Cancel</source>
+            <translation>אַנולירן</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="84" />
+            <source>Start decoding</source>
+            <translation>אנהייבן דעקאדירן</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="108" />
+            <source>From the plugin %1.</source>
+            <translation>פון דער פּלאגין %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="110" />
+            <source>%1 will read the data that passes through %2.</source>
+            <translation>%1 וועט לייענען די דאטן וואס גייען דורך %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="122" />
+            <source>Not available in this build</source>
+            <translation>נישט פֿאַראַנען אין דער דאָזיקער ווערסיע</translation>
+        </message>
+    </context>
+    <context>
+        <name>MonitorDirection</name>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="21" />
+            <source>Both directions</source>
+            <translation>ביידע ריכטונגען</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="24" />
+            <source>Transmit only</source>
+            <translation>נאר שיקן</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="26" />
+            <source>Receive only</source>
+            <translation>נאר באקומען</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="36" />
+            <source>Copies what the program on the port writes and what is written into the port.</source>
+            <translation>קאפירט וואס די פראגראם אויף דעם פארט שרייבט און וואס מען שרייבט אין דעם פארט.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="41" />
+            <source>Copies only what the program on the port writes.</source>
+            <translation>קאפירט נאר וואס די פראגראם אויף דעם פארט שרייבט.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="45" />
+            <source>Copies only what is written into the port.</source>
+            <translation>קאפירט נאר וואס מען שרייבט אין דעם פארט.</translation>
         </message>
     </context>
 </TS>

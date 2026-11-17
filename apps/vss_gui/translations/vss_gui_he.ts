@@ -3079,6 +3079,26 @@ Networks: %5</source>
             <source>&lt;a href="faults"&gt;Open line matrix and faults&lt;/a&gt;</source>
             <translation>&lt;a href="faults"&gt;פתיחת מטריצת הקווים והתקלות&lt;/a&gt;</translation>
         </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="263" />
+            <source>Direction</source>
+            <translation>כיוון</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="281" />
+            <source>The monitor's direction could not be changed.</source>
+            <translation>לא ניתן היה לשנות את כיוון המוניטור.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="628" />
+            <source>This port is a monitor. It receives a copy of the traffic on %1, and what is written to it does not reach %1.</source>
+            <translation>יציאה זו היא מוניטור. היא מקבלת עותק של התעבורה ב-%1, ומה שנכתב אליה אינו מגיע ל-%1.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="639" />
+            <source>Open %1 in the Monitor</source>
+            <translation>פתח את %1 במוניטור</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -4638,6 +4658,11 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_panel.cpp" line="800" />
             <source>%1 column is %2 px wide.</source>
             <translation>רוחב העמודה %1 הוא %2 px.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="1127" />
+            <source>No traffic on %1 yet. %2.</source>
+            <translation>עדיין אין תעבורה ב-%1. %2.</translation>
         </message>
     </context>
     <context>
@@ -10145,6 +10170,21 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="3551" />
             <source>Don't save</source>
             <translation>לא לשמור</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2487" />
+            <source>The Monitor shows only %1. Choose All ports in its port filter to see every port.</source>
+            <translation>המוניטור מציג רק את %1. בחרו ״כל היציאות״ במסנן היציאות כדי לראות את כולן.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2490" />
+            <source>The Monitor shows %1.</source>
+            <translation>המוניטור מציג את %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2511" />
+            <source>Decoding %1 as %2. What it finds is in Plugins, under %3.</source>
+            <translation>מפענח את %1 כ-%2. מה שנמצא מופיע בתוספים, תחת %3.</translation>
         </message>
     </context>
     <context>
@@ -20237,6 +20277,11 @@ Networks: %5</source>
             <source>COM1 and COM2 are kept for real ports. Choose COM3 or higher.</source>
             <translation>COM1 ו-COM2 שמורים ליציאות אמיתיות. בחרו COM3 ומעלה.</translation>
         </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="532" />
+            <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
+            <translation>נלקח מ-%1. מוניטור פועל במהירות של היציאה שהוא עוקב אחריה.</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -20522,6 +20567,11 @@ Networks: %5</source>
             <source>Network port changed.</source>
             <translation>יציאת הרשת שונתה.</translation>
         </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="729" />
+            <source>The address of %1 is not known, so its settings cannot be shown.</source>
+            <translation>הכתובת של %1 אינה ידועה, ולכן אי אפשר להציג את ההגדרות שלו.</translation>
+        </message>
     </context>
     <context>
         <name>PaneHeader</name>
@@ -20720,6 +20770,11 @@ Networks: %5</source>
             <translation>
                 <numerusform>להשתמש בהגדרות האלה עבור %n יציאות המקושרות ליציאה הזאת</numerusform>
             </translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="434" />
+            <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
+            <translation>נלקח מ-%1. מוניטור פועל במהירות של היציאה שהוא עוקב אחריה.</translation>
         </message>
     </context>
     <context>
@@ -24081,6 +24136,16 @@ From the plugin %2
 מהתוסף %2
 %3</translation>
         </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="357" />
+            <source>%1 cannot be placed yet. Standing in for a device needs the engine timeline, which this version of Studio does not have.</source>
+            <translation>עדיין אי אפשר למקם את %1. כדי לשמש תחליף להתקן נדרש ציר הזמן של המנוע, ובגרסה זו של Studio הוא אינו קיים.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="466" />
+            <source>%1 needs settings that are set in Plugins.</source>
+            <translation>%1 דורש הגדרות שמגדירים בתוספים.</translation>
+        </message>
     </context>
     <context>
         <name>PluginTrafficChip</name>
@@ -24441,6 +24506,82 @@ From the plugin %2
         <message>
             <source>Reserved by Windows</source>
             <translation>שמור על ידי Windows</translation>
+        </message>
+    </context>
+    <context>
+        <name>DecodeDialog</name>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="26" />
+            <source>Decode %1</source>
+            <translation>פענוח %1</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="27" />
+            <source>Shows the data on %1 as messages of a protocol, and reports what does not fit. Decoding only reads. It never changes or delays the data.</source>
+            <translation>מציג את הנתונים ב-%1 כהודעות של פרוטוקול ומדווח על מה שאינו מתאים. הפענוח רק קורא. הוא אף פעם לא משנה או מעכב את הנתונים.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="41" />
+            <source>Protocol</source>
+            <translation>פרוטוקול</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="81" />
+            <source>Cancel</source>
+            <translation>ביטול</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="84" />
+            <source>Start decoding</source>
+            <translation>התחל פענוח</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="108" />
+            <source>From the plugin %1.</source>
+            <translation>מהתוסף %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="110" />
+            <source>%1 will read the data that passes through %2.</source>
+            <translation>%1 יקרא את הנתונים שעוברים דרך %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="122" />
+            <source>Not available in this build</source>
+            <translation>לא זמין בגרסה זו</translation>
+        </message>
+    </context>
+    <context>
+        <name>MonitorDirection</name>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="21" />
+            <source>Both directions</source>
+            <translation>שני הכיוונים</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="24" />
+            <source>Transmit only</source>
+            <translation>שידור בלבד</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="26" />
+            <source>Receive only</source>
+            <translation>קליטה בלבד</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="36" />
+            <source>Copies what the program on the port writes and what is written into the port.</source>
+            <translation>מעתיק גם את מה שהתוכנית ביציאה כותבת וגם את מה שנכתב אל היציאה.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="41" />
+            <source>Copies only what the program on the port writes.</source>
+            <translation>מעתיק רק את מה שהתוכנית ביציאה כותבת.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="45" />
+            <source>Copies only what is written into the port.</source>
+            <translation>מעתיק רק את מה שנכתב אל היציאה.</translation>
         </message>
     </context>
 </TS>
