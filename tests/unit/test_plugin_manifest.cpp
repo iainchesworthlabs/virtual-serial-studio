@@ -13,9 +13,12 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <initializer_list>
 #include <optional>
 #include <source_location>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -2966,4 +2969,29 @@ TEST_CASE("plugin manifest: a document of very many keys is refused quickly")
     parsed = parse_manifest(text + ",\"key0\":1}", &detail);
     REQUIRE(parsed.has_error());
     REQUIRE(detail.find("given twice") != std::string::npos);
+}
+
+TEST_CASE("plugin manifest: the manifest of the Remote plugin is read")
+{
+    // tests/data/plugins/remote_plugin.json is the manifest of the Remote
+    // control and monitoring plugin as it is packaged, without its file list.
+    std::ifstream stream(
+        std::filesystem::path(VSS_TEST_DATA_DIR) / "plugins" /
+            "remote_plugin.json",
+        std::ios::binary);
+    std::ostringstream text;
+    text << stream.rdbuf();
+    REQUIRE(!text.str().empty());
+
+    std::string detail;
+    const auto read = parse_manifest(text.str(), &detail);
+    if (read.has_error())
+        fail_at("the Remote manifest was refused: " + detail);
+    REQUIRE(detail.empty());
+    const manifest& value = read.value();
+    REQUIRE_EQ(value.id, "com.virtualserialstudio.remote");
+    // An official plugin must have not_after, or Studio refuses to add it.
+    REQUIRE(value.not_after.has_value());
+    REQUIRE_EQ(value.extension_points.size(), std::size_t{1});
+    REQUIRE(value.extension_points[0].kind == extension_kind::adapter);
 }
