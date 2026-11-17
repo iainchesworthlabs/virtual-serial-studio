@@ -10,6 +10,7 @@
 #include <QFrame>
 #include <QString>
 
+class QGridLayout;
 class QLabel;
 class QPushButton;
 
@@ -53,6 +54,11 @@ public:
 
     QPushButton* action_button() const noexcept { return action_; }
     QString title_text() const;
+    /// The width this row's chip needs; 0 when it has none.
+    int chip_width() const;
+    /// Reserves the right-hand status column so chips of different rows share
+    /// one right edge.  Rows without a chip reserve it too.
+    void set_status_column_width(int width);
 
 Q_SIGNALS:
     void action_triggered();
@@ -61,6 +67,8 @@ private:
     void apply_style();
 
     spec row_;
+    QGridLayout* layout_ = nullptr;
+    QWidget* chip_ = nullptr;
     QLabel* icon_holder_ = nullptr;
     QLabel* glyph_ = nullptr;
     QLabel* title_ = nullptr;
