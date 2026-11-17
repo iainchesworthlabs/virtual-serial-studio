@@ -8,6 +8,7 @@
 
 #include "advanced/link_settings_dialog.hpp"
 #include "advanced/port_settings_dialog.hpp"
+#include "backend/com_number_uses.hpp"
 #include "backend/driver_error.hpp"
 #include "dialogs/network_endpoint.hpp"
 #include "topology/add_sheet.hpp"
@@ -51,6 +52,8 @@ CanvasController::CanvasController(StudioBackend& backend, UndoService& undo,
     sheet_ = [this](canvas_item item, const attempt_function& attempt)
     {
         topology::AddSheet sheet(item, backend_.ports(), parent_);
+        if (item == canvas_item::port && backend_.caps().com_numbers)
+            sheet.set_com_numbers(com_number_uses(backend_));
         sheet.set_attempt(attempt);
         sheet.set_setup_offer([this] { return setup_offered_; });
         bool set_up = false;

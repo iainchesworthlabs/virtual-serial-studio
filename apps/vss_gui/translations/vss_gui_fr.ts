@@ -1703,6 +1703,30 @@
             <source>Could not change the COM number</source>
             <translation>Impossible de changer le numéro COM</translation>
         </message>
+        <message>
+            <source>Windows restarts the port to change its number, so no program may have it open. The list holds free numbers. You can type another.</source>
+            <translation>Windows redémarre le port pour changer son numéro, donc aucun programme ne doit l'avoir ouvert. La liste contient les numéros libres. Vous pouvez en saisir un autre.</translation>
+        </message>
+        <message>
+            <source>Numbers in use</source>
+            <translation>Numéros utilisés</translation>
+        </message>
+        <message>
+            <source>%1: %2</source>
+            <translation>%1 : %2</translation>
+        </message>
+        <message>
+            <source>%1: this port now</source>
+            <translation>%1 : ce port actuellement</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255.</source>
+            <translation>Choisissez un nombre de 1 à 255.</translation>
+        </message>
+        <message>
+            <source>%1 is used by %2. Choose a free number.</source>
+            <translation>%1 est utilisé par %2. Choisissez un numéro libre.</translation>
+        </message>
     </context>
     <context>
         <name>CommandPalette</name>
@@ -20189,6 +20213,30 @@ Réseaux : %5</translation>
             <source>%1 name</source>
             <translation>Nom de %1</translation>
         </message>
+        <message>
+            <source>COM number</source>
+            <translation>Numéro COM</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>Automatique</translation>
+        </message>
+        <message>
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one. COM1 and COM2 are kept for real ports.</source>
+            <translation>Un programme qui ouvre un nom fixe tel que COM3 a besoin du même numéro à chaque fois. Automatique en choisit un libre. COM1 et COM2 sont réservés aux vrais ports.</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255, or Automatic.</source>
+            <translation>Choisissez un numéro de 1 à 255, ou Automatique.</translation>
+        </message>
+        <message>
+            <source>COM%1 is used by %2. Choose a free number.</source>
+            <translation>COM%1 est utilisé par %2. Choisissez un numéro libre.</translation>
+        </message>
+        <message>
+            <source>COM1 and COM2 are kept for real ports. Choose COM3 or higher.</source>
+            <translation>COM1 et COM2 sont réservés aux vrais ports. Choisissez COM3 ou plus.</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -24378,6 +24426,21 @@ Du module %2
             <location filename="../src/support/plugin_dialogs.cpp" line="878" />
             <source>Add</source>
             <translation>Ajouter</translation>
+        </message>
+    </context>
+    <context>
+        <name>com_use</name>
+        <message>
+            <source>Studio port %1</source>
+            <translation>Port Studio %1</translation>
+        </message>
+        <message>
+            <source>Windows device %1</source>
+            <translation>Périphérique Windows %1</translation>
+        </message>
+        <message>
+            <source>Reserved by Windows</source>
+            <translation>Réservé par Windows</translation>
         </message>
     </context>
 </TS>
