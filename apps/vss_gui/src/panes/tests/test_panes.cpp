@@ -1723,6 +1723,98 @@ TEST_CASE("fixture panel: start, stop and the degraded echo")
     REQUIRE_EQ(behaviours.config(*fixture).per_second, 20);
 }
 
+TEST_CASE("port menu: Decode as... shows with a decoder and says why when it "
+          "cannot be used")
+{
+    vss::gui::port_menu_state state;
+    state.advanced = true;
+    // No decoder: nothing is shown, as no plugin is advertised.
+    REQUIRE(!vss::gui::port_menu_labels(state).contains(
+        QStringLiteral("Decode as...")));
+    state.decode_shown = true;
+    state.decode_enabled = true;
+    REQUIRE(vss::gui::port_menu_labels(state).contains(
+        QStringLiteral("Decode as...")));
+    // Simple mode has no decoding.
+    state.advanced = false;
+    REQUIRE(!vss::gui::port_menu_labels(state).contains(
+        QStringLiteral("Decode as...")));
+
+    state.advanced = true;
+    state.decode_enabled = false;
+    state.decode_reason = QStringLiteral("Protocol is starting.");
+    QWidget owner;
+    QMenu menu(&owner);
+    vss::gui::add_port_menu_actions(&menu, &owner, state, [](auto) {});
+    QAction* decode = nullptr;
+    for (QAction* each : menu.actions())
+    {
+        if (each->text() == QStringLiteral("Decode as..."))
+            decode = each;
+    }
+    REQUIRE(decode != nullptr);
+    REQUIRE(!decode->isEnabled());
+    REQUIRE_EQ(decode->toolTip(), QStringLiteral("Protocol is starting."));
+}
+
+TEST_CASE("monitor: Open in monitor shows only that port, and the Inspector "
+          "says what a monitor port is")
+{
+    vss::gui::FakeStudioBackend backend;
+    const auto watched = backend.create_virtual_port(
+        QStringLiteral("watched"), vss::virtual_port_kind::pty, true);
+    const auto other = backend.create_virtual_port(
+        QStringLiteral("other"), vss::virtual_port_kind::pty, true);
+    const auto copy = backend.create_virtual_port(
+        QStringLiteral("copy"), vss::virtual_port_kind::pty, true);
+    REQUIRE(watched.has_value());
+    REQUIRE(other.has_value());
+    REQUIRE(copy.has_value());
+    REQUIRE(backend.monitor(*watched, *copy).has_value());
+
+    vss::gui::MonitorPanel monitor(backend);
+    monitor.set_advanced(true);
+    monitor.refresh_ports();
+    REQUIRE(monitor.show_only_port(*other));
+    QComboBox* port_filter = nullptr;
+    for (QComboBox* box : monitor.findChildren<QComboBox*>())
+    {
+        if (box->accessibleName() == QStringLiteral("Filter by port"))
+            port_filter = box;
+    }
+    REQUIRE(port_filter != nullptr);
+    REQUIRE_EQ(port_filter->currentText(), QStringLiteral("other"));
+    // A port with no traffic says so, by name, instead of showing nothing.
+    monitor.show();
+    QApplication::processEvents();
+    bool says_so = false;
+    for (QLabel* label : monitor.findChildren<QLabel*>())
+    {
+        if (label->text().startsWith(QStringLiteral("No traffic on other yet.")))
+            says_so = true;
+    }
+    REQUIRE(says_so);
+    REQUIRE(!monitor.show_only_port(0xFFFFFF));
+    // Simple mode has no filter, so nothing is narrowed.
+    monitor.set_advanced(false);
+    REQUIRE(!monitor.show_only_port(*other));
+
+    vss::gui::InspectorPanel inspector(backend);
+    inspector.set_selected_port(*copy);
+    QApplication::processEvents();
+    REQUIRE(!inspector.monitor_block()->isHidden());
+    REQUIRE(inspector.monitor_open_button()->text().contains(
+        QStringLiteral("watched")));
+    vss::endpoint_id asked = 0;
+    QObject::connect(&inspector, &vss::gui::InspectorPanel::monitor_requested,
+                     [&asked](vss::endpoint_id id) { asked = id; });
+    inspector.monitor_open_button()->click();
+    REQUIRE_EQ(asked, *watched);
+    inspector.set_selected_port(*other);
+    QApplication::processEvents();
+    REQUIRE(inspector.monitor_block()->isHidden());
+}
+
 TEST_CASE("port menu: Send, Monitor, repeat and the fixture actions")
 {
     vss::gui::port_menu_state plain;

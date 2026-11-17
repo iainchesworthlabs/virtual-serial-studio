@@ -721,9 +721,29 @@ void CanvasController::open_settings(const QVector<vss::endpoint_id>& ports)
                     Q_EMIT message(tr("Network port changed."));
                 return;
             }
+            // Serial settings mean nothing to a network port, so the generic
+            // dialog is not shown in its place.
+            Q_EMIT message(tr("The address of %1 is not known, so its "
+                              "settings cannot be shown.")
+                               .arg(port->name));
+            return;
         }
     }
     PortSettingsDialog dialog(backend_, ports, parent_);
+    // The copy end of a monitor link runs at the watched port's settings.
+    if (ports.size() == 1)
+    {
+        for (const link_view& link : backend_.links())
+        {
+            if (link.shape != link_shape::monitor ||
+                !link.targets.contains(ports.first()) ||
+                link.sources.isEmpty())
+                continue;
+            if (const auto source = backend_.port(link.sources.front()))
+                dialog.follow_port(source->name, source->serial);
+            break;
+        }
+    }
     connect(&dialog, &PortSettingsDialog::error_shown, this,
             [this](const QString& text) { Q_EMIT message(text); });
     if (dialog.exec() != QDialog::Accepted)

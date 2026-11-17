@@ -244,6 +244,18 @@ void LinkItem::mousePressEvent(QGraphicsSceneMouseEvent* event)
     QGraphicsItem::mousePressEvent(event);
 }
 
+void LinkItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
+{
+    if (event->button() == Qt::LeftButton)
+    {
+        if (callbacks_.double_clicked)
+            callbacks_.double_clicked(data_.id);
+        event->accept();
+        return;
+    }
+    QGraphicsItem::mouseDoubleClickEvent(event);
+}
+
 void LinkItem::hoverEnterEvent(QGraphicsSceneHoverEvent* event)
 {
     hovered_ = true;

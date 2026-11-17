@@ -35,6 +35,11 @@ QString monitor_label()
     return text("Open in monitor");
 }
 
+QString decode_label()
+{
+    return text("Decode as...");
+}
+
 QString generator_label(bool running)
 {
     return running ? text("Stop generator") : text("Start generator");
@@ -54,6 +59,8 @@ QStringList port_menu_labels(const port_menu_state& state)
     if (state.advanced)
         labels << repeat_label(state.repeating);
     labels << monitor_label();
+    if (state.advanced && state.decode_shown)
+        labels << decode_label();
     if (state.fixture)
         labels << generator_label(state.generating) << echo_label();
     return labels;
@@ -73,6 +80,13 @@ void add_port_menu_actions(QMenu* menu, QObject* context,
     if (state.advanced)
         add(repeat_label(state.repeating), port_menu_action::toggle_repeat);
     add(monitor_label(), port_menu_action::open_monitor);
+    if (state.advanced && state.decode_shown)
+    {
+        QAction* decode = add(decode_label(), port_menu_action::decode_as);
+        decode->setEnabled(state.decode_enabled);
+        if (!state.decode_enabled)
+            decode->setToolTip(state.decode_reason);
+    }
     if (!state.fixture)
         return;
 

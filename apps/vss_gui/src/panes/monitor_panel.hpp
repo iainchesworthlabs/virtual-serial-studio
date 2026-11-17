@@ -52,6 +52,10 @@ public:
     /// The shell's WP7 Log/JSON docks can replace the in-panel tabs.
     void set_show_advanced_tabs(bool show);
     void set_selected_port(vss::endpoint_id id);
+    /// Shows only the traffic of this port: the port filter is set to it. In
+    /// Simple mode there is no filter and nothing changes. Returns whether the
+    /// filter now shows the port.
+    bool show_only_port(vss::endpoint_id id);
     void refresh_ports();
     void handle_events(const event_batch& events);
 

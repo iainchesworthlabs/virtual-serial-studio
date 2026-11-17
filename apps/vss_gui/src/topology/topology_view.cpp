@@ -537,7 +537,7 @@ void TopologyView::rebuild_items()
             const qsizetype index = focus_index_of_port(id);
             if (index >= 0)
                 focus_at(index, true);
-            Q_EMIT inspect_requested(id);
+            open_item(id);
         };
         callbacks.hover_entered = [](vss::endpoint_id) {};
         callbacks.hover_left = [](vss::endpoint_id) {};
@@ -606,6 +606,14 @@ void TopologyView::rebuild_items()
             const qsizetype index = focus_index_of_link(id);
             if (index >= 0)
                 focus_at(index, true);
+        };
+        callbacks.double_clicked = [this](vss::link_id id)
+        {
+            setFocus(Qt::MouseFocusReason);
+            const qsizetype index = focus_index_of_link(id);
+            if (index >= 0)
+                focus_at(index, true);
+            open_link(id);
         };
         callbacks.hover_entered = [](vss::link_id) {};
         callbacks.hover_left = [](vss::link_id) {};
@@ -2899,6 +2907,44 @@ void TopologyView::open_wire_new_menu(const QPoint& viewport_position)
     menu->popup(viewport()->mapToGlobal(viewport_position));
 }
 
+void TopologyView::open_item(vss::endpoint_id id)
+{
+    // A double-click does what Settings in the menu does. Where the view is
+    // not being edited, or Settings is not available for the port (a network
+    // port in a build that cannot edit one), it inspects, as it always did.
+    const auto port =
+        std::find_if(ports_.begin(), ports_.end(),
+                     [id](const port_view& view) { return view.id == id; });
+    const bool network =
+        port != ports_.end() && (port->kind == vss::endpoint_kind::tcp ||
+                                 port->kind == vss::endpoint_kind::udp ||
+                                 port->kind == vss::endpoint_kind::rfc2217);
+    if (editing_ && !(network && !caps_.network_edit))
+        Q_EMIT settings_requested({id});
+    else
+        Q_EMIT inspect_requested(id);
+}
+
+void TopologyView::open_link(vss::link_id id)
+{
+    const auto link =
+        std::find_if(links_.begin(), links_.end(),
+                     [id](const link_view& view) { return view.id == id; });
+    if (link == links_.end())
+        return;
+    // A monitor link has no settings; what can be done with it is to read the
+    // port it watches.
+    if (link->shape == link_shape::monitor)
+    {
+        if (!link->sources.isEmpty())
+            Q_EMIT port_action_requested(link->sources.front(),
+                                         port_menu_action::open_monitor);
+        return;
+    }
+    if (editing_)
+        Q_EMIT link_settings_requested(id);
+}
+
 void TopologyView::populate_node_menu(QMenu* menu, vss::endpoint_id id)
 {
     VSS_PROFILE_ZONE("gui.topology.populate_node_menu");
@@ -3047,8 +3093,42 @@ void TopologyView::populate_link_menu(QMenu* menu, vss::link_id id)
     settings->setShortcutVisibleInContextMenu(true);
     if (link != links_.end() && link->shape == link_shape::monitor)
     {
+        // A monitor link only copies; its choices belong to the port it
+        // watches, so the menu offers those.
+        const vss::endpoint_id watched =
+            link->sources.isEmpty() ? 0 : link->sources.front();
         settings->setEnabled(false);
-        settings->setToolTip(tr("A monitor link has no settings."));
+        settings->setToolTip(
+            tr("A monitor link has no settings. It copies the traffic of %1. "
+               "Open that port in the Monitor to read it.")
+                .arg(names_.value(watched)));
+        if (watched != 0)
+        {
+            menu->addAction(
+                QCoreApplication::translate("PortMenu", "Open in monitor"),
+                this,
+                [this, watched]
+                {
+                    Q_EMIT port_action_requested(
+                        watched, port_menu_action::open_monitor);
+                });
+            const port_menu_state state =
+                menu_state_ ? menu_state_(watched) : port_menu_state{};
+            if (state.advanced && state.decode_shown)
+            {
+                QAction* decode = menu->addAction(
+                    QCoreApplication::translate("PortMenu", "Decode as..."),
+                    this,
+                    [this, watched]
+                    {
+                        Q_EMIT port_action_requested(
+                            watched, port_menu_action::decode_as);
+                    });
+                decode->setEnabled(state.decode_enabled);
+                if (!state.decode_enabled)
+                    decode->setToolTip(state.decode_reason);
+            }
+        }
     }
     if (link != links_.end() && link->shape == link_shape::one_way)
     {
