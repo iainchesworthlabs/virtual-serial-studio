@@ -23,14 +23,19 @@
 // - The recorded place is the one named like the port; a recording of one
 //   place is played onto any port.  A recording of several places that has
 //   none of that name is `refused`.
-// - A recording is played from memory: at most `max_timeline_bytes` bytes of
-//   traffic and `max_timeline_items` chunks.  A larger one is `refused`.
+// - A recording is read as it plays, a block ahead, so its size is not
+//   limited by memory.  A read that fails part way ends the replay and is
+//   counted.
 // - An instance plays one recording at a time.  A second `timeline.load`
 //   for it while one plays is answered `busy`.
 // - A replay ends by itself after its last chunk, when the instance stops or
 //   the plugin goes away.
-// - Not played, and not claimed to be: line changes, faults, and the bytes
-//   the recorded place sent (`W` lines).
+// - Played: the bytes the recorded place received (`R` lines) and, where the
+//   port follows control lines, the lines the device drove (CTS, DSR, DCD, RI)
+//   after each recorded change.  Not played, and counted: faults, line
+//   changes on a port that does not follow control lines, and the bytes the
+//   recorded place sent (`W` lines), which the program wrote and not the
+//   device.
 //
 // Nothing here blocks the service's strand: the file is read on the slow
 // executor, and a write is queued on the endpoint, no more than a window of
@@ -51,10 +56,9 @@
 namespace vss::plugin::host
 {
 
-/// The most bytes of traffic one replay holds in memory.  A choice.
-inline constexpr std::uint64_t max_timeline_bytes = 64ULL * 1024 * 1024;
-/// The most chunks one replay holds.  A choice.
-inline constexpr std::size_t max_timeline_items = 4'000'000;
+/// A replay reads ahead until this many bytes wait to be played, and reads
+/// at most this many bytes in one go.  A choice.
+inline constexpr std::uint64_t timeline_read_ahead_bytes = 1ULL << 20;
 /// The most bytes handed to an endpoint and not yet taken.  A choice.
 inline constexpr std::uint64_t max_timeline_window = 256ULL * 1024;
 
@@ -69,8 +73,16 @@ struct timeline_counts
     /// Chunks and bytes given to an endpoint.
     std::uint64_t chunks = 0;
     std::uint64_t bytes = 0;
-    /// Writes an endpoint failed.
+    /// Control line changes applied to a port.
+    std::uint64_t line_changes = 0;
+    /// Not replayed: faults, line changes the port cannot follow, and chunks
+    /// of bytes the recorded place sent.
+    std::uint64_t faults_skipped = 0;
+    std::uint64_t lines_skipped = 0;
+    std::uint64_t sent_skipped = 0;
+    /// Writes an endpoint failed, and replays that ended on a read error.
     std::uint64_t write_errors = 0;
+    std::uint64_t read_errors = 0;
     /// The most nanoseconds a chunk was written after its time.
     std::uint64_t latest_ns = 0;
 };
