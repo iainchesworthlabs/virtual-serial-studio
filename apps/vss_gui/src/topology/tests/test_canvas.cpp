@@ -233,6 +233,66 @@ TEST_CASE("canvas: select several with Ctrl+click, the band and Ctrl+A")
     REQUIRE_EQ(view.selected_ports().size(), 3);
 }
 
+TEST_CASE("canvas: a link keeps to the connector its wire was dragged from")
+{
+    canvas_fixture fixture;
+    topo::TopologyView view;
+    view.resize(1000, 700);
+    view.show();
+    view.set_editing(true);
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+
+    // Drag from the connector that does not face the other port.
+    const QRectF from = view.node_rect(fixture.lone);
+    const QRectF to = view.node_rect(fixture.tx);
+    const bool facing_right =
+        topo::facing_sides(from, to).from == topo::link_side::right;
+    const qreal edge = facing_right ? from.left() : from.right();
+    // The automatic layout moves the nodes once they are linked, so what the
+    // link must keep to is the side, not the old position.
+    const bool dragged_left = edge == from.left();
+    const QPoint handle =
+        view.mapFromScene(QPointF(edge, from.center().y()));
+    const QPoint target = view.mapFromScene(to.center());
+    mouse(view.viewport(), QEvent::MouseButtonPress, handle, Qt::LeftButton,
+          Qt::LeftButton);
+    REQUIRE(view.is_wiring());
+    mouse(view.viewport(), QEvent::MouseMove, target, Qt::NoButton,
+          Qt::LeftButton);
+    mouse(view.viewport(), QEvent::MouseButtonRelease, target, Qt::LeftButton,
+          Qt::NoButton);
+    QMenu* chooser = view.findChild<QMenu*>();
+    REQUIRE(chooser != nullptr);
+    chooser->actions().first()->trigger();
+    chooser->close();
+    QApplication::processEvents();
+
+    REQUIRE(fixture.backend.connect_ports(fixture.lone, fixture.tx, {}));
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+
+    vss::link_id made = 0;
+    for (const auto& link : fixture.backend.links())
+    {
+        if (link.sources.contains(fixture.lone) ||
+            link.targets.contains(fixture.lone))
+            made = link.id;
+    }
+    REQUIRE(made != 0);
+    const QPainterPath stroke = view.link_stroke(made);
+    const QPointF first = stroke.pointAtPercent(0.0);
+    const QPointF last = stroke.pointAtPercent(1.0);
+    const QRectF now = view.node_rect(fixture.lone);
+    const qreal edge_now = dragged_left ? now.left() : now.right();
+    const auto on_edge = [&](const QPointF& point)
+    {
+        return std::abs(point.x() - edge_now) < 1e-6 &&
+               std::abs(point.y() - now.center().y()) < 1e-6;
+    };
+    REQUIRE(on_edge(first) || on_edge(last));
+}
+
 TEST_CASE("canvas: a wire dragged from a handle opens the link chooser")
 {
     canvas_fixture fixture;
