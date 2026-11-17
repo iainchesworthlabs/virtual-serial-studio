@@ -88,6 +88,34 @@ flow_control_mode from_vs(vs::flow_control_mode value) noexcept
     return flow_control_mode::none;
 }
 
+/// Whether the port's settings are the server's to say. The port belongs to
+/// the server, which has the device: a client asks for the speed and framing
+/// (RFC 2217 SET-BAUDRATE and the others with the value zero) and does not
+/// set them, so a device that runs a 9600 bus is not made to run at Studio's
+/// default. An address that says `settings=own`, or that carries a speed,
+/// framing or flow control of its own, sets them as it says.
+bool takes_device_settings(const std::string& uri) noexcept
+{
+    if (uri.find("settings=own") != std::string::npos)
+        return false;
+    if (uri.find("settings=device") != std::string::npos)
+        return true;
+    const auto query = uri.find('?');
+    if (query == std::string::npos)
+        return true;
+    for (const std::string_view key :
+         {"baud=", "data=", "parity=", "stop=", "flow="})
+    {
+        for (std::size_t at = uri.find(key, query); at != std::string::npos;
+             at = uri.find(key, at + 1))
+        {
+            if (uri[at - 1] == '?' || uri[at - 1] == '&')
+                return false;
+        }
+    }
+    return true;
+}
+
 } // namespace
 
 bool is_rfc2217_client_uri(std::string_view uri) noexcept
@@ -143,6 +171,17 @@ struct rfc2217_client_transport::state
 
     mutable std::mutex mutex;
     serial_settings settings;
+    /// The server's port is its own: ask for its settings, do not set them.
+    bool device_mode = false;
+    /// A program on the other side of the link has chosen a format, which is
+    /// then sent to the server (#apply_peer_format).
+    bool peer_set = false;
+    /// What the server last said its port is set to.
+    line_format learned;
+    bool learned_baud = false;
+    bool learned_data = false;
+    bool learned_parity = false;
+    bool learned_stop = false;
     control_lines line_state;
     notice_sink notices;
     break_sink breaks;
@@ -154,6 +193,7 @@ struct rfc2217_client_transport::state
     std::array<char, 4096> buffer{};
     bool reading = false;
     bool configured = false;
+    bool sent_known = false;
     bool break_noticed = false;
     bool refusal_noticed = false;
     serial_settings sent;
@@ -246,22 +286,43 @@ struct rfc2217_client_transport::state
     {
         serial_settings wanted;
         control_lines lines;
+        bool ask = false;
         {
             std::lock_guard lock(mutex);
             wanted = settings;
             lines = line_state;
+            ask = device_mode && !peer_set;
         }
+        if (ask && configured)
+            return;
         std::string out;
-        if (!configured || wanted.baud_rate != sent.baud_rate)
-            out += session.set_baud_rate(wanted.baud_rate);
-        if (!configured || wanted.data_bits != sent.data_bits)
-            out += session.set_data_size(wanted.data_bits);
-        if (!configured || wanted.parity != sent.parity)
-            out += session.set_parity(wanted.parity);
-        if (!configured || wanted.stop_bits != sent.stop_bits)
-            out += session.set_stop_size(wanted.stop_bits);
-        if (!configured || wanted.flow_control != sent.flow_control)
-            out += session.set_flow_control(wanted.flow_control);
+        if (ask)
+        {
+            // Every setting is the request form: what the port is set to is
+            // for the server to say.
+            out += session.ask_baud_rate();
+            out += session.ask_data_size();
+            out += session.ask_parity();
+            out += session.ask_stop_size();
+            out += session.ask_flow_control();
+            sent_known = false;
+        }
+        else
+        {
+            const bool all = !configured || !sent_known;
+            if (all || wanted.baud_rate != sent.baud_rate)
+                out += session.set_baud_rate(wanted.baud_rate);
+            if (all || wanted.data_bits != sent.data_bits)
+                out += session.set_data_size(wanted.data_bits);
+            if (all || wanted.parity != sent.parity)
+                out += session.set_parity(wanted.parity);
+            if (all || wanted.stop_bits != sent.stop_bits)
+                out += session.set_stop_size(wanted.stop_bits);
+            if (!device_mode &&
+                (all || wanted.flow_control != sent.flow_control))
+                out += session.set_flow_control(wanted.flow_control);
+            sent_known = true;
+        }
         if (!configured)
         {
             out += session.set_dtr(lines.dtr());
@@ -354,6 +415,8 @@ struct rfc2217_client_transport::state
         received += fed.data;
         arrived += fed.data.size();
 
+        learn(fed.answers);
+
         if (fed.modem_state)
         {
             const unsigned value = *fed.modem_state;
@@ -372,6 +435,52 @@ struct rfc2217_client_transport::state
 
         deliver();
         read_more();
+    }
+
+    /// Keeps what the server said its port is set to. A program's format that
+    /// is on its way to the server is not overwritten by an older answer.
+    void learn(const rfc2217::client_feed::setting_answers& said)
+    {
+        if (!said.baud_rate && !said.data_bits && !said.parity &&
+            !said.stop_bits)
+            return;
+        std::lock_guard lock(mutex);
+        const line_format before = learned;
+        if (said.baud_rate)
+        {
+            learned.baud_rate = *said.baud_rate;
+            learned_baud = true;
+        }
+        if (said.data_bits)
+        {
+            learned.data_bits = *said.data_bits;
+            learned_data = true;
+        }
+        if (said.parity)
+        {
+            learned.parity = *said.parity;
+            learned_parity = true;
+        }
+        if (said.stop_bits)
+        {
+            learned.stop_bits = *said.stop_bits;
+            learned_stop = true;
+        }
+        if (device_mode && !peer_set)
+        {
+            if (said.baud_rate)
+                settings.baud_rate = *said.baud_rate;
+            if (said.data_bits)
+                settings.data_bits = *said.data_bits;
+            if (said.parity)
+                settings.parity = *said.parity;
+            if (said.stop_bits)
+                settings.stop_bits = *said.stop_bits;
+        }
+        // A read with no bytes tells the endpoint, which passes the format on
+        // to what is linked.
+        if (device_mode && !(learned == before))
+            lines_dirty = true;
     }
 
     /// Gives the endpoint what it is waiting for, in order: the bytes, then
@@ -680,6 +789,7 @@ rfc2217_client_transport::rfc2217_client_transport(
         wanted.exclusive = configuration.exclusive;
     }
     state_->target = configuration.target;
+    state_->device_mode = takes_device_settings(state_->uri);
     state_->settings = wanted;
     state_->line_state.set(control_line::dtr, true);
     state_->line_state.set(control_line::rts, true);
@@ -844,6 +954,8 @@ void rfc2217_client_transport::apply_peer_format(const line_format& format)
 {
     {
         std::lock_guard lock(state_->mutex);
+        if (format.baud_rate != 0 || format.framing_known)
+            state_->peer_set = true;
         if (format.baud_rate != 0)
             state_->settings.baud_rate = format.baud_rate;
         if (format.framing_known)
@@ -860,6 +972,16 @@ void rfc2217_client_transport::apply_peer_format(const line_format& format)
                        if (self->session.com_port_active() && self->configured)
                            self->configure();
                    });
+}
+
+std::optional<line_format> rfc2217_client_transport::peer_format() const
+{
+    std::lock_guard lock(state_->mutex);
+    if (!state_->device_mode || !state_->learned_baud ||
+        !state_->learned_data || !state_->learned_parity ||
+        !state_->learned_stop)
+        return std::nullopt;
+    return state_->learned;
 }
 
 serial_settings rfc2217_client_transport::settings() const

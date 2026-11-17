@@ -28,9 +28,13 @@ bool is_rfc2217_client_uri(std::string_view uri) noexcept;
 /// Studio connects to the address the user gave and to nothing else. The
 /// transport negotiates the COM-PORT option, and when the server agrees it
 ///
-/// - sends the baud rate, data bits, parity, stop bits and flow control
-///   (SET-BAUDRATE, SET-DATASIZE, SET-PARITY, SET-STOPSIZE, SET-CONTROL), and
-///   again whenever #apply_peer_format changes them;
+/// - asks for the baud rate, data bits, parity, stop bits and flow control the
+///   server's port has (the request forms of SET-BAUDRATE, SET-DATASIZE,
+///   SET-PARITY, SET-STOPSIZE and SET-CONTROL, with the value zero) and does
+///   not set them: the port belongs to the server. An address with
+///   `settings=own`, or with a baud, data, parity, stop or flow of its own,
+///   sends those instead. Either way, when a program on the other side of the
+///   link sets a format, #apply_peer_format sends it;
 /// - sets DTR and RTS on the server when the endpoint does (SET-CONTROL);
 /// - asks for the modem lines (SET-MODEMSTATE-MASK) and shows CTS, DSR, DCD
 ///   and RI as the endpoint's inputs from NOTIFY-MODEMSTATE;
@@ -95,6 +99,11 @@ public:
     /// the link (#transport::apply_peer_format), so the server's port runs as
     /// that program expects.
     void apply_peer_format(const line_format& format) override;
+
+    /// The speed and framing the server says its port has, once it has said
+    /// all of them. Only for a client that asks for them (see the class
+    /// comment): the link passes them on to what is linked.
+    std::optional<line_format> peer_format() const override;
 
     /// The settings the transport sends, as they are now.
     serial_settings settings() const;

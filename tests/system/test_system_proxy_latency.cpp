@@ -315,6 +315,63 @@ TEST_CASE("system: a network client keeps its connection when the device "
     REQUIRE_EQ((*client)->state(), endpoint_state::open);
 }
 
+
+namespace {
+
+/// A fake RFC 2217 server's side of one connection: it agrees to COM-PORT,
+/// as a real one does, and keeps what the client sends.
+class fake_server
+{
+public:
+    explicit fake_server(boost::asio::ip::tcp::socket& socket)
+        : socket_(socket)
+    {
+        socket_.non_blocking(true);
+    }
+
+    void agree()
+    {
+        // IAC DO COM-PORT, IAC WILL COM-PORT
+        write({'\xFF', '\xFD', '\x2C', '\xFF', '\xFB', '\x2C'});
+    }
+
+    void write(const std::string& bytes)
+    {
+        boost::asio::write(socket_, boost::asio::buffer(bytes));
+    }
+
+    /// Reads for `time` and returns everything the client sent.
+    const std::string& read_for(std::chrono::milliseconds time)
+    {
+        const auto until = clock_type::now() + time;
+        std::array<char, 512> buffer{};
+        while (clock_type::now() < until)
+        {
+            boost::system::error_code ec;
+            const std::size_t n =
+                socket_.read_some(boost::asio::buffer(buffer), ec);
+            if (!ec)
+                received_.append(buffer.data(), n);
+            else
+                std::this_thread::sleep_for(5ms);
+        }
+        return received_;
+    }
+
+private:
+    boost::asio::ip::tcp::socket& socket_;
+    std::string received_;
+};
+
+/// IAC SB COM-PORT <code> <value...> IAC SE
+std::string com_port_command(char code, const std::string& value)
+{
+    return std::string{'\xFF', '\xFA', '\x2C', code} + value +
+           std::string{'\xFF', '\xF0'};
+}
+
+} // namespace
+
 TEST_CASE("system: a network client asks the device for its serial settings "
           "and does not set them")
 {
@@ -333,34 +390,65 @@ TEST_CASE("system: a network client asks the device for its serial settings "
 
     boost::asio::ip::tcp::socket device(device_io);
     acceptor.accept(device);
+    fake_server server(device);
+    server.agree();
+    const std::string received = server.read_for(1s);
 
-    // What the client sends in its first moments.
-    std::string received;
-    const auto until = clock_type::now() + 1s;
-    device.non_blocking(true);
-    std::array<char, 512> buffer{};
-    while (clock_type::now() < until)
-    {
-        boost::system::error_code ec;
-        const std::size_t n = device.read_some(boost::asio::buffer(buffer), ec);
-        if (!ec)
-            received.append(buffer.data(), n);
-        else
-            std::this_thread::sleep_for(5ms);
-    }
-
-    // IAC SB COM-PORT <code> <value> ... : every setting is the request form.
-    const std::string baud = {'\xFF', '\xFA', '\x2C', '\x01'};
-    const auto at = received.find(baud);
-    REQUIRE(at != std::string::npos);
-    REQUIRE(received.size() >= at + 8);
-    for (std::size_t i = 4; i < 8; ++i)
-        REQUIRE_EQ(static_cast<int>(received[at + i]), 0);
+    // Every setting is the request form: the value zero.
+    const std::string zero4(4, '\0');
+    REQUIRE(received.find(com_port_command('\x01', zero4)) !=
+            std::string::npos);
     for (const char code : {'\x02', '\x03', '\x04', '\x05'})
-    {
-        const std::string head = {'\xFF', '\xFA', '\x2C', code};
-        const auto found = received.find(head);
-        REQUIRE(found != std::string::npos);
-        REQUIRE_EQ(static_cast<int>(received[found + 4]), 0);
-    }
+        REQUIRE(received.find(com_port_command(code, std::string(1, '\0'))) !=
+                std::string::npos);
+    // And no setting: not the 115200 of the defaults, nor any other rate.
+    REQUIRE(received.find(com_port_command('\x01', std::string{
+                '\x00', '\x01', '\xC2', '\x00'})) == std::string::npos);
+
+    // The device answers with what its port is, which the client takes as the
+    // format of the line.
+    server.write(com_port_command('\x65', std::string{
+                     '\x00', '\x00', '\x25', '\x80'}));
+    server.write(com_port_command('\x66', std::string(1, '\x08')));
+    server.write(com_port_command('\x67', std::string(1, '\x01')));
+    server.write(com_port_command('\x68', std::string(1, '\x01')));
+    REQUIRE(wait_until(
+        [&]
+        {
+            const auto format = (*client)->peer_format();
+            return format && format->baud_rate == 9600 &&
+                   format->data_bits == 8 &&
+                   format->parity == parity_mode::none &&
+                   format->stop_bits == stop_bits_mode::one;
+        },
+        3000ms));
+    REQUIRE_EQ((*client)->state(), endpoint_state::open);
+}
+
+TEST_CASE("system: a network client whose address says settings=own sets "
+          "them")
+{
+    boost::asio::io_context device_io;
+    boost::asio::ip::tcp::acceptor acceptor(
+        device_io, {boost::asio::ip::make_address("127.0.0.1"), 0});
+
+    studio app;
+    const auto client = app.attach_serial(
+        "device",
+        "rfc2217://127.0.0.1:" + std::to_string(acceptor.local_endpoint().port()) +
+            "?settings=own",
+        serial_settings{});
+    REQUIRE(client);
+
+    boost::asio::ip::tcp::socket device(device_io);
+    acceptor.accept(device);
+    fake_server server(device);
+    server.agree();
+    const std::string received = server.read_for(1s);
+
+    // 115200 is the Studio default: 0x0001C200.
+    REQUIRE(received.find(com_port_command('\x01', std::string{
+                '\x00', '\x01', '\xC2', '\x00'})) != std::string::npos);
+    REQUIRE(received.find(com_port_command('\x01', std::string(4, '\0'))) ==
+            std::string::npos);
 }

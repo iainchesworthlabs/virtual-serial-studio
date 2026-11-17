@@ -741,3 +741,35 @@ TEST_CASE("rfc2217 client: an address is told apart from the others")
     REQUIRE(!is_rfc2217_client_uri("rfc2217-listen://0.0.0.0:7001"));
     REQUIRE(!is_rfc2217_client_uri("tcp://lab:7001"));
 }
+
+TEST_CASE("rfc2217 client: the request forms ask and the answers are read")
+{
+    rfc2217::client_session session;
+    const std::string head{iac, sb, 44};
+    const std::string tail{iac, se};
+    REQUIRE_EQ(session.ask_baud_rate(),
+               head + std::string("\x01\x00\x00\x00\x00", 5) + tail);
+    REQUIRE_EQ(session.ask_data_size(), head + std::string("\x02\x00", 2) + tail);
+    REQUIRE_EQ(session.ask_parity(), head + std::string("\x03\x00", 2) + tail);
+    REQUIRE_EQ(session.ask_stop_size(), head + std::string("\x04\x00", 2) + tail);
+    REQUIRE_EQ(session.ask_flow_control(),
+               head + std::string("\x05\x00", 2) + tail);
+
+    const auto fed = session.feed(
+        head + std::string("\x65\x00\x00\x25\x80", 5) + tail +
+        head + std::string("\x66\x07", 2) + tail +
+        head + std::string("\x67\x03", 2) + tail +
+        head + std::string("\x68\x02", 2) + tail);
+    REQUIRE(fed.answers.baud_rate.has_value());
+    REQUIRE_EQ(*fed.answers.baud_rate, 9600U);
+    REQUIRE_EQ(*fed.answers.data_bits, 7U);
+    REQUIRE(*fed.answers.parity == parity_mode::even);
+    REQUIRE(*fed.answers.stop_bits == stop_bits_mode::two);
+
+    // A zero or an unknown code says nothing.
+    const auto none = session.feed(
+        head + std::string("\x65\x00\x00\x00\x00", 5) + tail +
+        head + std::string("\x67\x09", 2) + tail);
+    REQUIRE(!none.answers.baud_rate.has_value());
+    REQUIRE(!none.answers.parity.has_value());
+}
