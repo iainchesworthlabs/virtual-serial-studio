@@ -276,36 +276,29 @@ Effort is working days for one person including tests and docs. Pro here means i
 | 5 | Plugin API 1.2: `break` item, `fixture.break`, `events_break` capability, `timeline.load` break lines, recording line type, host capture point; docs of the reference | 7 | Medium. Public API | Host in Community. Diagnostics and replay plugin, and DMX512, LIN and Modbus RTU decoders, in Pro | Message round trip and fuzz; a test plugin that decodes a DMX frame from a driver port and a link; timeline with a break; old decoder still gets `line_error` |
 | 6 | Send panel break and length; inspector counters; copy and translations | 3 | Low | Community | GUI tests (`vss_gui --selftest`); keyboard and 200 percent text; both themes |
 
+Phase 2 also carries the per-write stamps of the [wire time plan](wire-timing-plan.md) (its G1), about 3 more days.
+
 Phase 1 can start now and does not depend on the driver. Phase 2 can run in parallel with 1 once the item type is merged.
 Phases 3 and 4 follow 1. Phase 5 follows 1 and 4. Phase 6 follows 1. All six are about 34 days. Phases 1, 2 and 4 are what
 DMX512 needs to see a break at all; LIN needs phase 3 for a real device; Modbus RTU gains from phase 4 only (nanosecond
 times).
 
-## Decisions for the owner
+## Decisions
 
-1. **Go for phase 2, a driver version bump to 5**, with no compatibility code, on the strength of the notes that no
-   driver or Studio has shipped beyond the owner's machines and guests. Confirm this is still true before the first
-   release candidate that carries it.
-2. **Where a break falls among the program's bytes:** the plan puts it where the program called `SetCommBreak`, in program
-   order, and delivers bytes written during the break after it ends. Real hardware does the same in principle. Say if the
-   other reading (the break goes out at once, ahead of queued bytes) is wanted.
-3. **`begin`, `end` and `complete`, or one item only?** The plan has all three so a long break shows while running. One
-   item at the end is simpler and delays what links and the log show.
-4. **A link option `carry_break`** (a schema addition, default on), or none. The plan recommends none and a break
-   that always goes where data goes.
-5. **The stray `0x00` from a real device's break**: drop it (the plan's choice, so the byte stream is clean and the
-   break is an item), or keep it and also send the item.
-6. **RFC 2217 length:** option 1 (one notice at the end, no length) or option 2. The plan recommends option 1.
-7. **A real device's unmeasured break** is given one character time as its length with `measured` false, or a length of
-   zero with `measured` false. The plan recommends one character time because a receiver would not call anything shorter a
-   break.
-8. **Capture format:** version 2 as above (`offset_ns` added, `offset_ms` kept, `.cap` gets a comment line), or a break
-   in `.jsonl` and `.csv` only and nothing in `.cap`.
-9. **Plugin API 1.2 and `recording_format`:** accept the API version bump and the `events_break` capability, and say
-   whether a recording with a break line may stay `recording_format` 1 if the reader skips unknown lines (decided from
-   `recording.cpp` in phase 5) or must be 2.
-10. **Pro boundary:** the host side of phase 5 is in this repository and the plugins are Pro. Confirm the DMX512, LIN and
-    Modbus RTU decoders are Pro work and not community.
-11. **Out of scope, to be confirmed:** delivering bytes to a driver port on a gap, holding bytes back for the length of a
-    break at the receiving program, per-write stamps from the driver, and an RFC 2217 client in Studio. Each needs its
-    own plan.
+The owner settled these on 17 November 2026. Each follows the recommendation above.
+
+1. **Driver version 5, no compatibility code.** Approved. Nothing has shipped beyond the owner's machines and guests.
+2. **Order with the program's bytes:** a break falls where the program called `SetCommBreak`, and bytes written during it
+   follow the end. Approved.
+3. **Items:** `begin`, `end` and `complete`. Approved.
+4. **No `carry_break` link option.** A break always goes where data goes.
+5. **The stray `0x00` of a real device's break is dropped**, and the break is the item.
+6. **RFC 2217:** one notice at the end, with no length.
+7. **An unmeasured break** has one character time as its length, with `measured` false.
+8. **Capture format version 2** as in section 5, with `.cap` getting a comment line.
+9. **Plugin API 1.2 and `events_break`.** Whether `recording_format` stays 1 is decided in phase 5 from how the reader
+   treats an unknown line type.
+10. **DMX512, LIN and Modbus RTU decoders are Pro.** The host side is in this repository.
+11. **Gap delivery, holding bytes back after a break, per-write stamps and an RFC 2217 client are not left out.** They are
+    planned in [wire time and gap delivery](wire-timing-plan.md). The per-write stamps share the driver version 5 with phase 2
+    here, so phase 2 is built with that plan's G1.
