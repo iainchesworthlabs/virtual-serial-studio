@@ -57,13 +57,14 @@ TEST_CASE("wire time: a character takes its real bits")
                clock_type::duration(11ms));
     REQUIRE_EQ(wire_time(1000, {7, parity_mode::odd, stop_bits_mode::two}, 1),
                clock_type::duration(11ms));
-    REQUIRE_EQ(
-        wire_time(1000, {5, parity_mode::none, stop_bits_mode::one_point_five},
-                  1),
-        clock_type::duration(7500us));
+    REQUIRE_EQ(wire_time(1000,
+                         {5, parity_mode::none, stop_bits_mode::one_point_five},
+                         1),
+               clock_type::duration(7500us));
     REQUIRE_EQ(wire_time(1000, {8, parity_mode::mark, stop_bits_mode::two}, 4),
                clock_type::duration(48ms));
-    REQUIRE_EQ(wire_time(9600, wire_framing{}, 96), clock_type::duration(100ms));
+    REQUIRE_EQ(wire_time(9600, wire_framing{}, 96),
+               clock_type::duration(100ms));
     REQUIRE_EQ(wire_time(0, wire_framing{}, 5), clock_type::duration(0));
     REQUIRE_EQ(wire_time(1000, wire_framing{}, 0), clock_type::duration(0));
 }
@@ -82,8 +83,8 @@ TEST_CASE("wire time: framing text reads and writes")
         REQUIRE_EQ(to_text(*framing), std::string(text));
     }
     REQUIRE(parse_framing("8e1").has_value());
-    for (const char* text : {"", "8", "8N", "9N1", "4N1", "8X1", "8N3", "8N1.6",
-                             "8N1 ", "NN1"})
+    for (const char* text :
+         {"", "8", "8N", "9N1", "4N1", "8X1", "8N3", "8N1.6", "8N1 ", "NN1"})
         REQUIRE(!parse_framing(text).has_value());
 }
 
@@ -149,8 +150,7 @@ TEST_CASE("pacer: runs take the larger of the accuracy and one character")
     // little over 22 ms.  With 500 us accuracy a run holds 11 slots.
     wire_pacer pacer;
     const wire_framing dmx{8, parity_mode::none, stop_bits_mode::two};
-    const auto runs =
-        pacer.plan_bytes(at(0ms), 513, rate(250000, dmx), 500us);
+    const auto runs = pacer.plan_bytes(at(0ms), 513, rate(250000, dmx), 500us);
     REQUIRE_EQ(runs.size(), std::size_t{47});
     std::size_t total = 0;
     for (const auto& run : runs)
@@ -181,8 +181,7 @@ TEST_CASE("pacer: a break holds the wire for its length")
 {
     wire_pacer pacer;
     // A complete break of 12 ms (measured), then a byte due at once.
-    REQUIRE(pacer.plan_break(at(0ms), true, true, 12ms, rate(1000)) ==
-            at(0ms));
+    REQUIRE(pacer.plan_break(at(0ms), true, true, 12ms, rate(1000)) == at(0ms));
     REQUIRE(pacer.free_at() == at(12ms));
     const auto after = pacer.plan_bytes(at(0ms), 1, rate(1000), 100s);
     REQUIRE(after[0].release == at(12ms));
@@ -210,8 +209,7 @@ TEST_CASE("pacer: a break that was not measured is one character long")
 TEST_CASE("pacer: the begin of a break holds nothing")
 {
     wire_pacer pacer;
-    REQUIRE(pacer.plan_break(at(0ms), false, true, 0ms, rate(1000)) ==
-            at(0ms));
+    REQUIRE(pacer.plan_break(at(0ms), false, true, 0ms, rate(1000)) == at(0ms));
     REQUIRE(pacer.free_at() == at(0ms));
     // The end carries the length.
     pacer.plan_break(at(30ms), true, true, 30ms, rate(1000));
@@ -258,8 +256,8 @@ struct source_port
 
     void bytes(const std::string& text) const
     {
-        transport->inject(bytes_view(
-            reinterpret_cast<const byte*>(text.data()), text.size()));
+        transport->inject(bytes_view(reinterpret_cast<const byte*>(text.data()),
+                                     text.size()));
     }
 
     void make_break(std::chrono::nanoseconds length) const
@@ -359,9 +357,8 @@ TEST_CASE("wire timing: a long write arrives over the time a wire takes")
     // Five bytes at 10 ms each, and a sixth written at once after them.
     from.bytes("ABCDE");
     from.bytes("F");
-    REQUIRE(wait_until([&] { return seen.text_by(to.endpoint->id()) ==
-                                    "ABCDEF"; },
-                       5000ms));
+    REQUIRE(wait_until(
+        [&] { return seen.text_by(to.endpoint->id()) == "ABCDEF"; }, 5000ms));
     const auto arrivals = seen.written_by(to.endpoint->id());
     REQUIRE(arrivals.size() >= 2);
     // The sixth left the wire no sooner than 50 ms after the first began.
@@ -384,9 +381,9 @@ TEST_CASE("wire timing: a break holds the bytes after it for its length")
     from.bytes("A");
     from.make_break(60ms);
     from.bytes("B");
-    REQUIRE(wait_until([&] { return seen.text_by(to.endpoint->id()) ==
-                                    "A[break]B"; },
-                       5000ms));
+    REQUIRE(wait_until(
+        [&] { return seen.text_by(to.endpoint->id()) == "A[break]B"; },
+        5000ms));
     const auto arrivals = seen.written_by(to.endpoint->id());
     // The byte took 10 ms, the break 60: B is no sooner than 70 ms after A.
     const auto a = arrivals.front().when;
@@ -405,9 +402,8 @@ TEST_CASE("wire timing: the format the sender sets is used before the option")
     REQUIRE(hub->redirect(from.endpoint->id(), to.endpoint->id(),
                           paced(1'000'000)));
     from.bytes("ABCDEFGH");
-    REQUIRE(wait_until([&] { return seen.text_by(to.endpoint->id()) ==
-                                    "ABCDEFGH"; },
-                       5000ms));
+    REQUIRE(wait_until(
+        [&] { return seen.text_by(to.endpoint->id()) == "ABCDEFGH"; }, 5000ms));
 }
 
 TEST_CASE("wire timing: with no rate the link is not paced and says so once")
@@ -424,9 +420,8 @@ TEST_CASE("wire timing: with no rate the link is not paced and says so once")
 
     from.bytes("one");
     from.bytes("two");
-    REQUIRE(wait_until([&] { return seen.text_by(to.endpoint->id()) ==
-                                    "onetwo"; },
-                       5000ms));
+    REQUIRE(wait_until(
+        [&] { return seen.text_by(to.endpoint->id()) == "onetwo"; }, 5000ms));
     REQUIRE_EQ(seen.notes_containing("no rate for this link"), std::size_t{1});
     const auto info = hub->find_link(*link);
     REQUIRE(info);
@@ -496,9 +491,9 @@ TEST_CASE("wire timing: values out of range and a bus are refused")
         make_error_code(errc::invalid_argument));
 
     // A bus has a wire of its own.
-    REQUIRE_EQ(hub->bus({a.endpoint->id(), b.endpoint->id()}, paced(9600))
-                   .error(),
-               make_error_code(errc::unsupported));
+    REQUIRE_EQ(
+        hub->bus({a.endpoint->id(), b.endpoint->id()}, paced(9600)).error(),
+        make_error_code(errc::unsupported));
     const auto bus = hub->bus({a.endpoint->id(), b.endpoint->id()});
     REQUIRE(bus);
     REQUIRE_EQ(hub->set_link_options(*bus, paced(9600)).error(),
