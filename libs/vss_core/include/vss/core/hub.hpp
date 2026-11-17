@@ -131,8 +131,10 @@ public:
     result<link_id> redirect(endpoint_id from, endpoint_id to,
                              link_options options = {});
 
-    /// Passive one-way copy, for a monitor port.
-    result<link_id> monitor(endpoint_id from, endpoint_id to);
+    /// Passive one-way copy, for a monitor port.  `options.direction` says
+    /// which bytes of `from` it copies; the modem lines are always off.
+    result<link_id> monitor(endpoint_id from, endpoint_id to,
+                            link_options options = {});
 
     /// A shared multi-drop bus: every byte a member publishes goes to every
     /// other member and never back to its sender, as on an RS-485 pair.

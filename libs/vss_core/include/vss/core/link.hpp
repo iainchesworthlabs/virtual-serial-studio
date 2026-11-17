@@ -115,6 +115,13 @@ struct link_options
     /// `errc::unsupported` on any link but a bus.
     half_duplex_options half_duplex;
 
+    /// For a monitor (a one-way link of one source without modem lines): which
+    /// bytes of the monitored port it copies.  `both` (the default) copies
+    /// what the port's program writes and what links write into the port,
+    /// `transmit` the first and `receive` the second.  `errc::unsupported`
+    /// on any other link.
+    monitor_direction direction = monitor_direction::both;
+
     bool has_latency() const noexcept
     {
         return delay_ms != 0 || jitter_ms != 0;
