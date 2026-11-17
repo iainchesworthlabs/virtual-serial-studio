@@ -916,6 +916,21 @@ Inspector is an Advanced pane.
 Some of these depend on what the engine can do; see
 [what this build cannot do](#what-this-build-cannot-do).
 
+## Links do not pass data on
+
+A link copies what its first port **reads** to its second port. What it writes
+into a port is not read from that port again, so two links that meet at one port
+do not make a path between their far ends. If port 1 has a two-way link to port
+4, and port 4 has a two-way link to a network server, bytes from port 1 are
+written to port 4 and stop there. They do not reach the server. The same holds
+when port 4 is also on a bus: the bus carries what a program reads from port 4,
+not what the link to port 1 wrote into it.
+
+To send one port's bytes to several places, link that port to each place: a
+**split** from port 1 to the server and to the other ports, or one two-way link
+for each. To watch the traffic, add a monitor link from the port, and the
+monitor port gets a copy of everything the link carries.
+
 ## Choosing a COM number (Windows)
 
 Many older programs open one fixed port, `COM3` for example, and keep it in a
