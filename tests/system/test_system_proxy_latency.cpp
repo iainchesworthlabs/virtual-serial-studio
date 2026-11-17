@@ -116,7 +116,7 @@ TEST_CASE("system: a client linked to an RFC 2217 server carries the frames of "
     // that sends a small frame of its own twenty times a second and answers
     // each poll at once. The application is a TCP client of the RFC 2217
     // server and sends a poll with each frame.
-    constexpr int frames = 200;
+    constexpr std::size_t frames = 200;
     constexpr auto frame_gap = 20ms;
 
     boost::asio::io_context device_io;
@@ -151,9 +151,9 @@ TEST_CASE("system: a client linked to an RFC 2217 server carries the frames of "
     std::vector<clock_type::time_point> poll_sent(frames);
     std::vector<clock_type::time_point> poll_got(frames);
     std::vector<clock_type::time_point> answer_got(frames);
-    std::atomic<int> frames_seen{0};
-    std::atomic<int> answers_seen{0};
-    std::atomic<int> polls_seen{0};
+    std::atomic<std::size_t> frames_seen{0};
+    std::atomic<std::size_t> answers_seen{0};
+    std::atomic<std::size_t> polls_seen{0};
 
     // The device answers each poll as soon as it has it.
     std::thread device_reader(
@@ -172,9 +172,11 @@ TEST_CASE("system: a client linked to an RFC 2217 server carries the frames of "
                 scanner.feed(buffer.data(), n,
                              [&](char, int number)
                              {
-                                 if (number < 0 || number >= frames)
+                                 if (number < 0 ||
+                                     static_cast<std::size_t>(number) >= frames)
                                      return;
-                                 poll_got[number] = at;
+                                 poll_got[static_cast<std::size_t>(number)] =
+                                     at;
                                  boost::asio::write(
                                      device, boost::asio::buffer(numbered_frame(
                                                  '[', ']', number, 6)));
@@ -201,10 +203,12 @@ TEST_CASE("system: a client linked to an RFC 2217 server carries the frames of "
                     buffer.data(), n,
                     [&](char open, int number)
                     {
-                        if (number < 0 || number >= frames)
+                        if (number < 0 ||
+                            static_cast<std::size_t>(number) >= frames)
                             return;
-                        auto& slot =
-                            open == '<' ? frame_got[number] : answer_got[number];
+                        const auto index = static_cast<std::size_t>(number);
+                        auto& slot = open == '<' ? frame_got[index]
+                                                 : answer_got[index];
                         if (slot != clock_type::time_point{})
                             return;
                         slot = at;
@@ -214,17 +218,21 @@ TEST_CASE("system: a client linked to an RFC 2217 server carries the frames of "
         });
 
     const auto begin = clock_type::now();
-    for (int i = 0; i < frames; ++i)
+    for (std::size_t i = 0; i < frames; ++i)
     {
-        std::this_thread::sleep_until(begin + frame_gap * i);
+        std::this_thread::sleep_until(
+            begin + frame_gap * static_cast<int>(i));
+        const int number = static_cast<int>(i);
         device_sent[i] = clock_type::now();
         boost::asio::write(
             device,
-            boost::asio::buffer(numbered_frame('<', '>', i, 6 + i % 15)));
+            boost::asio::buffer(numbered_frame(
+                '<', '>', number, 6 + (i % 15))));
         poll_sent[i] = clock_type::now();
         boost::asio::write(
             application,
-            boost::asio::buffer(numbered_frame('<', '>', i, 6 + (i * 7) % 15)));
+            boost::asio::buffer(numbered_frame(
+                '<', '>', number, 6 + ((i * 7) % 15))));
     }
 
     const auto deadline = clock_type::now() + 5s;
@@ -243,7 +251,7 @@ TEST_CASE("system: a client linked to an RFC 2217 server carries the frames of "
     REQUIRE_EQ(answers_seen.load(), frames);
 
     std::vector<double> forward, poll_forward, round_trip, gaps;
-    for (int i = 0; i < frames; ++i)
+    for (std::size_t i = 0; i < frames; ++i)
     {
         forward.push_back(elapsed_ms(device_sent[i], frame_got[i]));
         poll_forward.push_back(elapsed_ms(poll_sent[i], poll_got[i]));
