@@ -189,6 +189,9 @@ void endpoint::write_break(const line_break& item, write_handler handler)
 void endpoint::start_break_write(const std::shared_ptr<pending_write>& write,
                                  std::uint64_t generation)
 {
+    const std::optional<line_break>& item = write->item;
+    if (!item)
+        return;
     const auto current = active_transport();
     auto self = shared_from_this();
     if (!current->can_deliver_break())
@@ -206,7 +209,7 @@ void endpoint::start_break_write(const std::shared_ptr<pending_write>& write,
         return;
     }
     current->async_write_break(
-        *write->item,
+        *item,
         [self, write, generation](boost::system::error_code ec, std::size_t)
         {
             boost::asio::post(self->strand_,
@@ -223,6 +226,8 @@ void endpoint::on_break_written(const std::shared_ptr<pending_write>& write,
                                 std::uint64_t generation,
                                 boost::system::error_code ec)
 {
+    if (!write->item)
+        return;
     const line_break item = *write->item;
     const bool undelivered = ec == make_error_code(errc::unsupported);
     if (undelivered)

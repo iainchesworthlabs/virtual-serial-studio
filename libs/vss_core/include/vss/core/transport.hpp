@@ -157,7 +157,7 @@ public:
     /// ends it, and a `complete` is both, lasting `item.duration`.
     virtual void async_write_break(const line_break& /*item*/, io_handler handler)
     {
-        handler(make_error_code(errc::unsupported), 0);
+        std::move(handler)(make_error_code(errc::unsupported), 0);
     }
 };
 

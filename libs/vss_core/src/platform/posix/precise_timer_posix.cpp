@@ -32,8 +32,10 @@ bool precise_timer::available() const noexcept
 void precise_timer::expires_after(std::chrono::nanoseconds) {}
 
 void precise_timer::async_wait(
-    std::function<void(boost::system::error_code)>)
+    std::function<void(boost::system::error_code)> handler)
 {
+    // available() is false, so nothing waits.  The handler is let go.
+    const auto released = std::move(handler);
 }
 
 void precise_timer::cancel() {}

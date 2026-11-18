@@ -733,7 +733,7 @@ studio::attach_serial(const std::string& name, const std::string& uri,
                          [&]
                          {
                              return attach_serial_untraced(name, uri, settings,
-                                                           std::move(options));
+                                                           options);
                          });
 }
 

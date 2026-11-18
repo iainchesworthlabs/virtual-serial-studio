@@ -92,12 +92,13 @@ batch read_some(source& from)
                 out.problem = "the recording could not be read";
             return out;
         }
-        if (!next->has_value())
+        auto& found = *next;
+        if (!found.has_value())
         {
             out.at_end = true;
             return out;
         }
-        recording_event& event = **next;
+        recording_event& event = *found;
         switch (event.kind)
         {
         case recording_event_kind::data:
@@ -199,7 +200,15 @@ public:
     ~timeline_handler() override
     {
         *alive_ = false;
-        stop_all();
+        try
+        {
+            stop_all();
+        }
+        catch (...)
+        {
+            // best effort: nothing can be done about a failure to stop while
+            // the object is being destroyed.
+        }
     }
 
     bool take(const api_message& message) override
@@ -237,10 +246,10 @@ private:
     struct run
     {
         run(const boost::asio::any_io_executor& executor,
-            std::shared_ptr<endpoint> port_, std::shared_ptr<source> from_,
-            double scale_, std::uint64_t id_)
-            : timer(executor), port(std::move(port_)), from(std::move(from_)),
-              scale(scale_), id(id_)
+            std::shared_ptr<endpoint> port_in, std::shared_ptr<source> from_in,
+            double scale_in, std::uint64_t id_in)
+            : timer(executor), port(std::move(port_in)),
+              from(std::move(from_in)), scale(scale_in), id(id_in)
         {
         }
 
