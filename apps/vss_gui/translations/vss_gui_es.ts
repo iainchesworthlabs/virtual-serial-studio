@@ -6686,6 +6686,16 @@ Redes: %5</translation>
             <source>break</source>
             <translation>break</translation>
         </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="123" />
+            <source>The Virtual Serial Studio driver is out of date</source>
+            <translation>El controlador de Virtual Serial Studio está desactualizado</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="162" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Choose Set up Virtual Serial Studio to update it.</source>
+            <translation>El controlador de este PC es más antiguo que este programa, así que los puertos que crea no se pueden usar. No se cambió nada. Elija «Configurar Virtual Serial Studio» para actualizarlo.</translation>
+        </message>
     </context>
     <context>
         <name>ReleasePortDialog</name>
@@ -20131,6 +20141,11 @@ Redes: %5</translation>
             <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
             <translation>Tomado de %1. Un monitor funciona a la velocidad del puerto que observa.</translation>
         </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="388" />
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one.</source>
+            <translation>Un programa que abre un nombre fijo como COM3 necesita el mismo número cada vez. Automático elige uno libre.</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -24268,6 +24283,16 @@ Del complemento %2
         <message>
             <source>Reserved by Windows</source>
             <translation>Reservado por Windows</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="101" />
+            <source>Unplugged Windows device %1</source>
+            <translation>Dispositivo de Windows %1 desconectado</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="105" />
+            <source>Unplugged Windows device</source>
+            <translation>Dispositivo de Windows desconectado</translation>
         </message>
     </context>
     <context>
