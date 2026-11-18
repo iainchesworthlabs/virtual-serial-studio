@@ -286,6 +286,36 @@ enum class driver_problem
     unknown
 };
 
+/// How the driver package in Windows' driver store compares with the one this
+/// copy of Studio carries (Windows compares the date, then the four parts).
+enum class driver_age
+{
+    /// One of the two could not be read: no driver store, no package files
+    /// beside Studio, or no driver.
+    unknown,
+    /// The installed package is older than the bundled one.
+    older,
+    /// The same.
+    same,
+    /// The installed package is newer than the bundled one.
+    newer
+};
+
+/// The three versions Studio knows of the driver, as text for the person:
+/// `1.5.1.0 (2026-11-18)`, or empty when not known.
+struct driver_versions
+{
+    /// The newest package in the driver store.
+    QString installed;
+    /// The package carried by this copy of Studio (its driver folder).
+    QString bundled;
+    /// The interface version of the ports that are running, e.g. `5`.
+    QString ports;
+    driver_age age = driver_age::unknown;
+
+    bool operator==(const driver_versions&) const = default;
+};
+
 /// The answer of a check of the driver set-up.
 struct driver_check
 {
@@ -293,6 +323,8 @@ struct driver_check
     /// One English line with what was seen, and the Win32 error behind it; for
     /// the "Copy details" text and the log, never a sentence for the person.
     QString details;
+    /// What Studio knows of the driver's versions (Windows).
+    driver_versions versions;
 
     bool operator==(const driver_check&) const = default;
 };

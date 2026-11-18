@@ -16,6 +16,26 @@
 ; command line (/DRIVER=1 is the default) for a silent install, which shows no
 ; page. VSS_REGISTRY_KEY is defined by the CMake file.
 ;
+; The driver package has a version (DriverVer in its .inf: a date, then four numbers). The page
+; asks setup-driver.ps1 -Query what the driver store holds, and says so:
+;   none      the box installs the driver and the helper service (ticked);
+;   older     the box updates the driver to the newer one in this installer (ticked);
+;   same      the driver is left as it is; the box "Install it again (repair)" is not ticked;
+;   newer     the driver is left alone and the page says so; there is no box.
+; In every case where the setup runs, the helper service is brought up to date: it is a program
+; of this version of Studio. A silent install (/S) updates the driver only when this installer's
+; is newer or there is none, and /REPAIRDRIVER=1 installs it again. setup-driver.ps1 makes the
+; same decision itself, so a run from Studio or by hand never replaces a newer driver with an
+; older one. The CMake file defines VSS_BUNDLED_DRIVER_VER (the DriverVer of vsscom_um.inf) and
+; VSS_DRIVER_QUERY_SCRIPT (the path of setup-driver.ps1); either may be empty, and then the
+; installer does not know and leaves the decision to the script.
+!ifndef VSS_BUNDLED_DRIVER_VER
+  !define VSS_BUNDLED_DRIVER_VER ""
+!endif
+!ifndef VSS_DRIVER_QUERY_SCRIPT
+  !define VSS_DRIVER_QUERY_SCRIPT ""
+!endif
+;
 ; The same file holds the PATH choice: a page with a box that is not ticked, and the
 ; switch /ADDTOPATH=1 for a silent install (nothing is added by default). CPack's own
 ; PATH code keeps the PATH in an NSIS string, which stops at 1024 characters and
@@ -35,14 +55,25 @@
 !include "FileFunc.nsh"
 !include "WinMessages.nsh"
 
+!include "TextFunc.nsh"
+
 !insertmacro GetParameters
 !insertmacro GetOptions
+!insertmacro TrimNewLines
 !insertmacro un.GetParameters
 !insertmacro un.GetOptions
 
 Var VssDriverWanted
 Var VssDriverCheckbox
 Var VssDriverLog
+; What the driver store holds compared with this installer's driver: none, older, same, newer or
+; unknown (empty until VssDriverQuery has run), the two versions as text, and whether the driver is
+; to be installed again whatever its version.
+Var VssDriverState
+Var VssDriverInstalled
+Var VssDriverBundled
+Var VssDriverRepair
+Var VssDriverArgs
 
 ; An upgrade is told to the old uninstaller, never guessed. The installer of a newer
 ; version runs the old uninstaller with /VSSUPGRADE=1 (cmake/packaging/windows/
@@ -81,35 +112,121 @@ Function VssDriverSwitch
   ${Else}
     StrCpy $VssDriverWanted 1
   ${EndIf}
+  ${GetOptions} $0 "/REPAIRDRIVER=" $1
+  ${If} $1 == "1"
+    StrCpy $VssDriverRepair 1
+  ${Else}
+    StrCpy $VssDriverRepair 0
+  ${EndIf}
+  Pop $1
+  Pop $0
+FunctionEnd
+
+; Asks setup-driver.ps1 -Query what the driver store holds, once. The script is taken out of the
+; installer into its own temporary folder, because the files are not in the install folder yet when
+; the page is shown. It changes nothing and needs no prompt, so it cannot wait for anyone; the
+; answer is three lines in a file. Anything that goes wrong leaves the state "unknown".
+Function VssDriverQuery
+  Push $0
+  Push $1
+  Push $2
+  ${If} $VssDriverState != ""
+    Goto done
+  ${EndIf}
+  StrCpy $VssDriverState "unknown"
+  StrCpy $VssDriverInstalled ""
+  StrCpy $VssDriverBundled ""
+  !if "${VSS_DRIVER_QUERY_SCRIPT}" != ""
+  ${If} "${VSS_BUNDLED_DRIVER_VER}" != ""
+    InitPluginsDir
+    File "/oname=$PLUGINSDIR\setup-driver.ps1" "${VSS_DRIVER_QUERY_SCRIPT}"
+    Delete "$PLUGINSDIR\driver-query.txt"
+    ExecWait '"$WINDIR\Sysnative\cmd.exe" /C set "PSModulePath=" & "$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$PLUGINSDIR\setup-driver.ps1" -Query -BundledVer "${VSS_BUNDLED_DRIVER_VER}" -QueryOut "$PLUGINSDIR\driver-query.txt" > "$PLUGINSDIR\driver-query.log" 2>&1' $0
+    ${If} $0 == 0
+    ${AndIf} ${FileExists} "$PLUGINSDIR\driver-query.txt"
+      FileOpen $1 "$PLUGINSDIR\driver-query.txt" r
+      FileRead $1 $2
+      ${TrimNewLines} $2 $VssDriverState
+      FileRead $1 $2
+      ${TrimNewLines} $2 $VssDriverInstalled
+      FileRead $1 $2
+      ${TrimNewLines} $2 $VssDriverBundled
+      FileClose $1
+      ${If} $VssDriverState == ""
+        StrCpy $VssDriverState "unknown"
+      ${EndIf}
+    ${EndIf}
+  ${EndIf}
+  !endif
+
+done:
+  Pop $2
   Pop $1
   Pop $0
 FunctionEnd
 
 Function VssDriverPageCreate
   Call VssDriverSwitch
+  Call VssDriverQuery
   !insertmacro MUI_HEADER_TEXT "Virtual COM port driver" "Lets other programs open the serial ports that Studio makes."
   nsDialogs::Create 1018
   Pop $0
   ${If} $0 == error
     Abort
   ${EndIf}
+  StrCpy $VssDriverCheckbox ""
 
-  ${NSD_CreateCheckbox} 0 0 100% 12u "Install the virtual COM port driver and its helper service"
-  Pop $VssDriverCheckbox
-  ${If} $VssDriverWanted == 1
-    ${NSD_Check} $VssDriverCheckbox
+  ${If} $VssDriverState == "same"
+    ${NSD_CreateLabel} 0 0 100% 36u "A Virtual Serial Studio driver is already installed: version $VssDriverInstalled, the same as the one in this installer. It is left as it is, so ports that are open stay open. The helper service is brought up to date."
+    Pop $0
+    ${NSD_CreateCheckbox} 0 40u 100% 12u "Install the driver again (repair)"
+    Pop $VssDriverCheckbox
+    ${If} $VssDriverRepair == 1
+      ${NSD_Check} $VssDriverCheckbox
+    ${EndIf}
+    ${NSD_CreateLabel} 12u 56u 94% 30u "Only if the driver does not work. Installing it again closes the ports that are open now."
+    Pop $0
+  ${ElseIf} $VssDriverState == "newer"
+    ${NSD_CreateLabel} 0 0 100% 44u "A Virtual Serial Studio driver is already installed: version $VssDriverInstalled. It is newer than the one in this installer (version $VssDriverBundled), so it is left alone. The helper service is brought up to date."
+    Pop $0
+  ${ElseIf} $VssDriverState == "older"
+    ${NSD_CreateLabel} 0 0 100% 28u "A Virtual Serial Studio driver is already installed: version $VssDriverInstalled. This installer has the newer version $VssDriverBundled."
+    Pop $0
+    ${NSD_CreateCheckbox} 0 32u 100% 12u "Update the virtual COM port driver and its helper service"
+    Pop $VssDriverCheckbox
+    ${If} $VssDriverWanted == 1
+      ${NSD_Check} $VssDriverCheckbox
+    ${EndIf}
+    ${NSD_CreateLabel} 12u 48u 94% 40u "Updating restarts the helper service, so the ports that are open now are closed and a program that has one open loses it. Studio offers to make the ports again. Windows may ask for a restart before the new driver is used."
+    Pop $0
+  ${Else}
+    ${NSD_CreateCheckbox} 0 0 100% 12u "Install the virtual COM port driver and its helper service"
+    Pop $VssDriverCheckbox
+    ${If} $VssDriverWanted == 1
+      ${NSD_Check} $VssDriverCheckbox
+    ${EndIf}
+
+    ${NSD_CreateLabel} 12u 18u 94% 52u "The driver gives Windows COM ports that other programs can open, with no com0com and no hardware. It is the user-mode driver (vsscom_um): it runs in a driver host process, not in the kernel, so test signing stays off. The helper service (vsscom_helper) runs as SYSTEM so that ordinary users can make ports. Both are removed when you uninstall Studio."
+    Pop $0
   ${EndIf}
-
-  ${NSD_CreateLabel} 12u 18u 94% 52u "The driver gives Windows COM ports that other programs can open, with no com0com and no hardware. It is the user-mode driver (vsscom_um): it runs in a driver host process, not in the kernel, so test signing stays off. The helper service (vsscom_helper) runs as SYSTEM so that ordinary users can make ports. Both are removed when you uninstall Studio."
-  Pop $0
-  ${NSD_CreateLabel} 12u 76u 94% 52u "Windows must trust the signature on the driver files. If it does not, Studio is still installed, the driver is skipped, and you are told what to do. This installer adds no certificates and does not turn on test signing. To skip the driver in a silent install, run it with /S /DRIVER=0."
+  ${NSD_CreateLabel} 12u 92u 94% 40u "Windows must trust the signature on the driver files. If it does not, Studio is still installed, the driver is skipped, and you are told what to do. This installer adds no certificates and does not turn on test signing. For a silent install, /S updates the driver only when this installer's is newer, /DRIVER=0 leaves the driver and the helper service alone, and /REPAIRDRIVER=1 installs the driver again."
   Pop $0
   nsDialogs::Show
 FunctionEnd
 
 Function VssDriverPageLeave
+  ${If} $VssDriverCheckbox == ""
+    Return
+  ${EndIf}
   ${NSD_GetState} $VssDriverCheckbox $0
-  ${If} $0 == ${BST_CHECKED}
+  ${If} $VssDriverState == "same"
+    ; The box is the repair: the driver step runs either way, and installs the driver again when ticked.
+    ${If} $0 == ${BST_CHECKED}
+      StrCpy $VssDriverRepair 1
+    ${Else}
+      StrCpy $VssDriverRepair 0
+    ${EndIf}
+  ${ElseIf} $0 == ${BST_CHECKED}
     StrCpy $VssDriverWanted 1
   ${Else}
     StrCpy $VssDriverWanted 0
@@ -139,6 +256,11 @@ FunctionEnd
   ExecWait '"$WINDIR\Sysnative\cmd.exe" /C set "PSModulePath=" & "$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\bin\driver\${script}" > "$VssDriverLog" 2>&1' $0
 !macroend
 
+; The same with the extra arguments of the script in $VssDriverArgs, each starting with a space.
+!macro VssRunScriptArgs script
+  ExecWait '"$WINDIR\Sysnative\cmd.exe" /C set "PSModulePath=" & "$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\bin\driver\${script}"$VssDriverArgs > "$VssDriverLog" 2>&1' $0
+!macroend
+
 Function VssInstallDriver
   Push $0
   Push $1
@@ -160,8 +282,35 @@ Function VssInstallDriver
     Goto done
   ${EndIf}
 
+  ; What is there, said before the script runs. The script decides the same way from the same
+  ; numbers: a driver of the same or a newer version is left as it is unless it is to be installed again.
+  Call VssDriverQuery
+  ${If} $VssDriverState == "none"
+    DetailPrint "Virtual COM port driver: no Studio driver is installed yet."
+  ${ElseIf} $VssDriverState == "older"
+    DetailPrint "Virtual COM port driver: version $VssDriverInstalled is installed; updating it to version $VssDriverBundled."
+  ${ElseIf} $VssDriverState == "same"
+    ${If} $VssDriverRepair == 1
+      DetailPrint "Virtual COM port driver: version $VssDriverInstalled is installed, the same as this installer; installing it again."
+    ${Else}
+      DetailPrint "Virtual COM port driver: version $VssDriverInstalled is installed, the same as this installer; leaving it as it is."
+    ${EndIf}
+  ${ElseIf} $VssDriverState == "newer"
+    ${If} $VssDriverRepair == 1
+      DetailPrint "Virtual COM port driver: version $VssDriverInstalled is installed, newer than this installer's $VssDriverBundled; installing this installer's again."
+    ${Else}
+      DetailPrint "Virtual COM port driver: version $VssDriverInstalled is installed, newer than this installer's $VssDriverBundled; leaving it alone."
+    ${EndIf}
+  ${Else}
+    DetailPrint "Virtual COM port driver: the installed version could not be read; the setup script decides."
+  ${EndIf}
+
   DetailPrint "Setting up the virtual COM port driver. The log is $VssDriverLog"
-  !insertmacro VssRunScript "setup-driver.ps1"
+  StrCpy $VssDriverArgs ""
+  ${If} $VssDriverRepair == 1
+    StrCpy $VssDriverArgs " -ReinstallDriver"
+  ${EndIf}
+  !insertmacro VssRunScriptArgs "setup-driver.ps1"
   Push "setup-driver.ps1 exited with $0"
   Call VssLogLine
 
@@ -206,7 +355,7 @@ Function un.VssRemoveDriver
   ${EndIf}
 
   StrCpy $VssDriverLog "$INSTDIR\driver-remove.log"
-  DetailPrint "Removing the virtual COM port driver and the helper service."
+  DetailPrint "Removing the helper service, the COM ports Studio made, and every Virtual Serial Studio driver package in the driver store, the older versions that updates left behind included. The log says which."
   !insertmacro VssRunScript "remove-driver.ps1"
   ${If} $0 == 0
   ${OrIf} $0 == 10

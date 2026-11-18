@@ -30,6 +30,7 @@ TEMPLATE_CMAKE = PACKAGING / "windows" / "nsis-template.cmake"
 DRIVER_NSH = PACKAGING / "windows" / "driver.nsh"
 PACKAGE_CMAKE = PACKAGING / "VssPackage-windows.cmake"
 CMAKE = shutil.which("cmake")
+MAKENSIS = shutil.which("makensis") or next((str(p) for p in (Path("C:/Program Files (x86)/NSIS/Bin/makensis.exe"),) if p.exists()), None)
 
 OLD_LINE = "  ExecWait '\"$0\" /S _?=$3' ;Do not copy the uninstaller to a temp file"
 
@@ -225,6 +226,123 @@ class UninstallerScript(unittest.TestCase):
         self.assertIn("Call VssUpgradeDone", package)
         self.assertRegex(text, r"Function \.onInstFailed\n  Call VssUndoUpgrade\nFunctionEnd")
         self.assertRegex(text, r"Function VssOnUserAbort\n  Call VssUndoUpgrade\nFunctionEnd")
+
+
+
+def function_body(text: str, name: str) -> str:
+    return text.split(f"Function {name}\n", 1)[1].split("\nFunctionEnd", 1)[0]
+
+
+class DriverVersionPage(unittest.TestCase):
+    """The page and the silent install decide by the version of the driver package (driver.nsh)."""
+
+    def setUp(self) -> None:
+        self.text = DRIVER_NSH.read_text(encoding="utf-8")
+
+    def test_the_cmake_file_hands_the_installer_the_bundled_version_and_the_script(self) -> None:
+        package = PACKAGE_CMAKE.read_text(encoding="utf-8")
+        self.assertIn("!define VSS_BUNDLED_DRIVER_VER", package)
+        self.assertIn("!define VSS_DRIVER_QUERY_SCRIPT", package)
+        self.assertIn("drivers/windows/vsscom_um/vsscom_um.inf", package)
+
+    def test_the_query_runs_the_script_that_changes_nothing_in_the_same_way_as_the_others(self) -> None:
+        body = function_body(self.text, "VssDriverQuery")
+        self.assertIn("-Query", body)
+        self.assertIn('-BundledVer "${VSS_BUNDLED_DRIVER_VER}"', body)
+        self.assertIn('"$WINDIR\\Sysnative\\cmd.exe" /C set "PSModulePath="', body)
+        self.assertIn("-NoProfile -ExecutionPolicy Bypass -File", body)
+        # It reads the script out of the installer: the install folder is empty when the page is shown.
+        self.assertIn('File "/oname=$PLUGINSDIR\\setup-driver.ps1" "${VSS_DRIVER_QUERY_SCRIPT}"', body)
+        self.assertNotIn("$INSTDIR", body)
+        self.assertNotIn("$EXEDIR", body)
+        # Whatever goes wrong, the state is a word the rest understands.
+        self.assertIn('StrCpy $VssDriverState "unknown"', body)
+
+    def test_each_state_has_its_own_text_and_the_box_that_belongs_to_it(self) -> None:
+        body = function_body(self.text, "VssDriverPageCreate")
+        for state in ("same", "newer", "older"):
+            self.assertIn(f'$VssDriverState == "{state}"', body)
+        self.assertIn("Install the driver again (repair)", body)
+        self.assertIn("Update the virtual COM port driver and its helper service", body)
+        # The repair box is not ticked unless /REPAIRDRIVER=1 asked for it, and the newer state has no box at all.
+        repair = body.split('"Install the driver again (repair)"', 1)[1].split("${NSD_CreateLabel}", 1)[0]
+        self.assertIn("${If} $VssDriverRepair == 1", repair)
+        newer = body.split('$VssDriverState == "newer"', 1)[1].split("${ElseIf}", 1)[0]
+        self.assertNotIn("CreateCheckbox", newer)
+        self.assertIn("is newer than the one in this installer", newer)
+        self.assertIn("left alone", newer)
+
+    def test_leaving_the_page_reads_the_box_that_the_state_made(self) -> None:
+        body = function_body(self.text, "VssDriverPageLeave")
+        self.assertIn('${If} $VssDriverCheckbox == ""', body)
+        # In the same state the box is the repair and not the choice to install.
+        same = body.split('$VssDriverState == "same"', 1)[1].split("${ElseIf}", 1)[0]
+        self.assertIn("StrCpy $VssDriverRepair 1", same)
+        self.assertNotIn("VssDriverWanted", same)
+
+    def test_a_silent_install_installs_again_only_when_asked(self) -> None:
+        switch = function_body(self.text, "VssDriverSwitch")
+        self.assertIn('"/DRIVER="', switch)
+        self.assertIn('"/REPAIRDRIVER="', switch)
+        self.assertRegex(switch, r'\$1 == "1"\n    StrCpy \$VssDriverRepair 1\n  \$\{Else\}\n    StrCpy \$VssDriverRepair 0')
+        install = function_body(self.text, "VssInstallDriver")
+        self.assertRegex(install, r'\$\{If\} \$VssDriverRepair == 1\n    StrCpy \$VssDriverArgs " -ReinstallDriver"')
+        self.assertIn('!insertmacro VssRunScriptArgs "setup-driver.ps1"', install)
+        # Leaving a same or newer driver alone is the script's own decision, so that Studio's set-up and a run
+        # by hand agree with the installer.
+        self.assertEqual(self.text.count("-ReinstallDriver"), 1)
+
+    def test_the_installer_says_what_it_does_with_the_driver_it_found(self) -> None:
+        install = function_body(self.text, "VssInstallDriver")
+        for phrase in ("no Studio driver is installed yet", "updating it to version", "leaving it as it is",
+                       "installing it again", "leaving it alone", "could not be read"):
+            self.assertIn(phrase, install)
+
+    def test_the_skip_switch_still_skips_everything_and_a_missing_script_is_still_reported(self) -> None:
+        install = function_body(self.text, "VssInstallDriver")
+        self.assertLess(install.index('"skipped"'), install.index("Call VssDriverQuery"))
+        self.assertLess(install.index("failed-9"), install.index("Call VssDriverQuery"))
+
+    def test_the_uninstaller_says_that_every_version_goes(self) -> None:
+        body = function_body(self.text, "un.VssRemoveDriver")
+        self.assertIn("every Virtual Serial Studio driver package in the driver store", body)
+        self.assertIn("older versions", body)
+        # An upgrade still keeps the driver, whatever its version.
+        self.assertIn("Upgrade: the driver, the helper service and the ports stay in place.", body)
+
+    def test_no_message_box_waits_for_an_answer_in_a_silent_install(self) -> None:
+        # The installer that hung for ever on a build agent (the silent install hang) did so on a question nobody
+        # could answer. Every box here has its answer for /S.
+        for line in code_lines(DRIVER_NSH):
+            if "MessageBox" in line:
+                self.assertIn("/SD", line, line)
+
+    @unittest.skipUnless(MAKENSIS, "needs makensis")
+    def test_driver_nsh_compiles_with_the_new_page(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            script = Path(directory) / "t.nsi"
+            script.write_text(
+                "Unicode true\n"
+                "!define VSS_REGISTRY_KEY 'k'\n"
+                "!define MUI_CUSTOMFUNCTION_ABORT VssOnUserAbort\n"
+                "!define VSS_BUNDLED_DRIVER_VER '11/18/2026,1.5.1.0'\n"
+                f"!define VSS_DRIVER_QUERY_SCRIPT '{ROOT / 'drivers' / 'windows' / 'setup-driver.ps1'}'\n"
+                "!include MUI2.nsh\n"
+                "!define SHCTX HKLM\n"
+                "Name t\n"
+                f'OutFile "{Path(directory) / "t.exe"}"\n'
+                "RequestExecutionLevel user\n"
+                "!define VSS_TEMPLATE_PASSES_UPGRADE_SWITCH\n"
+                f"!include '{DRIVER_NSH}'\n"
+                "Page custom VssDriverPageCreate VssDriverPageLeave\n"
+                "!insertmacro MUI_PAGE_INSTFILES\n"
+                '!insertmacro MUI_LANGUAGE "English"\n'
+                "Section\n  Call VssInstallDriver\nSectionEnd\n"
+                "Section Uninstall\n  Call un.VssRemoveDriver\nSectionEnd\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run([MAKENSIS, str(script)], capture_output=True, text=True, timeout=120, check=False)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

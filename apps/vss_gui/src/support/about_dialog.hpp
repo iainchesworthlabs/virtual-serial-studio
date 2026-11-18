@@ -74,6 +74,8 @@ private:
 
     build_info info_;
     QString edition_;
+    /// The driver's versions in words, or empty.
+    QString driver_text_;
     QTabWidget* tabs_ = nullptr;
 
     updates::UpdateService* updates_ = nullptr;

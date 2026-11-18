@@ -21,6 +21,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_control_token.cpp
   unit/test_control_token_file.cpp
   unit/test_document.cpp
+  unit/test_driver_package.cpp
   unit/test_driver_setup.cpp
   unit/test_endpoint.cpp
   unit/test_endpoint_reopen.cpp

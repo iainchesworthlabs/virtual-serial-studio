@@ -225,10 +225,13 @@ try {
     catch { $deviceFailure = "a port device could not be removed: $($_.Exception.Message)"; Write-Host $deviceFailure }
 
     # The driver packages, found in the store by their original file name.
-    $published = @(Get-WindowsDriver -Online -All |
-        Where-Object { (Split-Path -Leaf $_.OriginalFileName) -eq 'vsscom_um.inf' } |
-        ForEach-Object { $_.Driver })
+    # Every version is deleted, the older ones that updates left in the store as well: each Studio that
+    # was set up on this PC added its own package, and Windows keeps them all.
+    $found = @(Get-WindowsDriver -Online -All |
+        Where-Object { (Split-Path -Leaf $_.OriginalFileName) -eq 'vsscom_um.inf' })
+    $published = @($found | ForEach-Object { $_.Driver })
     if ($published.Count -eq 0) { Write-Host 'no vsscom_um driver package in the driver store' }
+    else { Write-Host ('driver packages to delete: ' + (($found | ForEach-Object { '{0} (version {1})' -f $_.Driver, $_.Version }) -join ', ')) }
 
     foreach ($name in $published) {
         Write-Host "deleting the driver package $name"
