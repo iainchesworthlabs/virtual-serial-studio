@@ -881,11 +881,22 @@ TEST_CASE("plugin decoder: what the store's limits refuse is counted")
     frame.message = std::string(64, 'm');
     REQUIRE(fixture.handler->take(message_of(frame)));
     REQUIRE_EQ(fixture.refused(), std::size_t{0});
-    // 200 triggers a second is the store's budget: the 201st is cut.
-    for (int i = 0; i < 205; ++i)
+    // 200 triggers a second is the store's budget: the 201st in one second
+    // is cut. The budget is counted in whole seconds of the real clock, so
+    // a run that crosses a second boundary starts again at zero, and a slow
+    // build may not reach 201 in a second at 205 sends. Keep sending until
+    // one is refused; a bounded count and time stop it if none ever is.
+    const auto give_up =
+        std::chrono::steady_clock::now() + std::chrono::seconds(20);
+    std::size_t sent = 0;
+    while (fixture.refused() == 0 && sent < 100000 &&
+           std::chrono::steady_clock::now() < give_up)
+    {
         REQUIRE(fixture.handler->take(message_of(trigger_of())));
+        ++sent;
+    }
     REQUIRE(fixture.refused() >= 1);
-    REQUIRE(fixture.store->snapshot()->triggers->items.size() <= 205);
+    REQUIRE(fixture.store->snapshot()->triggers->items.size() <= sent);
 }
 
 // -- the end ------------------------------------------------------------------
