@@ -28,7 +28,6 @@ namespace
 {
 
 constexpr int exit_ok = 0;
-constexpr int exit_refused = 1;
 constexpr int exit_usage = 2;
 constexpr int exit_not_running = 3;
 
