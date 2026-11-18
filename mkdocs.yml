@@ -39,6 +39,7 @@ nav:
       - Architecture: architecture.md
       - The per-user agent: agent.md
       - Remote control and monitoring (proposal): remote-control.md
+      - A debug API (proposal): debug-api.md
       - The plugin framework (design): plugins.md
       - The plugin API, message by message: plugin-api-reference.md
       - Online updates (design): updates.md
