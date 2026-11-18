@@ -159,14 +159,14 @@ public:
     void finish_drag(const QPoint& global);
     void cancel_drag();
 
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
 Q_SIGNALS:
     /// The user closed a pane (its close button, its menu, or the window
     /// system). Hiding a pane for another reason does not send this.
     void pane_closed(QDockWidget* dock);
     /// A pane was moved, tabbed, split or floated by the user.
     void layout_changed();
-
-    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     bool tab_bar_event(QTabBar* bar, QEvent* event);
