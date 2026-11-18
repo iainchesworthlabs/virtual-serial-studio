@@ -7,6 +7,7 @@
 #include <vss/trace/recorder.hpp>
 
 #include <algorithm>
+#include <exception>
 #include <limits>
 
 namespace vss::trace
@@ -23,7 +24,7 @@ std::string_view text_of(const std::array<char, N>& field) noexcept
     return std::string_view(field.data(), size);
 }
 
-thread_local std::array<char, entry::operation_size> current_operation{};
+thread_local std::array<char, entry::operation_size_> current_operation{};
 thread_local std::uint64_t current_endpoint = 0;
 thread_local std::uint64_t current_failure = 0;
 
@@ -123,7 +124,17 @@ recorder& recorder::global() noexcept
 {
     // Never destroyed: a thread that records while the process exits must
     // find a recorder.
-    static recorder* const instance = new recorder();
+    static recorder* const instance = []() noexcept
+    {
+        try
+        {
+            return new recorder();
+        }
+        catch (...)
+        {
+            std::terminate();
+        }
+    }();
     return *instance;
 }
 
@@ -286,6 +297,8 @@ std::uint64_t call_scope::fail(const boost::system::error_code& code,
     }
     catch (...)
     {
+        // best effort: the text is for a person, and the record is still
+        // kept with the code and the category when it cannot be built.
     }
     return fail(code.value(), code.category().name(), message, cause);
 }

@@ -40,9 +40,10 @@ namespace agent = vss::agent;
 /// Before a client has said hello a frame may have this many bytes.
 constexpr std::size_t hello_frame_limit = 4096;
 /// After it, a request is a small header.
-constexpr std::size_t request_frame_limit = 64 * 1024;
+constexpr std::size_t request_frame_limit = std::size_t{64} * 1024;
 /// A client that does not read is closed when this much waits for it.
-constexpr std::size_t write_backlog_limit = 4 * 1024 * 1024;
+constexpr std::size_t write_backlog_limit =
+    std::size_t{4} * 1024 * 1024;
 constexpr std::size_t audit_text_limit = 200;
 constexpr auto trace_poll = std::chrono::milliseconds(100);
 constexpr std::size_t trace_event_limit = 500;
@@ -90,7 +91,18 @@ public:
             options_.instance = std::to_string(current_process_id());
     }
 
-    ~impl() { stop(); }
+    ~impl()
+    {
+        try
+        {
+            stop();
+        }
+        catch (...)
+        {
+            // best effort: nothing can be done about a failure to stop
+            // while the object is being destroyed.
+        }
+    }
 
     result<void> begin()
     {
@@ -317,7 +329,7 @@ public:
             owner_->audit("debug.session.closed",
                           {{"client", name_},
                            {"id", id_},
-                           {"reason", std::string(reason)}});
+                           {"reason", reason}});
         owner_->remove(id_);
     }
 
@@ -329,7 +341,7 @@ public:
         out.program = program_;
         out.process_id = process_id_;
         out.granted = granted_;
-        out.watching_trace = watching_;
+        out.watching_trace = watching;
         out.since = since_;
         return out;
     }
@@ -337,17 +349,17 @@ public:
     /// Called on the io thread by the poller.
     void send_trace(trace::recorder& recorder)
     {
-        if (!watching_ || closed_)
+        if (!watching || closed_)
             return;
         trace::filter what;
-        what.after_seq = cursor_;
-        what.endpoint = watch_endpoint_;
-        what.failures_only = watch_failures_;
+        what.after_seq = cursor;
+        what.endpoint = watch_endpoint;
+        what.failures_only = watch_failures;
         what.limit = trace_event_limit;
         const auto found = recorder.read(what);
         if (found.empty())
             return;
-        cursor_ = found.back().seq;
+        cursor = found.back().seq;
 
         json::array entries;
         for (const auto& item : found)
@@ -391,9 +403,10 @@ private:
                 close("bad_frame");
                 return;
             }
-            if (!*next)
+            const auto& request = *next;
+            if (!request)
                 return;
-            handle(**next);
+            handle(*request);
         }
     }
 
@@ -565,7 +578,7 @@ private:
                  {"program", cut(owner_->options().redact.apply(program_),
                                  audit_text_limit)},
                  {"process", process_id_},
-                 {"how", std::string(how)}});
+                 {"how", how}});
             reply(hello_id_,
                   op_result::fail("forbidden",
                                   "The person at this computer did not "
@@ -587,7 +600,7 @@ private:
                        {"process", process_id_},
                        {"id", id_},
                        {"scopes", scope_text(granted)},
-                       {"how", std::string(how)}});
+                       {"how", how}});
 
         json::object result;
         json::array scopes;
@@ -667,38 +680,38 @@ private:
         auto& recorder = *owner_->options().recorder;
         if (op == "debug.trace.unsubscribe")
         {
-            watching_ = false;
+            watching = false;
             owner_->publish_view(view());
             owner_->changed();
             return op_result::done();
         }
-        watching_ = true;
-        watch_endpoint_ = 0;
-        watch_failures_ = false;
+        watching = true;
+        watch_endpoint = 0;
+        watch_failures = false;
         std::int64_t backlog = 0;
         if (const auto* given = request.if_contains("args");
             given != nullptr && given->is_object())
         {
             const auto& object = given->as_object();
-            watch_endpoint_ = static_cast<std::uint64_t>(
+            watch_endpoint = static_cast<std::uint64_t>(
                 std::max<std::int64_t>(0, number_of(object, "endpoint")));
             if (const auto* flag = object.if_contains("failures_only");
                 flag != nullptr && flag->is_bool())
-                watch_failures_ = flag->as_bool();
+                watch_failures = flag->as_bool();
             backlog =
                 std::clamp<std::int64_t>(number_of(object, "backlog"), 0, 200);
         }
         const std::uint64_t last = recorder.last_seq();
-        cursor_ = last;
+        cursor = last;
         if (backlog > 0)
         {
             trace::filter what;
-            what.endpoint = watch_endpoint_;
-            what.failures_only = watch_failures_;
+            what.endpoint = watch_endpoint;
+            what.failures_only = watch_failures;
             what.limit = static_cast<std::size_t>(backlog);
             const auto recent = recorder.read(what);
             if (!recent.empty())
-                cursor_ = recent.front().seq - 1;
+                cursor = recent.front().seq - 1;
         }
         owner_->publish_view(view());
         owner_->changed();
@@ -894,7 +907,7 @@ private:
     agent::frame_reader reader_;
     boost::asio::steady_timer deadline_;
     std::chrono::system_clock::time_point since_;
-    std::array<byte, 16 * 1024> chunk_{};
+    std::array<byte, std::size_t{16} * 1024> chunk_{};
     std::deque<byte_buffer> writes_;
     std::size_t written_ = 0;
     std::size_t queued_bytes_ = 0;
@@ -911,10 +924,10 @@ private:
     std::size_t window_count_ = 0;
 
 public:
-    bool watching_ = false;
-    std::uint64_t cursor_ = 0;
-    std::uint64_t watch_endpoint_ = 0;
-    bool watch_failures_ = false;
+    bool watching = false;
+    std::uint64_t cursor = 0;
+    std::uint64_t watch_endpoint = 0;
+    bool watch_failures = false;
 };
 
 void server::impl::stop()
@@ -984,6 +997,7 @@ std::vector<client_view> server::impl::clients() const
 {
     std::vector<client_view> out;
     const std::lock_guard lock(mutex_);
+    out.reserve(views_.size());
     for (const auto& item : views_)
         out.push_back(item.second);
     return out;
@@ -1034,7 +1048,7 @@ void server::impl::poll_traces()
         const std::lock_guard lock(mutex_);
         for (auto& item : connections_)
         {
-            if (item.second->watching_)
+            if (item.second->watching)
                 open.push_back(item.second);
         }
     }
@@ -1119,8 +1133,17 @@ server::server(std::shared_ptr<impl> state) : impl_(std::move(state)) {}
 
 server::~server()
 {
-    if (impl_)
+    if (!impl_)
+        return;
+    try
+    {
         impl_->stop();
+    }
+    catch (...)
+    {
+        // best effort: nothing can be done about a failure to stop while
+        // the object is being destroyed.
+    }
 }
 
 void server::stop()

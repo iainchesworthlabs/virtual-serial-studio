@@ -32,11 +32,11 @@ namespace vss::trace
 /// never for data a port carried.
 struct entry
 {
-    static constexpr std::size_t call_size = 40;
-    static constexpr std::size_t args_size = 120;
-    static constexpr std::size_t operation_size = 32;
-    static constexpr std::size_t category_size = 16;
-    static constexpr std::size_t message_size = 120;
+    static constexpr std::size_t call_size_ = 40;
+    static constexpr std::size_t args_size_ = 120;
+    static constexpr std::size_t operation_size_ = 32;
+    static constexpr std::size_t category_size_ = 16;
+    static constexpr std::size_t message_size_ = 120;
 
     /// Counts the entries of this recorder from 1.
     std::uint64_t seq = 0;
@@ -55,11 +55,11 @@ struct entry
     /// The raw code: `GetLastError`, `errno`, the library's own number.
     std::int32_t code = 0;
     bool failed = false;
-    std::array<char, call_size> call{};
-    std::array<char, args_size> args{};
-    std::array<char, operation_size> operation{};
-    std::array<char, category_size> category{};
-    std::array<char, message_size> message{};
+    std::array<char, call_size_> call{};
+    std::array<char, args_size_> args{};
+    std::array<char, operation_size_> operation{};
+    std::array<char, category_size_> category{};
+    std::array<char, message_size_> message{};
 
     std::string_view call_text() const noexcept;
     std::string_view args_text() const noexcept;
@@ -91,11 +91,11 @@ struct filter
 class recorder
 {
 public:
-    static constexpr std::size_t default_capacity = 4096;
-    static constexpr std::size_t default_failure_capacity = 512;
+    static constexpr std::size_t default_capacity_ = 4096;
+    static constexpr std::size_t default_failure_capacity_ = 512;
 
-    explicit recorder(std::size_t capacity = default_capacity,
-                      std::size_t failure_capacity = default_failure_capacity);
+    explicit recorder(std::size_t capacity = default_capacity_,
+                      std::size_t failure_capacity = default_failure_capacity_);
     ~recorder();
     recorder(const recorder&) = delete;
     recorder& operator=(const recorder&) = delete;
@@ -165,7 +165,7 @@ public:
     static std::uint64_t last_failure() noexcept;
 
 private:
-    std::array<char, entry::operation_size> previous_{};
+    std::array<char, entry::operation_size_> previous_{};
     std::uint64_t previous_endpoint_ = 0;
     std::uint64_t previous_failure_ = 0;
 };

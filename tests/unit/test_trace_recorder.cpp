@@ -83,8 +83,8 @@ TEST_CASE("trace recorder: text that does not fit is cut and never overruns")
     scope.ok();
     const auto found = log.read();
     REQUIRE_EQ(found.size(), std::size_t{1});
-    REQUIRE_EQ(found[0].call_text().size(), vss::trace::entry::call_size - 1);
-    REQUIRE_EQ(found[0].args_text().size(), vss::trace::entry::args_size - 1);
+    REQUIRE_EQ(found[0].call_text().size(), vss::trace::entry::call_size_ - 1);
+    REQUIRE_EQ(found[0].args_text().size(), vss::trace::entry::args_size_ - 1);
 }
 
 TEST_CASE("trace recorder: a failure outlives the calls that push it out")
@@ -209,6 +209,7 @@ TEST_CASE("trace recorder: several threads record without losing a number")
     constexpr int threads = 4;
     constexpr int each = 500;
     std::vector<std::thread> workers;
+    workers.reserve(threads);
     for (int index = 0; index < threads; ++index)
     {
         workers.emplace_back(
