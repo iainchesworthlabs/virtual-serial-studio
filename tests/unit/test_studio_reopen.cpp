@@ -660,6 +660,30 @@ TEST_CASE("pause_port: a setup with a paused port opens it paused")
     REQUIRE(wait_for_state(port, endpoint_state::open));
 }
 
+TEST_CASE("apply: a client whose server refuses is made, and the rest of the setup opens")
+{
+    tcp_server server;
+    studio first;
+    REQUIRE(first.attach_serial("remote", uri_of(server)));
+    REQUIRE(first.create_mock_port("other"));
+    const auto document = first.snapshot();
+    REQUIRE_EQ(document.ports.size(), std::size_t{2});
+
+    // The server is there when the setup is saved and refuses when it is
+    // opened again, as a BrainBox that has another client does.
+    server.pause();
+    studio second;
+    second.set_reconnect_policy(quick_policy());
+    REQUIRE(second.apply(document));
+    REQUIRE_EQ(second.endpoint_infos().size(), std::size_t{2});
+    const auto port = second.find("remote");
+    REQUIRE(port != nullptr);
+
+    server.resume();
+    REQUIRE(wait_until([&] { return server.accepted() >= 1; }, 5000ms));
+    REQUIRE(wait_for_state(port, endpoint_state::open));
+}
+
 TEST_CASE("pause_port: a port with no address cannot be paused")
 {
     studio app;

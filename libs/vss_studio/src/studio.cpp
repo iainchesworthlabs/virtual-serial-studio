@@ -2137,6 +2137,16 @@ studio::make_port(const config::port_entry& port)
     else
     {
         added = attach_serial(port.name, port.uri, port.serial, options);
+        // A client of a network address whose server is not there, or is
+        // busy with another client, is still made, and keeps trying.  Without
+        // that one refusal stops the whole setup from opening.
+        if (!added && added.error() != errc::invalid_uri &&
+            added.error() != boost::system::errc::address_in_use)
+        {
+            auto waiting = attach_waiting(port.name, port.uri, port.serial);
+            if (waiting)
+                added = std::move(waiting);
+        }
     }
 
     if (!added)
