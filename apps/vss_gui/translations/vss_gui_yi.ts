@@ -6708,13 +6708,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/backend/driver_error.cpp" line="1" />
-            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Update the driver to install the newer one that comes with this program.</source>
-            <translation>דער דרייווער אויף דעם דאָזיקן קאָמפּיוטער איז עלטער ווי די דאָזיקע פּראָגראַם, דעריבער קענען די פּאָרטן וואָס ער שאַפֿט נישט גענוצט ווערן. גאָרנישט איז געענדערט געוואָרן. דערהײַנטיקט דעם דרייווער כּדי אײַנצושטעלן דעם נײַערן וואָס קומט מיט דער דאָזיקער פּראָגראַם.</translation>
+            <source>The driver on this PC is an older version than the one that comes with this program, so ports may not work until it is updated. Nothing was changed. Update the driver to install the newer one.</source>
+            <translation>דער דרייווער אויף דעם דאָזיקן קאָמפּיוטער איז אַן עלטערע ווערסיע ווי דער וואָס קומט מיט דער דאָזיקער פּראָגראַם, דעריבער קענען פּאָרטן נישט אַרבעטן ביז ער ווערט דערהײַנטיקט. גאָרנישט איז געענדערט געוואָרן. דערהײַנטיקט דעם דרייווער כּדי אײַנצושטעלן דעם נײַערן.</translation>
         </message>
         <message>
             <location filename="../src/backend/driver_error.cpp" line="1" />
-            <source>The Virtual Serial Studio driver is out of date</source>
-            <translation>דער Virtual Serial Studio דרייווער איז פֿאַרעלטערט</translation>
+            <source>The Virtual Serial Studio driver on this PC needs updating</source>
+            <translation>דער Virtual Serial Studio דרייווער אויף דעם דאָזיקן קאָמפּיוטער דאַרף דערהײַנטיקט ווערן</translation>
         </message>
     </context>
     <context>

@@ -6718,13 +6718,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/backend/driver_error.cpp" line="1" />
-            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Update the driver to install the newer one that comes with this program.</source>
-            <translation>برنامج التشغيل على هذا الكمبيوتر أقدم من هذا البرنامج، لذلك لا يمكن استخدام المنافذ التي ينشئها. لم يتغير شيء. حدّث برنامج التشغيل لتثبيت الإصدار الأحدث المرفق مع هذا البرنامج.</translation>
+            <source>The driver on this PC is an older version than the one that comes with this program, so ports may not work until it is updated. Nothing was changed. Update the driver to install the newer one.</source>
+            <translation>إصدار برنامج التشغيل على هذا الكمبيوتر أقدم من الإصدار المرفق مع هذا البرنامج، لذلك قد لا تعمل المنافذ حتى يتم تحديثه. لم يتغير شيء. حدّث برنامج التشغيل لتثبيت الإصدار الأحدث.</translation>
         </message>
         <message>
             <location filename="../src/backend/driver_error.cpp" line="1" />
-            <source>The Virtual Serial Studio driver is out of date</source>
-            <translation>برنامج تشغيل Virtual Serial Studio قديم</translation>
+            <source>The Virtual Serial Studio driver on this PC needs updating</source>
+            <translation>برنامج تشغيل Virtual Serial Studio على هذا الكمبيوتر يحتاج إلى تحديث</translation>
         </message>
     </context>
     <context>

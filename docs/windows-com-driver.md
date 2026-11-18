@@ -555,7 +555,7 @@ driver and on the About page (Windows only):
 3. the interface version the running ports speak (`IOCTL_VSSCOM_GET_VERSION`).
 
 When the installed package is older than the bundled one by the Windows rule, the Setup check
-and the start page say "The Virtual Serial Studio driver is out of date" and offer **Update the
+and the start page say "The Virtual Serial Studio driver on this PC needs updating" and offer **Update the
 driver**: the same elevated `setup-driver.ps1` as "Set up Virtual Serial Studio". Nothing is shown
 when the installed package is the same or newer, or when it cannot be read. Nothing is sent
 anywhere; the versions are read from the registry and from a file beside Studio.

@@ -6704,13 +6704,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/backend/driver_error.cpp" line="1" />
-            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Update the driver to install the newer one that comes with this program.</source>
-            <translation>この PC のドライバーはこのプログラムより古いため、そのドライバーが作成するポートは使用できません。何も変更していません。ドライバーを更新して、このプログラムに付属する新しいものをインストールしてください。</translation>
+            <source>The driver on this PC is an older version than the one that comes with this program, so ports may not work until it is updated. Nothing was changed. Update the driver to install the newer one.</source>
+            <translation>この PC のドライバーは、このプログラムに付属するものより古いバージョンのため、更新するまでポートが動作しないことがあります。何も変更していません。ドライバーを更新して、新しいものをインストールしてください。</translation>
         </message>
         <message>
             <location filename="../src/backend/driver_error.cpp" line="1" />
-            <source>The Virtual Serial Studio driver is out of date</source>
-            <translation>Virtual Serial Studio のドライバーが古くなっています</translation>
+            <source>The Virtual Serial Studio driver on this PC needs updating</source>
+            <translation>この PC の Virtual Serial Studio のドライバーは更新が必要です</translation>
         </message>
     </context>
     <context>
