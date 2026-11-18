@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
+#include "backend/canvas_edit.hpp"
 #include "backend/engine_studio_backend.hpp"
 #include "backend/event_bridge.hpp"
 
@@ -653,4 +654,35 @@ TEST_CASE("engine backend: two replaces at once leave one document")
                  names == std::vector<std::string>{"c", "d"}));
         REQUIRE_EQ(backend.links().size(), std::size_t{1});
     }
+}
+
+TEST_CASE("engine backend: a monitor is added to a device and to a new port")
+{
+    vss::studio studio;
+    vss::gui::EngineStudioBackend backend(studio);
+
+    // A device with its own line settings, which the new port copies.
+    vss::serial_settings settings;
+    settings.baud_rate = 9600;
+    const auto device = backend.create_mock_port(QStringLiteral("port 1"),
+                                                 settings,
+                                                 QStringLiteral("scripted"));
+    REQUIRE(device.has_value());
+
+    vss::gui::bundle_request request =
+        vss::gui::default_request(vss::gui::canvas_item::monitor,
+                                  backend.ports());
+    request.slots[0] = {vss::gui::slot_kind::existing, QStringLiteral("port 1")};
+    const auto made = vss::gui::build_bundle(backend, request);
+    REQUIRE(made.has_value());
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE(backend.links().front().shape == vss::gui::link_shape::monitor);
+
+    // A new port from the canvas, then a monitor wired to another new port.
+    const auto fresh = backend.create_virtual_port(
+        QStringLiteral("fresh"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(fresh.has_value());
+    const auto wired = vss::gui::make_wire(
+        backend, *fresh, *device, vss::gui::wire_kind::monitor);
+    REQUIRE(wired.has_value());
 }

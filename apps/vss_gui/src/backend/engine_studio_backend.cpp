@@ -805,6 +805,18 @@ driver_check EngineStudioBackend::check_driver() const
     case vss::driver_setup_state::ready:
         break;
     }
+    // The set-up looks right, yet a port that was made spoke another version:
+    // the driver in Windows' store is older than the one this program carries.
+    const vss::driver_failure last = vss::last_driver_failure();
+    if (check.problem == driver_problem::none &&
+        last.step == vss::driver_version_step)
+    {
+        check.problem = driver_problem::driver_old;
+        check.details = QString::fromStdString(report.detail) +
+                        QStringLiteral("\nthe driver's ports speak version %1")
+                            .arg(last.code);
+        return check;
+    }
     check.details = QString::fromStdString(report.detail);
     return check;
 }

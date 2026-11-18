@@ -130,4 +130,11 @@ struct driver_failure
 
 driver_failure last_driver_failure();
 
+/// The `step` of a failure where the driver made a port and the port speaks
+/// another version of the driver interface than this program: the driver on
+/// the PC is not the one that shipped with this program.  The `code` is the
+/// version the port reported.
+inline constexpr const char* driver_version_step =
+    "the port made by the driver speaks another version";
+
 } // namespace vss

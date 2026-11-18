@@ -279,6 +279,9 @@ enum class driver_problem
     helper_incompatible,
     /// The helper is there and refused this user.
     helper_denied,
+    /// The driver on this PC makes ports, and they speak another version than
+    /// this program: an older driver was kept when this one was installed.
+    driver_old,
     /// Something else, or the answer was not understood.
     unknown
 };
