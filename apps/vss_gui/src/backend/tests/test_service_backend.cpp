@@ -853,20 +853,20 @@ TEST_CASE("service backend: the same plugin installed for everyone and for the "
                                });
         },
         30000));
-    finished.clear();
+    const std::size_t finished_before = finished.size();
     backend.add_plugin(QString::fromStdWString(source.wstring()));
-    REQUIRE(vss_test::wait_until([&] { return !finished.empty(); }, 30000));
-    REQUIRE(!finished.empty());
+    REQUIRE(vss_test::wait_until(
+        [&] { return finished.size() > finished_before; }, 30000));
     const plugin_request_result refusal = finished.back();
     REQUIRE(refusal.kind == plugin_request_kind::add_plugin);
     REQUIRE(refusal.error == plugin_request_error::installed_for_everyone);
     REQUIRE_EQ(refusal.plugin_name, QStringLiteral("Served"));
     REQUIRE(!fs::exists(plugins / kPluginId));
-    inspected.clear();
+    const std::size_t inspected_before = inspected.size();
     backend.inspect_plugin(QString::fromStdWString(source.wstring()));
-    REQUIRE(vss_test::wait_until([&] { return !inspected.empty(); }, 30000));
-    REQUIRE(!inspected.empty());
-    const auto inspection = inspected.front();
+    REQUIRE(vss_test::wait_until(
+        [&] { return inspected.size() > inspected_before; }, 30000));
+    const auto inspection = inspected.back();
     REQUIRE(inspection.failure ==
             plugin_inspection_view::problem::installed_for_everyone);
     REQUIRE(!inspection.can_install);
