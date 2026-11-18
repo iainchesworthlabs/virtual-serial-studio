@@ -35,7 +35,7 @@ class DockTitleBar final : public QFrame
     Q_OBJECT
 
 public:
-    DockTitleBar(QDockWidget* dock, QWidget* parent = nullptr);
+    explicit DockTitleBar(QDockWidget* dock, QWidget* parent = nullptr);
 
     QToolButton* menu_button() const noexcept { return menu_button_; }
     QToolButton* close_button() const noexcept { return close_button_; }
@@ -166,7 +166,6 @@ Q_SIGNALS:
     /// A pane was moved, tabbed, split or floated by the user.
     void layout_changed();
 
-protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:

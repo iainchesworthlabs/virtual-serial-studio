@@ -51,12 +51,12 @@ namespace
 namespace json = boost::json;
 namespace dbg = vss::debug;
 
-constexpr auto gui_wait = std::chrono::seconds(3);
-constexpr std::size_t picture_most = 900 * 1024;
-constexpr int value_text_most = 200;
-constexpr int children_most = 400;
+constexpr auto kGuiWait = std::chrono::seconds(3);
+constexpr std::size_t kPictureMost = std::size_t{900} * 1024;
+constexpr int kValueTextMost = 200;
+constexpr int kChildrenMost = 400;
 
-/// Runs `body` on the window's thread and waits for it, up to `gui_wait`.  A
+/// Runs `body` on the window's thread and waits for it, up to `kGuiWait`.  A
 /// window that is busy gives `nullopt` after the wait and the late result is
 /// dropped; the worker never waits for ever.  `body` must not touch the
 /// provider, which may be gone by the time it runs.
@@ -70,7 +70,7 @@ auto on_gui_thread(Body body) -> std::optional<decltype(body())>
         QCoreApplication::instance(),
         [promise, body = std::move(body)]() mutable
         { promise->set_value(body()); }, Qt::QueuedConnection);
-    if (future.wait_for(gui_wait) != std::future_status::ready)
+    if (future.wait_for(kGuiWait) != std::future_status::ready)
         return std::nullopt;
     return future.get();
 }
@@ -140,9 +140,9 @@ QString label_of(const QWidget* widget)
 
 QString cut_text(QString text)
 {
-    if (text.size() > value_text_most)
+    if (text.size() > kValueTextMost)
     {
-        text.truncate(value_text_most);
+        text.truncate(kValueTextMost);
         text += QStringLiteral("...");
     }
     return text;
@@ -187,7 +187,7 @@ json::array control_values(QWidget* window)
     int seen = 0;
     for (QWidget* child : window->findChildren<QWidget*>())
     {
-        if (++seen > children_most)
+        if (++seen > kChildrenMost)
             break;
         if (!child->isVisibleTo(window))
             continue;
@@ -388,7 +388,7 @@ public:
                     QBuffer buffer(&bytes);
                     buffer.open(QIODevice::WriteOnly);
                     picture.save(&buffer, "PNG");
-                    if (static_cast<std::size_t>(bytes.size()) <= picture_most)
+                    if (static_cast<std::size_t>(bytes.size()) <= kPictureMost)
                         return bytes;
                     picture = picture.scaled(picture.size() * 3 / 4,
                                              Qt::KeepAspectRatio,
@@ -504,7 +504,7 @@ bool DebugAccess::enable()
         const unsigned wanted = request.wanted;
         QMetaObject::invokeMethod(
             this,
-            [this, name, program, process, wanted, answer]
+            [this, name, program, process, wanted, answer = std::move(answer)]
             {
                 ask_person(name, program, process, wanted,
                            [answer](unsigned granted, bool remember)
@@ -658,7 +658,7 @@ void DebugAccess::ask_person(const QString& name, const QString& program,
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setObjectName(QStringLiteral("debugApprovalDialog"));
     connect(dialog, &QDialog::finished, this,
-            [dialog, answer, wanted](int)
+            [dialog, answer = std::move(answer), wanted](int)
             {
                 switch (dialog->chosen())
                 {

@@ -21,8 +21,6 @@
 #include <vss/debug/client.hpp>
 #include <vss/studio/studio.hpp>
 
-#include <boost/json.hpp>
-
 #include <QApplication>
 #include <QCheckBox>
 #include <QDir>
@@ -38,7 +36,6 @@
 
 namespace support = vss::gui::support;
 namespace dbg = vss::debug;
-namespace json = boost::json;
 
 namespace
 {

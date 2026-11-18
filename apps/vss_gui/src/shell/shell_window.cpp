@@ -1891,8 +1891,9 @@ void ShellWindow::update_content()
                 dock->setVisible(action == nullptr || action->isChecked());
         }
         // The Monitor stays closed if the user closed it.
-        monitor_dock_->setVisible(monitor_action_ == nullptr ||
-                                  monitor_action_->isChecked());
+        if (monitor_dock_ != nullptr)
+            monitor_dock_->setVisible(monitor_action_ == nullptr ||
+                                      monitor_action_->isChecked());
         const bool links_shown =
             links_action_ != nullptr && links_action_->isChecked();
         if (links_dock_ != nullptr)
@@ -4056,7 +4057,8 @@ void ShellWindow::apply_dock_sizes()
     // relax it to the documented minimum so the user can still resize.
     ports_dock_->setMinimumWidth(ports);
     inspector_dock_->setMinimumWidth(inspector);
-    monitor_dock_->setMinimumHeight(monitor);
+    if (monitor_dock_ != nullptr)
+        monitor_dock_->setMinimumHeight(monitor);
     resizeDocks({ports_dock_, inspector_dock_}, {ports, inspector},
                 Qt::Horizontal);
     resizeDocks({send_dock_}, {metric("layout.send.default")}, Qt::Vertical);

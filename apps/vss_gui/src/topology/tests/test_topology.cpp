@@ -154,6 +154,15 @@ QVector<topo::topo_node_input> equal_nodes(int count)
     return nodes;
 }
 
+/// The connection of a port that the test has given one.
+vss::gui::connection_view&
+connection_at(std::vector<vss::gui::port_view>& ports, std::size_t at)
+{
+    auto& connection = ports[at].connection;
+    REQUIRE(connection.has_value());
+    return *connection;
+}
+
 } // namespace
 
 TEST_CASE("topology: empty state, hint and accessible summary")
@@ -298,9 +307,9 @@ TEST_CASE("topology: a network client shows where it connects and its state")
         connection.target = ports[index].path;
         ports[index].connection = connection;
     }
-    ports[2].connection->phase = vss::gui::connect_phase::failed;
-    ports[2].connection->reason = QStringLiteral("Connection refused");
-    ports[3].connection->phase = vss::gui::connect_phase::connected;
+    connection_at(ports, 2).phase = vss::gui::connect_phase::failed;
+    connection_at(ports, 2).reason = QStringLiteral("Connection refused");
+    connection_at(ports, 3).phase = vss::gui::connect_phase::connected;
 
     // Whether motion is reduced follows the system setting unless the
     // variable says otherwise, and a CI session can have animations off. Ask
@@ -335,11 +344,11 @@ TEST_CASE("topology: a network client shows where it connects and its state")
     REQUIRE(!still.node_spin_timer_running());
     qunsetenv("VSS_REDUCE_MOTION");
     // A change of state reaches the canvas.
-    ports[1].connection->phase = vss::gui::connect_phase::connected;
+    connection_at(ports, 1).phase = vss::gui::connect_phase::connected;
     view.set_topology(ports, {});
     REQUIRE(!view.node_spins(2));
     REQUIRE(view.node_badges(2).contains(QStringLiteral("Connected")));
-    ports[1].connection->phase = vss::gui::connect_phase::connecting;
+    connection_at(ports, 1).phase = vss::gui::connect_phase::connecting;
     view.set_topology(ports, {});
 
     // For a person to review: connecting, failed, connected and a server.
@@ -381,7 +390,7 @@ TEST_CASE("topology: a stopped port says so and offers Start")
     REQUIRE(!view.node_menu_labels(2).contains(QStringLiteral("Stop")));
 
     ports[0].stopped = true;
-    ports[0].connection->phase = vss::gui::connect_phase::stopped;
+    connection_at(ports, 0).phase = vss::gui::connect_phase::stopped;
     view.set_topology(ports, {});
     REQUIRE(view.node_menu_labels(1).contains(QStringLiteral("Start")));
     // Stopped is its own state: a chip, no spinning icon, no failure.
@@ -416,7 +425,7 @@ TEST_CASE("topology: Pause and Resume in the menu, and a paused port")
     REQUIRE(!view.node_menu_labels(1).contains(QStringLiteral("Resume")));
 
     ports[0].paused = true;
-    ports[0].connection->phase = vss::gui::connect_phase::paused;
+    connection_at(ports, 0).phase = vss::gui::connect_phase::paused;
     view.set_topology(ports, {});
     REQUIRE(view.node_menu_labels(1).contains(QStringLiteral("Resume")));
     REQUIRE(view.node_menu_labels(1).contains(QStringLiteral("Stop")));
@@ -433,7 +442,7 @@ TEST_CASE("topology: Pause and Resume in the menu, and a paused port")
     // A stopped port has Start only.
     ports[0].paused = false;
     ports[0].stopped = true;
-    ports[0].connection->phase = vss::gui::connect_phase::stopped;
+    connection_at(ports, 0).phase = vss::gui::connect_phase::stopped;
     view.set_topology(ports, {});
     REQUIRE(view.node_menu_labels(1).contains(QStringLiteral("Start")));
     REQUIRE(!view.node_menu_labels(1).contains(QStringLiteral("Pause")));
@@ -441,7 +450,7 @@ TEST_CASE("topology: Pause and Resume in the menu, and a paused port")
     // Without the capability there is no Pause.
     caps.port_pause = false;
     ports[0].stopped = false;
-    ports[0].connection->phase = vss::gui::connect_phase::connecting;
+    connection_at(ports, 0).phase = vss::gui::connect_phase::connecting;
     view.set_capabilities(caps);
     view.set_topology(ports, {});
     REQUIRE(!view.node_menu_labels(1).contains(QStringLiteral("Pause")));

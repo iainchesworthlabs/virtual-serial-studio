@@ -253,9 +253,11 @@ Q_SIGNALS:
     /// The time ran out. The code is already gone from the dialog.
     void timed_out_now();
 
+public:
+    void done(int result) override;
+
 protected:
     void showEvent(QShowEvent* event) override;
-    void done(int result) override;
 
 private:
     void update_time_line();

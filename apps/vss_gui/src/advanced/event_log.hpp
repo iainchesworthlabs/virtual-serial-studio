@@ -59,9 +59,10 @@ public:
     QLabel* empty_label() const noexcept { return empty_; }
     QPushButton* clear_button() const noexcept { return clear_; }
 
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
 protected:
     void changeEvent(QEvent* event) override;
-    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     void add_row(const QString& time, const QString& port, const QString& event,
