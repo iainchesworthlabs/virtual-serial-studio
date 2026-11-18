@@ -167,7 +167,27 @@ public:
     /// is on.  `nullopt` when the backend cannot tell: the window then does not
     /// offer numbers to choose from and lets Studio pick (see
     /// `08-engine-gaps.md`).  It reads the computer each time.
+    ///
+    /// These are the numbers a new Studio port cannot take.  A number that
+    /// only a removed Studio port keeps, or that only the COM name database
+    /// marks with no device, is not here: it is free to choose, and the
+    /// helper clears it when a port asks for it.
     virtual std::optional<std::vector<unsigned>> reserved_com_numbers() const
+    {
+        return std::nullopt;
+    }
+    /// Every number Windows keeps for a port that is not listed, a removed
+    /// Studio port's included.  Making a port on one of these takes a fraction
+    /// of a second instead of about half a minute, so the automatic choice
+    /// prefers them.  Defaults to `reserved_com_numbers`.
+    virtual std::optional<std::vector<unsigned>> kept_com_numbers() const
+    {
+        return reserved_com_numbers();
+    }
+    /// What holds each COM number that is in use or kept, for the reasons the
+    /// window gives.  `nullopt` when the backend cannot tell.
+    virtual std::optional<std::vector<vss::com_number_holder>>
+    com_number_holders() const
     {
         return std::nullopt;
     }

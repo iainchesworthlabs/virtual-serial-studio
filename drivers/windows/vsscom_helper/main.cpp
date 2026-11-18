@@ -401,19 +401,14 @@ bool wait_name(const std::wstring& name, HANDLE stop)
     }
 }
 
-/// The devices of the Ports class, present or not, whose PortName is `wanted`,
-/// other than `except` (the port being renamed). A port that is gone stays in the
-/// Ports class with its PortName, and Windows keeps its number marked in the COM
-/// name database; this is how those are told from a number that a device in use
-/// holds.
-std::vector<vss::helper::number_holder>
-find_holders(const std::wstring& wanted, const std::wstring& except)
+void find_holders_in(const GUID& device_class, const std::wstring& wanted,
+                     const std::wstring& except,
+                     std::vector<vss::helper::number_holder>& holders)
 {
-    std::vector<vss::helper::number_holder> holders;
-    const HDEVINFO set = ::SetupDiGetClassDevsW(&GUID_DEVCLASS_PORTS, nullptr,
-                                                nullptr, 0);
+    const HDEVINFO set =
+        ::SetupDiGetClassDevsW(&device_class, nullptr, nullptr, 0);
     if (set == INVALID_HANDLE_VALUE)
-        return holders;
+        return;
 
     SP_DEVINFO_DATA data{};
     data.cbSize = sizeof(data);
@@ -430,7 +425,20 @@ find_holders(const std::wstring& wanted, const std::wstring& except)
         if (key == INVALID_HANDLE_VALUE)
             continue;
         std::wstring name;
-        const bool has_name = read_port_name(key, name);
+        bool has_name = read_port_name(key, name);
+        if (!has_name)
+        {
+            // A modem names its port AttachedTo.
+            wchar_t buffer[64]{};
+            DWORD size = sizeof(buffer) - sizeof(wchar_t);
+            DWORD type = 0;
+            has_name = ::RegQueryValueExW(key, L"AttachedTo", nullptr, &type,
+                                          reinterpret_cast<LPBYTE>(buffer),
+                                          &size) == ERROR_SUCCESS &&
+                       type == REG_SZ;
+            if (has_name)
+                name = buffer;
+        }
         ::RegCloseKey(key);
         if (!has_name || _wcsicmp(name.c_str(), wanted.c_str()) != 0)
             continue;
@@ -450,6 +458,23 @@ find_holders(const std::wstring& wanted, const std::wstring& except)
         holders.push_back(std::move(holder));
     }
     ::SetupDiDestroyDeviceInfoList(set);
+}
+
+/// The devices of the Ports, Modem and multi-port classes, present or not, whose PortName is `wanted`,
+/// other than `except` (the port being renamed). A port that is gone stays in the
+/// Ports class with its PortName, and Windows keeps its number marked in the COM
+/// name database; this is how those are told from a number that a device in use
+/// holds.
+std::vector<vss::helper::number_holder>
+find_holders(const std::wstring& wanted, const std::wstring& except)
+{
+    std::vector<vss::helper::number_holder> holders;
+    // A modem and a multi-port card name a COM port the same way, so a hidden
+    // one of those counts as a holder too, and is never Studio's to clear.
+    for (const GUID* const device_class :
+         {&GUID_DEVCLASS_PORTS, &GUID_DEVCLASS_MODEM,
+          &GUID_DEVCLASS_MULTIPORTSERIAL})
+        find_holders_in(*device_class, wanted, except, holders);
     return holders;
 }
 

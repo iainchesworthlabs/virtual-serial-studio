@@ -126,7 +126,7 @@ void ComNumberDialog::load_numbers()
     const QSignalBlocker block(number_);
     number_->clear();
     for (const unsigned candidate :
-         free_com_numbers(in_use_, kFirstGuiComNumber, kOffered + 1))
+         free_com_numbers(in_use_, 1, kOffered + 1))
     {
         if (candidate != old_number_)
             number_->addItem(com_text(candidate));

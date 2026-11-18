@@ -475,8 +475,11 @@ TEST_CASE("canvas: the Add sheet for a Port offers a COM number")
     REQUIRE(!port.add_button()->isEnabled());
     REQUIRE(port.com_number_combo()->accessibleDescription().contains(
         QStringLiteral("COM5 is used by Studio port meter")));
+    // COM1 and COM2 are free numbers like any other.
     port.com_number_combo()->setEditText(QStringLiteral("COM2"));
-    REQUIRE(!port.add_button()->isEnabled());
+    REQUIRE(port.add_button()->isEnabled());
+    REQUIRE_EQ(port.request().slots.at(0).com_number, 2U);
+    REQUIRE(port.com_number_combo()->findText(QStringLiteral("COM1")) >= 0);
 
     // Other tiles have no such row.
     topo::AddSheet fixture(canvas_item::fixture, backend.ports());

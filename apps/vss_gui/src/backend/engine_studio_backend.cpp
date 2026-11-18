@@ -461,7 +461,7 @@ EngineStudioBackend::create_port_with_com_number(
     // The names Windows keeps for ports that are not listed come first, so the
     // refusals below are the exception rather than the rule.
     std::vector<unsigned> kept;
-    if (const auto reserved = studio_.reserved_com_numbers())
+    if (const auto reserved = studio_.kept_com_numbers())
         kept = *reserved;
     in_use.insert(in_use.end(), kept.begin(), kept.end());
 

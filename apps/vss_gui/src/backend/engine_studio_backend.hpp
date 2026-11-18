@@ -89,6 +89,15 @@ public:
     {
         return studio_.reserved_com_numbers();
     }
+    std::optional<std::vector<unsigned>> kept_com_numbers() const override
+    {
+        return studio_.kept_com_numbers();
+    }
+    std::optional<std::vector<vss::com_number_holder>>
+    com_number_holders() const override
+    {
+        return studio_.com_number_holders();
+    }
     std::vector<traffic_view> traffic(int limit) const override;
     setup_facts facts() const override;
 
