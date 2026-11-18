@@ -447,6 +447,16 @@
             <source>Never</source>
             <translation>なし</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="151" />
+            <source>Open Tools, Setup check to update it.</source>
+            <translation>「ツール」、「セットアップチェック」を開いて更新してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="275" />
+            <source>Driver version</source>
+            <translation>ドライバーのバージョン</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -3853,6 +3863,11 @@ Networks: %5</source>
             <source>Set up Virtual Serial Studio</source>
             <translation>Virtual Serial Studio をセットアップ</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_grid.cpp" line="379" />
+            <source>Update the driver</source>
+            <translation>ドライバーを更新</translation>
+        </message>
     </context>
     <context>
         <name>JsonCodeEdit</name>
@@ -4017,6 +4032,11 @@ Networks: %5</source>
             <location filename="../src/shell/launcher.cpp" line="344" />
             <source>Set up Virtual Serial Studio</source>
             <translation>Virtual Serial Studio をセットアップ</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/launcher.cpp" line="357" />
+            <source>Update the driver</source>
+            <translation>ドライバーを更新</translation>
         </message>
     </context>
     <context>
@@ -6692,6 +6712,11 @@ Networks: %5</source>
             <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Choose Set up Virtual Serial Studio to update it.</source>
             <translation>この PC のドライバーはこのプログラムより古いため、ドライバーが作るポートは使えません。何も変更していません。更新するには「Virtual Serial Studio をセットアップ」を選んでください。</translation>
         </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="162" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Update the driver to install the newer one that comes with this program.</source>
+            <translation>この PC のドライバーはこのプログラムより古いため、そのドライバーが作成するポートは使用できません。何も変更していません。ドライバーを更新して、このプログラムに付属する新しいものをインストールしてください。</translation>
+        </message>
     </context>
     <context>
         <name>ReleasePortDialog</name>
@@ -8020,6 +8045,11 @@ Networks: %5</source>
             <location filename="../src/support/setup_facts.cpp" line="198" />
             <source>Set up Virtual Serial Studio</source>
             <translation>Virtual Serial Studio をセットアップ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/setup_facts.cpp" line="223" />
+            <source>Update the driver</source>
+            <translation>ドライバーを更新</translation>
         </message>
     </context>
     <context>
@@ -19939,6 +19969,16 @@ Networks: %5</source>
             <source>Setup finished, but this PC still cannot make ports: %1. Copy the details if you ask for help.</source>
             <translation>セットアップは完了しましたが、この PC ではまだポートを作成できません: %1。助けを求める場合は詳細をコピーしてください。</translation>
         </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="147" />
+            <source>Updating replaces the driver and restarts the helper, so ports that are open now are closed, and a program that has one open loses it. Studio offers to make the ports again. Windows may ask for a restart before the new driver is used.</source>
+            <translation>更新するとドライバーが置き換えられ、ヘルパーが再起動します。現在開いているポートは閉じられ、そのポートを開いているプログラムは使えなくなります。Studio がポートを再作成するか尋ねます。新しいドライバーを使う前に、Windows が再起動を求めることがあります。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="217" />
+            <source>Update the driver</source>
+            <translation>ドライバーを更新</translation>
+        </message>
     </context>
     <context>
         <name>AddSheet</name>
@@ -24696,6 +24736,34 @@ From the plugin %2
             <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
             <source>Stop bits</source>
             <translation>ストップビット</translation>
+        </message>
+    </context>
+    <context>
+        <name>DriverVersions</name>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="99" />
+            <source>Studio could not read which version of the driver Windows holds.</source>
+            <translation>Windows にあるドライバーのバージョンを Studio は読み取れませんでした。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="106" />
+            <source>The driver in Windows is version %1. This copy of Studio has no driver files to compare it with.</source>
+            <translation>Windows のドライバーはバージョン %1 です。この Studio にはそれと比べるドライバーのファイルがありません。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="115" />
+            <source>The driver in Windows is version %1. This copy of Studio carries the newer version %2.</source>
+            <translation>Windows のドライバーはバージョン %1 です。この Studio には、より新しいバージョン %2 が含まれています。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="121" />
+            <source>The driver in Windows is version %1, newer than the version this copy of Studio carries (%2). Nothing needs updating.</source>
+            <translation>Windows のドライバーはバージョン %1 で、この Studio に含まれるバージョン (%2) より新しいです。更新の必要はありません。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="131" />
+            <source>The driver in Windows is version %1, the same as this copy of Studio carries.</source>
+            <translation>Windows のドライバーはバージョン %1 で、この Studio に含まれるものと同じです。</translation>
         </message>
     </context>
 </TS>

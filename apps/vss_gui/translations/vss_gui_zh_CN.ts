@@ -447,6 +447,16 @@
             <source>Never</source>
             <translation>从未</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="151" />
+            <source>Open Tools, Setup check to update it.</source>
+            <translation>请打开“工具”，“配置检查”进行更新。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="275" />
+            <source>Driver version</source>
+            <translation>驱动程序版本</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -3853,6 +3863,11 @@ Networks: %5</source>
             <source>Set up Virtual Serial Studio</source>
             <translation>设置 Virtual Serial Studio</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_grid.cpp" line="379" />
+            <source>Update the driver</source>
+            <translation>更新驱动程序</translation>
+        </message>
     </context>
     <context>
         <name>JsonCodeEdit</name>
@@ -4017,6 +4032,11 @@ Networks: %5</source>
             <location filename="../src/shell/launcher.cpp" line="344" />
             <source>Set up Virtual Serial Studio</source>
             <translation>设置 Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/launcher.cpp" line="357" />
+            <source>Update the driver</source>
+            <translation>更新驱动程序</translation>
         </message>
     </context>
     <context>
@@ -6692,6 +6712,11 @@ Networks: %5</source>
             <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Choose Set up Virtual Serial Studio to update it.</source>
             <translation>此电脑上的驱动程序比本程序旧，因此它创建的端口无法使用。未更改任何内容。请选择“设置 Virtual Serial Studio”来更新。</translation>
         </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="162" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Update the driver to install the newer one that comes with this program.</source>
+            <translation>此电脑上的驱动程序比本程序旧，因此它创建的端口无法使用。未做任何更改。请更新驱动程序，以安装本程序附带的较新版本。</translation>
+        </message>
     </context>
     <context>
         <name>ReleasePortDialog</name>
@@ -8020,6 +8045,11 @@ Networks: %5</source>
             <location filename="../src/support/setup_facts.cpp" line="198" />
             <source>Set up Virtual Serial Studio</source>
             <translation>设置 Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/setup_facts.cpp" line="223" />
+            <source>Update the driver</source>
+            <translation>更新驱动程序</translation>
         </message>
     </context>
     <context>
@@ -19939,6 +19969,16 @@ Networks: %5</source>
             <source>Setup finished, but this PC still cannot make ports: %1. Copy the details if you ask for help.</source>
             <translation>设置已完成，但此电脑仍无法创建端口：%1。如需求助，请复制详细信息。</translation>
         </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="147" />
+            <source>Updating replaces the driver and restarts the helper, so ports that are open now are closed, and a program that has one open loses it. Studio offers to make the ports again. Windows may ask for a restart before the new driver is used.</source>
+            <translation>更新会替换驱动程序并重新启动辅助服务，因此当前已打开的端口会被关闭，打开了端口的程序会失去它。Studio 会提示重新创建这些端口。在使用新驱动程序之前，Windows 可能会要求重新启动。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="217" />
+            <source>Update the driver</source>
+            <translation>更新驱动程序</translation>
+        </message>
     </context>
     <context>
         <name>AddSheet</name>
@@ -24696,6 +24736,34 @@ From the plugin %2
             <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
             <source>Stop bits</source>
             <translation>停止位</translation>
+        </message>
+    </context>
+    <context>
+        <name>DriverVersions</name>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="99" />
+            <source>Studio could not read which version of the driver Windows holds.</source>
+            <translation>Studio 无法读取 Windows 中驱动程序的版本。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="106" />
+            <source>The driver in Windows is version %1. This copy of Studio has no driver files to compare it with.</source>
+            <translation>Windows 中的驱动程序版本为 %1。此 Studio 副本没有可用于比较的驱动程序文件。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="115" />
+            <source>The driver in Windows is version %1. This copy of Studio carries the newer version %2.</source>
+            <translation>Windows 中的驱动程序版本为 %1。此 Studio 副本附带更新的版本 %2。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="121" />
+            <source>The driver in Windows is version %1, newer than the version this copy of Studio carries (%2). Nothing needs updating.</source>
+            <translation>Windows 中的驱动程序版本为 %1，比此 Studio 副本附带的版本 (%2) 更新。无需更新。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="131" />
+            <source>The driver in Windows is version %1, the same as this copy of Studio carries.</source>
+            <translation>Windows 中的驱动程序版本为 %1，与此 Studio 副本附带的相同。</translation>
         </message>
     </context>
 </TS>
