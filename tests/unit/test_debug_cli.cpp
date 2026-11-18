@@ -53,7 +53,7 @@ struct debug_studio
         options.instance_directory = scratch.path() / "instances";
         options.approve =
             [person_allows](const dbg::client_request& request,
-                            std::function<void(dbg::approval)> answer)
+                            const std::function<void(dbg::approval)>& answer)
         {
             dbg::approval reply;
             reply.granted = person_allows ? request.wanted : 0;
@@ -143,7 +143,7 @@ TEST_CASE(
     options.recorder = &first.log;
     options.instance_directory = first.scratch.path() / "instances";
     options.approve = [](const dbg::client_request& request,
-                         std::function<void(dbg::approval)> answer)
+                         const std::function<void(dbg::approval)>& answer)
     {
         dbg::approval reply;
         reply.granted = request.wanted;

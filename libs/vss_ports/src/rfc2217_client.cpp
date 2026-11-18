@@ -542,10 +542,12 @@ struct rfc2217_client_transport::state
         consumed += count;
 
         std::vector<line_break> due;
-        while (!marks.empty() && marks.front().at <= consumed &&
-               marks.front().item)
+        while (!marks.empty() && marks.front().at <= consumed)
         {
-            due.push_back(*marks.front().item);
+            const auto& mark = marks.front().item;
+            if (!mark)
+                break;
+            due.push_back(*mark);
             marks.pop_front();
         }
 
@@ -819,7 +821,15 @@ rfc2217_client_transport::rfc2217_client_transport(
 
 rfc2217_client_transport::~rfc2217_client_transport()
 {
-    close();
+    try
+    {
+        close();
+    }
+    catch (...)
+    {
+        // best effort: nothing can be done about a failure to close while
+        // the object is being destroyed.
+    }
 }
 
 std::string rfc2217_client_transport::describe() const

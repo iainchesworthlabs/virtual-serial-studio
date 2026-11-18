@@ -35,7 +35,7 @@ class DockTitleBar final : public QFrame
     Q_OBJECT
 
 public:
-    DockTitleBar(QDockWidget* dock, QWidget* parent = nullptr);
+    explicit DockTitleBar(QDockWidget* dock, QWidget* parent = nullptr);
 
     QToolButton* menu_button() const noexcept { return menu_button_; }
     QToolButton* close_button() const noexcept { return close_button_; }
@@ -159,15 +159,14 @@ public:
     void finish_drag(const QPoint& global);
     void cancel_drag();
 
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
 Q_SIGNALS:
     /// The user closed a pane (its close button, its menu, or the window
     /// system). Hiding a pane for another reason does not send this.
     void pane_closed(QDockWidget* dock);
     /// A pane was moved, tabbed, split or floated by the user.
     void layout_changed();
-
-protected:
-    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     bool tab_bar_event(QTabBar* bar, QEvent* event);

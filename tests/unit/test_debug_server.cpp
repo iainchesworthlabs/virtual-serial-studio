@@ -119,8 +119,9 @@ struct rig
         options.max_requests_per_second = 40;
         options.redact =
             dbg::redactor::for_user("C:\\Users\\tester", "tester", "TEST-PC");
-        options.approve = [this](const dbg::client_request& request,
-                                 std::function<void(dbg::approval)> answer)
+        options.approve =
+            [this](const dbg::client_request& request,
+                   const std::function<void(dbg::approval)>& answer)
         {
             ++asked;
             last_name = request.name;
@@ -221,7 +222,7 @@ TEST_CASE("debug server: a person who never answers is a refusal")
     again.recorder = &world.log;
     again.approval_timeout = 300ms;
     again.approve = [](const dbg::client_request&,
-                       std::function<void(dbg::approval)>) {};
+                       const std::function<void(dbg::approval)>&) {};
     auto started = dbg::server::start(std::move(again));
     REQUIRE(started.has_value());
     options.instance = (*started)->instance();

@@ -774,7 +774,9 @@ TEST_CASE("relay: only a monitor takes a direction, and it can be changed")
 
     const auto link = fixture.hub->monitor(fixture.id(0), fixture.id(2));
     REQUIRE(link);
-    auto changed = fixture.hub->find_link(*link)->options;
+    const auto monitored = fixture.hub->find_link(*link);
+    REQUIRE(monitored.has_value());
+    auto changed = monitored->options;
     changed.direction = monitor_direction::transmit;
     REQUIRE(fixture.hub->set_link_options(*link, changed));
     fixture.ports[0].inject_read("T");
@@ -782,7 +784,9 @@ TEST_CASE("relay: only a monitor takes a direction, and it can be changed")
 
     const auto plain = fixture.hub->connect(fixture.id(0), fixture.id(1));
     REQUIRE(plain);
-    auto bad = fixture.hub->find_link(*plain)->options;
+    const auto joined = fixture.hub->find_link(*plain);
+    REQUIRE(joined.has_value());
+    auto bad = joined->options;
     bad.direction = monitor_direction::receive;
     REQUIRE_EQ(fixture.hub->set_link_options(*plain, bad),
                make_error_code(errc::unsupported));

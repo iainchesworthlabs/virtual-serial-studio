@@ -88,8 +88,8 @@ QString listen_host(QComboBox* combo, QLineEdit* custom)
     return custom == nullptr ? QString() : custom->text().trimmed();
 }
 
-constexpr const char* port_token = "port:";
-constexpr const char* new_port_token = "new:";
+constexpr const char* kPortToken = "port:";
+constexpr const char* kNewPortToken = "new:";
 
 /// A refusal by the other computer, as opposed to an address that cannot be
 /// used or a setup that is wrong.
@@ -555,7 +555,7 @@ void NetworkEndpointDialog::reload_devices()
         held << port.path.toLower();
         device_combo_->addItem(
             tr("%1, %2 (in Studio)").arg(port.name, port.path),
-            QString::fromLatin1(port_token) + QString::number(port.id));
+            QString::fromLatin1(kPortToken) + QString::number(port.id));
         if (preselected_ == port.id)
         {
             device_combo_->setCurrentIndex(device_combo_->count() - 1);
@@ -564,7 +564,7 @@ void NetworkEndpointDialog::reload_devices()
         }
     }
     device_combo_->addItem(tr("A new port in Studio"),
-                           QString::fromLatin1(new_port_token));
+                           QString::fromLatin1(kNewPortToken));
 
     for (const device_view& device : devices_)
     {
@@ -581,8 +581,8 @@ void NetworkEndpointDialog::reload_devices()
         for (int row = 0; row < device_combo_->count(); ++row)
         {
             const QString token = device_combo_->itemData(row).toString();
-            if (!token.startsWith(QString::fromLatin1(port_token)) &&
-                token != QString::fromLatin1(new_port_token))
+            if (!token.startsWith(QString::fromLatin1(kPortToken)) &&
+                token != QString::fromLatin1(kNewPortToken))
             {
                 index = row;
                 break;
@@ -785,7 +785,7 @@ QString NetworkEndpointDialog::uri() const
 
 vss::endpoint_id NetworkEndpointDialog::selected_port() const
 {
-    const QString token = QString::fromLatin1(port_token);
+    const QString token = QString::fromLatin1(kPortToken);
     if (!device_path_.startsWith(token))
         return 0;
     return device_path_.mid(token.size()).toULongLong();
@@ -793,12 +793,12 @@ vss::endpoint_id NetworkEndpointDialog::selected_port() const
 
 bool NetworkEndpointDialog::new_port_selected() const
 {
-    return device_path_ == QString::fromLatin1(new_port_token);
+    return device_path_ == QString::fromLatin1(kNewPortToken);
 }
 
 bool NetworkEndpointDialog::select_port(vss::endpoint_id id)
 {
-    return set_device_path(QString::fromLatin1(port_token) +
+    return set_device_path(QString::fromLatin1(kPortToken) +
                            QString::number(id));
 }
 
@@ -854,7 +854,7 @@ bool NetworkEndpointDialog::edit_port(vss::endpoint_id id)
 
 bool NetworkEndpointDialog::select_new_port()
 {
-    return set_device_path(QString::fromLatin1(new_port_token));
+    return set_device_path(QString::fromLatin1(kNewPortToken));
 }
 
 QString NetworkEndpointDialog::source_uri() const

@@ -242,9 +242,11 @@ TEST_CASE("break: a begin and an end are carried in order, and a break is counte
     REQUIRE(wait_until([&] { return to.endpoint->stats().breaks_tx == 1; },
                        5000ms));
     REQUIRE_EQ(from.endpoint->stats().breaks_rx, std::uint64_t{1});
-    REQUIRE_EQ(hub->find_link(*link)->stats.breaks, std::uint64_t{1});
+    const auto counted = hub->find_link(*link);
+    REQUIRE(counted.has_value());
+    REQUIRE_EQ(counted->stats.breaks, std::uint64_t{1});
     // A break is not bytes.
-    REQUIRE_EQ(hub->find_link(*link)->stats.bytes, std::uint64_t{3});
+    REQUIRE_EQ(counted->stats.bytes, std::uint64_t{3});
     REQUIRE_EQ(to.endpoint->stats().bytes_tx, std::uint64_t{3});
 
     // The end says how long the break lasted.
@@ -447,7 +449,7 @@ TEST_CASE("break: a port that cannot show one says so once and counts it dropped
     auto added = hub->add_endpoint("deaf", endpoint_kind::virtual_port,
                                    std::make_shared<deaf_transport>(hub->executor()));
     REQUIRE(added);
-    const auto deaf = *added;
+    const auto& deaf = *added;
     REQUIRE(hub->redirect(from.endpoint->id(), deaf->id()));
 
     from.bytes("a");

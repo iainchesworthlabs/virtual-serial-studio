@@ -49,6 +49,15 @@ tx_break_mark ended(std::uint64_t on_time, std::uint64_t off_time,
     return mark;
 }
 
+/// The time of the write that a piece belongs to.
+std::uint64_t stamp_of(const std::vector<tx_piece>& pieces, std::size_t at)
+{
+    REQUIRE(at < pieces.size());
+    const auto& stamp = pieces[at].stamp;
+    REQUIRE(stamp.has_value());
+    return *stamp;
+}
+
 /// The pieces as text: bytes as themselves, a break as [begin], [end] or
 /// [break].
 std::string show(const std::vector<tx_piece>& pieces)
@@ -184,9 +193,9 @@ TEST_CASE("tx order: every write is a piece with the time of its call")
 
     const auto out = order.take();
     REQUIRE_EQ(show(out), std::string("AB|CDE|FG|"));
-    REQUIRE_EQ(*out[0].stamp, 100u);
-    REQUIRE_EQ(*out[1].stamp, 200u);
-    REQUIRE_EQ(*out[2].stamp, 350u);
+    REQUIRE_EQ(stamp_of(out, 0), 100u);
+    REQUIRE_EQ(stamp_of(out, 1), 200u);
+    REQUIRE_EQ(stamp_of(out, 2), 350u);
 }
 
 TEST_CASE("tx order: a write split by a break keeps its time on both sides")
@@ -197,8 +206,8 @@ TEST_CASE("tx order: a write split by a break keeps its time on both sides")
     order.add_bytes(bytes_of("ABCD"));
     const auto out = order.take();
     REQUIRE_EQ(show(out), std::string("AB|[break]CD|"));
-    REQUIRE_EQ(*out[0].stamp, 100u);
-    REQUIRE_EQ(*out[2].stamp, 100u);
+    REQUIRE_EQ(stamp_of(out, 0), 100u);
+    REQUIRE_EQ(stamp_of(out, 2), 100u);
 }
 
 TEST_CASE("tx order: marks may come in a later call than the bytes before them")
@@ -211,7 +220,7 @@ TEST_CASE("tx order: marks may come in a later call than the bytes before them")
     order.add_bytes(bytes_of("CD"));
     const auto out = order.take();
     REQUIRE_EQ(show(out), std::string("[break]CD|"));
-    REQUIRE_EQ(*out[1].stamp, 500u);
+    REQUIRE_EQ(stamp_of(out, 1), 500u);
 }
 
 TEST_CASE(

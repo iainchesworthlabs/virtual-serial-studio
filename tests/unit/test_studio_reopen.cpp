@@ -582,7 +582,9 @@ TEST_CASE("stop_port: a stopped client stays closed and is not retried")
     REQUIRE_EQ(app.endpoint_infos().size(), std::size_t{1});
     std::this_thread::sleep_for(500ms);
     REQUIRE_EQ(server.accepted(), 1);
-    REQUIRE(!app.connection((*port)->id())->retrying);
+    const auto shown = app.connection((*port)->id());
+    REQUIRE(shown.has_value());
+    REQUIRE(!shown->retrying);
 
     REQUIRE(app.start_port((*port)->id()));
     REQUIRE(wait_until([&] { return server.accepted() == 2; }, 5000ms));
@@ -638,7 +640,9 @@ TEST_CASE("pause_port: a paused client stays closed, is saved and resumes")
     REQUIRE(app.port_stopped((*port)->id()).value_or(true) == false);
     std::this_thread::sleep_for(500ms);
     REQUIRE_EQ(server.accepted(), 1);
-    REQUIRE(!app.connection((*port)->id())->retrying);
+    const auto shown = app.connection((*port)->id());
+    REQUIRE(shown.has_value());
+    REQUIRE(!shown->retrying);
 
     // The setup carries the pause; a stop is not carried.
     const auto saved = app.snapshot();
@@ -1095,7 +1099,9 @@ TEST_CASE("reconfigure: a device that can be open once is closed before it is "
     REQUIRE_EQ(device.last_baud(), 9600u);
     REQUIRE(device.newest_open());
     REQUIRE((*port)->is_open());
-    REQUIRE_EQ(app.port_settings(id)->baud_rate, 9600u);
+    const auto applied = app.port_settings(id);
+    REQUIRE(applied.has_value());
+    REQUIRE_EQ(applied->baud_rate, 9600u);
 
     // And again, as a person who tries a few speeds does.
     settings.baud_rate = 57600;
@@ -1112,7 +1118,9 @@ TEST_CASE("reconfigure: a device that refuses the new settings is put back as "
     const auto port = app.attach_serial("device", "serial://not-a-device");
     REQUIRE(port);
     const endpoint_id id = (*port)->id();
-    const unsigned before = app.port_settings(id)->baud_rate;
+    const auto original = app.port_settings(id);
+    REQUIRE(original.has_value());
+    const unsigned before = original->baud_rate;
 
     // Another program holds the device: every open is refused.
     device.refuse(true);
@@ -1123,7 +1131,9 @@ TEST_CASE("reconfigure: a device that refuses the new settings is put back as "
     REQUIRE_EQ(refused.error(),
                make_error_code(boost::system::errc::permission_denied));
     // The saved settings are the old ones.
-    REQUIRE_EQ(app.port_settings(id)->baud_rate, before);
+    const auto kept = app.port_settings(id);
+    REQUIRE(kept.has_value());
+    REQUIRE_EQ(kept->baud_rate, before);
 }
 
 TEST_CASE("pause_port and resume_port: a device is closed before it is "

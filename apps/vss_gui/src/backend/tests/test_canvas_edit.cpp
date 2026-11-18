@@ -312,8 +312,9 @@ TEST_CASE("canvas edit: a new fixture next to a port runs at that port's "
     chosen.slots[0] = {slot_kind::existing, QStringLiteral("base")};
     chosen.slots[1] = {slot_kind::new_fixture, QStringLiteral("probe-2")};
     REQUIRE(build_bundle(backend, chosen).has_value());
-    REQUIRE_EQ(named(backend, QStringLiteral("probe-2"))->serial.baud_rate,
-               19200u);
+    const auto second = named(backend, QStringLiteral("probe-2"));
+    REQUIRE(second.has_value());
+    REQUIRE_EQ(second->serial.baud_rate, 19200u);
 }
 
 TEST_CASE("canvas edit: the connected set follows the links that carry data")

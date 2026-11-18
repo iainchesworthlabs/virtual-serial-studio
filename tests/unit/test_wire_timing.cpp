@@ -459,7 +459,11 @@ TEST_CASE("wire timing: it can be turned on and off on a running link")
     REQUIRE(wait_until([&] { return seen.text_by(to.endpoint->id()) == "A"; },
                        5000ms));
     REQUIRE(wait_until(
-        [&] { return hub->find_link(*link)->stats.paced_releases >= 1; },
+        [&]
+        {
+            const auto info = hub->find_link(*link);
+            return info.has_value() && info->stats.paced_releases >= 1;
+        },
         5000ms));
 
     link_options off;
@@ -468,7 +472,9 @@ TEST_CASE("wire timing: it can be turned on and off on a running link")
     from.bytes("B");
     REQUIRE(wait_until([&] { return seen.text_by(to.endpoint->id()) == "AB"; },
                        5000ms));
-    REQUIRE(!hub->find_link(*link)->options.wire_timing.enabled);
+    const auto relaxed = hub->find_link(*link);
+    REQUIRE(relaxed.has_value());
+    REQUIRE(!relaxed->options.wire_timing.enabled);
 }
 
 TEST_CASE("wire timing: values out of range and a bus are refused")

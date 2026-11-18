@@ -1469,8 +1469,9 @@ TEST_CASE("flows: change COM number applies, and says why it was refused")
     REQUIRE(dialog.result() != QDialog::Accepted);
     REQUIRE(dialog.number_combo()->accessibleDescription().contains(
         QStringLiteral("COM6 already belongs to another device")));
-    REQUIRE_EQ(fixture.backend.port(fixture.port)->path,
-               QStringLiteral("COM7"));
+    const auto refused_port = fixture.backend.port(fixture.port);
+    REQUIRE(refused_port.has_value());
+    REQUIRE_EQ(refused_port->path, QStringLiteral("COM7"));
     REQUIRE(dialog.primary_button()->isEnabled());
 
     // A free number is applied and the dialog closes.
@@ -1480,7 +1481,9 @@ TEST_CASE("flows: change COM number applies, and says why it was refused")
     dialog.primary_button()->click();
     REQUIRE(vss_test::wait_until([&] { return dialog.result() == QDialog::Accepted; }));
     REQUIRE_EQ(dialog.com_name(), QStringLiteral("COM12"));
-    REQUIRE_EQ(fixture.backend.port(fixture.port)->com_number, 12U);
+    const auto renumbered = fixture.backend.port(fixture.port);
+    REQUIRE(renumbered.has_value());
+    REQUIRE_EQ(renumbered->com_number, 12U);
 }
 
 TEST_CASE("flows: change COM number names the Studio port that holds a number")

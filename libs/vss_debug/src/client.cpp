@@ -79,14 +79,14 @@ find_instances(const std::filesystem::path& directory)
 class client::impl
 {
 public:
-    explicit impl(std::chrono::milliseconds timeout) : timeout_(timeout) {}
+    explicit impl(std::chrono::milliseconds timeout) : timeout(timeout) {}
 
     result<std::optional<agent::frame>>
     read_frame(std::chrono::steady_clock::time_point deadline)
     {
         for (;;)
         {
-            auto next = reader_.next();
+            auto next = reader.next();
             if (!next)
                 return next.error();
             if (*next)
@@ -95,28 +95,28 @@ public:
             if (std::chrono::steady_clock::now() >= deadline)
                 return std::optional<agent::frame>{};
 
-            if (!reading_)
+            if (!reading)
             {
-                reading_ = true;
-                stream_->async_read_some(
-                    boost::asio::buffer(chunk_),
+                reading = true;
+                stream->async_read_some(
+                    boost::asio::buffer(chunk),
                     [this](const boost::system::error_code& ec, std::size_t n)
                     {
-                        reading_ = false;
-                        read_ec_ = ec;
-                        read_size_ = n;
-                        completed_ = true;
+                        reading = false;
+                        read_ec = ec;
+                        read_size = n;
+                        completed = true;
                     });
             }
-            io_.restart();
-            io_.run_until(deadline);
-            if (completed_)
+            io.restart();
+            io.run_until(deadline);
+            if (completed)
             {
-                completed_ = false;
-                if (read_ec_)
+                completed = false;
+                if (read_ec)
                     return make_error_code(
                         boost::system::errc::connection_reset);
-                reader_.feed(bytes_view(chunk_.data(), read_size_));
+                reader.feed(bytes_view(chunk.data(), read_size));
             }
         }
     }
@@ -127,13 +127,13 @@ public:
         if (!bytes)
             return bytes.error();
         std::size_t done = 0;
-        const auto deadline = std::chrono::steady_clock::now() + timeout_;
+        const auto deadline = std::chrono::steady_clock::now() + timeout;
         while (done < bytes->size())
         {
             boost::system::error_code failed;
             std::size_t wrote = 0;
             bool finished = false;
-            stream_->async_write_some(
+            stream->async_write_some(
                 boost::asio::buffer(bytes->data() + done, bytes->size() - done),
                 [&](const boost::system::error_code& ec, std::size_t n)
                 {
@@ -141,8 +141,8 @@ public:
                     wrote = n;
                     finished = true;
                 });
-            io_.restart();
-            io_.run_until(deadline);
+            io.restart();
+            io.run_until(deadline);
             if (!finished || failed)
                 return make_error_code(boost::system::errc::broken_pipe);
             done += wrote;
@@ -150,29 +150,29 @@ public:
         return {};
     }
 
-    boost::asio::io_context io_;
-    std::unique_ptr<agent::local_stream> stream_;
-    agent::frame_reader reader_;
-    std::array<byte, 16 * 1024> chunk_{};
-    bool reading_ = false;
-    boost::system::error_code read_ec_;
-    std::size_t read_size_ = 0;
-    bool completed_ = false;
-    std::chrono::milliseconds timeout_;
-    std::int64_t next_id_ = 1;
-    scope_set granted_ = 0;
-    std::deque<std::string> events_;
+    boost::asio::io_context io;
+    std::unique_ptr<agent::local_stream> stream;
+    agent::frame_reader reader;
+    std::array<byte, std::size_t{16} * 1024> chunk;
+    bool reading = false;
+    boost::system::error_code read_ec;
+    std::size_t read_size = 0;
+    bool completed = false;
+    std::chrono::milliseconds timeout;
+    std::int64_t next_id = 1;
+    scope_set granted = 0;
+    std::deque<std::string> events;
 };
 
 result<std::unique_ptr<client>> client::connect(const client_options& options)
 {
     auto state = std::make_unique<impl>(options.timeout);
     auto stream =
-        agent::connect_local(state->io_.get_executor(),
+        agent::connect_local(state->io.get_executor(),
                              agent::local_endpoint::debug, options.instance);
     if (!stream)
         return stream.error();
-    state->stream_ = std::move(stream).value();
+    state->stream = std::move(stream).value();
 
     json::object hello;
     hello["id"] = 0;
@@ -197,10 +197,11 @@ result<std::unique_ptr<client>> client::connect(const client_options& options)
         auto got = state->read_frame(deadline);
         if (!got)
             return got.error();
-        if (!*got)
+        const auto& received = *got;
+        if (!received)
             return make_error_code(errc::timeout);
         boost::system::error_code ec;
-        const json::value body = json::parse((*got)->header, ec);
+        const json::value body = json::parse(received->header, ec);
         if (ec || !body.is_object())
             return make_error_code(errc::io_error);
         const auto& object = body.as_object();
@@ -220,7 +221,7 @@ result<std::unique_ptr<client>> client::connect(const client_options& options)
                     if (item.is_string())
                         if (const auto known =
                                 scope_from_name(item.as_string()))
-                            state->granted_ |= bit(*known);
+                            state->granted |= bit(*known);
                 }
             }
         }
@@ -233,19 +234,19 @@ client::client(std::unique_ptr<impl> state) : impl_(std::move(state)) {}
 
 client::~client()
 {
-    if (impl_ && impl_->stream_)
-        impl_->stream_->close();
+    if (impl_ && impl_->stream)
+        impl_->stream->close();
 }
 
 scope_set client::granted() const noexcept
 {
-    return impl_->granted_;
+    return impl_->granted;
 }
 
 result<reply> client::call(const std::string& operation,
                            const std::string& args_json)
 {
-    const std::int64_t id = impl_->next_id_++;
+    const std::int64_t id = impl_->next_id++;
     json::object request;
     request["id"] = id;
     request["op"] = operation;
@@ -256,22 +257,23 @@ result<reply> client::call(const std::string& operation,
         !sent)
         return sent.error();
 
-    const auto deadline = std::chrono::steady_clock::now() + impl_->timeout_;
+    const auto deadline = std::chrono::steady_clock::now() + impl_->timeout;
     for (;;)
     {
         auto got = impl_->read_frame(deadline);
         if (!got)
             return got.error();
-        if (!*got)
+        auto& received = *got;
+        if (!received)
             return make_error_code(errc::timeout);
         boost::system::error_code parse_ec;
-        const json::value body = json::parse((*got)->header, parse_ec);
+        const json::value body = json::parse(received->header, parse_ec);
         if (parse_ec || !body.is_object())
             return make_error_code(errc::io_error);
         const auto& object = body.as_object();
         if (object.if_contains("event") != nullptr)
         {
-            impl_->events_.push_back((*got)->header);
+            impl_->events.push_back(received->header);
             continue;
         }
         const auto* answered = object.if_contains("id");
@@ -298,17 +300,17 @@ result<reply> client::call(const std::string& operation,
                 message != nullptr && message->is_string())
                 out.message = std::string(message->as_string());
         }
-        out.blob = std::move((*got)->blob);
+        out.blob = std::move(received->blob);
         return out;
     }
 }
 
 result<std::string> client::next_event(std::chrono::milliseconds limit)
 {
-    if (!impl_->events_.empty())
+    if (!impl_->events.empty())
     {
-        std::string out = std::move(impl_->events_.front());
-        impl_->events_.pop_front();
+        std::string out = std::move(impl_->events.front());
+        impl_->events.pop_front();
         return out;
     }
     const auto deadline = std::chrono::steady_clock::now() + limit;
@@ -317,13 +319,14 @@ result<std::string> client::next_event(std::chrono::milliseconds limit)
         auto got = impl_->read_frame(deadline);
         if (!got)
             return got.error();
-        if (!*got)
+        const auto& received = *got;
+        if (!received)
             return make_error_code(errc::timeout);
         boost::system::error_code ec;
-        const json::value body = json::parse((*got)->header, ec);
+        const json::value body = json::parse(received->header, ec);
         if (!ec && body.is_object() &&
             body.as_object().if_contains("event") != nullptr)
-            return (*got)->header;
+            return received->header;
     }
 }
 

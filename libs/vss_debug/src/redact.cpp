@@ -162,13 +162,10 @@ std::optional<hit> named_secret_at(const std::string& text, std::size_t at)
     std::size_t after = std::string::npos;
     if (word_at(text, at, "password"))
         after = at + 8;
-    else if (word_at(text, at, "passwd"))
-        after = at + 6;
     else if (word_at(text, at, "token"))
         after = at + 5;
-    else if (word_at(text, at, "secret"))
-        after = at + 6;
-    else if (word_at(text, at, "apikey"))
+    else if (word_at(text, at, "passwd") || word_at(text, at, "secret") ||
+             word_at(text, at, "apikey"))
         after = at + 6;
     else if (word_at(text, at, "api"))
     {

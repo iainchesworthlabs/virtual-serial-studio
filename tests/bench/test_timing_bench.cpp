@@ -751,6 +751,9 @@ TEST_CASE("bench: the precise wait")
     }
 }
 
+namespace
+{
+
 /// A long chunk through a link with wire timing: each run of it is released
 /// when its first character begins on the wire, so the gap between the
 /// arrivals is known.  A sample is how much later than that a run arrived,
@@ -805,6 +808,8 @@ void report_paced_link(std::uint32_t bit_rate, std::size_t bytes,
                " max_late_us=" + std::to_string(info->stats.max_late_us) +
                " spin_refused=" + std::to_string(info->stats.spin_refused));
 }
+
+} // namespace
 
 TEST_CASE("bench: a long chunk on a link with wire timing")
 {

@@ -1241,9 +1241,9 @@ void EngineStudioBackend::note_connection_event(vss::endpoint_id id,
 {
     auto& events = histories_[id].events;
     events.append({QDateTime::currentDateTime(), text});
-    constexpr qsizetype kept = 10;
-    if (events.size() > kept)
-        events.remove(0, events.size() - kept);
+    constexpr qsizetype kKept = 10;
+    if (events.size() > kKept)
+        events.remove(0, events.size() - kKept);
 }
 
 void EngineStudioBackend::note_failure(const gui_event& event)
@@ -1369,7 +1369,7 @@ EngineStudioBackend::connection_of(const port_view& port)
     // on the canvas, so a state is shown for at least a moment.  The history
     // keeps every change.
     using clock = std::chrono::steady_clock;
-    constexpr auto hold = std::chrono::milliseconds(1500);
+    constexpr auto kHold = std::chrono::milliseconds(1500);
     const auto now = clock::now();
     if (!history.shown)
     {
@@ -1384,7 +1384,7 @@ EngineStudioBackend::connection_of(const port_view& port)
         const auto chosen = [](connect_phase phase)
         { return phase == connect_phase::stopped ||
                  phase == connect_phase::paused; };
-        if (shown_for >= hold || chosen(raw) || chosen(*history.shown))
+        if (shown_for >= kHold || chosen(raw) || chosen(*history.shown))
         {
             history.shown = raw;
             history.shown_at = now;
@@ -1394,7 +1394,7 @@ EngineStudioBackend::connection_of(const port_view& port)
             hold_refresh_pending_ = true;
             const auto left =
                 std::chrono::duration_cast<std::chrono::milliseconds>(
-                    hold - shown_for);
+                    kHold - shown_for);
             QTimer::singleShot(static_cast<int>(left.count()) + 10, this,
                                [this]
                                {
@@ -1463,8 +1463,9 @@ void EngineStudioBackend::rebuild()
         next_ports.back().connection = connection_of(next_ports.back());
         // A client has no path of its own; the address it connects to stands
         // in, the way a listener shows the address it waits on.
-        if (next_ports.back().connection && next_ports.back().path.isEmpty())
-            next_ports.back().path = next_ports.back().connection->target;
+        const auto& made = next_ports.back();
+        if (made.connection && made.path.isEmpty())
+            next_ports.back().path = made.connection->target;
         // The endpoint keeps the settings it was made with; the studio keeps
         // the ones the user gave it since.
         if (const auto settings = studio_.port_settings(info.id))
