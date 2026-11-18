@@ -20613,6 +20613,11 @@ Networks: %5</source>
             <source>The port could not take these settings: %1</source>
             <translation>היציאה לא הצליחה לקבל את ההגדרות האלה: %1</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="479" />
+            <source>Another program may have the port open. Close that program, then try again.</source>
+            <translation>ייתכן שתוכנית אחרת פתחה את היציאה. סגרו את התוכנית ונסו שוב.</translation>
+        </message>
         <message numerus="yes">
             <location filename="../../../../../../../apps/vss_gui/src/advanced/port_settings_dialog.cpp" line="296" />
             <source>Use these settings for the %n port(s) linked to this one</source>
