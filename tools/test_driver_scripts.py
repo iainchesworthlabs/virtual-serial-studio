@@ -293,6 +293,12 @@ function Stub-ChainTop { param($Certificate) $Scenario.chain_top }
 Use-Stub Test-IsAdministrator Stub-IsAdministrator
 Use-Stub Invoke-Bounded Stub-Bounded
 Use-Stub Get-ChainTop Stub-ChainTop
+# The driver store as the version check reads it. installed_packages: [{"date": "2026-11-18", "version": "1.2.0.0"}].
+function Stub-Packages {
+    if ($Scenario.packages_fail) { throw 'the driver database could not be read' }
+    foreach ($p in @($Scenario.installed_packages)) { [pscustomobject]@{ Date = [datetime] $p.date; Version = [version] $p.version } }
+}
+Use-Stub Get-DriverStorePackages Stub-Packages
 function bcdedit.exe {
     $global:LASTEXITCODE = 0
     if ($Scenario.testsigning) { '    testsigning             Yes' }
@@ -333,7 +339,7 @@ MICROSOFT_ROOTS = [
 
 @unittest.skipUnless(POWERSHELL, "needs Windows PowerShell")
 class SetupDriver(Harness):
-    def setup(self, helper: str = "exit 0", **scenario: object) -> Run:
+    def setup(self, helper: str = "exit 0", extra: str = "", **scenario: object) -> Run:
         package = write_package(self.tmp / "package", helper) if not (self.tmp / "package").exists() else self.tmp / "package"
         base: dict = {
             "admin": True,
@@ -346,7 +352,7 @@ class SetupDriver(Harness):
             "chain_top": MICROSOFT_ROOTS[0],
         }
         base.update(scenario)
-        return self.run_harness(SETUP_STUBS, SETUP, f"-PackageRoot {ps_quote(str(package))}", base)
+        return self.run_harness(SETUP_STUBS, SETUP, f"-PackageRoot {ps_quote(str(package))} {extra}", base)
 
     def with_signature(self, cat: dict, **scenario: object) -> Run:
         signatures = {"default": {"status": "Valid", "thumbprint": "FFFF", "subject": "CN=Any"}, "vsscom_um.cat": cat}
@@ -445,6 +451,84 @@ class SetupDriver(Harness):
         self.assertEqual(self.setup(add_code=5).returncode, 7)
         self.assertEqual(self.setup(add_code=3010).returncode, 10)
         self.assertEqual(self.setup(add_code=0x800B0109 - (1 << 32)).returncode, 6)
+
+    # The version of the package decides whether the driver is installed again; the helper is always set up.
+    def installed(self, date: str, version: str) -> list[dict]:
+        return [{"date": date, "version": version}]
+
+    def test_an_older_driver_in_the_store_is_replaced(self) -> None:
+        run = self.setup(installed_packages=self.installed("2026-11-12", "1.1.0.0"))
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertEqual(len(run.calls("run pnputil")), 1)
+        self.assertIn("replacing the driver package version 1.1.0.0 (2026-11-12) with 1.5.1.0 (2026-11-18)", run.stdout)
+
+    def test_a_package_with_an_earlier_date_is_older_whatever_its_version(self) -> None:
+        run = self.setup(installed_packages=self.installed("2026-11-17", "9.9.9.9"))
+        self.assertEqual(len(run.calls("run pnputil")), 1)
+        self.assertIn("replacing", run.stdout)
+
+    def test_the_same_driver_is_left_alone_and_the_helper_is_still_set_up(self) -> None:
+        run = self.setup(installed_packages=self.installed("2026-11-18", "1.5.1.0"))
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertEqual(run.calls("run pnputil"), [])
+        self.assertIn("the driver was left as it is", run.stdout)
+        self.assertIn("installing the helper service", run.stdout)
+
+    def test_a_newer_driver_is_left_alone(self) -> None:
+        for date, version in (("2026-11-18", "1.5.2.0"), ("2026-12-01", "1.0.0.0")):
+            run = self.setup(installed_packages=self.installed(date, version))
+            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+            self.assertEqual(run.calls("run pnputil"), [], (date, version))
+            self.assertIn("the driver was left as it is", run.stdout)
+
+    def test_the_newest_of_several_packages_decides(self) -> None:
+        packages = [{"date": "2026-01-01", "version": "1.0.0.0"}, {"date": "2026-11-18", "version": "1.5.1.0"}]
+        run = self.setup(installed_packages=packages)
+        self.assertEqual(run.calls("run pnputil"), [])
+
+    def test_reinstall_installs_the_same_driver_again(self) -> None:
+        run = self.setup(extra="-ReinstallDriver", installed_packages=self.installed("2026-11-18", "1.5.1.0"))
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertEqual(len(run.calls("run pnputil")), 1)
+
+    def test_a_store_that_cannot_be_read_installs_as_before(self) -> None:
+        run = self.setup(packages_fail=True)
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertEqual(len(run.calls("run pnputil")), 1)
+
+    def test_a_bundled_driver_with_no_version_installs_as_before(self) -> None:
+        package = write_package(self.tmp / "package", "exit 0")
+        (package / "driver" / "vsscom_um.inf").write_text("[Version]\r\n", encoding="ascii")
+        run = self.setup(installed_packages=self.installed("2026-11-18", "1.5.1.0"))
+        self.assertEqual(len(run.calls("run pnputil")), 1)
+
+    def query(self, bundled: str, **scenario: object) -> tuple[Run, list[str]]:
+        out = self.tmp / "query.txt"
+        arguments = f"-Query -BundledVer {ps_quote(bundled)} -QueryOut {ps_quote(str(out))}"
+        run = self.run_harness(SETUP_STUBS, SETUP, arguments, {"admin": False, **scenario})
+        lines = out.read_text(encoding="ascii").splitlines() if out.exists() else []
+        return run, lines
+
+    def test_query_says_where_the_installed_driver_stands_and_changes_nothing(self) -> None:
+        bundled = "11/18/2026,1.5.1.0"
+        table = [
+            ([], ["none", "", "1.5.1.0 (2026-11-18)"]),
+            (self.installed("2026-11-12", "1.1.0.0"), ["older", "1.1.0.0 (2026-11-12)", "1.5.1.0 (2026-11-18)"]),
+            (self.installed("2026-11-18", "1.5.1.0"), ["same", "1.5.1.0 (2026-11-18)", "1.5.1.0 (2026-11-18)"]),
+            (self.installed("2026-11-19", "1.0.0.0"), ["newer", "1.0.0.0 (2026-11-19)", "1.5.1.0 (2026-11-18)"]),
+        ]
+        for packages, expected in table:
+            run, lines = self.query(bundled, installed_packages=packages)
+            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+            self.assertEqual(lines, expected)
+            self.assertEqual(run.calls("run "), [])
+
+    def test_query_without_a_readable_bundled_version_or_store_is_unknown(self) -> None:
+        run, lines = self.query("not a version", installed_packages=self.installed("2026-11-18", "1.5.1.0"))
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertEqual(lines[0], "unknown")
+        run, lines = self.query("11/18/2026,1.5.1.0", packages_fail=True)
+        self.assertEqual(lines[0], "unknown")
 
     # DRV-07: every exit code is one the script can reach.
     def test_a_helper_script_that_exits_with_an_error_ends_with_8(self) -> None:
@@ -565,12 +649,16 @@ function sc.exe {
 function Start-Sleep { }
 function Get-WindowsDriver {
     param([switch] $Online, [switch] $All)
-    foreach ($p in $global:Packages) { [pscustomobject]@{ OriginalFileName = 'C:\x\' + $p.original; Driver = $p.published } }
+    foreach ($p in $global:Packages) { [pscustomobject]@{ OriginalFileName = 'C:\x\' + $p.original; Driver = $p.published; Version = $(if ($p.version) { [version] $p.version } else { [version] '1.0.0.0' }) } }
 }
 function Stub-Bounded {
     param([string] $File, [string[]] $Arguments, [int] $Seconds)
     Log ('run ' + $File + ' ' + ($Arguments -join ' '))
-    if ($Arguments[0] -eq '/delete-driver') { $global:Packages = @(); return [int] $Scenario.delete_code }
+    if ($Arguments[0] -eq '/delete-driver') {
+        Log ('delete ' + $Arguments[1])
+        $global:Packages = @($global:Packages | Where-Object { $_.published -ne $Arguments[1] })
+        return [int] $Scenario.delete_code
+    }
     0
 }
 # The SetupAPI removal: 'ok' removes the SWD\VSSCOMUM devices, 'keeps' says nothing and removes none, 'throws' fails.
@@ -725,6 +813,18 @@ class RemoveDriver(Harness):
         self.assertIn("removed", run.stdout.splitlines()[-1])
         self.assertNotIn("failed", run.stdout)
         self.assertEqual(run.calls("Remove-PortDevices"), ["Remove-PortDevices"])
+
+    def test_every_version_left_in_the_driver_store_is_deleted_and_named(self) -> None:
+        packages = [
+            {"original": "vsscom_um.inf", "published": "oem45.inf", "version": "1.0.0.0"},
+            {"original": "vsscom_um.inf", "published": "oem83.inf", "version": "1.1.0.0"},
+            {"original": "vsscom_um.inf", "published": "oem90.inf", "version": "1.5.1.0"},
+            {"original": "other.inf", "published": "oem8.inf", "version": "2.0.0.0"},
+        ]
+        run = self.remove(packages=packages)
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertEqual(run.calls("delete "), ["delete oem45.inf", "delete oem83.inf", "delete oem90.inf"])
+        self.assertIn("oem45.inf (version 1.0.0.0), oem83.inf (version 1.1.0.0), oem90.inf (version 1.5.1.0)", run.stdout)
 
     def test_a_package_that_cannot_be_deleted_ends_with_7_and_not_an_administrator_with_2(self) -> None:
         self.assertEqual(self.remove(delete_code=5).returncode, 7)

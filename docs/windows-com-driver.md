@@ -560,6 +560,11 @@ driver**: the same elevated `setup-driver.ps1` as "Set up Virtual Serial Studio"
 when the installed package is the same or newer, or when it cannot be read. Nothing is sent
 anywhere; the versions are read from the registry and from a file beside Studio.
 
+The Windows installer decides in the same way: its driver page reads the store, offers to update an
+older driver (ticked), leaves a driver of the same or a newer version alone (with an unticked repair
+box for the same version), and a silent install updates only when its own driver is newer
+(docs/releasing.md, "The Windows installer").
+
 What the update does: `pnputil /add-driver vsscom_um.inf /install` adds the newer package as a
 new `oem<N>.inf` and updates the devices that match it. The older package stays in the driver
 store. It is harmless, since a new port gets the newest package, and `remove-driver.ps1` deletes every
