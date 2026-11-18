@@ -1765,13 +1765,14 @@ result<void> studio::release_port(endpoint_id id)
     if (client && reconnector_)
         reconnector_->allow(id);
     const auto opened = reopen(id);
-    if (opened)
-        return {};
-    if (!client || !reconnector_)
+    if (!client || !reconnector_ || opened)
     {
-        std::lock_guard lock(record_mutex_);
-        if (const auto it = records_.find(id); it != records_.end())
-            it->second.run = before;
+        if (!opened)
+        {
+            std::lock_guard lock(record_mutex_);
+            if (const auto it = records_.find(id); it != records_.end())
+                it->second.run = before;
+        }
         return opened;
     }
     // The remote end refused: keep trying, as a client made to wait does.

@@ -856,16 +856,19 @@ TEST_CASE("service backend: the same plugin installed for everyone and for the "
     finished.clear();
     backend.add_plugin(QString::fromStdWString(source.wstring()));
     REQUIRE(vss_test::wait_until([&] { return !finished.empty(); }, 30000));
-    REQUIRE(finished.back().kind == plugin_request_kind::add_plugin);
-    REQUIRE(finished.back().error ==
-            plugin_request_error::installed_for_everyone);
-    REQUIRE_EQ(finished.back().plugin_name, QStringLiteral("Served"));
+    REQUIRE(!finished.empty());
+    const plugin_request_result refusal = finished.back();
+    REQUIRE(refusal.kind == plugin_request_kind::add_plugin);
+    REQUIRE(refusal.error == plugin_request_error::installed_for_everyone);
+    REQUIRE_EQ(refusal.plugin_name, QStringLiteral("Served"));
     REQUIRE(!fs::exists(plugins / kPluginId));
     inspected.clear();
     backend.inspect_plugin(QString::fromStdWString(source.wstring()));
     REQUIRE(vss_test::wait_until([&] { return !inspected.empty(); }, 30000));
-    REQUIRE(inspected[0].failure ==
+    REQUIRE(!inspected.empty());
+    const auto inspection = inspected.front();
+    REQUIRE(inspection.failure ==
             plugin_inspection_view::problem::installed_for_everyone);
-    REQUIRE(!inspected[0].can_install);
+    REQUIRE(!inspection.can_install);
     backend.shut_down();
 }
