@@ -20613,6 +20613,11 @@ Réseaux : %5</translation>
             <source>The port could not take these settings: %1</source>
             <translation>Le port n'a pas pu prendre ces paramètres en compte : %1</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="479" />
+            <source>Another program may have the port open. Close that program, then try again.</source>
+            <translation>Un autre programme a peut-être ouvert le port. Fermez ce programme, puis réessayez.</translation>
+        </message>
         <message numerus="yes">
             <location filename="../../../../../../../apps/vss_gui/src/advanced/port_settings_dialog.cpp" line="296" />
             <source>Use these settings for the %n port(s) linked to this one</source>
