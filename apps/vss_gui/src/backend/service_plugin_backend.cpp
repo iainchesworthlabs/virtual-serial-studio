@@ -107,6 +107,39 @@ plug::plugin_decision decision_of(const host::service_plugin& plugin)
     return decision;
 }
 
+/// Another copy of the plugin is read first, so this one does not run.
+bool is_shadowed(const host::service_plugin& plugin)
+{
+    return plugin.problem.failed() &&
+           plugin.problem.category() == plug::plugin_category() &&
+           plugin.problem.value() ==
+               static_cast<int>(plug::plugin_errc::shadowed);
+}
+
+/// What stops `id` being added for the user, when a copy of it is installed
+/// already. The user's own copy comes first. A copy for everyone, or one that
+/// came with Studio, is read before the user's folder, so it is the one that
+/// runs and a copy added for the user would never be used.
+std::optional<plugin_inspection_view::problem>
+installed_elsewhere(const host::service_snapshot& snapshot,
+                    const std::string& id)
+{
+    using problem = plugin_inspection_view::problem;
+    std::optional<problem> found;
+    for (const host::service_plugin& each : snapshot.plugins)
+    {
+        if (each.id != id)
+            continue;
+        if (each.scope == plug::plugin_scope::for_user)
+            return problem::already_installed;
+        if (each.scope == plug::plugin_scope::with_studio)
+            found = problem::came_with_studio;
+        else if (!found.has_value())
+            found = problem::installed_for_everyone;
+    }
+    return found;
+}
+
 } // namespace
 
 std::optional<licence_file_ref> licence_file_in_use(const licence_view& view)
@@ -1277,16 +1310,12 @@ quint64 ServicePluginBackend::inspect_plugin(const QString& folder)
                 out.failure = plugin_inspection_view::problem::cannot_write;
                 out.can_install = false;
             }
-            for (const host::service_plugin& each :
-                 service_->snapshot()->plugins)
+            const auto elsewhere =
+                installed_elsewhere(*service_->snapshot(), found.declared->id);
+            if (elsewhere.has_value())
             {
-                if (each.scope == plug::plugin_scope::for_user &&
-                    each.id == found.declared->id)
-                {
-                    out.failure =
-                        plugin_inspection_view::problem::already_installed;
-                    out.can_install = false;
-                }
+                out.failure = *elsewhere;
+                out.can_install = false;
             }
             notify_plugin_inspected(number, out);
         });
@@ -1306,6 +1335,31 @@ void ServicePluginBackend::add_plugin(const QString& folder)
             // signed.
             install.allow_unsigned = true;
             install.context = context_now();
+            // The name comes from the manifest of the folder being added, so
+            // that a refusal can say which plugin it is about.
+            const plug::inspection looked =
+                plug::inspect_plugin(to_path(folder), install.context);
+            if (looked.declared.has_value())
+            {
+                result.plugin_name =
+                    QString::fromStdString(looked.declared->name);
+                result.plugin_id =
+                    QString::fromStdString(looked.declared->id);
+            }
+            using problem = plugin_inspection_view::problem;
+            const auto elsewhere =
+                looked.declared.has_value()
+                    ? installed_elsewhere(*service_->snapshot(),
+                                          looked.declared->id)
+                    : std::nullopt;
+            if (elsewhere.has_value() && *elsewhere != problem::already_installed)
+            {
+                result.error = *elsewhere == problem::came_with_studio
+                                   ? plugin_request_error::came_with_studio
+                                   : plugin_request_error::installed_for_everyone;
+                notify_request_finished(result);
+                return;
+            }
             std::string detail;
             const auto done = plug::install_plugin(
                 to_path(folder), options_.user_root, install, &detail);
@@ -1319,11 +1373,6 @@ void ServicePluginBackend::add_plugin(const QString& folder)
                     result.error = plugin_request_error::cannot_write;
                 else
                     result.error = plugin_request_error::not_a_plugin;
-            }
-            else if (done->found.declared.has_value())
-            {
-                result.plugin_name =
-                    QString::fromStdString(done->found.declared->name);
             }
             service_->rescan();
             notify_request_finished(result);
@@ -1339,11 +1388,23 @@ void ServicePluginBackend::remove_plugin(const QString& plugin_id,
         [this, plugin_id, hash, delete_saved_data]
         {
             const auto now = service_->snapshot();
-            const host::service_plugin* plugin =
-                find_plugin(*now, plugin_id, hash);
+            // The same plugin may be installed for everyone as well, and the
+            // two copies may be identical, so the user's own copy is the one
+            // looked for.
+            const host::service_plugin* plugin = nullptr;
+            bool other_copy = false;
+            for (const host::service_plugin& each : now->plugins)
+            {
+                if (QString::fromStdString(each.id) != plugin_id)
+                    continue;
+                if (each.scope == plug::plugin_scope::for_user &&
+                    hash_text(each.hash) == hash)
+                    plugin = &each;
+                else
+                    other_copy = true;
+            }
             // Only a plugin the user installed is the user's to remove.
-            if (plugin == nullptr ||
-                plugin->scope != plug::plugin_scope::for_user)
+            if (plugin == nullptr)
             {
                 service_->rescan();
                 plugin_request_result result;
@@ -1354,10 +1415,15 @@ void ServicePluginBackend::remove_plugin(const QString& plugin_id,
             }
             // A running program cannot be deleted on every system: it is
             // switched off first, and the folder goes once it has stopped.
-            service_->set_enabled(plugin->id, false);
+            // When another copy runs instead of this one, that copy is left
+            // alone, and so are the settings and data it uses.
+            const bool is_used = !is_shadowed(*plugin);
+            if (is_used)
+                service_->set_enabled(plugin->id, false);
             {
                 const std::scoped_lock lock(mutex_);
-                removals_.push_back({plugin->id, delete_saved_data});
+                removals_.push_back(
+                    {plugin->id, delete_saved_data && !other_copy, 0, is_used});
             }
             process_removals();
         });
@@ -1382,7 +1448,11 @@ void ServicePluginBackend::process_removals()
         const auto found =
             std::find_if(now->plugins.begin(), now->plugins.end(),
                          [&each](const host::service_plugin& plugin)
-                         { return plugin.id == each.id; });
+                         {
+                             return plugin.id == each.id &&
+                                    plugin.scope ==
+                                        plug::plugin_scope::for_user;
+                         });
         if (found != now->plugins.end() && found->run != nullptr)
         {
             const plug::run_state state = found->run->state;
@@ -1417,7 +1487,9 @@ void ServicePluginBackend::process_removals()
                 continue;
             }
         }
-        forget_stores(each.id, std::nullopt);
+        // The copy that runs instead keeps what the stores hold.
+        if (each.was_used)
+            forget_stores(each.id, std::nullopt);
         // The plugin's data folder is named by its id. It goes once the
         // plugin has gone from the list.
         const bool plain_name =

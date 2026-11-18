@@ -23105,8 +23105,33 @@ Réseaux : %5</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
-            <source>The copy installed for everyone is used. This copy, installed for you only, is not.</source>
-            <translation>La copie installée pour tous est utilisée. Cette copie, installée pour vous seul, ne l'est pas.</translation>
+            <source>The copy that came with Studio runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>La copie fournie avec Studio est utilisée à la place. Cette copie, installée pour vous seul, n'est pas utilisée. Supprimez cette copie si vous n'en avez pas besoin.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin, installed for everyone on this computer, runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>Une autre copie de ce plugin, installée pour tous les utilisateurs de cet ordinateur, est utilisée à la place. Cette copie, installée pour vous seul, n'est pas utilisée. Supprimez cette copie si vous n'en avez pas besoin.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>The copy that came with Studio runs instead. This copy, installed for everyone on this computer, is not used. Ask your administrator to remove it.</source>
+            <translation>La copie fournie avec Studio est utilisée à la place. Cette copie, installée pour tous les utilisateurs de cet ordinateur, n'est pas utilisée. Demandez à votre administrateur de la supprimer.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin runs instead. This copy is not used.</source>
+            <translation>Une autre copie de ce plugin est utilisée à la place. Cette copie n'est pas utilisée.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 came with Studio, and that copy runs. A copy added for you only would not run.</source>
+            <translation>%1 est fourni avec Studio, et cette copie est utilisée. Une copie ajoutée pour vous seul ne serait pas utilisée.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 is already installed for everyone on this computer, and that copy runs. A copy added for you only would not run. Ask your administrator to change it.</source>
+            <translation>%1 est déjà installé pour tous les utilisateurs de cet ordinateur, et cette copie est utilisée. Une copie ajoutée pour vous seul ne serait pas utilisée. Demandez à votre administrateur de la modifier.</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />

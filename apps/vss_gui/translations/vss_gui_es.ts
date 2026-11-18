@@ -23105,8 +23105,33 @@ Redes: %5</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
-            <source>The copy installed for everyone is used. This copy, installed for you only, is not.</source>
-            <translation>Se usa la copia instalada para todos los usuarios. Esta copia, instalada solo para usted, no se usa.</translation>
+            <source>The copy that came with Studio runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>En su lugar se usa la copia que viene con Studio. Esta copia, instalada solo para usted, no se usa. Elimine esta copia si no la necesita.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin, installed for everyone on this computer, runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>En su lugar se usa otra copia de este complemento, instalada para todos los usuarios de este equipo. Esta copia, instalada solo para usted, no se usa. Elimine esta copia si no la necesita.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>The copy that came with Studio runs instead. This copy, installed for everyone on this computer, is not used. Ask your administrator to remove it.</source>
+            <translation>En su lugar se usa la copia que viene con Studio. Esta copia, instalada para todos los usuarios de este equipo, no se usa. Pida a su administrador que la elimine.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin runs instead. This copy is not used.</source>
+            <translation>En su lugar se usa otra copia de este complemento. Esta copia no se usa.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 came with Studio, and that copy runs. A copy added for you only would not run.</source>
+            <translation>%1 viene con Studio y se usa esa copia. Una copia añadida solo para usted no se usaría.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 is already installed for everyone on this computer, and that copy runs. A copy added for you only would not run. Ask your administrator to change it.</source>
+            <translation>%1 ya está instalado para todos los usuarios de este equipo y se usa esa copia. Una copia añadida solo para usted no se usaría. Pida a su administrador que lo cambie.</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />

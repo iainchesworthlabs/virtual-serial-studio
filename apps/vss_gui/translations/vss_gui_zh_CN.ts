@@ -23070,8 +23070,33 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
-            <source>The copy installed for everyone is used. This copy, installed for you only, is not.</source>
-            <translation>使用的是为所有人安装的副本。此副本仅为您安装，不会被使用。</translation>
+            <source>The copy that came with Studio runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>改为使用随 Studio 提供的副本。此副本仅为您安装，不会被使用。如果不需要，请移除此副本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin, installed for everyone on this computer, runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>改为使用此插件的另一个副本，它是为此计算机上的所有人安装的。此副本仅为您安装，不会被使用。如果不需要，请移除此副本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>The copy that came with Studio runs instead. This copy, installed for everyone on this computer, is not used. Ask your administrator to remove it.</source>
+            <translation>改为使用随 Studio 提供的副本。此副本是为此计算机上的所有人安装的，不会被使用。请让管理员将其移除。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin runs instead. This copy is not used.</source>
+            <translation>改为使用此插件的另一个副本。此副本不会被使用。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 came with Studio, and that copy runs. A copy added for you only would not run.</source>
+            <translation>%1 随 Studio 提供，使用的是该副本。仅为您添加的副本不会被使用。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 is already installed for everyone on this computer, and that copy runs. A copy added for you only would not run. Ask your administrator to change it.</source>
+            <translation>%1 已为此计算机上的所有人安装，使用的是该副本。仅为您添加的副本不会被使用。请让管理员更改。</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />

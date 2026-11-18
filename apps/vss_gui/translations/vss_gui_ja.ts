@@ -23070,8 +23070,33 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
-            <source>The copy installed for everyone is used. This copy, installed for you only, is not.</source>
-            <translation>全員用にインストールされたコピーが使われます。あなただけ用にインストールされたこちらのコピーは使われません。</translation>
+            <source>The copy that came with Studio runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>代わりに、Studio に付属のコピーが使われます。あなただけ用にインストールされたこのコピーは使われません。不要な場合は、このコピーを削除してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin, installed for everyone on this computer, runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>代わりに、このコンピューターのすべてのユーザー用にインストールされた、このプラグインの別のコピーが使われます。あなただけ用にインストールされたこのコピーは使われません。不要な場合は、このコピーを削除してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>The copy that came with Studio runs instead. This copy, installed for everyone on this computer, is not used. Ask your administrator to remove it.</source>
+            <translation>代わりに、Studio に付属のコピーが使われます。このコンピューターのすべてのユーザー用にインストールされたこのコピーは使われません。削除するには、管理者に依頼してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin runs instead. This copy is not used.</source>
+            <translation>代わりに、このプラグインの別のコピーが使われます。このコピーは使われません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 came with Studio, and that copy runs. A copy added for you only would not run.</source>
+            <translation>%1 は Studio に付属しており、そのコピーが使われます。あなただけ用に追加したコピーは使われません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 is already installed for everyone on this computer, and that copy runs. A copy added for you only would not run. Ask your administrator to change it.</source>
+            <translation>%1 はすでにこのコンピューターのすべてのユーザー用にインストールされており、そのコピーが使われます。あなただけ用に追加したコピーは使われません。変更するには、管理者に依頼してください。</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
