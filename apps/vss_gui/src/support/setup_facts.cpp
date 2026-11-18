@@ -7,6 +7,7 @@
 #include "support/setup_facts.hpp"
 
 #include "backend/driver_error.hpp"
+#include "backend/driver_versions.hpp"
 #include "support/permission_rows.hpp"
 
 #include <vss/core/profile.hpp>
@@ -167,6 +168,13 @@ void add_windows_rows(QVector<setup_row>& rows, const setup_facts& facts,
                 QCoreApplication::translate("SetupCheck", "Driver version %1.")
                     .arg(facts.driver_version);
         }
+        if (const QString versions =
+                driver_versions_sentence(facts.driver.versions);
+            !versions.isEmpty())
+        {
+            sentence += QLatin1Char(' ');
+            sentence += versions;
+        }
         if (facts.com0com_found)
         {
             sentence += QLatin1Char(' ');
@@ -202,8 +210,20 @@ void add_windows_rows(QVector<setup_row>& rows, const setup_facts& facts,
         driver.sentence = driver_problem_body(facts.driver.problem);
         driver.chip =
             QCoreApplication::translate("SetupCheck", "Needs attention");
-        driver.action_text = QCoreApplication::translate(
-            "SetupCheck", "Set up Virtual Serial Studio");
+        const bool update = facts.driver.problem == driver_problem::driver_old;
+        if (update)
+        {
+            // Say which versions are meant, so "older" is not a guess.
+            if (const QString versions =
+                    driver_versions_sentence(facts.driver.versions);
+                !versions.isEmpty())
+                driver.sentence += QLatin1Char(' ') + versions;
+        }
+        driver.action_text =
+            update ? QCoreApplication::translate("SetupCheck",
+                                                 "Update the driver")
+                   : QCoreApplication::translate(
+                         "SetupCheck", "Set up Virtual Serial Studio");
         driver.action = setup_action::setup_driver;
         driver.highlight = true;
         rows.push_back(driver);

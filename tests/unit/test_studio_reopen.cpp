@@ -976,3 +976,157 @@ TEST_CASE("reconfigure: a port removed while its new connection is made stays "
     REQUIRE(unused_and_released(opener, 1));
     REQUIRE(app.engine().find_endpoint(id) == nullptr);
 }
+
+namespace
+{
+
+/// Stands in for a real serial device: it can be open once.  A second open
+/// while an earlier handle is still open fails with "access denied", as a COM
+/// port does on Windows.  A test can also make the device refuse every open.
+class exclusive_device
+{
+public:
+    studio_options options()
+    {
+        studio_options made;
+        made.make_transport = [this](const transport::executor_type& executor,
+                                     const std::string&,
+                                     const serial_settings* settings,
+                                     error_code& ec)
+            -> std::shared_ptr<transport>
+        {
+            std::lock_guard lock(mutex_);
+            if (refuse_)
+            {
+                ec = make_error_code(boost::system::errc::permission_denied);
+                return nullptr;
+            }
+            for (const auto& handle : handles_)
+            {
+                if (handle->is_open())
+                {
+                    ++denied_;
+                    ec = make_error_code(
+                        boost::system::errc::permission_denied);
+                    return nullptr;
+                }
+            }
+            if (settings != nullptr)
+                last_baud_ = settings->baud_rate;
+            auto made_handle =
+                std::make_shared<vss_test_support::scripted_transport>(
+                    executor);
+            handles_.push_back(made_handle);
+            return made_handle;
+        };
+        return made;
+    }
+
+    void refuse(bool value)
+    {
+        std::lock_guard lock(mutex_);
+        refuse_ = value;
+    }
+
+    int denied() const
+    {
+        std::lock_guard lock(mutex_);
+        return denied_;
+    }
+
+    unsigned last_baud() const
+    {
+        std::lock_guard lock(mutex_);
+        return last_baud_;
+    }
+
+    std::size_t opened() const
+    {
+        std::lock_guard lock(mutex_);
+        return handles_.size();
+    }
+
+    bool newest_open() const
+    {
+        std::lock_guard lock(mutex_);
+        return !handles_.empty() && handles_.back()->is_open();
+    }
+
+private:
+    mutable std::mutex mutex_;
+    std::vector<std::shared_ptr<vss_test_support::scripted_transport>> handles_;
+    bool refuse_ = false;
+    int denied_ = 0;
+    unsigned last_baud_ = 0;
+};
+
+} // namespace
+
+TEST_CASE("reconfigure: a device that can be open once is closed before it is "
+          "opened with the new settings")
+{
+    exclusive_device device;
+    studio app(device.options());
+    const auto port = app.attach_serial("device", "serial://not-a-device");
+    REQUIRE(port);
+    const endpoint_id id = (*port)->id();
+
+    serial_settings settings;
+    settings.baud_rate = 9600;
+    REQUIRE(app.reconfigure_port(id, settings));
+    REQUIRE_EQ(device.denied(), 0);
+    REQUIRE_EQ(device.opened(), std::size_t{2});
+    REQUIRE_EQ(device.last_baud(), 9600u);
+    REQUIRE(device.newest_open());
+    REQUIRE((*port)->is_open());
+    REQUIRE_EQ(app.port_settings(id)->baud_rate, 9600u);
+
+    // And again, as a person who tries a few speeds does.
+    settings.baud_rate = 57600;
+    REQUIRE(app.reconfigure_port(id, settings));
+    REQUIRE_EQ(device.denied(), 0);
+    REQUIRE_EQ(device.last_baud(), 57600u);
+}
+
+TEST_CASE("reconfigure: a device that refuses the new settings is put back as "
+          "it was")
+{
+    exclusive_device device;
+    studio app(device.options());
+    const auto port = app.attach_serial("device", "serial://not-a-device");
+    REQUIRE(port);
+    const endpoint_id id = (*port)->id();
+    const unsigned before = app.port_settings(id)->baud_rate;
+
+    // Another program holds the device: every open is refused.
+    device.refuse(true);
+    serial_settings settings;
+    settings.baud_rate = 9600;
+    const auto refused = app.reconfigure_port(id, settings);
+    REQUIRE(!refused);
+    REQUIRE_EQ(refused.error(),
+               make_error_code(boost::system::errc::permission_denied));
+    // The saved settings are the old ones.
+    REQUIRE_EQ(app.port_settings(id)->baud_rate, before);
+}
+
+TEST_CASE("pause_port and resume_port: a device is closed before it is "
+          "opened again")
+{
+    exclusive_device device;
+    studio app(device.options());
+    const auto port = app.attach_serial("device", "serial://not-a-device");
+    REQUIRE(port);
+    const endpoint_id id = (*port)->id();
+
+    REQUIRE(app.pause_port(id));
+    REQUIRE(!(*port)->is_open());
+    REQUIRE(app.resume_port(id));
+    REQUIRE_EQ(device.denied(), 0);
+    REQUIRE((*port)->is_open());
+
+    REQUIRE(app.stop_port(id));
+    REQUIRE(app.start_port(id));
+    REQUIRE_EQ(device.denied(), 0);
+    REQUIRE((*port)->is_open());
+}

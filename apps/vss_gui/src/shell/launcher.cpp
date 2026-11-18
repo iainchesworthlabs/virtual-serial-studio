@@ -353,7 +353,9 @@ void Launcher::refresh()
         readiness_->set_text(driver_problem_body(report.problem));
         if (readiness_->action_button() != nullptr)
             readiness_->action_button()->setText(
-                tr("Set up Virtual Serial Studio"));
+                report.problem == driver_problem::driver_old
+                    ? tr("Update the driver")
+                    : tr("Set up Virtual Serial Studio"));
     }
     else
     {

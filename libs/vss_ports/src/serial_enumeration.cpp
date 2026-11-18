@@ -264,6 +264,20 @@ std::optional<com_number_evidence> read_com_number_evidence()
     return out;
 }
 
+std::optional<std::vector<unsigned>> unavailable_com_numbers()
+{
+    const auto holders = com_number_holders();
+    if (!holders)
+        return std::nullopt;
+    std::vector<unsigned> numbers;
+    for (const auto& holder : *holders)
+    {
+        if (!holder.reusable_by_studio())
+            numbers.push_back(holder.number);
+    }
+    return numbers;
+}
+
 std::vector<serial_device_info> enumerate_serial_devices()
 {
     VSS_PROFILE_ZONE_NAMED(zone, "ports.enumerate");

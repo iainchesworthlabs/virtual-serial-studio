@@ -115,6 +115,7 @@ jobs:
       - name: Validate the changelog
         run: |
           python3 tools/changelog.py --check
+          python3 tools/ci/check_driver_version.py
           python3 -m unittest discover -s tools -p "test_*.py" -v
           python3 -m unittest discover -s tools/ci -p "test_*.py" -v
 

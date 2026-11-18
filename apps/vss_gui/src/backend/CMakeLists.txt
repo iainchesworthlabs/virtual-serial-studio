@@ -16,6 +16,7 @@ add_library(vss_gui_backend STATIC
   com_numbers.cpp
   com_number_uses.cpp
   driver_error.cpp
+  driver_versions.cpp
   connection_text.cpp
   connection_text.hpp
   licence_store.cpp
@@ -44,6 +45,7 @@ add_library(vss_gui_backend STATIC
   com_numbers.hpp
   com_number_uses.hpp
   driver_error.hpp
+  driver_versions.hpp
   capabilities.hpp
   other_ports.hpp
   view_types.hpp)
@@ -75,6 +77,7 @@ if(VSS_BUILD_TESTS)
     tests/test_canvas_edit.cpp
     tests/test_com_numbers.cpp
     tests/test_driver_error.cpp
+    tests/test_driver_versions.cpp
     tests/test_licence_store.cpp
     tests/test_plugin_backend.cpp
     tests/test_service_mapping.cpp

@@ -95,6 +95,7 @@ bool driver_problem_offers_setup(driver_problem problem)
     case driver_problem::helper_stopped:
     case driver_problem::helper_incompatible:
     case driver_problem::helper_denied:
+    case driver_problem::driver_old:
         return true;
     case driver_problem::none:
     case driver_problem::unknown:
@@ -118,6 +119,8 @@ QString driver_problem_title(driver_problem problem)
     case driver_problem::helper_denied:
         return QObject::tr(
             "Your account cannot use the Virtual Serial Studio helper");
+    case driver_problem::driver_old:
+        return QObject::tr("The Virtual Serial Studio driver is out of date");
     case driver_problem::none:
     case driver_problem::unknown:
         break;
@@ -155,6 +158,11 @@ QString driver_problem_body(driver_problem problem)
             "Windows did not let your account use the helper service that "
             "makes ports. Nothing was changed. Choose Set up Virtual Serial "
             "Studio to repair it, or ask an administrator of this PC.");
+    case driver_problem::driver_old:
+        return QObject::tr(
+            "The driver on this PC is older than this program, so the ports "
+            "it makes cannot be used. Nothing was changed. Update the driver to "
+            "install the newer one that comes with this program.");
     case driver_problem::none:
     case driver_problem::unknown:
         break;

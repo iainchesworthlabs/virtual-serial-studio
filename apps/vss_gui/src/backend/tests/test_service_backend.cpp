@@ -19,6 +19,7 @@
 
 #include <QTemporaryDir>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
@@ -713,4 +714,134 @@ TEST_CASE(
     backend.shut_down();
     const std::string kept = read_file(root / "settings" / "instances.json");
     REQUIRE(kept.find("Alpha") != std::string::npos);
+}
+
+TEST_CASE("service backend: the same plugin installed for everyone and for the "
+          "user shows both copies, names what an add refuses, and removing "
+          "the user's copy leaves the other one")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path everyone = root / "everyone";
+    const fs::path plugins = root / "plugins";
+    const fs::path incoming = root / "incoming";
+    make_plugin(everyone);
+    make_plugin(plugins);
+    const fs::path source = make_plugin(incoming);
+
+    service_plugin_options options = options_for(root, plugins);
+    // Read in the order of the real computer: for everyone, then the user.
+    plug::plugin_root machine;
+    machine.directory = everyone;
+    machine.scope = plug::plugin_scope::for_everyone;
+    options.roots.insert(options.roots.begin(), machine);
+    ServicePluginBackend backend(std::move(options));
+    const QString id = QString::fromLatin1(kPluginId);
+
+    std::vector<plugin_request_result> finished;
+    QObject::connect(&backend, &PluginBackend::request_finished, &backend,
+                     [&finished](const plugin_request_result& result)
+                     { finished.push_back(result); });
+    std::vector<plugin_inspection_view> inspected;
+    QObject::connect(&backend, &PluginBackend::plugin_inspected, &backend,
+                     [&inspected](quint64, const plugin_inspection_view& found)
+                     { inspected.push_back(found); });
+
+    const auto copies_of = [&]
+    {
+        std::vector<plugin_view> found;
+        for (const plugin_view& each : backend.snapshot()->plugins)
+        {
+            if (each.id == id)
+                found.push_back(each);
+        }
+        return found;
+    };
+    REQUIRE(vss_test::wait_until([&] { return copies_of().size() == 2; },
+                                 30000));
+
+    // Both are listed. The copy for everyone is read first, so it is the one
+    // that runs, and the user's copy says so and where the other one is.
+    std::vector<plugin_view> both = copies_of();
+    const plugin_view& used = both[0].installed_for ==
+                                      plugin_installed_for::everyone
+                                  ? both[0]
+                                  : both[1];
+    const plugin_view& unused = both[0].installed_for ==
+                                        plugin_installed_for::everyone
+                                    ? both[1]
+                                    : both[0];
+    REQUIRE(used.state != plugin_state::not_used);
+    REQUIRE(unused.installed_for == plugin_installed_for::you_only);
+    REQUIRE(unused.state == plugin_state::not_used);
+    REQUIRE(unused.has_used_copy);
+    REQUIRE(unused.used_copy_installed_for == plugin_installed_for::everyone);
+    REQUIRE_EQ(unused.used_copy_id, id);
+    // The two are identical, which is the case that Remove must not mix up.
+    REQUIRE_EQ(used.hash, unused.hash);
+
+    // Adding the same plugin: the refusal is about the copy for everyone and
+    // has the plugin's name.
+    backend.inspect_plugin(QString::fromStdWString(source.wstring()));
+    REQUIRE(vss_test::wait_until([&] { return !inspected.empty(); }, 30000));
+    REQUIRE(inspected[0].failure ==
+            plugin_inspection_view::problem::already_installed);
+    backend.add_plugin(QString::fromStdWString(source.wstring()));
+    REQUIRE(vss_test::wait_until([&] { return !finished.empty(); }, 30000));
+    REQUIRE(finished[0].kind == plugin_request_kind::add_plugin);
+    REQUIRE(finished[0].error == plugin_request_error::already_installed);
+    REQUIRE_EQ(finished[0].plugin_name, QStringLiteral("Served"));
+    finished.clear();
+
+    // Remove the user's copy: its folder goes, the copy for everyone stays,
+    // is listed and is not marked unused. Its saved data stays too.
+    const fs::path saved = root / "data" / kPluginId;
+    {
+        std::error_code ignored;
+        fs::create_directories(saved, ignored);
+        write_file(saved / "note.txt", "used by the copy for everyone");
+    }
+    backend.remove_plugin(unused.id, unused.hash, true);
+    REQUIRE(vss_test::wait_until(
+        [&] { return !fs::exists(plugins / kPluginId); }, 60000));
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const std::vector<plugin_view> left = copies_of();
+            return left.size() == 1 &&
+                   left[0].installed_for == plugin_installed_for::everyone &&
+                   left[0].state != plugin_state::not_used;
+        },
+        60000));
+    REQUIRE(fs::exists(everyone / kPluginId));
+    REQUIRE(fs::exists(saved / "note.txt"));
+
+    // With only the copy for everyone left, adding the plugin for the user
+    // is refused, and the refusal says which place has it.
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            return std::any_of(finished.begin(), finished.end(),
+                               [](const plugin_request_result& each)
+                               {
+                                   return each.kind ==
+                                          plugin_request_kind::remove_plugin;
+                               });
+        },
+        30000));
+    finished.clear();
+    backend.add_plugin(QString::fromStdWString(source.wstring()));
+    REQUIRE(vss_test::wait_until([&] { return !finished.empty(); }, 30000));
+    REQUIRE(finished.back().kind == plugin_request_kind::add_plugin);
+    REQUIRE(finished.back().error ==
+            plugin_request_error::installed_for_everyone);
+    REQUIRE_EQ(finished.back().plugin_name, QStringLiteral("Served"));
+    REQUIRE(!fs::exists(plugins / kPluginId));
+    inspected.clear();
+    backend.inspect_plugin(QString::fromStdWString(source.wstring()));
+    REQUIRE(vss_test::wait_until([&] { return !inspected.empty(); }, 30000));
+    REQUIRE(inspected[0].failure ==
+            plugin_inspection_view::problem::installed_for_everyone);
+    REQUIRE(!inspected[0].can_install);
+    backend.shut_down();
 }

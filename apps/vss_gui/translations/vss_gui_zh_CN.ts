@@ -447,6 +447,16 @@
             <source>Never</source>
             <translation>从未</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="151" />
+            <source>Open Tools, Setup check to update it.</source>
+            <translation>请打开“工具”，“配置检查”进行更新。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="275" />
+            <source>Driver version</source>
+            <translation>驱动程序版本</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -3853,6 +3863,11 @@ Networks: %5</source>
             <source>Set up Virtual Serial Studio</source>
             <translation>设置 Virtual Serial Studio</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_grid.cpp" line="379" />
+            <source>Update the driver</source>
+            <translation>更新驱动程序</translation>
+        </message>
     </context>
     <context>
         <name>JsonCodeEdit</name>
@@ -4017,6 +4032,11 @@ Networks: %5</source>
             <location filename="../src/shell/launcher.cpp" line="344" />
             <source>Set up Virtual Serial Studio</source>
             <translation>设置 Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/launcher.cpp" line="357" />
+            <source>Update the driver</source>
+            <translation>更新驱动程序</translation>
         </message>
     </context>
     <context>
@@ -6682,6 +6702,21 @@ Networks: %5</source>
             <source>break</source>
             <translation>Break</translation>
         </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="123" />
+            <source>The Virtual Serial Studio driver is out of date</source>
+            <translation>Virtual Serial Studio 驱动程序已过时</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="162" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Choose Set up Virtual Serial Studio to update it.</source>
+            <translation>此电脑上的驱动程序比本程序旧，因此它创建的端口无法使用。未更改任何内容。请选择“设置 Virtual Serial Studio”来更新。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="162" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Update the driver to install the newer one that comes with this program.</source>
+            <translation>此电脑上的驱动程序比本程序旧，因此它创建的端口无法使用。未做任何更改。请更新驱动程序，以安装本程序附带的较新版本。</translation>
+        </message>
     </context>
     <context>
         <name>ReleasePortDialog</name>
@@ -8034,6 +8069,11 @@ Networks: %5</source>
             <location filename="../src/support/setup_facts.cpp" line="198" />
             <source>Set up Virtual Serial Studio</source>
             <translation>设置 Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/setup_facts.cpp" line="223" />
+            <source>Update the driver</source>
+            <translation>更新驱动程序</translation>
         </message>
     </context>
     <context>
@@ -19957,6 +19997,16 @@ Networks: %5</source>
             <source>Setup finished, but this PC still cannot make ports: %1. Copy the details if you ask for help.</source>
             <translation>设置已完成，但此电脑仍无法创建端口：%1。如需求助，请复制详细信息。</translation>
         </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="147" />
+            <source>Updating replaces the driver and restarts the helper, so ports that are open now are closed, and a program that has one open loses it. Studio offers to make the ports again. Windows may ask for a restart before the new driver is used.</source>
+            <translation>更新会替换驱动程序并重新启动辅助服务，因此当前已打开的端口会被关闭，打开了端口的程序会失去它。Studio 会提示重新创建这些端口。在使用新驱动程序之前，Windows 可能会要求重新启动。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="217" />
+            <source>Update the driver</source>
+            <translation>更新驱动程序</translation>
+        </message>
     </context>
     <context>
         <name>AddSheet</name>
@@ -20138,6 +20188,11 @@ Networks: %5</source>
             <location filename="../src/topology/add_sheet.cpp" line="532" />
             <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
             <translation>取自 %1。监视器以其所监视端口的速度运行。</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="388" />
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one.</source>
+            <translation>打开 COM3 这类固定名称的程序每次都需要相同的编号。自动会选择一个空闲编号。</translation>
         </message>
     </context>
     <context>
@@ -20616,6 +20671,11 @@ Networks: %5</source>
             <location filename="../src/advanced/port_settings_dialog.cpp" line="479" />
             <source>The port could not take these settings: %1</source>
             <translation>串口无法使用这些设置：%1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="479" />
+            <source>Another program may have the port open. Close that program, then try again.</source>
+            <translation>可能有其他程序已打开该串口。请关闭该程序，然后重试。</translation>
         </message>
         <message numerus="yes">
             <location filename="../../../../../../../apps/vss_gui/src/advanced/port_settings_dialog.cpp" line="296" />
@@ -23101,8 +23161,33 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
-            <source>The copy installed for everyone is used. This copy, installed for you only, is not.</source>
-            <translation>使用的是为所有人安装的副本。此副本仅为您安装，不会被使用。</translation>
+            <source>The copy that came with Studio runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>改为使用随 Studio 提供的副本。此副本仅为您安装，不会被使用。如果不需要，请移除此副本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin, installed for everyone on this computer, runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>改为使用此插件的另一个副本，它是为此计算机上的所有人安装的。此副本仅为您安装，不会被使用。如果不需要，请移除此副本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>The copy that came with Studio runs instead. This copy, installed for everyone on this computer, is not used. Ask your administrator to remove it.</source>
+            <translation>改为使用随 Studio 提供的副本。此副本是为此计算机上的所有人安装的，不会被使用。请让管理员将其移除。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin runs instead. This copy is not used.</source>
+            <translation>改为使用此插件的另一个副本。此副本不会被使用。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 came with Studio, and that copy runs. A copy added for you only would not run.</source>
+            <translation>%1 随 Studio 提供，使用的是该副本。仅为您添加的副本不会被使用。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 is already installed for everyone on this computer, and that copy runs. A copy added for you only would not run. Ask your administrator to change it.</source>
+            <translation>%1 已为此计算机上的所有人安装，使用的是该副本。仅为您添加的副本不会被使用。请让管理员更改。</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
@@ -24231,6 +24316,16 @@ From the plugin %2
             <source>Reserved by Windows</source>
             <translation>由 Windows 保留</translation>
         </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="101" />
+            <source>Unplugged Windows device %1</source>
+            <translation>已拔出的 Windows 设备 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="105" />
+            <source>Unplugged Windows device</source>
+            <translation>已拔出的 Windows 设备</translation>
+        </message>
     </context>
     <context>
         <name>DecodeDialog</name>
@@ -24677,6 +24772,34 @@ From the plugin %2
             <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
             <source>Stop bits</source>
             <translation>停止位</translation>
+        </message>
+    </context>
+    <context>
+        <name>DriverVersions</name>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="99" />
+            <source>Studio could not read which version of the driver Windows holds.</source>
+            <translation>Studio 无法读取 Windows 中驱动程序的版本。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="106" />
+            <source>The driver in Windows is version %1. This copy of Studio has no driver files to compare it with.</source>
+            <translation>Windows 中的驱动程序版本为 %1。此 Studio 副本没有可用于比较的驱动程序文件。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="115" />
+            <source>The driver in Windows is version %1. This copy of Studio carries the newer version %2.</source>
+            <translation>Windows 中的驱动程序版本为 %1。此 Studio 副本附带更新的版本 %2。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="121" />
+            <source>The driver in Windows is version %1, newer than the version this copy of Studio carries (%2). Nothing needs updating.</source>
+            <translation>Windows 中的驱动程序版本为 %1，比此 Studio 副本附带的版本 (%2) 更新。无需更新。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="131" />
+            <source>The driver in Windows is version %1, the same as this copy of Studio carries.</source>
+            <translation>Windows 中的驱动程序版本为 %1，与此 Studio 副本附带的相同。</translation>
         </message>
     </context>
     <context>

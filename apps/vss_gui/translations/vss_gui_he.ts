@@ -447,6 +447,16 @@
             <source>Never</source>
             <translation>אף פעם</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="151" />
+            <source>Open Tools, Setup check to update it.</source>
+            <translation>פתחו כלים, בדיקת הגדרות כדי לעדכן אותו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="275" />
+            <source>Driver version</source>
+            <translation>גרסת מנהל ההתקן</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -3856,6 +3866,11 @@ Networks: %5</source>
             <source>Set up Virtual Serial Studio</source>
             <translation>הגדרת Virtual Serial Studio</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_grid.cpp" line="379" />
+            <source>Update the driver</source>
+            <translation>עדכון מנהל ההתקן</translation>
+        </message>
     </context>
     <context>
         <name>JsonCodeEdit</name>
@@ -4020,6 +4035,11 @@ Networks: %5</source>
             <location filename="../src/shell/launcher.cpp" line="344" />
             <source>Set up Virtual Serial Studio</source>
             <translation>הגדרת Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/launcher.cpp" line="357" />
+            <source>Update the driver</source>
+            <translation>עדכון מנהל ההתקן</translation>
         </message>
     </context>
     <context>
@@ -6686,6 +6706,21 @@ Networks: %5</source>
             <source>break</source>
             <translation>Break</translation>
         </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="123" />
+            <source>The Virtual Serial Studio driver is out of date</source>
+            <translation>מנהל ההתקן של Virtual Serial Studio מיושן</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="162" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Choose Set up Virtual Serial Studio to update it.</source>
+            <translation>מנהל ההתקן במחשב הזה ישן יותר מהתוכנית הזאת, ולכן אי אפשר להשתמש ביציאות שהוא יוצר. דבר לא שונה. בחרו ב״הגדרת Virtual Serial Studio״ כדי לעדכן אותו.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="162" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Update the driver to install the newer one that comes with this program.</source>
+            <translation>מנהל ההתקן במחשב הזה ישן מהתוכנית הזו, ולכן אי אפשר להשתמש ביציאות שהוא יוצר. דבר לא שונה. עדכנו את מנהל ההתקן כדי להתקין את החדש יותר שמגיע עם התוכנית הזו.</translation>
+        </message>
     </context>
     <context>
         <name>ReleasePortDialog</name>
@@ -8039,6 +8074,11 @@ Networks: %5</source>
             <location filename="../src/support/setup_facts.cpp" line="198" />
             <source>Set up Virtual Serial Studio</source>
             <translation>הגדרת Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/setup_facts.cpp" line="223" />
+            <source>Update the driver</source>
+            <translation>עדכון מנהל ההתקן</translation>
         </message>
     </context>
     <context>
@@ -19977,6 +20017,16 @@ Networks: %5</source>
             <source>Setup finished, but this PC still cannot make ports: %1. Copy the details if you ask for help.</source>
             <translation>ההגדרה הסתיימה, אבל המחשב הזה עדיין לא יכול ליצור יציאות: %1. העתיקו את הפרטים אם אתם מבקשים עזרה.</translation>
         </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="147" />
+            <source>Updating replaces the driver and restarts the helper, so ports that are open now are closed, and a program that has one open loses it. Studio offers to make the ports again. Windows may ask for a restart before the new driver is used.</source>
+            <translation>העדכון מחליף את מנהל ההתקן ומפעיל מחדש את שירות העזר, ולכן יציאות שפתוחות עכשיו ייסגרו, ותוכנית שפתחה אחת מהן תאבד אותה. Studio מציע ליצור את היציאות מחדש. ייתכן ש-Windows יבקש הפעלה מחדש לפני שמנהל ההתקן החדש ישמש.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="217" />
+            <source>Update the driver</source>
+            <translation>עדכון מנהל ההתקן</translation>
+        </message>
     </context>
     <context>
         <name>AddSheet</name>
@@ -20158,6 +20208,11 @@ Networks: %5</source>
             <location filename="../src/topology/add_sheet.cpp" line="532" />
             <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
             <translation>נלקח מ-%1. מוניטור פועל במהירות של היציאה שהוא עוקב אחריה.</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="388" />
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one.</source>
+            <translation>תוכנית שפותחת שם קבוע כמו COM3 צריכה את אותו המספר בכל פעם. אוטומטי בוחר מספר פנוי.</translation>
         </message>
     </context>
     <context>
@@ -20640,6 +20695,11 @@ Networks: %5</source>
             <location filename="../src/advanced/port_settings_dialog.cpp" line="479" />
             <source>The port could not take these settings: %1</source>
             <translation>היציאה לא הצליחה לקבל את ההגדרות האלה: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="479" />
+            <source>Another program may have the port open. Close that program, then try again.</source>
+            <translation>ייתכן שתוכנית אחרת פתחה את היציאה. סגרו את התוכנית ונסו שוב.</translation>
         </message>
         <message numerus="yes">
             <location filename="../../../../../../../apps/vss_gui/src/advanced/port_settings_dialog.cpp" line="296" />
@@ -23136,8 +23196,33 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
-            <source>The copy installed for everyone is used. This copy, installed for you only, is not.</source>
-            <translation>ההעתק המותקן לכולם הוא שבשימוש. ההעתק הזה, המותקן רק עבורך, אינו בשימוש.</translation>
+            <source>The copy that came with Studio runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>במקומו משמש ההעתק שהגיע עם Studio. ההעתק הזה, המותקן רק עבורך, אינו בשימוש. הסירו את ההעתק הזה אם אינכם זקוקים לו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin, installed for everyone on this computer, runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>במקומו משמש העתק אחר של התוסף הזה, המותקן לכל מי שמשתמש במחשב הזה. ההעתק הזה, המותקן רק עבורך, אינו בשימוש. הסירו את ההעתק הזה אם אינכם זקוקים לו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>The copy that came with Studio runs instead. This copy, installed for everyone on this computer, is not used. Ask your administrator to remove it.</source>
+            <translation>במקומו משמש ההעתק שהגיע עם Studio. ההעתק הזה, המותקן לכל מי שמשתמש במחשב הזה, אינו בשימוש. בקשו ממנהל המערכת להסיר אותו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin runs instead. This copy is not used.</source>
+            <translation>במקומו משמש העתק אחר של התוסף הזה. ההעתק הזה אינו בשימוש.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 came with Studio, and that copy runs. A copy added for you only would not run.</source>
+            <translation>%1 הגיע עם Studio, וההעתק הזה הוא שבשימוש. העתק שנוסף רק עבורכם לא יהיה בשימוש.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 is already installed for everyone on this computer, and that copy runs. A copy added for you only would not run. Ask your administrator to change it.</source>
+            <translation>%1 כבר מותקן לכל מי שמשתמש במחשב הזה, וההעתק הזה הוא שבשימוש. העתק שנוסף רק עבורכם לא יהיה בשימוש. בקשו ממנהל המערכת לשנות זאת.</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
@@ -24275,6 +24360,16 @@ From the plugin %2
             <source>Reserved by Windows</source>
             <translation>שמור על ידי Windows</translation>
         </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="101" />
+            <source>Unplugged Windows device %1</source>
+            <translation>התקן Windows‏ %1 מנותק</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="105" />
+            <source>Unplugged Windows device</source>
+            <translation>התקן Windows מנותק</translation>
+        </message>
     </context>
     <context>
         <name>DecodeDialog</name>
@@ -24721,6 +24816,34 @@ From the plugin %2
             <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
             <source>Stop bits</source>
             <translation>סיביות עצירה</translation>
+        </message>
+    </context>
+    <context>
+        <name>DriverVersions</name>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="99" />
+            <source>Studio could not read which version of the driver Windows holds.</source>
+            <translation>Studio לא הצליח לקרוא איזו גרסה של מנהל ההתקן נמצאת ב-Windows.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="106" />
+            <source>The driver in Windows is version %1. This copy of Studio has no driver files to compare it with.</source>
+            <translation>מנהל ההתקן ב-Windows הוא בגרסה %1. בעותק הזה של Studio אין קובצי מנהל התקן להשוואה.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="115" />
+            <source>The driver in Windows is version %1. This copy of Studio carries the newer version %2.</source>
+            <translation>מנהל ההתקן ב-Windows הוא בגרסה %1. העותק הזה של Studio כולל את הגרסה החדשה יותר, %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="121" />
+            <source>The driver in Windows is version %1, newer than the version this copy of Studio carries (%2). Nothing needs updating.</source>
+            <translation>מנהל ההתקן ב-Windows הוא בגרסה %1, חדשה יותר מהגרסה שבעותק הזה של Studio (%2). אין צורך לעדכן.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="131" />
+            <source>The driver in Windows is version %1, the same as this copy of Studio carries.</source>
+            <translation>מנהל ההתקן ב-Windows הוא בגרסה %1, זהה לזו שבעותק הזה של Studio.</translation>
         </message>
     </context>
     <context>

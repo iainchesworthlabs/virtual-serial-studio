@@ -39,7 +39,7 @@ std::vector<driver_problem> setup_problem_list()
     return {driver_problem::driver_missing, driver_problem::helper_missing,
             driver_problem::helper_stopped,
             driver_problem::helper_incompatible,
-            driver_problem::helper_denied};
+            driver_problem::helper_denied, driver_problem::driver_old};
 }
 
 } // namespace
@@ -51,7 +51,10 @@ TEST_CASE("driver error: each set-up problem has its own sentence and next step"
     {
         const QString body = driver_problem_body(problem);
         // A next step, and the action that does it.
-        REQUIRE(body.contains(QStringLiteral("Set up Virtual Serial Studio")));
+        REQUIRE(body.contains(problem == driver_problem::driver_old
+                                  ? QStringLiteral("Update the driver")
+                                  : QStringLiteral(
+                                        "Set up Virtual Serial Studio")));
         REQUIRE(body.contains(QStringLiteral("Nothing was changed")));
         REQUIRE(!bodies.contains(body));
         bodies << body;

@@ -203,6 +203,9 @@ private:
         std::string id;
         bool delete_data = false;
         int attempts = 0;
+        /// This copy was the one that ran; false when another copy ran
+        /// instead.
+        bool was_used = true;
     };
     /// Plugins switched off to be removed once they have stopped.
     std::vector<pending_removal> removals_;

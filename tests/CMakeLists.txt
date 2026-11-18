@@ -24,6 +24,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_debug_server.cpp
   unit/test_debug_trace_text.cpp
   unit/test_document.cpp
+  unit/test_driver_package.cpp
   unit/test_driver_setup.cpp
   unit/test_endpoint.cpp
   unit/test_endpoint_reopen.cpp
@@ -107,6 +108,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_studio.cpp
   unit/test_studio_reopen.cpp
   unit/test_studio_links.cpp
+  unit/test_studio_monitor_add.cpp
   unit/test_studio_options.cpp
   unit/test_studio_rules.cpp
   unit/test_studio_sources.cpp

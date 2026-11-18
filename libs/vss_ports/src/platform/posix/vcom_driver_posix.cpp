@@ -49,6 +49,11 @@ std::optional<driver_peer_info> platform_driver_peer(const std::string&)
     return std::nullopt;
 }
 
+std::optional<driver_package_version> platform_installed_driver_package()
+{
+    return std::nullopt;
+}
+
 std::optional<driver_setup_observation> platform_observe_driver_setup()
 {
     return std::nullopt;

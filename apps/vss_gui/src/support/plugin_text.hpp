@@ -71,6 +71,10 @@ QString isolation_text(const plugin_view& plugin);
 QString timing_text(plugin_timing timing);
 QString timing_sentence(const plugin_view& plugin);
 QString installed_for_text(plugin_installed_for installed);
+/// Why a plugin cannot be added for the user when a copy of it is already
+/// installed in `place` (everyone, or with Studio) and runs instead.
+QString installed_elsewhere_text(plugin_installed_for place,
+                                 const QString& name);
 QString addition_text(const plugin_addition& addition);
 QString runtime_line(const plugin_view& plugin);
 

@@ -593,6 +593,9 @@ plugin_snapshot map_service_snapshot(const host::service_snapshot& snapshot,
                     view.used_copy_trust = gui_trust(other.level);
                     view.used_copy_author = from_std(other.author);
                     view.used_copy_id = from_std(other.id);
+                    view.used_copy_installed_for =
+                        installed_for_scope(other.scope);
+                    view.has_used_copy = true;
                     if (other.level != plugin.level ||
                         other.key_id != plugin.key_id)
                         note = plugin_note::not_used_different_signer;

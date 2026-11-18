@@ -1131,12 +1131,36 @@ result<void> studio::reconfigure_port_untraced(endpoint_id id,
         uri.starts_with("udp://"))
         return make_error_code(errc::unsupported);
 
+    // A real serial device lets one handle have it open at a time (Windows
+    // answers a second open with "Access is denied"), so the old handle is
+    // closed, on the endpoint's strand and waited for, before the new one is
+    // opened.  A network client has no such limit and keeps the order of
+    // opening first.
+    const bool exclusive = record.kind == "physical";
+    if (exclusive)
+    {
+        auto closed = std::make_shared<std::promise<void>>();
+        auto done = closed->get_future();
+        found->shutdown([closed] { closed->set_value(); });
+        done.wait();
+    }
+
     boost::system::error_code ec;
     auto fresh = open_address(record.uri, &settings, ec);
-    if (ec)
-        return ec;
-    if (!fresh)
-        return make_error_code(errc::internal);
+    if (ec || !fresh)
+    {
+        const error_code why = ec ? ec : make_error_code(errc::internal);
+        // The device was closed to make room: put it back as it was.
+        if (exclusive)
+        {
+            boost::system::error_code ignored;
+            if (auto back = open_address(
+                    record.uri, record.settings_given ? &record.serial : nullptr,
+                    ignored))
+                static_cast<void>(hand_over(id, found, std::move(back)));
+        }
+        return why;
+    }
     if (const auto reopened = hand_over(id, found, std::move(fresh)); !reopened)
         return reopened.error();
     store(true);
@@ -2801,7 +2825,19 @@ std::vector<serial_device_info> studio::serial_devices() const
 std::optional<std::vector<unsigned>> studio::reserved_com_numbers() const
 {
     VSS_PROFILE_ZONE("studio.reserved_com_numbers");
+    return vss::unavailable_com_numbers();
+}
+
+std::optional<std::vector<unsigned>> studio::kept_com_numbers() const
+{
+    VSS_PROFILE_ZONE("studio.kept_com_numbers");
     return vss::reserved_com_numbers();
+}
+
+std::optional<std::vector<com_number_holder>> studio::com_number_holders() const
+{
+    VSS_PROFILE_ZONE("studio.com_number_holders");
+    return vss::com_number_holders();
 }
 
 } // namespace vss

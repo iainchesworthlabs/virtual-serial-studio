@@ -302,7 +302,10 @@ void FakePluginBackend::remove_plugin(const QString& plugin_id,
     record(seen);
     auto next = std::make_shared<plugin_snapshot>(*snapshot_);
     std::erase_if(next->plugins, [&](const plugin_view& each)
-                  { return each.id == plugin_id && each.hash == hash; });
+                  {
+                      return each.id == plugin_id && each.hash == hash &&
+                             each.installed_for == plugin_installed_for::you_only;
+                  });
     snapshot_ = std::move(next);
     notify_snapshot_changed();
     plugin_request_result result;
@@ -594,6 +597,8 @@ std::vector<plugin_view> fake_plugin_samples()
     unused.used_copy_folder =
         QStringLiteral("C:/Program Files/Studio/studio-plugins/modbus");
     unused.used_copy_trust = plugin_trust::official;
+    unused.used_copy_installed_for = plugin_installed_for::with_studio;
+    unused.has_used_copy = true;
     unused.used_copy_id = available.id;
     unused.used_copy_folder = available.folder;
     unused.folder = QStringLiteral(

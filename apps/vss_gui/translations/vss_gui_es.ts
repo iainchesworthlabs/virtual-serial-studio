@@ -447,6 +447,16 @@
             <source>Never</source>
             <translation>Nunca</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="151" />
+            <source>Open Tools, Setup check to update it.</source>
+            <translation>Abra Herramientas, Comprobación de configuración para actualizarlo.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="275" />
+            <source>Driver version</source>
+            <translation>Versión del controlador</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -3856,6 +3866,11 @@ Redes: %5</translation>
             <source>Set up Virtual Serial Studio</source>
             <translation>Configurar Virtual Serial Studio</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_grid.cpp" line="379" />
+            <source>Update the driver</source>
+            <translation>Actualizar el controlador</translation>
+        </message>
     </context>
     <context>
         <name>JsonCodeEdit</name>
@@ -4020,6 +4035,11 @@ Redes: %5</translation>
             <location filename="../src/shell/launcher.cpp" line="344" />
             <source>Set up Virtual Serial Studio</source>
             <translation>Configurar Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/launcher.cpp" line="357" />
+            <source>Update the driver</source>
+            <translation>Actualizar el controlador</translation>
         </message>
     </context>
     <context>
@@ -6686,6 +6706,21 @@ Redes: %5</translation>
             <source>break</source>
             <translation>break</translation>
         </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="123" />
+            <source>The Virtual Serial Studio driver is out of date</source>
+            <translation>El controlador de Virtual Serial Studio está desactualizado</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="162" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Choose Set up Virtual Serial Studio to update it.</source>
+            <translation>El controlador de este PC es más antiguo que este programa, así que los puertos que crea no se pueden usar. No se cambió nada. Elija «Configurar Virtual Serial Studio» para actualizarlo.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="162" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Update the driver to install the newer one that comes with this program.</source>
+            <translation>El controlador de este equipo es más antiguo que este programa, así que los puertos que crea no se pueden usar. No se cambió nada. Actualice el controlador para instalar el más reciente que viene con este programa.</translation>
+        </message>
     </context>
     <context>
         <name>ReleasePortDialog</name>
@@ -8039,6 +8074,11 @@ Redes: %5</translation>
             <location filename="../src/support/setup_facts.cpp" line="198" />
             <source>Set up Virtual Serial Studio</source>
             <translation>Configurar Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/setup_facts.cpp" line="223" />
+            <source>Update the driver</source>
+            <translation>Actualizar el controlador</translation>
         </message>
     </context>
     <context>
@@ -19977,6 +20017,16 @@ Redes: %5</translation>
             <source>Setup finished, but this PC still cannot make ports: %1. Copy the details if you ask for help.</source>
             <translation>La configuración terminó, pero este equipo sigue sin poder crear puertos: %1. Copie los detalles si pide ayuda.</translation>
         </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="147" />
+            <source>Updating replaces the driver and restarts the helper, so ports that are open now are closed, and a program that has one open loses it. Studio offers to make the ports again. Windows may ask for a restart before the new driver is used.</source>
+            <translation>Al actualizar se reemplaza el controlador y se reinicia el servicio auxiliar, así que los puertos abiertos ahora se cierran y un programa que tenga uno abierto lo pierde. Studio ofrece crear los puertos de nuevo. Windows puede pedir un reinicio antes de usar el nuevo controlador.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="217" />
+            <source>Update the driver</source>
+            <translation>Actualizar el controlador</translation>
+        </message>
     </context>
     <context>
         <name>AddSheet</name>
@@ -20158,6 +20208,11 @@ Redes: %5</translation>
             <location filename="../src/topology/add_sheet.cpp" line="532" />
             <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
             <translation>Tomado de %1. Un monitor funciona a la velocidad del puerto que observa.</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="388" />
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one.</source>
+            <translation>Un programa que abre un nombre fijo como COM3 necesita el mismo número cada vez. Automático elige uno libre.</translation>
         </message>
     </context>
     <context>
@@ -20640,6 +20695,11 @@ Redes: %5</translation>
             <location filename="../src/advanced/port_settings_dialog.cpp" line="479" />
             <source>The port could not take these settings: %1</source>
             <translation>El puerto no pudo aceptar estos ajustes: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="479" />
+            <source>Another program may have the port open. Close that program, then try again.</source>
+            <translation>Puede que otro programa tenga abierto el puerto. Cierre ese programa e inténtelo de nuevo.</translation>
         </message>
         <message numerus="yes">
             <location filename="../../../../../../../apps/vss_gui/src/advanced/port_settings_dialog.cpp" line="296" />
@@ -23136,8 +23196,33 @@ Redes: %5</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
-            <source>The copy installed for everyone is used. This copy, installed for you only, is not.</source>
-            <translation>Se usa la copia instalada para todos los usuarios. Esta copia, instalada solo para usted, no se usa.</translation>
+            <source>The copy that came with Studio runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>En su lugar se usa la copia que viene con Studio. Esta copia, instalada solo para usted, no se usa. Elimine esta copia si no la necesita.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin, installed for everyone on this computer, runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>En su lugar se usa otra copia de este complemento, instalada para todos los usuarios de este equipo. Esta copia, instalada solo para usted, no se usa. Elimine esta copia si no la necesita.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>The copy that came with Studio runs instead. This copy, installed for everyone on this computer, is not used. Ask your administrator to remove it.</source>
+            <translation>En su lugar se usa la copia que viene con Studio. Esta copia, instalada para todos los usuarios de este equipo, no se usa. Pida a su administrador que la elimine.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin runs instead. This copy is not used.</source>
+            <translation>En su lugar se usa otra copia de este complemento. Esta copia no se usa.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 came with Studio, and that copy runs. A copy added for you only would not run.</source>
+            <translation>%1 viene con Studio y se usa esa copia. Una copia añadida solo para usted no se usaría.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 is already installed for everyone on this computer, and that copy runs. A copy added for you only would not run. Ask your administrator to change it.</source>
+            <translation>%1 ya está instalado para todos los usuarios de este equipo y se usa esa copia. Una copia añadida solo para usted no se usaría. Pida a su administrador que lo cambie.</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
@@ -24275,6 +24360,16 @@ Del complemento %2
             <source>Reserved by Windows</source>
             <translation>Reservado por Windows</translation>
         </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="101" />
+            <source>Unplugged Windows device %1</source>
+            <translation>Dispositivo de Windows %1 desconectado</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="105" />
+            <source>Unplugged Windows device</source>
+            <translation>Dispositivo de Windows desconectado</translation>
+        </message>
     </context>
     <context>
         <name>DecodeDialog</name>
@@ -24721,6 +24816,34 @@ Del complemento %2
             <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
             <source>Stop bits</source>
             <translation>Bits de parada</translation>
+        </message>
+    </context>
+    <context>
+        <name>DriverVersions</name>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="99" />
+            <source>Studio could not read which version of the driver Windows holds.</source>
+            <translation>Studio no pudo leer qué versión del controlador tiene Windows.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="106" />
+            <source>The driver in Windows is version %1. This copy of Studio has no driver files to compare it with.</source>
+            <translation>El controlador de Windows es la versión %1. Esta copia de Studio no tiene archivos de controlador con los que compararla.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="115" />
+            <source>The driver in Windows is version %1. This copy of Studio carries the newer version %2.</source>
+            <translation>El controlador de Windows es la versión %1. Esta copia de Studio incluye la versión más reciente %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="121" />
+            <source>The driver in Windows is version %1, newer than the version this copy of Studio carries (%2). Nothing needs updating.</source>
+            <translation>El controlador de Windows es la versión %1, más reciente que la versión que incluye esta copia de Studio (%2). No hace falta actualizar nada.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="131" />
+            <source>The driver in Windows is version %1, the same as this copy of Studio carries.</source>
+            <translation>El controlador de Windows es la versión %1, la misma que incluye esta copia de Studio.</translation>
         </message>
     </context>
     <context>

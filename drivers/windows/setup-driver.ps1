@@ -7,7 +7,15 @@
 # one Windows permission prompt; it can also be run by hand from a terminal
 # opened as administrator. Running it again repairs a partial install.
 #
-#   setup-driver.ps1 [-PackageRoot <folder>]
+#   setup-driver.ps1 [-PackageRoot <folder>] [-ReinstallDriver]
+#   setup-driver.ps1 -Query -BundledVer <date,version> -QueryOut <file>
+#
+# The driver package has a version (DriverVer in the .inf: a date, then four numbers; Windows
+# compares the date first). When the driver store already holds a vsscom_um package that is the
+# same as the one in the package folder or newer, the driver is left as it is and only the helper
+# service is installed or repaired; -ReinstallDriver installs the package again. An older one, or
+# none, is replaced by the package. -Query changes nothing, needs no administrator and writes three
+# lines to -QueryOut: none, older, same, newer or unknown; the installed version; the bundled one.
 #
 # The package folder holds:
 #   driver\vsscom_um.inf, vsscom_um.dll, vsscom_um.cat   the user-mode driver
@@ -34,7 +42,11 @@
 
 [CmdletBinding()]
 param(
-    [string] $PackageRoot
+    [string] $PackageRoot,
+    [switch] $ReinstallDriver,
+    [switch] $Query,
+    [string] $BundledVer,
+    [string] $QueryOut
 )
 
 $ErrorActionPreference = 'Stop'
@@ -88,6 +100,69 @@ function Test-PackageStored([string] $InfPath) {
         if (-not $wanted -or $package.Version.ToString() -eq $wanted) { return $true }
     }
     $false
+}
+
+# The packages of the user-mode driver in the driver store, each as its date and its four-part version.
+# They are read from the registry (the same place Studio reads), which every user may read and which is
+# quicker than Get-WindowsDriver. The "Version" value is 8 bytes of its own, the class GUID, the date as a
+# FILETIME (offset 24) and the version as one 64-bit number with the first part in the highest 16 bits.
+function Get-DriverStorePackages {
+    $root = 'HKLM:\SYSTEM\DriverDatabase\DriverPackages'
+    if (-not (Test-Path -LiteralPath $root)) { return }
+    foreach ($key in @(Get-ChildItem -LiteralPath $root | Where-Object { $_.PSChildName -like 'vsscom_um.inf_*' })) {
+        $bytes = [byte[]] (Get-ItemProperty -LiteralPath $key.PSPath -Name Version).Version
+        if ($bytes.Length -lt 40) { continue }
+        $packed = [BitConverter]::ToUInt64($bytes, 32)
+        $parts = foreach ($shift in 48, 32, 16, 0) { [int](($packed -shr $shift) -band 0xFFFF) }
+        [pscustomobject]@{
+            Date    = [DateTime]::FromFileTimeUtc([BitConverter]::ToInt64($bytes, 24)).Date
+            Version = [version]::new($parts[0], $parts[1], $parts[2], $parts[3])
+        }
+    }
+}
+
+# '11/18/2026,1.5.1.0' as a date and a version, or $null.
+function ConvertFrom-DriverVer([string] $Text) {
+    if ($Text -notmatch '^\s*(\d{1,2})/(\d{1,2})/(\d{4})\s*,\s*(\d+)\.(\d+)\.(\d+)\.(\d+)\s*$') { return $null }
+    try {
+        [pscustomobject]@{
+            Date    = [DateTime]::new([int]$Matches[3], [int]$Matches[1], [int]$Matches[2])
+            Version = [version]::new([int]$Matches[4], [int]$Matches[5], [int]$Matches[6], [int]$Matches[7])
+        }
+    }
+    catch { $null }
+}
+
+# -1, 0 or 1: how $A compares with $B the way Windows does it, the date first.
+function Compare-DriverVer($A, $B) {
+    if ($A.Date -ne $B.Date) { return [Math]::Sign(($A.Date - $B.Date).Ticks) }
+    $A.Version.CompareTo($B.Version)
+}
+
+function Format-DriverVer($Package) { '{0} ({1})' -f $Package.Version, $Package.Date.ToString('yyyy-MM-dd') }
+
+# How the newest installed package compares with the bundled one: State is none, older, same, newer or
+# unknown (the bundled version is not readable, or the store is not), Installed and Bundled are text.
+function Get-DriverState($Bundled) {
+    $result = [pscustomobject]@{ State = 'unknown'; Installed = ''; Bundled = '' }
+    if (-not $Bundled) { return $result }
+    $result.Bundled = Format-DriverVer $Bundled
+    try { $packages = @(Get-DriverStorePackages) }
+    catch { return $result }
+    if ($packages.Count -eq 0) { $result.State = 'none'; return $result }
+    $newest = $packages[0]
+    foreach ($package in $packages) { if ((Compare-DriverVer $package $newest) -gt 0) { $newest = $package } }
+    $result.Installed = Format-DriverVer $newest
+    $order = Compare-DriverVer $newest $Bundled
+    $result.State = if ($order -lt 0) { 'older' } elseif ($order -gt 0) { 'newer' } else { 'same' }
+    $result
+}
+
+if ($Query) {
+    $state = Get-DriverState (ConvertFrom-DriverVer $BundledVer)
+    if ($QueryOut) { Set-Content -LiteralPath $QueryOut -Value @($state.State, $state.Installed, $state.Bundled) -Encoding ASCII }
+    Write-Host ('driver {0}; installed {1}; bundled {2}' -f $state.State, $state.Installed, $state.Bundled)
+    exit 0
 }
 
 # The thumbprint of the root at the top of the chain of a certificate, or $null. The chain is built from
@@ -172,26 +247,48 @@ try {
     $untrusted = '0x800B0004', '0x800B0100', '0x800B0109', '0x800B010A', '0x800B0112'
 
     $restart = $false
-    Write-Host "adding the driver package $inf"
-    $code = Invoke-Bounded 'pnputil.exe' @('/add-driver', $inf, '/install') 180
-    if ($code -eq 3010) { $restart = $true }
-    elseif ($code -eq 259) {
-        # ERROR_NO_MORE_ITEMS, which pnputil documents (PnPUtil Return Values) as "no devices match the
-        # supplied driver or the target device is already using a better or newer driver". It is the normal
-        # answer when set-up is run again while ports exist. The package is in the driver store, or this
-        # is not an answer to accept, so the store decides.
-        try { $stored = Test-PackageStored $inf }
-        catch { Stop-With 7 "pnputil answered 259 (no device was updated) and the driver store could not be read: $($_.Exception.Message)" }
-        if (-not $stored) { Stop-With 7 'pnputil answered 259 (no device was updated) and this version of the vsscom_um driver package is not in the driver store' }
-        Write-Host 'the devices already use this driver or a newer one; the driver package is in the driver store'
+    $declared = Select-String -LiteralPath $inf -Pattern '^\s*DriverVer\s*=\s*(.+?)\s*$' | Select-Object -First 1
+    $state = Get-DriverState $(if ($declared) { ConvertFrom-DriverVer $declared.Matches[0].Groups[1].Value })
+    $installDriver = $true
+    if (($state.State -eq 'same' -or $state.State -eq 'newer') -and -not $ReinstallDriver) {
+        $installDriver = $false
+        Write-Host ("the driver package in the driver store is version {0}; this setup carries {1}; the driver was left as it is" -f $state.Installed, $state.Bundled)
     }
-    elseif ($code -eq 124) { Stop-With 7 'pnputil did not finish in 180 seconds and was stopped' }
-    elseif (('0x{0:X8}' -f ($code -band 0xFFFFFFFFL)) -in $untrusted) {
-        # With test signing on, a signature that is present but not trusted passes the check above, and then
-        # Windows itself refuses the package. That is the same answer as an untrusted file: nothing was changed.
-        Stop-With 6 ('{0} is not signed by a publisher this machine trusts (pnputil refused it with {1})' -f $inf, ('0x{0:X8}' -f ($code -band 0xFFFFFFFFL)))
+    elseif ($state.State -eq 'older') {
+        Write-Host ("replacing the driver package version {0} with {1}" -f $state.Installed, $state.Bundled)
     }
-    elseif ($code -ne 0) { Stop-With 7 "pnputil failed with $code" }
+    if ($installDriver) {
+        Write-Host "adding the driver package $inf"
+        $code = Invoke-Bounded 'pnputil.exe' @('/add-driver', $inf, '/install') 180
+        if ($code -eq 3010) { $restart = $true }
+        elseif ($code -eq 259) {
+            # ERROR_NO_MORE_ITEMS, which pnputil documents (PnPUtil Return Values) as "no devices match the
+            # supplied driver or the target device is already using a better or newer driver". It is the normal
+            # answer when set-up is run again while ports exist. The package is in the driver store, or this
+            # is not an answer to accept, so the store decides.
+            try { $stored = Test-PackageStored $inf }
+            catch { Stop-With 7 "pnputil answered 259 (no device was updated) and the driver store could not be read: $($_.Exception.Message)" }
+            if (-not $stored) { Stop-With 7 'pnputil answered 259 (no device was updated) and this version of the vsscom_um driver package is not in the driver store' }
+            Write-Host 'the devices already use this driver or a newer one; the driver package is in the driver store'
+        }
+        elseif ($code -eq 124) { Stop-With 7 'pnputil did not finish in 180 seconds and was stopped' }
+        elseif (('0x{0:X8}' -f ($code -band 0xFFFFFFFFL)) -in $untrusted) {
+            # With test signing on, a signature that is present but not trusted passes the check above, and then
+            # Windows itself refuses the package. That is the same answer as an untrusted file: nothing was changed.
+            Stop-With 6 ('{0} is not signed by a publisher this machine trusts (pnputil refused it with {1})' -f $inf, ('0x{0:X8}' -f ($code -band 0xFFFFFFFFL)))
+        }
+        elseif ($code -ne 0) { Stop-With 7 "pnputil failed with $code" }
+
+        # pnputil can answer 0 for a package that is already in the store, and Windows keeps the one it has when the new
+        # DriverVer is not newer than it (DriverVer is compared by date, then by the four-part version). Then the old
+        # driver stays and every port it makes is refused. The store must hold the version this package declares, or
+        # the setup says so and stops before the helper is touched.
+        if ($code -ne 259) {
+            try { $stored = Test-PackageStored $inf }
+            catch { Stop-With 7 "pnputil answered $code and the driver store could not be read: $($_.Exception.Message)" }
+            if (-not $stored) { Stop-With 7 "pnputil answered $code, but the driver store does not hold the version of the vsscom_um package that this setup carries; Windows kept an older one" }
+        }
+    }
 
     Write-Host 'installing the helper service'
     # install-helper.ps1 ends with an exit code, but a throw out of it (a missing command, a parameter

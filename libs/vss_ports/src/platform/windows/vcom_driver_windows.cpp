@@ -101,6 +101,15 @@ void note_failure(const char* step, DWORD code)
                                   boost::system::system_category()));
 }
 
+/// A port that speaks this program's version means the old complaint about the
+/// driver's version no longer holds.
+void forget_version_failure()
+{
+    const std::lock_guard lock(failure_mutex);
+    if (failure_record.step == driver_version_step)
+        failure_record = {};
+}
+
 /// One port of the driver: the COM name an application opens, the path of the
 /// hub end, and the device instance id (VSSCOM\PORT\0000 for a port that the
 /// control device made).
@@ -1666,12 +1675,17 @@ open_made_port(const transport::executor_type& executor,
     }
 
     VSSCOM_VERSION_INFO version{};
-    if (!read_version(handle, version) || version.Version != VSSCOM_VERSION)
+    const bool read = read_version(handle, version);
+    if (!read || version.Version != VSSCOM_VERSION)
     {
-        note_failure("read the version of the new port", ::GetLastError());
+        if (read)
+            note_failure(driver_version_step, version.Version);
+        else
+            note_failure("read the version of the new port", ::GetLastError());
         ::CloseHandle(handle);
         return make_error_code(errc::unsupported);
     }
+    forget_version_failure();
 
     virtual_port_result out;
     out.path = to_utf8(hub->port);
@@ -2057,10 +2071,12 @@ platform_create_driver_port(const transport::executor_type& executor,
 
         VSSCOM_VERSION_INFO version{};
         VSSCOM_HUB_STATE state{};
-        if (!read_version(handle, version) ||
-            version.Version != VSSCOM_VERSION)
+        const bool read = read_version(handle, version);
+        if (!read || version.Version != VSSCOM_VERSION)
         {
-            // A driver of another version: the hub speaks version 3.
+            // A driver of another version than this program's.
+            if (read)
+                note_failure(driver_version_step, version.Version);
             ::CloseHandle(handle);
             failure = errc::unsupported;
             continue;
@@ -2130,12 +2146,58 @@ std::optional<driver_peer_info> platform_driver_peer(const std::string& com_name
     return std::nullopt;
 }
 
+std::optional<driver_package_version> platform_installed_driver_package()
+{
+    VSS_PROFILE_ZONE("ports.vcom.installed_package");
+    // The driver store keeps one key for each package, named
+    // <original name>_<architecture>_<hash>, with the package's version in its
+    // "Version" value. Several can be there: Windows keeps the older ones when
+    // a newer one is added. The newest is the one a new port gets.
+    constexpr wchar_t root_path[] = L"SYSTEM\\DriverDatabase\\DriverPackages";
+    constexpr wchar_t prefix[] = L"vsscom_um.inf_";
+    HKEY root = nullptr;
+    if (::RegOpenKeyExW(HKEY_LOCAL_MACHINE, root_path, 0, KEY_READ, &root) !=
+        ERROR_SUCCESS)
+        return std::nullopt;
+
+    std::optional<driver_package_version> newest;
+    for (DWORD index = 0;; ++index)
+    {
+        wchar_t name[256];
+        DWORD length = static_cast<DWORD>(std::size(name));
+        if (::RegEnumKeyExW(root, index, name, &length, nullptr, nullptr,
+                            nullptr, nullptr) != ERROR_SUCCESS)
+            break;
+        if (std::wcsncmp(name, prefix, std::size(prefix) - 1) != 0)
+            continue;
+        HKEY key = nullptr;
+        if (::RegOpenKeyExW(root, name, 0, KEY_QUERY_VALUE, &key) !=
+            ERROR_SUCCESS)
+            continue;
+        unsigned char value[64];
+        DWORD size = sizeof(value);
+        DWORD type = 0;
+        const LONG read =
+            ::RegQueryValueExW(key, L"Version", nullptr, &type, value, &size);
+        ::RegCloseKey(key);
+        if (read != ERROR_SUCCESS || type != REG_BINARY)
+            continue;
+        const auto version = driver_package_from_store_value(value, size);
+        if (version && (!newest || compare_driver_packages(*version, *newest) ==
+                                       driver_package_order::newer))
+            newest = version;
+    }
+    ::RegCloseKey(root);
+    return newest;
+}
+
 std::optional<driver_setup_observation> platform_observe_driver_setup()
 {
     VSS_PROFILE_ZONE("ports.vcom.observe_setup");
     driver_setup_observation seen;
     seen.control_device = !find_control_path().empty();
     seen.driver_installed = package_installed(seen.control_device);
+    seen.installed_package = platform_installed_driver_package();
 
     DWORD service_code = 0;
     seen.service = helper_service(service_code);

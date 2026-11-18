@@ -129,6 +129,14 @@ classify_com_numbers(const std::vector<unsigned>& database,
                      const std::vector<unsigned>& resolving,
                      const std::vector<com_port_entry>& entries);
 
+/// The COM numbers a new Studio port cannot take: a device that is present
+/// holds them, the name resolves, or an unplugged device of something else
+/// keeps them for when it returns.  A number that only a Studio port that is
+/// gone keeps, or that only the COM name database marks with no device, is
+/// not here: the helper clears it when a port asks for it.  Sorted, without
+/// duplicates.  `nullopt` where `com_number_holders` is.
+std::optional<std::vector<unsigned>> unavailable_com_numbers();
+
 /// Which COM numbers are in use or kept, and by what. Use `reusable_by_studio`
 /// to tell the numbers a new Studio port may take from the others. `nullopt`
 /// where the computer cannot be asked (every platform but Windows, or a

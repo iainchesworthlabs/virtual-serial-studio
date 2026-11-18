@@ -13,6 +13,7 @@
 #include "widgets/controls.hpp"
 #include "widgets/notes.hpp"
 
+#include <vss/core/error.hpp>
 #include <vss/core/profile.hpp>
 
 #include <QCheckBox>
@@ -536,8 +537,15 @@ void PortSettingsDialog::on_finished(const vss::error_code& error)
     backend_.refresh();
     if (error)
     {
-        const QString text = tr("The port could not take these settings: %1")
-                                 .arg(vss::gui::error_text(error));
+        QString text = tr("The port could not take these settings: %1")
+                           .arg(vss::gui::error_text(error));
+        // Windows answers "Access is denied" when another program has the
+        // device open, so the sheet says what to do about it.
+        if (error == boost::system::errc::permission_denied ||
+            error == vss::make_error_code(vss::errc::permission_denied))
+            text += QLatin1Char(' ') +
+                    tr("Another program may have the port open. Close that "
+                       "program, then try again.");
         error_->setText(text);
         error_->show();
         update_summary();

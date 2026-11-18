@@ -13,13 +13,16 @@
 
 #include "backend/driver_error.hpp"
 #include "backend/fake_studio_backend.hpp"
+#include "support/about_dialog.hpp"
 #include "support/driver_setup_dialog.hpp"
 #include "support/elevated_step.hpp"
 #include "support/setup_facts.hpp"
+#include "theme/theme.hpp"
 #include "widgets/notes.hpp"
 
 #include "qt_wait.hpp"
 
+#include <QLabel>
 #include <QPushButton>
 
 namespace
@@ -124,7 +127,7 @@ TEST_CASE("driver setup: each missing piece is a row with the one action")
     for (const driver_problem problem :
          {driver_problem::driver_missing, driver_problem::helper_missing,
           driver_problem::helper_stopped, driver_problem::helper_incompatible,
-          driver_problem::helper_denied})
+          driver_problem::helper_denied, driver_problem::driver_old})
     {
         const auto report = support::build_setup_report(
             windows_facts(problem, problem != driver_problem::driver_missing),
@@ -136,7 +139,9 @@ TEST_CASE("driver setup: each missing piece is a row with the one action")
         const auto& row = report.rows.at(0);
         REQUIRE_EQ(row.chip, QStringLiteral("Needs attention"));
         REQUIRE_EQ(row.action_text,
-                   QStringLiteral("Set up Virtual Serial Studio"));
+                   problem == driver_problem::driver_old
+                       ? QStringLiteral("Update the driver")
+                       : QStringLiteral("Set up Virtual Serial Studio"));
         REQUIRE(row.action == support::setup_action::setup_driver);
         REQUIRE_EQ(row.sentence, vss::gui::driver_problem_body(problem));
         REQUIRE(row.highlight);
@@ -279,4 +284,154 @@ TEST_CASE("driver setup dialog: without the driver files it explains and offers 
     vss_test::spin(20);
     REQUIRE_EQ(runs, 0);
     REQUIRE(!dialog.setup_button()->isEnabled());
+}
+
+namespace
+{
+
+using vss::gui::driver_age;
+
+/// A Windows PC whose driver store holds `installed` and whose copy of Studio
+/// carries `bundled`. An empty string is "not known".
+vss::gui::setup_facts versions_facts(const QString& installed,
+                                     const QString& bundled, driver_age age)
+{
+    auto facts = windows_facts(age == driver_age::older ? driver_problem::driver_old
+                                                        : driver_problem::none);
+    facts.driver.versions.installed = installed;
+    facts.driver.versions.bundled = bundled;
+    facts.driver.versions.age = age;
+    return facts;
+}
+
+bool any_label_contains(QWidget& parent, const QString& text)
+{
+    for (const auto* label : parent.findChildren<QLabel*>())
+        if (label->text().contains(text))
+            return true;
+    return false;
+}
+
+} // namespace
+
+TEST_CASE("driver versions: the setup check says where the installed driver stands")
+{
+    const support::platform_facts platform = known_platform();
+    const QStringList devices = {QStringLiteral("COM3")};
+    struct expectation
+    {
+        vss::gui::setup_facts facts;
+        QString says;
+        bool behind = false;
+    };
+    const expectation table[] = {
+        {versions_facts(QStringLiteral("1.2.0.0 (2026-11-18)"),
+                        QStringLiteral("1.5.1.0 (2026-11-18)"), driver_age::older),
+         QStringLiteral("carries the newer version 1.5.1.0 (2026-11-18)"), true},
+        {versions_facts(QStringLiteral("1.5.1.0 (2026-11-18)"),
+                        QStringLiteral("1.5.1.0 (2026-11-18)"), driver_age::same),
+         QStringLiteral("the same as this copy of Studio carries"), false},
+        {versions_facts(QStringLiteral("1.6.0.0 (2026-12-01)"),
+                        QStringLiteral("1.5.1.0 (2026-11-18)"), driver_age::newer),
+         QStringLiteral("Nothing needs updating"), false},
+        // The helper or the driver store did not answer: not known, and no
+        // alarm about it.
+        {versions_facts({}, QStringLiteral("1.5.1.0 (2026-11-18)"),
+                        driver_age::unknown),
+         QStringLiteral("could not read which version of the driver Windows "
+                        "holds"),
+         false}};
+    for (const expectation& row : table)
+    {
+        const auto report =
+            support::build_setup_report(row.facts, platform, devices);
+        const auto& driver = report.rows.at(0);
+        REQUIRE(driver.sentence.contains(row.says));
+        if (row.behind)
+        {
+            REQUIRE(report.problem == driver_problem::driver_old);
+            REQUIRE_EQ(driver.action_text, QStringLiteral("Update the driver"));
+            REQUIRE(driver.action == support::setup_action::setup_driver);
+        }
+        else
+        {
+            REQUIRE(report.problem == driver_problem::none);
+            REQUIRE(driver.action == support::setup_action::none);
+        }
+    }
+}
+
+TEST_CASE("driver versions: the dialogs show the three versions in both themes")
+{
+    const auto theme_before = vss::gui::Theme::instance().mode();
+    for (const auto mode :
+         {vss::gui::theme_mode::light, vss::gui::theme_mode::dark})
+    {
+        vss::gui::Theme::instance().set_mode(mode);
+        vss::gui::FakeStudioBackend backend;
+        backend.set_facts(versions_facts(QStringLiteral("1.2.0.0 (2026-11-18)"),
+                                         QStringLiteral("1.5.1.0 (2026-11-18)"),
+                                         driver_age::older));
+
+        // The update: its own button, both versions and what happens to open
+        // ports.
+        support::DriverSetupDialog dialog(backend, driver_problem::driver_old);
+        dialog.set_runner([] { return support::report_for_driver_setup(ended(0)); },
+                          true);
+        dialog.show();
+        vss_test::spin(20);
+        REQUIRE_EQ(dialog.setup_button()->text(),
+                   QStringLiteral("Update the driver"));
+        REQUIRE_EQ(dialog.setup_button()->accessibleName(),
+                   QStringLiteral("Update the driver"));
+        REQUIRE(dialog.setup_button()->isEnabled());
+        REQUIRE(any_label_contains(dialog, QStringLiteral("version 1.2.0.0")));
+        REQUIRE(any_label_contains(dialog, QStringLiteral("version 1.5.1.0")));
+        REQUIRE(any_label_contains(dialog, QStringLiteral("ports that are open now are closed")));
+        REQUIRE(!dialog.grab().isNull());
+
+        // A first set-up keeps its own words.
+        support::DriverSetupDialog first(backend, driver_problem::driver_missing);
+        first.set_runner([] { return support::report_for_driver_setup(ended(0)); },
+                         true);
+        first.show();
+        REQUIRE_EQ(first.setup_button()->text(),
+                   QStringLiteral("Set up Virtual Serial Studio"));
+        REQUIRE(!any_label_contains(first, QStringLiteral("Updating replaces")));
+    }
+    vss::gui::Theme::instance().set_mode(theme_before);
+}
+
+TEST_CASE("driver versions: About names the versions only when there is something to say")
+{
+    const auto theme_before = vss::gui::Theme::instance().mode();
+    for (const auto mode :
+         {vss::gui::theme_mode::light, vss::gui::theme_mode::dark})
+    {
+        vss::gui::Theme::instance().set_mode(mode);
+        vss::gui::FakeStudioBackend backend;
+        backend.set_facts(versions_facts(QStringLiteral("1.2.0.0 (2026-11-18)"),
+                                         QStringLiteral("1.5.1.0 (2026-11-18)"),
+                                         driver_age::older));
+        support::AboutDialog behind(backend);
+        auto* line = behind.findChild<QLabel*>(QStringLiteral("aboutDriver"));
+        REQUIRE(line != nullptr);
+        REQUIRE(line->text().contains(QStringLiteral("version 1.2.0.0")));
+        REQUIRE(line->text().contains(QStringLiteral("Setup check")));
+        REQUIRE_EQ(line->accessibleName(), QStringLiteral("Driver version"));
+
+        backend.set_facts(versions_facts(QStringLiteral("1.5.1.0 (2026-11-18)"),
+                                         QStringLiteral("1.5.1.0 (2026-11-18)"),
+                                         driver_age::same));
+        support::AboutDialog level(backend);
+        line = level.findChild<QLabel*>(QStringLiteral("aboutDriver"));
+        REQUIRE(line != nullptr);
+        REQUIRE(!line->text().contains(QStringLiteral("Setup check")));
+
+        // A system with no driver: nothing known, nothing shown.
+        backend.set_facts(windows_facts(driver_problem::none));
+        support::AboutDialog none(backend);
+        REQUIRE(none.findChild<QLabel*>(QStringLiteral("aboutDriver")) == nullptr);
+    }
+    vss::gui::Theme::instance().set_mode(theme_before);
 }

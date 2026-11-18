@@ -74,5 +74,6 @@ The specs are in `docs/gui-design/`. Specs, tokens and the HTML mockups are text
 | A user-visible behaviour | A fragment in `changelog.d/` |
 | A CMake option or preset | `README.md` |
 | A workflow in `.github/workflows` | Pin every `uses:` to a full SHA with a version comment |
+| The Windows driver (`drivers/windows/vsscom`, `vsscom_um` or `vsscom_helper`) | `python3 tools/ci/check_driver_version.py --bump`, so `DriverVer` rises |
 | A toolchain version | `.github/toolchain-versions.json` only |
 | A new source file | The SPDX licence header, copied from an existing file |

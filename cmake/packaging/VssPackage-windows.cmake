@@ -123,11 +123,33 @@ endif()
 # use NSIS's single quotes and doubled backslashes. !include wants a Windows path.
 file(TO_NATIVE_PATH "${CMAKE_CURRENT_LIST_DIR}/windows/driver.nsh" _vss_driver_nsh)
 string(REPLACE "\\" "\\\\" _vss_driver_nsh "${_vss_driver_nsh}")
+# The version of the driver package in this installer, for the page that says what is installed:
+# the DriverVer line of the user-mode driver's .inf ("11/18/2026,1.5.1.0"), and the script that reads
+# the driver store (setup-driver.ps1, which the page runs with -Query). Empty when they are not found.
+set(_vss_bundled_driver_ver "")
+set(_vss_driver_inf "${PROJECT_SOURCE_DIR}/drivers/windows/vsscom_um/vsscom_um.inf")
+if(EXISTS "${_vss_driver_inf}")
+  file(STRINGS "${_vss_driver_inf}" _vss_driver_ver_line REGEX "^[ \t]*DriverVer[ \t]*=")
+  if(_vss_driver_ver_line MATCHES "=[ \t]*([0-9/]+,[0-9.]+)")
+    set(_vss_bundled_driver_ver "${CMAKE_MATCH_1}")
+  endif()
+endif()
+set(_vss_query_script "")
+if(EXISTS "${PROJECT_SOURCE_DIR}/drivers/windows/setup-driver.ps1")
+  file(TO_NATIVE_PATH "${PROJECT_SOURCE_DIR}/drivers/windows/setup-driver.ps1" _vss_query_script)
+  string(REPLACE "\\" "\\\\" _vss_query_script "${_vss_query_script}")
+endif()
 set(CPACK_NSIS_DEFINES
   "!define VSS_REGISTRY_KEY '${CPACK_PACKAGE_INSTALL_REGISTRY_KEY}'
 !define MUI_CUSTOMFUNCTION_ABORT VssOnUserAbort
+!define VSS_BUNDLED_DRIVER_VER '${_vss_bundled_driver_ver}'
+!define VSS_DRIVER_QUERY_SCRIPT '${_vss_query_script}'
 !include '${_vss_driver_nsh}'")
 unset(_vss_driver_nsh)
+unset(_vss_bundled_driver_ver)
+unset(_vss_driver_inf)
+unset(_vss_driver_ver_line)
+unset(_vss_query_script)
 set(CPACK_NSIS_PAGE_COMPONENTS
   "Page custom VssDriverPageCreate VssDriverPageLeave
   Page custom VssPathPageCreate VssPathPageLeave")
