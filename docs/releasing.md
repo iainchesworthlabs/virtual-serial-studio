@@ -607,10 +607,15 @@ with a package signed by a throwaway certificate, built by
   ending in `not-trusted`, no service, no package, the log naming the reason, and
   test signing still off.
 - The pages and the message were looked at on the guest's screen.
-- **The driver version page is not tried on a guest yet.** The page's query and the decisions
-  of `setup-driver.ps1` are tested (`tools/test_driver_scripts.py`, `tools/test_windows_installer.py`),
-  and the query was run from a compiled installer against a real driver store without changing
-  it. To try the wizard, on a guest from its `clean` snapshot with a signed package (see above),
+- **The driver update was tried on the Windows 11 guest on 2026-11-18** with
+  `tools/vm/driver-update-cell.ps1` (two builds of the user-mode driver, revisions 1.5.1.0 and 1.5.2.0, signed
+  in the guest): `setup-driver.ps1` replaced the older package (a second `oem<N>.inf` appeared, exit 0, no restart),
+  the helper-made port device that existed was rebound to the new package at once (it had been using the old one,
+  and Windows moved it), ports made afterwards used the new package, running the same version again and an
+  older one installed nothing, `-ReinstallDriver` added the package again, and `remove-driver.ps1` deleted every
+  package. The question of the installer's driver page, run elevated from a throwaway installer built from
+  `driver.nsh` (`tools/vm/driver-query.nsi`), said `none`, `same`, then `newer` at the right steps. **The wizard page
+  itself was not looked at.** To try it, on a guest from its `clean` snapshot with a signed package (see above),
   install Studio **A**, then run the installer of Studio **B** by double-clicking it, each time
   from the snapshot with A installed:
   1. *Install:* no driver on the guest. The driver page offers the ticked install box. Finish; the log
