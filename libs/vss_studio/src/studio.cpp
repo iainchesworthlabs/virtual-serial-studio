@@ -729,12 +729,9 @@ result<std::shared_ptr<endpoint>>
 studio::attach_serial(const std::string& name, const std::string& uri,
                       const serial_settings& settings, endpoint_options options)
 {
-    return trace::traced("studio.attach_serial", 0,
-                         [&]
-                         {
-                             return attach_serial_untraced(name, uri, settings,
-                                                           options);
-                         });
+    return trace::traced(
+        "studio.attach_serial", 0,
+        [&] { return attach_serial_untraced(name, uri, settings, options); });
 }
 
 result<std::shared_ptr<endpoint>>

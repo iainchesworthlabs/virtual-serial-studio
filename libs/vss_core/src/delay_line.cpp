@@ -183,8 +183,8 @@ void delay_line::push(const stream_item& item, visited_set visited)
                 else
                     runs.push_back(
                         {pacer_.plan_unpaced(due), 0, buffer->size()});
-                const auto queue_run = [&](const paced_run& run,
-                                           byte_buffer part)
+                const auto queue_run =
+                    [&](const paced_run& run, byte_buffer part)
                 {
                     last_due_ = std::max(last_due_, run.release);
                     queue_.push_back(entry{run.release, rate.has_value(),
@@ -195,10 +195,9 @@ void delay_line::push(const stream_item& item, visited_set visited)
                 else
                 {
                     for (const paced_run& run : runs)
-                        queue_run(run,
-                                  byte_buffer(buffer->data() + run.offset,
-                                              buffer->data() + run.offset +
-                                                  run.length));
+                        queue_run(run, byte_buffer(buffer->data() + run.offset,
+                                                   buffer->data() + run.offset +
+                                                       run.length));
                 }
             }
             else

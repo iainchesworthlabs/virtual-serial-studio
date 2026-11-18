@@ -42,8 +42,7 @@ constexpr std::size_t hello_frame_limit = 4096;
 /// After it, a request is a small header.
 constexpr std::size_t request_frame_limit = std::size_t{64} * 1024;
 /// A client that does not read is closed when this much waits for it.
-constexpr std::size_t write_backlog_limit =
-    std::size_t{4} * 1024 * 1024;
+constexpr std::size_t write_backlog_limit = std::size_t{4} * 1024 * 1024;
 constexpr std::size_t audit_text_limit = 200;
 constexpr auto trace_poll = std::chrono::milliseconds(100);
 constexpr std::size_t trace_event_limit = 500;
@@ -327,9 +326,7 @@ public:
             stream_->close();
         if (opened_)
             owner_->audit("debug.session.closed",
-                          {{"client", name_},
-                           {"id", id_},
-                           {"reason", reason}});
+                          {{"client", name_}, {"id", id_}, {"reason", reason}});
         owner_->remove(id_);
     }
 
