@@ -6707,9 +6707,14 @@ Redes: %5</translation>
             <translation>break</translation>
         </message>
         <message>
-            <location filename="../src/backend/driver_error.cpp" line="123" />
-            <source>The Virtual Serial Studio driver is out of date</source>
-            <translation>El controlador de Virtual Serial Studio está desactualizado</translation>
+            <location filename="../src/backend/driver_error.cpp" line="1" />
+            <source>The driver on this PC is an older version than the one that comes with this program, so ports may not work until it is updated. Nothing was changed. Update the driver to install the newer one.</source>
+            <translation>El controlador de este equipo es una versión anterior a la que viene con este programa, así que los puertos pueden no funcionar hasta que se actualice. No se cambió nada. Actualice el controlador para instalar el más reciente.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="1" />
+            <source>The Virtual Serial Studio driver on this PC needs updating</source>
+            <translation>El controlador de Virtual Serial Studio de este equipo necesita actualizarse</translation>
         </message>
         <message>
             <location filename="../src/backend/driver_error.cpp" line="162" />

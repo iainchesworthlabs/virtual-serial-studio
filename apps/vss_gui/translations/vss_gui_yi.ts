@@ -6707,9 +6707,14 @@ Networks: %5</source>
             <translation>BREAK</translation>
         </message>
         <message>
-            <location filename="../src/backend/driver_error.cpp" line="123" />
-            <source>The Virtual Serial Studio driver is out of date</source>
-            <translation>דער Virtual Serial Studio דרייווער איז פֿאַרעלטערט</translation>
+            <location filename="../src/backend/driver_error.cpp" line="1" />
+            <source>The driver on this PC is an older version than the one that comes with this program, so ports may not work until it is updated. Nothing was changed. Update the driver to install the newer one.</source>
+            <translation>דער דרייווער אויף דעם דאָזיקן קאָמפּיוטער איז אַן עלטערע ווערסיע ווי דער וואָס קומט מיט דער דאָזיקער פּראָגראַם, דעריבער קענען פּאָרטן נישט אַרבעטן ביז ער ווערט דערהײַנטיקט. גאָרנישט איז געענדערט געוואָרן. דערהײַנטיקט דעם דרייווער כּדי אײַנצושטעלן דעם נײַערן.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="1" />
+            <source>The Virtual Serial Studio driver on this PC needs updating</source>
+            <translation>דער Virtual Serial Studio דרייווער אויף דעם דאָזיקן קאָמפּיוטער דאַרף דערהײַנטיקט ווערן</translation>
         </message>
         <message>
             <location filename="../src/backend/driver_error.cpp" line="162" />
