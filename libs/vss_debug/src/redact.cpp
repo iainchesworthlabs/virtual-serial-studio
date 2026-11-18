@@ -41,7 +41,7 @@ std::string replace_literal(std::string text, const std::string& needle,
     while (at < text.size())
     {
         if (at + needle.size() <= text.size() &&
-            std::equal(needle.begin(), needle.end(), text.begin() + at,
+            std::equal(needle.begin(), needle.end(), text.begin() + static_cast<std::ptrdiff_t>(at),
                        same_letter))
         {
             out += replacement;
