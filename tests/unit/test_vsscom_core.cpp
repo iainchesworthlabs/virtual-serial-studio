@@ -447,13 +447,14 @@ TEST_CASE("vsscom flow: enable drives the line high and disable drives it low")
     REQUIRE(!down.rts);
 
     // One line each way.
-    auto mixed = update(flow(VSSCOM_DTR_CONTROL, 0), lines(false, true), 0,
-                        false, true);
+    auto mixed =
+        update(flow(VSSCOM_DTR_CONTROL, 0), lines(false, true), 0, false, true);
     REQUIRE(mixed.dtr);
     REQUIRE(!mixed.rts);
 }
 
-TEST_CASE("vsscom flow: enable and disable leave the line to the application afterwards")
+TEST_CASE("vsscom flow: enable and disable leave the line to the application "
+          "afterwards")
 {
     // Not a new setting: a change in the buffers must not undo SET_DTR.
     auto same = update(flow(0, 0), lines(true, true), 100, true, false);
@@ -466,7 +467,8 @@ TEST_CASE("vsscom flow: enable and disable leave the line to the application aft
     REQUIRE(!kept.rts);
 }
 
-TEST_CASE("vsscom flow: a handshake line drops when the buffer fills and rises when it empties")
+TEST_CASE("vsscom flow: a handshake line drops when the buffer fills and rises "
+          "when it empties")
 {
     // Low at 4 KB or less free, high again at 16 KB or less in use.
     const vsscom_flow f =
@@ -503,8 +505,8 @@ TEST_CASE("vsscom flow: a handshake line drops when the buffer fills and rises w
 
 TEST_CASE("vsscom flow: a handshake given while the buffer is full starts low")
 {
-    auto l = update(flow(0, VSSCOM_RTS_HANDSHAKE, 100, 100),
-                    lines(false, true), rx_size, false, true);
+    auto l = update(flow(0, VSSCOM_RTS_HANDSHAKE, 100, 100), lines(false, true),
+                    rx_size, false, true);
     REQUIRE(!l.rts);
 }
 
@@ -922,7 +924,8 @@ TEST_CASE("vsscom errors: a purge empties the buffer and keeps the error")
     REQUIRE(!p.blocked());
 }
 
-// -- Break and write marks -----------------------------------------------------
+// -- Break and write marks
+// -----------------------------------------------------
 
 namespace
 {
@@ -1092,7 +1095,8 @@ TEST_CASE("vsscom marks: a full set of breaks never drops the one held")
     REQUIRE_EQ(t.breaks.back().on_time, 10u + VSSCOM_MARKS_MAX_BREAKS + 2u);
 }
 
-TEST_CASE("vsscom marks: writes are given only once the hub has read their bytes")
+TEST_CASE(
+    "vsscom marks: writes are given only once the hub has read their bytes")
 {
     vsscom_marks m;
     vsscom_marks_init(&m);
@@ -1128,7 +1132,8 @@ TEST_CASE("vsscom marks: a write that went in over several stores has one mark")
     REQUIRE_EQ(m.written, 6u);
 }
 
-TEST_CASE("vsscom marks: a burst past the limit merges the oldest and counts it")
+TEST_CASE(
+    "vsscom marks: a burst past the limit merges the oldest and counts it")
 {
     vsscom_marks m;
     vsscom_marks_init(&m);
@@ -1146,7 +1151,8 @@ TEST_CASE("vsscom marks: a burst past the limit merges the oldest and counts it"
     REQUIRE_EQ(take(m).writes_merged, 0u);
 }
 
-TEST_CASE("vsscom marks: taking bytes back removes the marks that pointed at them")
+TEST_CASE(
+    "vsscom marks: taking bytes back removes the marks that pointed at them")
 {
     vsscom_marks m;
     vsscom_marks_init(&m);
@@ -1161,7 +1167,8 @@ TEST_CASE("vsscom marks: taking bytes back removes the marks that pointed at the
     const auto t = take(m);
     REQUIRE_EQ(t.writes.size(), 1u);
     REQUIRE_EQ(t.writes[0].time, 100u);
-    // The break was called after the aborted bytes; it now follows the last byte.
+    // The break was called after the aborted bytes; it now follows the last
+    // byte.
     REQUIRE_EQ(t.breaks[0].on_offset, 4u);
 }
 
@@ -1177,7 +1184,8 @@ TEST_CASE("vsscom marks: taking back never goes below what the hub has read")
     REQUIRE_EQ(m.read, 3u);
 }
 
-TEST_CASE("vsscom marks: a purge of Tx leaves the offsets of later writes right")
+TEST_CASE(
+    "vsscom marks: a purge of Tx leaves the offsets of later writes right")
 {
     vsscom_marks m;
     vsscom_marks_init(&m);
@@ -1195,7 +1203,8 @@ TEST_CASE("vsscom marks: a purge of Tx leaves the offsets of later writes right"
     REQUIRE_EQ(t.writes[1].time, 300u);
 }
 
-TEST_CASE("vsscom marks: a reset forgets what no one read and keeps a break held")
+TEST_CASE(
+    "vsscom marks: a reset forgets what no one read and keeps a break held")
 {
     vsscom_marks m;
     vsscom_marks_init(&m);
