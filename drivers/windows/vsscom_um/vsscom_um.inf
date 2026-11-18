@@ -14,7 +14,7 @@ Class=Ports
 ClassGuid={4D36E978-E325-11CE-BFC1-08002BE10318}
 Provider=%ManufacturerName%
 CatalogFile=vsscom_um.cat
-DriverVer=11/18/2026,1.2.0.0
+DriverVer=11/18/2026,1.5.1.0
 PnpLockdown=1
 
 [Manufacturer]

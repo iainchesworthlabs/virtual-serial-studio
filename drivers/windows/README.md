@@ -51,6 +51,13 @@ driver builds in CI from the same sources; its guest results are in the section
 | A 32-bit program (WOW64) and a hung or killed program | the client and `test-wow64.ps1` (W1 to W5, T1 to T7) pass on both drivers in the Windows 10 and Windows 11 guests (T7 on the user-mode driver only) |
 | Signing | not done: the package is unsigned |
 
+## The version
+
+`driver-version.json` holds the revision and the date of the driver package, and a hash of the
+sources it is made of. After you change anything under `vsscom`, `vsscom_um` or `vsscom_helper`
+run `python3 tools/ci/check_driver_version.py --bump`; the pull request gate fails without it.
+`docs/windows-com-driver.md` ("The version of the driver package") says why.
+
 ## Build
 
 You need Visual Studio 2026 with the C++ desktop workload (the driver build

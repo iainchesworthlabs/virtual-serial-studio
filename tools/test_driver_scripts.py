@@ -110,7 +110,7 @@ function Get-ItemProperty {
 """
 
 DRIVER_STORE = "C:\\Windows\\System32\\DriverStore\\FileRepository\\"
-INF_TEXT = "[Version]\nSignature=\"$WINDOWS NT$\"\nDriverVer=11/18/2026,1.2.0.0\n"
+INF_TEXT = "[Version]\nSignature=\"$WINDOWS NT$\"\nDriverVer=11/18/2026,1.5.1.0\n"
 
 
 def ps_quote(text: str) -> str:
@@ -341,7 +341,7 @@ class SetupDriver(Harness):
             "testsigning": False,
             "signatures": {"default": {"status": "Valid", "thumbprint": "FFFF", "subject": "CN=Any"}, "vsscom_um.cat": PUBLISHER},
             "trusted_publishers": ["AAAA"],
-            "store": [],
+            "store": [{"original": "vsscom_um.inf", "version": "1.5.1.0"}],
             "icacls_code": 0,
             "chain_top": MICROSOFT_ROOTS[0],
         }
@@ -403,7 +403,7 @@ class SetupDriver(Harness):
 
     # DRV-11: pnputil answers 259 when no device was updated.
     def test_pnputil_259_is_a_success_when_the_package_is_in_the_driver_store(self) -> None:
-        store = [{"original": "vsscom_um.inf", "version": "1.2.0.0"}]
+        store = [{"original": "vsscom_um.inf", "version": "1.5.1.0"}]
         run = self.setup(add_code=259, store=store)
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
         self.assertIn("installing the helper service", run.stdout)
@@ -421,9 +421,25 @@ class SetupDriver(Harness):
         self.assertEqual(run.calls("Get-WindowsDriver"), ["Get-WindowsDriver"], "no -All")
 
     def test_pnputil_259_is_a_failure_when_the_store_holds_another_version(self) -> None:
-        store = [{"original": "vsscom_um.inf", "version": "1.0.0.0"}, {"original": "other.inf", "version": "1.2.0.0"}]
+        store = [{"original": "vsscom_um.inf", "version": "1.0.0.0"}, {"original": "other.inf", "version": "1.5.1.0"}]
         run = self.setup(add_code=259, store=store)
         self.assertEqual(run.returncode, 7, run.stdout + run.stderr)
+
+    def test_pnputil_0_while_the_store_still_holds_only_an_older_version_ends_with_7_and_never_touches_the_helper(self) -> None:
+        store = [{"original": "vsscom_um.inf", "version": "1.2.0.0"}]
+        run = self.setup(add_code=0, store=store)
+        self.assertEqual(run.returncode, 7, run.stdout + run.stderr)
+        self.assertIn("kept an older one", run.stderr)
+        self.assertNotIn("installing the helper service", run.stdout)
+
+    def test_pnputil_0_with_the_new_version_next_to_an_older_one_installs(self) -> None:
+        store = [{"original": "vsscom_um.inf", "version": "1.2.0.0"}, {"original": "vsscom_um.inf", "version": "1.5.1.0"}]
+        run = self.setup(add_code=0, store=store)
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+
+    def test_pnputil_3010_with_an_older_version_in_the_store_ends_with_7(self) -> None:
+        store = [{"original": "vsscom_um.inf", "version": "1.2.0.0"}]
+        self.assertEqual(self.setup(add_code=3010, store=store).returncode, 7)
 
     def test_other_pnputil_codes_still_fail_and_3010_asks_for_a_restart(self) -> None:
         self.assertEqual(self.setup(add_code=5).returncode, 7)

@@ -511,6 +511,62 @@ guarded by the same lock.
 * The helper's pipe has its own protocol in `vsscom_helper/protocol.h`. A helper
   from before COM numbers answers `ERROR_NOT_SUPPORTED`, which the setup check reports as a helper older than Studio.
 
+### The version of the driver package
+
+Two numbers say which driver is on a PC, and they are different things.
+`VSSCOM_VERSION` is the **interface** version: it changes when the requests change, and the
+studio refuses a port that speaks another one. `DriverVer` in the `.inf` files is the
+**package** version: Windows compares it, the date first and the four-part version second, to
+decide which of two packages of the driver is newer, and `pnputil /add-driver` answers
+"Already exists in the system" for a package that is not newer than the one it has. A driver
+that changed under an old `DriverVer` therefore never reaches a PC that has the old one.
+
+`drivers/windows/driver-version.json` is the one source of truth: a revision number that only
+goes up, its date, and the SHA-256 of everything the driver is made of (the sources, the
+`.inf` files without their `DriverVer` line, `public.h` and the helper's `protocol.h`, under
+`vsscom`, `vsscom_um` and `vsscom_helper`). The package version is
+`DriverVer=<date>,1.<interface>.<revision>.0`.
+
+* After you change the driver, run `python3 tools/ci/check_driver_version.py --bump`. It raises
+  the revision, sets the date to today (never earlier than the date before: a package with an
+  earlier date loses to the old one whatever its version), rewrites the three `DriverVer`
+  lines and records the new hash.
+* `python3 tools/ci/check_driver_version.py` is the check. It fails when the inputs differ from
+  the recorded hash (the driver changed and nobody bumped), when an `.inf` has another
+  `DriverVer`, and, with `--base <ref>`, when the inputs differ from the base's but the revision
+  did not rise or the date went back. The pull request gate runs it on every pull request, a
+  draft included, and `tools/ci/precheck.py` runs it against `origin/develop`.
+* A change under `drivers/windows/**` makes the planner run the driver legs in the merge queue
+  (`.github/ci/plan.json`, key `driver`), so a driver that cannot be built or signed is found
+  before it is merged.
+* `setup-driver.ps1` checks the driver store after `pnputil`: the store must hold a
+  `vsscom_um.inf` package with the version the `.inf` it installed declares. If Windows kept an
+  older package the script ends with exit code 7 and says so, and the installer shows its
+  "could not be installed" message, where before everything looked fine and every port was
+  refused.
+
+Studio reads three versions and shows them in the Setup check, in the dialog that updates the
+driver and on the About page (Windows only):
+
+1. the newest `vsscom_um.inf` package in the driver store
+   (`HKLM\SYSTEM\DriverDatabase\DriverPackages\vsscom_um.inf_*`, value `Version`, readable
+   by every user), as `1.5.1.0 (2026-11-18)`;
+2. the package this copy of Studio carries (`bin\driver\driver\vsscom_um.inf`);
+3. the interface version the running ports speak (`IOCTL_VSSCOM_GET_VERSION`).
+
+When the installed package is older than the bundled one by the Windows rule, the Setup check
+and the start page say "The Virtual Serial Studio driver is out of date" and offer **Update the
+driver**: the same elevated `setup-driver.ps1` as "Set up Virtual Serial Studio". Nothing is shown
+when the installed package is the same or newer, or when it cannot be read. Nothing is sent
+anywhere; the versions are read from the registry and from a file beside Studio.
+
+What the update does: `pnputil /add-driver vsscom_um.inf /install` adds the newer package as a
+new `oem<N>.inf` and updates the devices that match it. The older package stays in the driver
+store. It is harmless, since a new port gets the newest package, and `remove-driver.ps1` deletes every
+`vsscom_um.inf` package when Studio is uninstalled. The helper is restarted, which closes the
+ports that are open. A port device whose driver host is still running the old DLL may need a
+restart of Windows, which `pnputil` reports with code 3010 and the script as exit code 10.
+
 ### Signing and distribution
 
 | Stage | Requirement |

@@ -193,6 +193,16 @@ try {
     }
     elseif ($code -ne 0) { Stop-With 7 "pnputil failed with $code" }
 
+    # pnputil can answer 0 for a package that is already in the store, and Windows keeps the one it has when the new
+    # DriverVer is not newer than it (DriverVer is compared by date, then by the four-part version). Then the old
+    # driver stays and every port it makes is refused. The store must hold the version this package declares, or
+    # the setup says so and stops before the helper is touched.
+    if ($code -ne 259) {
+        try { $stored = Test-PackageStored $inf }
+        catch { Stop-With 7 "pnputil answered $code and the driver store could not be read: $($_.Exception.Message)" }
+        if (-not $stored) { Stop-With 7 "pnputil answered $code, but the driver store does not hold the version of the vsscom_um package that this setup carries; Windows kept an older one" }
+    }
+
     Write-Host 'installing the helper service'
     # install-helper.ps1 ends with an exit code, but a throw out of it (a missing command, a parameter
     # that does not bind) must give the same answer, so both end in 8.
