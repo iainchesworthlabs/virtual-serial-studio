@@ -102,7 +102,7 @@ A dialog, "Settings for <name>", 440 px wide. Fields:
 | Flow control | None, Hardware (RTS/CTS), Software (XON/XOFF) | None |
 | Read timeout | 0 to 60000 ms, 0 means wait | 0 |
 | Write timeout | 0 to 60000 ms, 0 means wait | 0 |
-| COM number | Driver ports only, when `com_numbers` is on; the Change COM number dialog: an editable list of the free numbers (from COM3), a list of the numbers in use with what holds each ("Studio port rx-sim", "Windows device USB Serial Device", "Reserved by Windows"), and a reason under the field, with Change number disabled, for a number that is in use or not 1 to 255 | |
+| COM number | Driver ports only, when `com_numbers` is on; the Change COM number dialog: an editable list of the free numbers (from COM1), a list of the numbers in use with what holds each ("Studio port rx-sim", "Windows device USB Serial Device", "Unplugged Windows device USB Serial Device", "Reserved by Windows"), and a reason under the field, with Change number disabled, for a number that is in use or not 1 to 255 | |
 
 A one-line summary under the fields updates as they change: "115200 8N1, no flow control". `vss::validate` checks the values; a refusal is shown under the field it names.
 

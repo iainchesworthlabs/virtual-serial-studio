@@ -128,60 +128,76 @@ std::optional<com_sources> platform_com_sources()
             sources.resolving.push_back(number);
     }
 
-    // Without DIGCF_PRESENT: a port that is gone stays in the class with its
-    // PortName.
-    HDEVINFO info = ::SetupDiGetClassDevsW(&GUID_DEVCLASS_PORTS, nullptr,
-                                           nullptr, 0);
-    if (info == INVALID_HANDLE_VALUE)
-        return sources;
-
-    SP_DEVINFO_DATA data{};
-    data.cbSize = sizeof(data);
-    for (DWORD index = 0; ::SetupDiEnumDeviceInfo(info, index, &data); ++index)
+    // Without DIGCF_PRESENT: a port that is gone stays in its class with its
+    // PortName.  A modem and a multi-port card name a COM port the same way,
+    // so their classes count as holders too.
+    for (const GUID* const device_class :
+         {&GUID_DEVCLASS_PORTS, &GUID_DEVCLASS_MODEM,
+          &GUID_DEVCLASS_MULTIPORTSERIAL})
     {
-        const HKEY key = ::SetupDiOpenDevRegKey(info, &data, DICS_FLAG_GLOBAL,
-                                                0, DIREG_DEV, KEY_QUERY_VALUE);
-        if (key == INVALID_HANDLE_VALUE)
-            continue;
-        wchar_t name[64]{};
-        DWORD size = sizeof(name) - sizeof(wchar_t);
-        DWORD type = 0;
-        const bool read =
-            ::RegQueryValueExW(key, L"PortName", nullptr, &type,
-                               reinterpret_cast<LPBYTE>(name), &size) ==
-                ERROR_SUCCESS &&
-            type == REG_SZ;
-        ::RegCloseKey(key);
-        if (!read)
-            continue;
-        const std::string port = to_utf8(name);
-        if (port.size() < 4 || port.size() > 6 ||
-            (port.rfind("COM", 0) != 0 && port.rfind("com", 0) != 0))
-            continue;
-        unsigned number = 0;
-        bool digits = true;
-        for (std::size_t i = 3; i < port.size(); ++i)
-        {
-            if (port[i] < '0' || port[i] > '9')
-                digits = false;
-            else
-                number = number * 10 + static_cast<unsigned>(port[i] - '0');
-        }
-        if (!digits || number < 1 || number > 255)
+        HDEVINFO info =
+            ::SetupDiGetClassDevsW(device_class, nullptr, nullptr, 0);
+        if (info == INVALID_HANDLE_VALUE)
             continue;
 
-        com_port_entry entry;
-        entry.number = number;
-        entry.instance_id = read_instance_id(info, data);
-        entry.description = read_string_property(info, data, SPDRP_FRIENDLYNAME);
-        DEVINST node = 0;
-        std::wstring wide_id(entry.instance_id.begin(), entry.instance_id.end());
-        entry.present = ::CM_Locate_DevNodeW(&node, wide_id.data(),
-                                             CM_LOCATE_DEVNODE_NORMAL) ==
-                        CR_SUCCESS;
-        sources.entries.push_back(std::move(entry));
+        SP_DEVINFO_DATA data{};
+        data.cbSize = sizeof(data);
+        for (DWORD index = 0; ::SetupDiEnumDeviceInfo(info, index, &data);
+             ++index)
+        {
+            const HKEY key = ::SetupDiOpenDevRegKey(
+                info, &data, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_QUERY_VALUE);
+            if (key == INVALID_HANDLE_VALUE)
+                continue;
+            wchar_t name[64]{};
+            DWORD size = sizeof(name) - sizeof(wchar_t);
+            DWORD type = 0;
+            // A modem names its port AttachedTo.
+            bool read = false;
+            for (const wchar_t* value : {L"PortName", L"AttachedTo"})
+            {
+                size = sizeof(name) - sizeof(wchar_t);
+                read = ::RegQueryValueExW(key, value, nullptr, &type,
+                                          reinterpret_cast<LPBYTE>(name),
+                                          &size) == ERROR_SUCCESS &&
+                       type == REG_SZ;
+                if (read)
+                    break;
+            }
+            ::RegCloseKey(key);
+            if (!read)
+                continue;
+            const std::string port = to_utf8(name);
+            if (port.size() < 4 || port.size() > 6 ||
+                (port.rfind("COM", 0) != 0 && port.rfind("com", 0) != 0))
+                continue;
+            unsigned number = 0;
+            bool digits = true;
+            for (std::size_t i = 3; i < port.size(); ++i)
+            {
+                if (port[i] < '0' || port[i] > '9')
+                    digits = false;
+                else
+                    number = number * 10 + static_cast<unsigned>(port[i] - '0');
+            }
+            if (!digits || number < 1 || number > 255)
+                continue;
+
+            com_port_entry entry;
+            entry.number = number;
+            entry.instance_id = read_instance_id(info, data);
+            entry.description =
+                read_string_property(info, data, SPDRP_FRIENDLYNAME);
+            DEVINST node = 0;
+            std::wstring wide_id(entry.instance_id.begin(),
+                                 entry.instance_id.end());
+            entry.present =
+                ::CM_Locate_DevNodeW(&node, wide_id.data(),
+                                     CM_LOCATE_DEVNODE_NORMAL) == CR_SUCCESS;
+            sources.entries.push_back(std::move(entry));
+        }
+        ::SetupDiDestroyDeviceInfoList(info);
     }
-    ::SetupDiDestroyDeviceInfoList(info);
     return sources;
 }
 

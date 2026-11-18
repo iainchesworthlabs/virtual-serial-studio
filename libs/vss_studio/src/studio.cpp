@@ -2675,7 +2675,19 @@ std::vector<serial_device_info> studio::serial_devices() const
 std::optional<std::vector<unsigned>> studio::reserved_com_numbers() const
 {
     VSS_PROFILE_ZONE("studio.reserved_com_numbers");
+    return vss::unavailable_com_numbers();
+}
+
+std::optional<std::vector<unsigned>> studio::kept_com_numbers() const
+{
+    VSS_PROFILE_ZONE("studio.kept_com_numbers");
     return vss::reserved_com_numbers();
+}
+
+std::optional<std::vector<com_number_holder>> studio::com_number_holders() const
+{
+    VSS_PROFILE_ZONE("studio.com_number_holders");
+    return vss::com_number_holders();
 }
 
 } // namespace vss

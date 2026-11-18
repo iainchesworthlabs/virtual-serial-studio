@@ -381,13 +381,12 @@ void AddSheet::set_com_numbers(std::map<unsigned, com_use> uses)
     com_->clear();
     com_->addItem(tr("Automatic"));
     for (const unsigned candidate :
-         free_com_numbers(com_uses_, kFirstGuiComNumber, 48))
+         free_com_numbers(com_uses_, 1, 48))
         com_->addItem(QStringLiteral("COM%1").arg(candidate));
     com_->setCurrentIndex(0);
     com_row_->set_hint(
         tr("A program that opens a fixed name such as COM3 needs the same "
-           "number every time. Automatic picks a free one. COM1 and COM2 "
-           "are kept for real ports."));
+           "number every time. Automatic picks a free one."));
     com_row_->setVisible(true);
     update_state();
     adjustSize();
@@ -476,9 +475,6 @@ void AddSheet::update_state()
             reason = tr("COM%1 is used by %2. Choose a free number.")
                          .arg(number)
                          .arg(com_use_text(found->second));
-        else if (!automatic && number < kFirstGuiComNumber)
-            reason = tr("COM1 and COM2 are kept for real ports. Choose COM3 "
-                        "or higher.");
         if (!reason.isEmpty())
         {
             com_row_->set_error(reason);

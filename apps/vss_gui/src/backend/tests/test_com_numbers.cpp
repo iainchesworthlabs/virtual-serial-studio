@@ -4,7 +4,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
+#include "backend/com_number_uses.hpp"
 #include "backend/com_numbers.hpp"
+#include "backend/fake_studio_backend.hpp"
 
 #include "test_framework.hpp"
 
@@ -90,4 +92,49 @@ TEST_CASE("com numbers: reuse is limited and empty when nothing is kept")
     REQUIRE_EQ(few.size(), std::size_t{3});
     REQUIRE_EQ(few[0], 13U);
     REQUIRE_EQ(few[2], 15U);
+}
+
+TEST_CASE("com numbers: a removed Studio port's number is free to choose")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::capabilities caps;
+    caps.com_numbers = true;
+    backend.set_capabilities(caps);
+    const auto holder = [](unsigned number, vss::com_holder_kind kind,
+                           const char* description)
+    {
+        vss::com_number_holder row;
+        row.number = number;
+        row.kind = kind;
+        row.description = description;
+        return row;
+    };
+    using kind = vss::com_holder_kind;
+    backend.set_com_number_holders({
+        holder(1, kind::studio_port_gone, "Virtual Serial Studio COM Port"),
+        holder(2, kind::database_only, ""),
+        holder(3, kind::present_device, "com0com - serial port emulator"),
+        holder(4, kind::studio_port_gone, "Virtual Serial Studio COM Port"),
+        holder(5, kind::name_only, ""),
+        holder(10, kind::other_port_gone, "USB Serial Device (COM10)"),
+    });
+
+    const auto uses = vss::gui::com_number_uses(backend);
+    // COM1, COM2 and COM4 can be used again.
+    REQUIRE(!uses.contains(1));
+    REQUIRE(!uses.contains(2));
+    REQUIRE(!uses.contains(4));
+    // The others are held, each with its own reason.
+    REQUIRE(uses.at(3).holder == vss::gui::com_holder::device);
+    REQUIRE(uses.at(5).holder == vss::gui::com_holder::reserved);
+    REQUIRE(uses.at(10).holder == vss::gui::com_holder::unplugged);
+    REQUIRE(vss::gui::com_use_text(uses.at(10)).contains(
+        QStringLiteral("Unplugged Windows device USB Serial Device (COM10)")));
+
+    // COM1 and COM2 are offered, lowest first.
+    const auto free = vss::gui::free_com_numbers(uses, 1, 4);
+    REQUIRE_EQ(free.size(), std::size_t{4});
+    REQUIRE_EQ(free[0], 1U);
+    REQUIRE_EQ(free[1], 2U);
+    REQUIRE_EQ(free[2], 4U);
 }

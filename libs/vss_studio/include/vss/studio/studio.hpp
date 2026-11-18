@@ -708,9 +708,15 @@ public:
 
     com0com_installation detect_com0com() const;
     std::vector<serial_device_info> serial_devices() const;
-    /// The COM numbers Windows keeps for a port that is not listed (see
-    /// `vss::reserved_com_numbers`); `nullopt` when it cannot be asked.
+    /// The COM numbers a new Studio port cannot take (see
+    /// `vss::unavailable_com_numbers`); `nullopt` when it cannot be asked.
     std::optional<std::vector<unsigned>> reserved_com_numbers() const;
+    /// Every number Windows keeps for a port that is not listed, Studio's own
+    /// removed ports included (see `vss::reserved_com_numbers`).  A port that
+    /// was made here before is made again in a fraction of a second.
+    std::optional<std::vector<unsigned>> kept_com_numbers() const;
+    /// What holds each COM number (see `vss::com_number_holders`).
+    std::optional<std::vector<com_number_holder>> com_number_holders() const;
 
 private:
     struct port_record

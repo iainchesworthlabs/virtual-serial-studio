@@ -31,7 +31,35 @@ std::map<unsigned, com_use> com_number_uses(const StudioBackend& backend,
     std::map<unsigned, com_use> uses;
     if (backend.caps().com_numbers)
     {
-        if (const auto reserved = backend.reserved_com_numbers())
+        if (const auto holders = backend.com_number_holders())
+        {
+            // A number only a removed Studio port keeps, or only the COM name
+            // database marks, can be used again: it is not listed as held.
+            for (const auto& holder : *holders)
+            {
+                if (holder.reusable_by_studio())
+                    continue;
+                const QString name =
+                    QString::fromStdString(holder.description);
+                switch (holder.kind)
+                {
+                case vss::com_holder_kind::other_port_gone:
+                    uses[holder.number] =
+                        com_use{com_holder::unplugged, name};
+                    break;
+                case vss::com_holder_kind::present_device:
+                    uses[holder.number] =
+                        name.isEmpty()
+                            ? com_use{com_holder::reserved, {}}
+                            : com_use{com_holder::device, name};
+                    break;
+                default:
+                    uses[holder.number] = com_use{com_holder::reserved, {}};
+                    break;
+                }
+            }
+        }
+        else if (const auto reserved = backend.reserved_com_numbers())
         {
             for (const unsigned number : *reserved)
                 uses[number] = com_use{com_holder::reserved, {}};
@@ -67,6 +95,15 @@ QString com_use_text(const com_use& use)
     case com_holder::device:
         return QCoreApplication::translate("com_use", "Windows device %1")
             .arg(use.name);
+    case com_holder::unplugged:
+        if (!use.name.isEmpty())
+        {
+            return QCoreApplication::translate(
+                       "com_use", "Unplugged Windows device %1")
+                .arg(use.name);
+        }
+        return QCoreApplication::translate("com_use",
+                                           "Unplugged Windows device");
     case com_holder::reserved:
         break;
     }
