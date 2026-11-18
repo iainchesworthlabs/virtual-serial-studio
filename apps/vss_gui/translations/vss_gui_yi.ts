@@ -7348,6 +7348,30 @@ Networks: %5</source>
             <source>This build cannot check for updates.</source>
             <translation>מיט דעם דאָזיקן בילד קען מען נישט קאָנטראָלירן אויף דערהײַנטיקונגען.</translation>
         </message>
+        <message>
+            <source>Debug access</source>
+            <translation>דיבאג צוטריט</translation>
+        </message>
+        <message>
+            <source>Let programs on this computer read what Studio is doing</source>
+            <translation>לאזן פראגראמען אויף דעם קאמפיוטער לייענען וואס Studio טוט</translation>
+        </message>
+        <message>
+            <source>Let them read the bytes of traffic for ten minutes</source>
+            <translation>לאזן זיי לייענען די בייטס פון טראפיק צען מינוט</translation>
+        </message>
+        <message>
+            <source>Disconnect all programs</source>
+            <translation>אָפּשנײַדן אַלע פּראָגראַמען</translation>
+        </message>
+        <message>
+            <source>For finding out why a port will not open. A program that uses this asks you first, and a pipe that only you can open exists only while this is on. It can read the state of the ports and the calls Studio made to Windows. It cannot read the bytes your ports carry unless you turn on the second switch. Nothing is sent anywhere, and this is off every time Studio starts. Each use is written to a log in Studio's data folder.</source>
+            <translation>צו אויספינדן פארוואס א פארט עפנט זיך נישט. א פראגראם וואס נוצט דאס פרעגט אייך פריער, און א רער וואס נאר איר קענט עפענען עקזיסטירט נאר כל זמן דאס איז אָן. עס קען לייענען דעם צושטאנד פון די פארטן און די רופן וואס Studio האט געמאכט צו Windows. עס קען נישט לייענען די בייטס וואס אייערע פארטן טראגן סײדן איר שאלט אן דעם צווייטן שאלטער. גארנישט ווערט געשיקט ערגעץ וואו, און דאס איז אויס יעדעס מאל ווען Studio הייבט אן. יעדער באנוץ ווערט פארשריבן אין א לאג אין Studio'ס דאטן־טעקע.</translation>
+        </message>
+        <message>
+            <source>%1 (process %2): %3</source>
+            <translation>%1 (פראצעס %2): %3</translation>
+        </message>
     </context>
     <context>
         <name>SetupCheck</name>
@@ -10559,6 +10583,10 @@ Networks: %5</source>
             <location filename="../src/shell/status_bar.cpp" line="171" />
             <source>Open Tools, Setup check for the details.</source>
             <translation>עפֿנט געצײַג, אײַנשטעלונג־קאָנטראָלע פֿאַר די פּרטים.</translation>
+        </message>
+        <message>
+            <source>Press to turn it off.</source>
+            <translation>דריקט צו אויסשאלטן.</translation>
         </message>
     </context>
     <context>
@@ -21860,6 +21888,14 @@ Networks: %5</source>
                 <numerusform>%n טעקעס</numerusform>
             </translation>
         </message>
+        <message>
+            <source>Calls to Windows</source>
+            <translation>רופן צו Windows</translation>
+        </message>
+        <message>
+            <source>The calls Studio made to Windows and its libraries that failed, with the code Windows gave and the calls around each. Not the bytes your ports carry. Off unless you turn it on.</source>
+            <translation>די רופן וואס Studio האט געמאכט צו Windows און זיינע ביבליאטעקן און זענען דורכגעפאלן, מיט דעם קאָד וואס Windows האט געגעבן און די רופן ארום יעדן. נישט די בייטס וואס אייערע פארטן טראגן. אויס סײדן איר שאלט אן.</translation>
+        </message>
     </context>
     <context>
         <name>SupportDialog</name>
@@ -24685,6 +24721,77 @@ From the plugin %2
             <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
             <source>Stop bits</source>
             <translation>שטאָפּ־ביטן</translation>
+        </message>
+    </context>
+    <context>
+        <name>DebugAccess</name>
+        <message>
+            <source>Debug access is off.</source>
+            <translation>דיבאג צוטריט איז אויס.</translation>
+        </message>
+        <message>
+            <source>Debug access is on. Programs on this computer that you allow can read what Studio is doing.</source>
+            <translation>דיבאג צוטריט איז אָן. פראגראמען אויף דעם קאמפיוטער וואס איר דערלויבט קענען לייענען וואס Studio טוט.</translation>
+        </message>
+        <message>
+            <source>Programs connected: %1.</source>
+            <translation>פארבונדענע פראגראמען: %1.</translation>
+        </message>
+        <message>
+            <source>The bytes of traffic can be read.</source>
+            <translation>די בייטס פון טראפיק קענען געלייענט ווערן.</translation>
+        </message>
+        <message>
+            <source>Debug access on</source>
+            <translation>דיבאג צוטריט אָן</translation>
+        </message>
+        <message>
+            <source>Debug access on (%1 connected)</source>
+            <translation>דיבאג צוטריט אָן (%1 פארבונדן)</translation>
+        </message>
+        <message>
+            <source>read the state of Studio's ports, its engine and Windows</source>
+            <translation>לייענען דעם צושטאנד פון Studio'ס פארטן, זיין מאָטאָר און Windows</translation>
+        </message>
+        <message>
+            <source>try operations on ports, which can change them</source>
+            <translation>פרובירן אָפּעראַציעס אויף פארטן, וואס קען זיי ענדערן</translation>
+        </message>
+        <message>
+            <source>read what the window shows and take a picture of it, which can show names and paths</source>
+            <translation>לייענען וואס דער פענצטער ווייזט און נעמען א בילד דערפון, וואס קען ווייזן נעמען און פּאַטס</translation>
+        </message>
+        <message>
+            <source>read the bytes your ports carry, when the traffic switch is on</source>
+            <translation>לייענען די בייטס וואס אייערע פארטן טראגן, ווען דער טראפיק־שאלטער איז אָן</translation>
+        </message>
+        <message>
+            <source>%1 (process %2) wants to:%3
+
+Program: %4</source>
+            <translation>%1 (פראצעס %2) וויל:%3
+
+פראגראם: %4</translation>
+        </message>
+        <message>
+            <source>not known</source>
+            <translation>נישט באקאנט</translation>
+        </message>
+        <message>
+            <source>Don't allow</source>
+            <translation>נישט דערלויבן</translation>
+        </message>
+        <message>
+            <source>Allow once</source>
+            <translation>דערלויבן איין מאל</translation>
+        </message>
+        <message>
+            <source>Allow until Studio quits</source>
+            <translation>דערלויבן ביז Studio ענדיקט זיך</translation>
+        </message>
+        <message>
+            <source>Allow this program to use debug access?</source>
+            <translation>דערלויבן דעם פראגראם צו נוצן דיבאג צוטריט?</translation>
         </message>
     </context>
 </TS>

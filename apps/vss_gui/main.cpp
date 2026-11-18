@@ -20,6 +20,7 @@
 #include "support/app_identity.hpp"
 #include "support/build_info.hpp"
 #include "support/console.hpp"
+#include "support/debug_access.hpp"
 #include "support/running_setup.hpp"
 #include "support/settings.hpp"
 #include "support/stall_probe.hpp"
@@ -403,6 +404,13 @@ try
                              &vss::gui::StudioBackend::licence_changed, host,
                              tell_plugins_of_licence);
             backend.set_plugin_backend(std::move(plugins));
+        }
+        // Debug access (docs/debug-api.md): off until a person turns it on in
+        // Settings. Not for a run that shows no window to a person.
+        if (!headless)
+        {
+            vss::gui::support::DebugAccess::instance().attach(
+                *studio, backend.plugin_backend());
         }
         if (parser.isSet(screenshot_option))
         {

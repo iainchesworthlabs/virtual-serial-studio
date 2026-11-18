@@ -8,6 +8,7 @@
 
 #include "profiling/profiling_controller.hpp"
 #include "rendering/render_state.hpp"
+#include "support/debug_access.hpp"
 #include "support/setup_facts.hpp"
 #include "support/sign_in_start.hpp"
 #include "theme/theme.hpp"
@@ -636,6 +637,51 @@ void SettingsDialog::build()
             "computers connect takes a restart."),
         profiling_holder));
     performance_layout->addWidget(profiling_holder);
+
+    // -- Debug access --------------------------------------------------------
+    performance_layout->addWidget(section_title(
+        QCoreApplication::translate("Settings", "Debug access"), performance));
+    auto* debug_holder = new QWidget(performance);
+    debug_holder->setMaximumWidth(460);
+    auto* debug_layout = new QVBoxLayout(debug_holder);
+    debug_layout->setContentsMargins(0, 0, 0, 0);
+    debug_layout->setSpacing(8);
+    debug_access_ = new Switch(
+        QCoreApplication::translate(
+            "Settings",
+            "Let programs on this computer read what Studio is doing"),
+        debug_holder);
+    debug_access_->setObjectName(QStringLiteral("debugAccessSwitch"));
+    debug_layout->addWidget(debug_access_);
+    debug_traffic_ = new Switch(
+        QCoreApplication::translate(
+            "Settings", "Let them read the bytes of traffic for ten minutes"),
+        debug_holder);
+    debug_traffic_->setObjectName(QStringLiteral("debugTrafficSwitch"));
+    debug_layout->addWidget(debug_traffic_);
+    debug_status_ = hint_label({}, debug_holder);
+    debug_status_->setObjectName(QStringLiteral("debugAccessStatus"));
+    debug_layout->addWidget(debug_status_);
+    debug_clients_ = hint_label({}, debug_holder);
+    debug_clients_->setObjectName(QStringLiteral("debugAccessClients"));
+    debug_layout->addWidget(debug_clients_);
+    debug_disconnect_ = make_dialog_button(
+        QCoreApplication::translate("Settings", "Disconnect all programs"),
+        "quiet", debug_holder);
+    debug_disconnect_->setObjectName(QStringLiteral("debugAccessDisconnect"));
+    debug_layout->addWidget(debug_disconnect_, 0, Qt::AlignLeft);
+    debug_layout->addWidget(hint_label(
+        QCoreApplication::translate(
+            "Settings",
+            "For finding out why a port will not open. A program that uses "
+            "this asks you first, and a pipe that only you can open exists "
+            "only while this is on. It can read the state of the ports and "
+            "the calls Studio made to Windows. It cannot read the bytes your "
+            "ports carry unless you turn on the second switch. Nothing is "
+            "sent anywhere, and this is off every time Studio starts. Each "
+            "use is written to a log in Studio's data folder."),
+        debug_holder));
+    performance_layout->addWidget(debug_holder);
     performance_layout->addStretch(1);
     pages_->addWidget(scroll_page(performance, pages_));
 
@@ -720,6 +766,27 @@ void SettingsDialog::build()
     connect(&profiling, &ProfilingController::changed, this,
             [this] { sync_profiling(); });
     sync_profiling();
+
+    // Debug access is owned by a process-wide object. It is off at every
+    // start and is never remembered.
+    auto& debug_access = DebugAccess::instance();
+    connect(debug_access_, &Switch::toggled, this,
+            [this](bool on)
+            {
+                auto& access = DebugAccess::instance();
+                if (on)
+                    access.enable();
+                else
+                    access.disable();
+                sync_debug_access();
+            });
+    connect(debug_traffic_, &Switch::toggled, this,
+            [](bool on) { DebugAccess::instance().set_traffic(on); });
+    connect(debug_disconnect_, &QPushButton::clicked, this,
+            [] { DebugAccess::instance().disconnect_all(); });
+    connect(&debug_access, &DebugAccess::changed, this,
+            [this] { sync_debug_access(); });
+    sync_debug_access();
     outer->addWidget(content, 1);
 
     // Footer: a note that changes apply at once, then Reset to defaults and
@@ -817,6 +884,38 @@ void SettingsDialog::sync_profiling()
         text = controller.last_error();
     profiling_status_->setText(text);
     profiling_status_->setAccessibleName(text);
+}
+
+void SettingsDialog::sync_debug_access()
+{
+    const auto& access = DebugAccess::instance();
+    {
+        const QSignalBlocker first(debug_access_);
+        const QSignalBlocker second(debug_traffic_);
+        debug_access_->setChecked(access.enabled());
+        debug_traffic_->setChecked(access.traffic_on());
+    }
+    debug_access_->setEnabled(access.available());
+    debug_traffic_->setEnabled(access.enabled());
+    debug_disconnect_->setEnabled(access.enabled() &&
+                                  !access.clients().isEmpty());
+    if (!access.available())
+        debug_access_->setToolTip(QCoreApplication::translate(
+            "Settings", "Not available in this build"));
+    QString text = access.summary();
+    if (!access.last_error().isEmpty())
+        text = access.last_error();
+    debug_status_->setText(text);
+    debug_status_->setAccessibleName(text);
+
+    QStringList rows;
+    for (const auto& client : access.clients())
+        rows << QCoreApplication::translate("Settings", "%1 (process %2): %3")
+                    .arg(client.name)
+                    .arg(client.process)
+                    .arg(client.scopes);
+    debug_clients_->setText(rows.join(QLatin1Char('\n')));
+    debug_clients_->setVisible(!rows.isEmpty());
 }
 
 void SettingsDialog::sync_render_status()

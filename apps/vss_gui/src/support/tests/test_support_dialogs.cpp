@@ -279,15 +279,20 @@ TEST_CASE("support bundle dialog: the rows follow the licence state")
     {
         FakeStudioBackend backend;
         SupportBundleDialog dialog(backend, log);
-        REQUIRE_EQ(titles_of(dialog.checks()).join(QLatin1Char('|')),
-                   QStringLiteral("Version and environment|Driver state|"
-                                  "Setup|Event log|Port counters|"
-                                  "Serial ports on this computer"));
+        REQUIRE_EQ(
+            titles_of(dialog.checks()).join(QLatin1Char('|')),
+            QStringLiteral("Version and environment|Driver state|"
+                           "Setup|Event log|Port counters|"
+                           "Serial ports on this computer|Calls to Windows"));
         REQUIRE(dialog.check(QStringLiteral("bundleLicence")) == nullptr);
         REQUIRE(dialog.check(QStringLiteral("bundleLicenseeName")) == nullptr);
         REQUIRE(dialog.check(QStringLiteral("bundleComputerName")) == nullptr);
+        // Every row is ticked but the calls to Windows, which is off until
+        // the person turns it on.
         for (const QCheckBox* check : dialog.checks())
-            REQUIRE(check->isChecked());
+            REQUIRE_EQ(check->isChecked(),
+                       check->objectName() !=
+                           QStringLiteral("bundleCallTrace"));
         REQUIRE_EQ(file_names(dialog.files()).join(QLatin1Char('|')),
                    QStringLiteral("manifest.json|environment.txt|driver.txt|"
                                   "setup.json|log.txt|counters.csv|"
@@ -300,10 +305,11 @@ TEST_CASE("support bundle dialog: the rows follow the licence state")
         backend.set_licence(licence_for_anywhere());
         SupportBundleDialog dialog(backend, log);
         REQUIRE_EQ(titles_of(dialog.checks()).join(QLatin1Char('|')),
-                   QStringLiteral("Version and environment|Driver state|"
-                                  "Setup|Event log|Port counters|"
-                                  "Serial ports on this computer|Licence|"
-                                  "Licensee name"));
+                   QStringLiteral(
+                       "Version and environment|Driver state|"
+                       "Setup|Event log|Port counters|"
+                       "Serial ports on this computer|Calls to Windows|Licence|"
+                       "Licensee name"));
         REQUIRE(dialog.check(QStringLiteral("bundleComputerName")) == nullptr);
         QCheckBox* licence = dialog.check(QStringLiteral("bundleLicence"));
         QCheckBox* licensee =
@@ -329,10 +335,11 @@ TEST_CASE("support bundle dialog: the rows follow the licence state")
         backend.set_licence(licence_naming_computers());
         SupportBundleDialog dialog(backend, log);
         REQUIRE_EQ(titles_of(dialog.checks()).join(QLatin1Char('|')),
-                   QStringLiteral("Version and environment|Driver state|"
-                                  "Setup|Event log|Port counters|"
-                                  "Serial ports on this computer|Licence|"
-                                  "Licensee name|This computer's name"));
+                   QStringLiteral(
+                       "Version and environment|Driver state|"
+                       "Setup|Event log|Port counters|"
+                       "Serial ports on this computer|Calls to Windows|Licence|"
+                       "Licensee name|This computer's name"));
         QCheckBox* computer =
             dialog.check(QStringLiteral("bundleComputerName"));
         REQUIRE(computer != nullptr);

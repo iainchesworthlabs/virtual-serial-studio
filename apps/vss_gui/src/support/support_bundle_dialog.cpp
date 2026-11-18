@@ -432,6 +432,15 @@ void SupportBundleDialog::build()
             "One line for each serial port: name, description, vendor and "
             "product ids, and driver."),
         QStringLiteral("serial-ports.txt"), false));
+    list_layout->addWidget(add_row(
+        list, QStringLiteral("bundleCallTrace"), &bundle_selection::call_trace,
+        QCoreApplication::translate("SupportBundleDialog", "Calls to Windows"),
+        QCoreApplication::translate(
+            "SupportBundleDialog",
+            "The calls Studio made to Windows and its libraries that failed, "
+            "with the code Windows gave and the calls around each. Not the "
+            "bytes your ports carry. Off unless you turn it on."),
+        QStringLiteral("trace.txt"), false));
     if (has_licence_)
     {
         list_layout->addWidget(add_row(
@@ -894,6 +903,7 @@ void SupportBundleDialog::copy_environment()
     only.event_log = false;
     only.counters = false;
     only.serial_ports = false;
+    only.call_trace = false;
     only.licence = false;
     const bundle_contents contents = build_bundle(backend_, log_, only);
     QString text;

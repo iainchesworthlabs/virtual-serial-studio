@@ -645,8 +645,8 @@ TEST_CASE("debug server: a server needs a provider and a valid name")
 TEST_CASE("debug server: every operation in the closed list runs and answers")
 {
     rig world;
-    auto session = world.connect(dbg::bit(dbg::scope::read) |
-                                 dbg::bit(dbg::scope::act));
+    auto session =
+        world.connect(dbg::bit(dbg::scope::read) | dbg::bit(dbg::scope::act));
     const std::vector<std::string> runs{
         R"({"op":"reopen","port":"alpha"})",
         R"({"op":"stop_port","port":"alpha"})",
@@ -693,7 +693,8 @@ TEST_CASE("debug server: the COM picture, the driver and the audit answer")
     REQUIRE(parse_object(driver->json).contains("ports"));
 }
 
-TEST_CASE("debug server: the snapshot shows the queue of a port that was written")
+TEST_CASE(
+    "debug server: the snapshot shows the queue of a port that was written")
 {
     rig world;
     auto session = world.connect();
@@ -709,8 +710,8 @@ TEST_CASE("debug server: a failing call of a port shows in that port's row")
 {
     rig world;
     {
-        vss::trace::call_scope scope("SetCommState", world.first->id(),
-                                     "COM5", world.log);
+        vss::trace::call_scope scope("SetCommState", world.first->id(), "COM5",
+                                     world.log);
         scope.fail(
             boost::system::error_code(5, boost::system::system_category()));
     }
@@ -736,16 +737,16 @@ TEST_CASE("debug server: traffic filters by port and limits the count")
     REQUIRE(vss::testkit::wait_until(
         [&] { return !world.app.engine().traffic(0).empty(); }, 5s));
     world.server->set_traffic(true);
-    auto session = world.connect(dbg::bit(dbg::scope::read) |
-                                 dbg::bit(dbg::scope::data));
-    const auto none = session->call(
-        "debug.traffic", R"({"endpoints":[99999],"limit":5})");
+    auto session =
+        world.connect(dbg::bit(dbg::scope::read) | dbg::bit(dbg::scope::data));
+    const auto none =
+        session->call("debug.traffic", R"({"endpoints":[99999],"limit":5})");
     REQUIRE(none->ok);
     REQUIRE(!contains(none->json, "6f6e65"));
-    const auto some = session->call(
-        "debug.traffic",
-        "{\"endpoints\":[" + std::to_string(world.first->id()) +
-            "],\"limit\":5}");
+    const auto some =
+        session->call("debug.traffic", "{\"endpoints\":[" +
+                                           std::to_string(world.first->id()) +
+                                           "],\"limit\":5}");
     REQUIRE(some->ok);
 }
 
@@ -753,9 +754,9 @@ TEST_CASE("debug server: a hello for another protocol version is refused")
 {
     rig world;
     boost::asio::io_context io;
-    auto stream = agent::connect_local(io.get_executor(),
-                                       agent::local_endpoint::debug,
-                                       world.server->instance());
+    auto stream =
+        agent::connect_local(io.get_executor(), agent::local_endpoint::debug,
+                             world.server->instance());
     REQUIRE(stream.has_value());
     agent::frame hello;
     hello.header = R"({"id":1,"op":"hello","version":99,"client":"x"})";
@@ -766,10 +767,9 @@ TEST_CASE("debug server: a hello for another protocol version is refused")
         [](const boost::system::error_code&, std::size_t) {});
     std::array<vss::byte, 512> buffer{};
     std::size_t got = 0;
-    (*stream)->async_read_some(
-        boost::asio::buffer(buffer),
-        [&](const boost::system::error_code&, std::size_t size)
-        { got = size; });
+    (*stream)->async_read_some(boost::asio::buffer(buffer),
+                               [&](const boost::system::error_code&,
+                                   std::size_t size) { got = size; });
     io.run_for(10s);
     REQUIRE(got > 0);
     const std::string reply(reinterpret_cast<const char*>(buffer.data()), got);
@@ -781,9 +781,9 @@ TEST_CASE("debug server: a request before hello closes the connection")
 {
     rig world;
     boost::asio::io_context io;
-    auto stream = agent::connect_local(io.get_executor(),
-                                       agent::local_endpoint::debug,
-                                       world.server->instance());
+    auto stream =
+        agent::connect_local(io.get_executor(), agent::local_endpoint::debug,
+                             world.server->instance());
     REQUIRE(stream.has_value());
     agent::frame request;
     request.header = R"({"id":1,"op":"debug.snapshot"})";
@@ -811,4 +811,30 @@ TEST_CASE("debug server: a ping needs no scope and a second hello is refused")
     const auto again = session->call("hello");
     REQUIRE(again.has_value());
     REQUIRE(!again->ok);
+}
+
+TEST_CASE("debug server: the engine's own events reach the recorder")
+{
+    auto& global = vss::trace::recorder::global();
+    const auto before = global.last_seq();
+    vss::studio app;
+    auto port = app.create_virtual_port("recorded-port",
+                                        vss::virtual_port_kind::loopback)
+                    .value();
+    // A port that stops says so, with its own number, in time order beside the
+    // calls to Windows.
+    app.engine().remove_endpoint(port->id());
+    REQUIRE(vss::testkit::wait_until(
+        [&]
+        {
+            vss::trace::filter what;
+            what.after_seq = before;
+            for (const auto& item : global.read(what))
+            {
+                if (item.call_text().starts_with("engine."))
+                    return true;
+            }
+            return false;
+        },
+        5s));
 }

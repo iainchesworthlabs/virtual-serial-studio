@@ -18,6 +18,8 @@ add_library(vss_gui_support STATIC
   check_row.cpp
   check_row.hpp
   console.hpp
+  debug_access.cpp
+  debug_access.hpp
   driver_setup_dialog.cpp
   driver_setup_dialog.hpp
   elevated_step.cpp
@@ -100,7 +102,10 @@ target_link_libraries(vss_gui_support PUBLIC
   vss_gui_profiling
   vss_gui_rendering
   vss_gui_updates
+  Vss::debug
+  Vss::machine
   Qt6::Widgets)
+target_link_libraries(vss_gui_support PRIVATE Vss::BoostJson)
 
 if(WIN32)
   target_link_libraries(vss_gui_support PRIVATE advapi32 shell32)

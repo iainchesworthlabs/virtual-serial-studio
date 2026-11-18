@@ -8,6 +8,7 @@
 
 #include "profiling/profiling_controller.hpp"
 #include "shell/format.hpp"
+#include "support/debug_access.hpp"
 #include "support/licence_dialog.hpp"
 #include "support/plugin_parts.hpp"
 #include "support/setup_facts.hpp"
@@ -144,6 +145,17 @@ StatusBar::StatusBar(StudioBackend& backend, QWidget* parent)
     connect(&ProfilingController::instance(), &ProfilingController::changed,
             this, [this] { update_profiling(); });
     update_profiling();
+    // Debug access, shown for as long as it is on and never hidden by a
+    // setting: a click turns it off.
+    debug_chip_ = new ChipButton(this);
+    debug_chip_->setObjectName(QStringLiteral("debugAccessChip"));
+    connect(debug_chip_, &QAbstractButton::clicked, this,
+            [] { support::DebugAccess::instance().disable(); });
+    addPermanentWidget(debug_chip_, 0);
+    debug_chip_->hide();
+    connect(&support::DebugAccess::instance(), &support::DebugAccess::changed,
+            this, [this] { update_debug_access(); });
+    update_debug_access();
 
     readiness_ =
         new StatusChip(tr("Setup ready"), StatusChip::kind::healthy, this);
@@ -310,6 +322,21 @@ void StatusBar::update_profiling()
     profiling_->setAccessibleName(controller.summary());
     profiling_->setToolTip(controller.summary());
     profiling_->show();
+}
+
+void StatusBar::update_debug_access()
+{
+    const auto& access = support::DebugAccess::instance();
+    const QString text = access.chip_text();
+    debug_chip_->setVisible(!text.isEmpty());
+    if (text.isEmpty())
+        return;
+    const QString name =
+        access.summary() + QLatin1Char(' ') +
+        QCoreApplication::translate("StatusBar", "Press to turn it off.");
+    // A warning colour with text, so the colour is not the only cue.
+    debug_chip_->set_content(StatusChip::kind::waiting, text, name);
+    debug_chip_->setToolTip(name);
 }
 
 void StatusBar::set_plugin_backend(PluginBackend* host)

@@ -293,11 +293,51 @@ studio::studio(const studio_options& options)
                 state == endpoint_state::closed)
                 retry->lost(event.endpoint);
         });
+
+    // What the engine itself says (a port opening, stopping or failing, a log
+    // line, a bus fault) goes to the call recorder too, so that the engine's
+    // own account sits in time order beside the calls to Windows.  Traffic,
+    // counters and line changes are not recorded: the recorder holds no bytes.
+    trace_subscription_ = hub_->subscribe(
+        event_filter{},
+        [](const endpoint_event& event)
+        {
+            std::string_view call;
+            switch (event.kind)
+            {
+            case event_kind::started:
+                call = "engine.started";
+                break;
+            case event_kind::stopped:
+                call = "engine.stopped";
+                break;
+            case event_kind::error:
+                call = "engine.error";
+                break;
+            case event_kind::log_message:
+                call = "engine.log";
+                break;
+            case event_kind::bus_fault:
+                call = "engine.bus_fault";
+                break;
+            default:
+                return;
+            }
+            trace::call_scope scope(call, event.endpoint, event.message);
+            if (event.error)
+                scope.fail(event.error);
+            else if (event.kind == event_kind::error)
+                scope.fail(0, "engine", event.message);
+            else
+                scope.ok();
+        });
 }
 
 studio::~studio()
 {
     VSS_PROFILE_ZONE("studio.destroy");
+    if (hub_ && trace_subscription_ != 0)
+        hub_->unsubscribe(trace_subscription_);
     if (hub_ && reconnect_subscription_ != 0)
         hub_->unsubscribe(reconnect_subscription_);
     // A rule set's actions call the studio, so every set is closed first.
@@ -1722,6 +1762,12 @@ result<void> studio::release_port(endpoint_id id)
 }
 
 result<void> studio::reconnect_attempt(endpoint_id id)
+{
+    return trace::traced("studio.reconnect_attempt", id,
+                         [&] { return reconnect_attempt_untraced(id); });
+}
+
+result<void> studio::reconnect_attempt_untraced(endpoint_id id)
 {
     VSS_PROFILE_ZONE("studio.reconnect_attempt");
     if (!hub_->running())

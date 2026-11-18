@@ -113,6 +113,7 @@ Q_SIGNALS:
 private:
     void update_readiness();
     void update_profiling();
+    void update_debug_access();
     void update_edition();
     void update_plugin_chip();
     void update_update_chip();
@@ -128,6 +129,7 @@ private:
     StatusChip* profiling_ = nullptr;
     EditionChip* edition_ = nullptr;
     ChipButton* plugin_chip_ = nullptr;
+    ChipButton* debug_chip_ = nullptr;
     PluginBackend* plugins_ = nullptr;
     updates::UpdateService* updates_ = nullptr;
     ChipButton* update_ = nullptr;

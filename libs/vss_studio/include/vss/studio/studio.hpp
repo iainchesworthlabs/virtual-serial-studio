@@ -881,6 +881,7 @@ private:
                            std::shared_ptr<transport> fresh);
     /// One try of the retry policy for a lost connection.
     result<void> reconnect_attempt(endpoint_id id);
+    result<void> reconnect_attempt_untraced(endpoint_id id);
     /// True for an endpoint the retry policy applies to.
     static bool reconnects(const port_record& record);
 
@@ -888,6 +889,7 @@ private:
     std::shared_ptr<vss::hub> hub_;
     std::shared_ptr<reconnector> reconnector_;
     subscriber_id reconnect_subscription_ = 0;
+    subscriber_id trace_subscription_ = 0;
     mutable std::mutex record_mutex_;
     std::unordered_map<endpoint_id, port_record> records_;
     /// The name and description of the setup, from the document that

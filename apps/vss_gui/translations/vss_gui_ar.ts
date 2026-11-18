@@ -7362,6 +7362,30 @@ Networks: %5</source>
             <source>This build cannot check for updates.</source>
             <translation>لا يمكن لهذا البناء التحقق من التحديثات.</translation>
         </message>
+        <message>
+            <source>Debug access</source>
+            <translation>الوصول للتصحيح</translation>
+        </message>
+        <message>
+            <source>Let programs on this computer read what Studio is doing</source>
+            <translation>السماح للبرامج على هذا الكمبيوتر بقراءة ما يفعله Studio</translation>
+        </message>
+        <message>
+            <source>Let them read the bytes of traffic for ten minutes</source>
+            <translation>السماح لها بقراءة بايتات حركة البيانات لمدة عشر دقائق</translation>
+        </message>
+        <message>
+            <source>Disconnect all programs</source>
+            <translation>فصل جميع البرامج</translation>
+        </message>
+        <message>
+            <source>For finding out why a port will not open. A program that uses this asks you first, and a pipe that only you can open exists only while this is on. It can read the state of the ports and the calls Studio made to Windows. It cannot read the bytes your ports carry unless you turn on the second switch. Nothing is sent anywhere, and this is off every time Studio starts. Each use is written to a log in Studio's data folder.</source>
+            <translation>لمعرفة سبب عدم فتح منفذ ما. يسألك أي برنامج يستخدم هذا أولاً، ولا يوجد أنبوب لا يستطيع فتحه سواك إلا ما دام هذا الخيار مفعلاً. يستطيع قراءة حالة المنافذ والاستدعاءات التي أجراها Studio إلى Windows. ولا يستطيع قراءة البايتات التي تنقلها منافذك إلا إذا شغّلت المفتاح الثاني. لا يُرسل أي شيء إلى أي مكان، ويكون هذا الخيار متوقفاً في كل مرة يبدأ فيها Studio. يُسجَّل كل استخدام في سجل داخل مجلد بيانات Studio.</translation>
+        </message>
+        <message>
+            <source>%1 (process %2): %3</source>
+            <translation>%1 (العملية %2): %3</translation>
+        </message>
     </context>
     <context>
         <name>SetupCheck</name>
@@ -10589,6 +10613,10 @@ Networks: %5</source>
             <location filename="../src/shell/status_bar.cpp" line="171" />
             <source>Open Tools, Setup check for the details.</source>
             <translation>افتح الأدوات ثم فحص الإعداد لمعرفة التفاصيل.</translation>
+        </message>
+        <message>
+            <source>Press to turn it off.</source>
+            <translation>اضغط لإيقافه.</translation>
         </message>
     </context>
     <context>
@@ -21978,6 +22006,14 @@ Networks: %5</source>
                 <numerusform>%n ملف</numerusform>
             </translation>
         </message>
+        <message>
+            <source>Calls to Windows</source>
+            <translation>الاستدعاءات إلى Windows</translation>
+        </message>
+        <message>
+            <source>The calls Studio made to Windows and its libraries that failed, with the code Windows gave and the calls around each. Not the bytes your ports carry. Off unless you turn it on.</source>
+            <translation>الاستدعاءات التي أجراها Studio إلى Windows ومكتباته وفشلت، مع الرمز الذي أعطاه Windows والاستدعاءات المحيطة بكل منها. ليست البايتات التي تنقلها منافذك. متوقف ما لم تشغّله.</translation>
+        </message>
     </context>
     <context>
         <name>SupportDialog</name>
@@ -24855,6 +24891,77 @@ From the plugin %2
             <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
             <source>Stop bits</source>
             <translation>بتات التوقف</translation>
+        </message>
+    </context>
+    <context>
+        <name>DebugAccess</name>
+        <message>
+            <source>Debug access is off.</source>
+            <translation>الوصول للتصحيح متوقف.</translation>
+        </message>
+        <message>
+            <source>Debug access is on. Programs on this computer that you allow can read what Studio is doing.</source>
+            <translation>الوصول للتصحيح مفعّل. يمكن للبرامج على هذا الكمبيوتر التي تسمح بها قراءة ما يفعله Studio.</translation>
+        </message>
+        <message>
+            <source>Programs connected: %1.</source>
+            <translation>البرامج المتصلة: %1.</translation>
+        </message>
+        <message>
+            <source>The bytes of traffic can be read.</source>
+            <translation>يمكن قراءة بايتات حركة البيانات.</translation>
+        </message>
+        <message>
+            <source>Debug access on</source>
+            <translation>الوصول للتصحيح مفعّل</translation>
+        </message>
+        <message>
+            <source>Debug access on (%1 connected)</source>
+            <translation>الوصول للتصحيح مفعّل (%1 متصل)</translation>
+        </message>
+        <message>
+            <source>read the state of Studio's ports, its engine and Windows</source>
+            <translation>قراءة حالة منافذ Studio ومحركه وWindows</translation>
+        </message>
+        <message>
+            <source>try operations on ports, which can change them</source>
+            <translation>تجربة عمليات على المنافذ، وقد يغيّرها ذلك</translation>
+        </message>
+        <message>
+            <source>read what the window shows and take a picture of it, which can show names and paths</source>
+            <translation>قراءة ما تعرضه النافذة والتقاط صورة لها، وقد تُظهر أسماءً ومسارات</translation>
+        </message>
+        <message>
+            <source>read the bytes your ports carry, when the traffic switch is on</source>
+            <translation>قراءة البايتات التي تنقلها منافذك عندما يكون مفتاح حركة البيانات مفعلاً</translation>
+        </message>
+        <message>
+            <source>%1 (process %2) wants to:%3
+
+Program: %4</source>
+            <translation>يريد %1 (العملية %2):%3
+
+البرنامج: %4</translation>
+        </message>
+        <message>
+            <source>not known</source>
+            <translation>غير معروف</translation>
+        </message>
+        <message>
+            <source>Don't allow</source>
+            <translation>عدم السماح</translation>
+        </message>
+        <message>
+            <source>Allow once</source>
+            <translation>السماح مرة واحدة</translation>
+        </message>
+        <message>
+            <source>Allow until Studio quits</source>
+            <translation>السماح حتى إغلاق Studio</translation>
+        </message>
+        <message>
+            <source>Allow this program to use debug access?</source>
+            <translation>هل تسمح لهذا البرنامج باستخدام الوصول للتصحيح؟</translation>
         </message>
     </context>
 </TS>

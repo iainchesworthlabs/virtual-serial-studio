@@ -7348,6 +7348,30 @@ Réseaux : %5</translation>
             <source>This build cannot check for updates.</source>
             <translation>Ce build ne peut pas rechercher les mises à jour.</translation>
         </message>
+        <message>
+            <source>Debug access</source>
+            <translation>Accès de débogage</translation>
+        </message>
+        <message>
+            <source>Let programs on this computer read what Studio is doing</source>
+            <translation>Laisser les programmes de cet ordinateur lire ce que fait Studio</translation>
+        </message>
+        <message>
+            <source>Let them read the bytes of traffic for ten minutes</source>
+            <translation>Les laisser lire les octets du trafic pendant dix minutes</translation>
+        </message>
+        <message>
+            <source>Disconnect all programs</source>
+            <translation>Déconnecter tous les programmes</translation>
+        </message>
+        <message>
+            <source>For finding out why a port will not open. A program that uses this asks you first, and a pipe that only you can open exists only while this is on. It can read the state of the ports and the calls Studio made to Windows. It cannot read the bytes your ports carry unless you turn on the second switch. Nothing is sent anywhere, and this is off every time Studio starts. Each use is written to a log in Studio's data folder.</source>
+            <translation>Pour trouver pourquoi un port ne s'ouvre pas. Un programme qui l'utilise vous demande d'abord, et un tube que vous seul pouvez ouvrir n'existe que lorsque ceci est activé. Il peut lire l'état des ports et les appels que Studio a faits à Windows. Il ne peut pas lire les octets que vos ports transportent, sauf si vous activez le second interrupteur. Rien n'est envoyé nulle part, et ceci est désactivé à chaque démarrage de Studio. Chaque utilisation est inscrite dans un journal du dossier de données de Studio.</translation>
+        </message>
+        <message>
+            <source>%1 (process %2): %3</source>
+            <translation>%1 (processus %2) : %3</translation>
+        </message>
     </context>
     <context>
         <name>SetupCheck</name>
@@ -10559,6 +10583,10 @@ Réseaux : %5</translation>
             <location filename="../src/shell/status_bar.cpp" line="171" />
             <source>Open Tools, Setup check for the details.</source>
             <translation>Ouvrez Outils, Vérification de la configuration pour les détails.</translation>
+        </message>
+        <message>
+            <source>Press to turn it off.</source>
+            <translation>Appuyez pour le désactiver.</translation>
         </message>
     </context>
     <context>
@@ -21860,6 +21888,14 @@ Réseaux : %5</translation>
                 <numerusform>%n fichiers</numerusform>
             </translation>
         </message>
+        <message>
+            <source>Calls to Windows</source>
+            <translation>Appels à Windows</translation>
+        </message>
+        <message>
+            <source>The calls Studio made to Windows and its libraries that failed, with the code Windows gave and the calls around each. Not the bytes your ports carry. Off unless you turn it on.</source>
+            <translation>Les appels que Studio a faits à Windows et à ses bibliothèques et qui ont échoué, avec le code donné par Windows et les appels autour de chacun. Pas les octets que vos ports transportent. Désactivé tant que vous ne l'activez pas.</translation>
+        </message>
     </context>
     <context>
         <name>SupportDialog</name>
@@ -24685,6 +24721,77 @@ Du module %2
             <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
             <source>Stop bits</source>
             <translation>Bits d'arrêt</translation>
+        </message>
+    </context>
+    <context>
+        <name>DebugAccess</name>
+        <message>
+            <source>Debug access is off.</source>
+            <translation>L'accès de débogage est désactivé.</translation>
+        </message>
+        <message>
+            <source>Debug access is on. Programs on this computer that you allow can read what Studio is doing.</source>
+            <translation>L'accès de débogage est activé. Les programmes de cet ordinateur que vous autorisez peuvent lire ce que fait Studio.</translation>
+        </message>
+        <message>
+            <source>Programs connected: %1.</source>
+            <translation>Programmes connectés : %1.</translation>
+        </message>
+        <message>
+            <source>The bytes of traffic can be read.</source>
+            <translation>Les octets du trafic peuvent être lus.</translation>
+        </message>
+        <message>
+            <source>Debug access on</source>
+            <translation>Accès de débogage activé</translation>
+        </message>
+        <message>
+            <source>Debug access on (%1 connected)</source>
+            <translation>Accès de débogage activé (%1 connectés)</translation>
+        </message>
+        <message>
+            <source>read the state of Studio's ports, its engine and Windows</source>
+            <translation>lire l'état des ports de Studio, de son moteur et de Windows</translation>
+        </message>
+        <message>
+            <source>try operations on ports, which can change them</source>
+            <translation>essayer des opérations sur les ports, ce qui peut les modifier</translation>
+        </message>
+        <message>
+            <source>read what the window shows and take a picture of it, which can show names and paths</source>
+            <translation>lire ce que la fenêtre affiche et en prendre une image, ce qui peut montrer des noms et des chemins</translation>
+        </message>
+        <message>
+            <source>read the bytes your ports carry, when the traffic switch is on</source>
+            <translation>lire les octets que vos ports transportent, lorsque l'interrupteur du trafic est activé</translation>
+        </message>
+        <message>
+            <source>%1 (process %2) wants to:%3
+
+Program: %4</source>
+            <translation>%1 (processus %2) veut :%3
+
+Programme : %4</translation>
+        </message>
+        <message>
+            <source>not known</source>
+            <translation>inconnu</translation>
+        </message>
+        <message>
+            <source>Don't allow</source>
+            <translation>Ne pas autoriser</translation>
+        </message>
+        <message>
+            <source>Allow once</source>
+            <translation>Autoriser une fois</translation>
+        </message>
+        <message>
+            <source>Allow until Studio quits</source>
+            <translation>Autoriser jusqu'à la fermeture de Studio</translation>
+        </message>
+        <message>
+            <source>Allow this program to use debug access?</source>
+            <translation>Autoriser ce programme à utiliser l'accès de débogage ?</translation>
         </message>
     </context>
 </TS>

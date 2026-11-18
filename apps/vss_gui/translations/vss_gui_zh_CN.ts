@@ -7343,6 +7343,30 @@ Networks: %5</source>
             <source>This build cannot check for updates.</source>
             <translation>此构建版本无法检查更新。</translation>
         </message>
+        <message>
+            <source>Debug access</source>
+            <translation>调试访问</translation>
+        </message>
+        <message>
+            <source>Let programs on this computer read what Studio is doing</source>
+            <translation>允许此计算机上的程序读取 Studio 正在做什么</translation>
+        </message>
+        <message>
+            <source>Let them read the bytes of traffic for ten minutes</source>
+            <translation>允许它们读取流量字节，持续十分钟</translation>
+        </message>
+        <message>
+            <source>Disconnect all programs</source>
+            <translation>断开所有程序</translation>
+        </message>
+        <message>
+            <source>For finding out why a port will not open. A program that uses this asks you first, and a pipe that only you can open exists only while this is on. It can read the state of the ports and the calls Studio made to Windows. It cannot read the bytes your ports carry unless you turn on the second switch. Nothing is sent anywhere, and this is off every time Studio starts. Each use is written to a log in Studio's data folder.</source>
+            <translation>用于查明端口为什么打不开。使用此功能的程序会先征求你的同意，只有你能打开的管道仅在此项开启期间存在。它可以读取端口的状态以及 Studio 对 Windows 发出的调用。除非你打开第二个开关，否则它无法读取端口传输的字节。不会向任何地方发送任何内容，每次启动 Studio 时此项都是关闭的。每次使用都会记录在 Studio 数据文件夹的日志中。</translation>
+        </message>
+        <message>
+            <source>%1 (process %2): %3</source>
+            <translation>%1（进程 %2）：%3</translation>
+        </message>
     </context>
     <context>
         <name>SetupCheck</name>
@@ -10550,6 +10574,10 @@ Networks: %5</source>
             <location filename="../src/shell/status_bar.cpp" line="171" />
             <source>Open Tools, Setup check for the details.</source>
             <translation>打开“工具”，查看“配置检查”了解详情。</translation>
+        </message>
+        <message>
+            <source>Press to turn it off.</source>
+            <translation>按下即可关闭。</translation>
         </message>
     </context>
     <context>
@@ -21829,6 +21857,14 @@ Networks: %5</source>
                 <numerusform>%n 个文件</numerusform>
             </translation>
         </message>
+        <message>
+            <source>Calls to Windows</source>
+            <translation>对 Windows 的调用</translation>
+        </message>
+        <message>
+            <source>The calls Studio made to Windows and its libraries that failed, with the code Windows gave and the calls around each. Not the bytes your ports carry. Off unless you turn it on.</source>
+            <translation>Studio 对 Windows 及其库发出且失败的调用，附带 Windows 给出的代码以及每次调用前后的调用。不含端口传输的字节。除非你打开，否则为关闭。</translation>
+        </message>
     </context>
     <context>
         <name>SupportDialog</name>
@@ -24641,6 +24677,77 @@ From the plugin %2
             <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
             <source>Stop bits</source>
             <translation>停止位</translation>
+        </message>
+    </context>
+    <context>
+        <name>DebugAccess</name>
+        <message>
+            <source>Debug access is off.</source>
+            <translation>调试访问已关闭。</translation>
+        </message>
+        <message>
+            <source>Debug access is on. Programs on this computer that you allow can read what Studio is doing.</source>
+            <translation>调试访问已开启。你允许的此计算机上的程序可以读取 Studio 正在做什么。</translation>
+        </message>
+        <message>
+            <source>Programs connected: %1.</source>
+            <translation>已连接的程序：%1。</translation>
+        </message>
+        <message>
+            <source>The bytes of traffic can be read.</source>
+            <translation>可以读取流量字节。</translation>
+        </message>
+        <message>
+            <source>Debug access on</source>
+            <translation>调试访问已开启</translation>
+        </message>
+        <message>
+            <source>Debug access on (%1 connected)</source>
+            <translation>调试访问已开启（已连接 %1 个）</translation>
+        </message>
+        <message>
+            <source>read the state of Studio's ports, its engine and Windows</source>
+            <translation>读取 Studio 的端口、引擎和 Windows 的状态</translation>
+        </message>
+        <message>
+            <source>try operations on ports, which can change them</source>
+            <translation>对端口尝试操作，这可能会更改它们</translation>
+        </message>
+        <message>
+            <source>read what the window shows and take a picture of it, which can show names and paths</source>
+            <translation>读取窗口显示的内容并截图，其中可能显示名称和路径</translation>
+        </message>
+        <message>
+            <source>read the bytes your ports carry, when the traffic switch is on</source>
+            <translation>在流量开关打开时，读取端口传输的字节</translation>
+        </message>
+        <message>
+            <source>%1 (process %2) wants to:%3
+
+Program: %4</source>
+            <translation>%1（进程 %2）想要：%3
+
+程序：%4</translation>
+        </message>
+        <message>
+            <source>not known</source>
+            <translation>未知</translation>
+        </message>
+        <message>
+            <source>Don't allow</source>
+            <translation>不允许</translation>
+        </message>
+        <message>
+            <source>Allow once</source>
+            <translation>允许一次</translation>
+        </message>
+        <message>
+            <source>Allow until Studio quits</source>
+            <translation>允许直到 Studio 退出</translation>
+        </message>
+        <message>
+            <source>Allow this program to use debug access?</source>
+            <translation>允许此程序使用调试访问吗？</translation>
         </message>
     </context>
 </TS>

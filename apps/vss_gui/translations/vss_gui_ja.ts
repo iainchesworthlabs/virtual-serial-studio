@@ -7343,6 +7343,30 @@ Networks: %5</source>
             <source>This build cannot check for updates.</source>
             <translation>このビルドではアップデートを確認できません。</translation>
         </message>
+        <message>
+            <source>Debug access</source>
+            <translation>デバッグアクセス</translation>
+        </message>
+        <message>
+            <source>Let programs on this computer read what Studio is doing</source>
+            <translation>このコンピューター上のプログラムが Studio の動作を読み取ることを許可する</translation>
+        </message>
+        <message>
+            <source>Let them read the bytes of traffic for ten minutes</source>
+            <translation>10 分間、通信のバイトを読み取ることを許可する</translation>
+        </message>
+        <message>
+            <source>Disconnect all programs</source>
+            <translation>すべてのプログラムを切断</translation>
+        </message>
+        <message>
+            <source>For finding out why a port will not open. A program that uses this asks you first, and a pipe that only you can open exists only while this is on. It can read the state of the ports and the calls Studio made to Windows. It cannot read the bytes your ports carry unless you turn on the second switch. Nothing is sent anywhere, and this is off every time Studio starts. Each use is written to a log in Studio's data folder.</source>
+            <translation>ポートが開かない原因を調べるための機能です。これを使うプログラムは、先に確認を求めます。自分だけが開けるパイプは、これがオンの間だけ存在します。ポートの状態と、Studio が Windows に対して行った呼び出しを読み取れます。2 つ目のスイッチをオンにしない限り、ポートが運ぶバイトは読み取れません。どこにも送信されず、Studio を起動するたびにオフになります。使用のたびに、Studio のデータフォルダーのログに記録されます。</translation>
+        </message>
+        <message>
+            <source>%1 (process %2): %3</source>
+            <translation>%1（プロセス %2）: %3</translation>
+        </message>
     </context>
     <context>
         <name>SetupCheck</name>
@@ -10550,6 +10574,10 @@ Networks: %5</source>
             <location filename="../src/shell/status_bar.cpp" line="171" />
             <source>Open Tools, Setup check for the details.</source>
             <translation>詳細は「ツール」の「セットアップチェック」を開いてください。</translation>
+        </message>
+        <message>
+            <source>Press to turn it off.</source>
+            <translation>押すとオフにします。</translation>
         </message>
     </context>
     <context>
@@ -21829,6 +21857,14 @@ Networks: %5</source>
                 <numerusform>%nファイル</numerusform>
             </translation>
         </message>
+        <message>
+            <source>Calls to Windows</source>
+            <translation>Windows への呼び出し</translation>
+        </message>
+        <message>
+            <source>The calls Studio made to Windows and its libraries that failed, with the code Windows gave and the calls around each. Not the bytes your ports carry. Off unless you turn it on.</source>
+            <translation>Studio が Windows やそのライブラリに対して行い、失敗した呼び出しです。Windows が返したコードと、それぞれの前後の呼び出しを含みます。ポートが運ぶバイトは含みません。オンにしない限りオフです。</translation>
+        </message>
     </context>
     <context>
         <name>SupportDialog</name>
@@ -24641,6 +24677,77 @@ From the plugin %2
             <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
             <source>Stop bits</source>
             <translation>ストップビット</translation>
+        </message>
+    </context>
+    <context>
+        <name>DebugAccess</name>
+        <message>
+            <source>Debug access is off.</source>
+            <translation>デバッグアクセスはオフです。</translation>
+        </message>
+        <message>
+            <source>Debug access is on. Programs on this computer that you allow can read what Studio is doing.</source>
+            <translation>デバッグアクセスはオンです。許可したこのコンピューター上のプログラムは、Studio の動作を読み取れます。</translation>
+        </message>
+        <message>
+            <source>Programs connected: %1.</source>
+            <translation>接続中のプログラム: %1。</translation>
+        </message>
+        <message>
+            <source>The bytes of traffic can be read.</source>
+            <translation>通信のバイトを読み取れます。</translation>
+        </message>
+        <message>
+            <source>Debug access on</source>
+            <translation>デバッグアクセス オン</translation>
+        </message>
+        <message>
+            <source>Debug access on (%1 connected)</source>
+            <translation>デバッグアクセス オン (%1 接続中)</translation>
+        </message>
+        <message>
+            <source>read the state of Studio's ports, its engine and Windows</source>
+            <translation>Studio のポート、エンジン、Windows の状態を読み取る</translation>
+        </message>
+        <message>
+            <source>try operations on ports, which can change them</source>
+            <translation>ポートに対する操作を試す（ポートが変更される場合があります）</translation>
+        </message>
+        <message>
+            <source>read what the window shows and take a picture of it, which can show names and paths</source>
+            <translation>ウィンドウの表示内容を読み取り、画像を撮る（名前やパスが写る場合があります）</translation>
+        </message>
+        <message>
+            <source>read the bytes your ports carry, when the traffic switch is on</source>
+            <translation>トラフィックのスイッチがオンのとき、ポートが運ぶバイトを読み取る</translation>
+        </message>
+        <message>
+            <source>%1 (process %2) wants to:%3
+
+Program: %4</source>
+            <translation>%1（プロセス %2）が次の操作を求めています:%3
+
+プログラム: %4</translation>
+        </message>
+        <message>
+            <source>not known</source>
+            <translation>不明</translation>
+        </message>
+        <message>
+            <source>Don't allow</source>
+            <translation>許可しない</translation>
+        </message>
+        <message>
+            <source>Allow once</source>
+            <translation>今回だけ許可</translation>
+        </message>
+        <message>
+            <source>Allow until Studio quits</source>
+            <translation>Studio を終了するまで許可</translation>
+        </message>
+        <message>
+            <source>Allow this program to use debug access?</source>
+            <translation>このプログラムにデバッグアクセスの使用を許可しますか？</translation>
         </message>
     </context>
 </TS>

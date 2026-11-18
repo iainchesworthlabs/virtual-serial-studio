@@ -7348,6 +7348,30 @@ Networks: %5</source>
             <source>This build cannot check for updates.</source>
             <translation>הבנייה הזו אינה יכולה לבדוק עדכונים.</translation>
         </message>
+        <message>
+            <source>Debug access</source>
+            <translation>גישת ניפוי שגיאות</translation>
+        </message>
+        <message>
+            <source>Let programs on this computer read what Studio is doing</source>
+            <translation>לאפשר לתוכנות במחשב זה לקרוא מה Studio עושה</translation>
+        </message>
+        <message>
+            <source>Let them read the bytes of traffic for ten minutes</source>
+            <translation>לאפשר להם לקרוא את בתי התעבורה למשך עשר דקות</translation>
+        </message>
+        <message>
+            <source>Disconnect all programs</source>
+            <translation>לנתק את כל התוכנות</translation>
+        </message>
+        <message>
+            <source>For finding out why a port will not open. A program that uses this asks you first, and a pipe that only you can open exists only while this is on. It can read the state of the ports and the calls Studio made to Windows. It cannot read the bytes your ports carry unless you turn on the second switch. Nothing is sent anywhere, and this is off every time Studio starts. Each use is written to a log in Studio's data folder.</source>
+            <translation>כדי לברר מדוע יציאה אינה נפתחת. תוכנה שמשתמשת בזה שואלת אתכם קודם, וצינור שרק אתם יכולים לפתוח קיים רק כל עוד האפשרות מופעלת. היא יכולה לקרוא את מצב היציאות ואת הקריאות ש-Studio ביצע אל Windows. היא אינה יכולה לקרוא את הבתים שהיציאות שלכם נושאות אלא אם תפעילו את המתג השני. שום דבר אינו נשלח לשום מקום, והאפשרות כבויה בכל הפעלה של Studio. כל שימוש נרשם ביומן בתיקיית הנתונים של Studio.</translation>
+        </message>
+        <message>
+            <source>%1 (process %2): %3</source>
+            <translation>%1 (תהליך %2): %3</translation>
+        </message>
     </context>
     <context>
         <name>SetupCheck</name>
@@ -10559,6 +10583,10 @@ Networks: %5</source>
             <location filename="../src/shell/status_bar.cpp" line="171" />
             <source>Open Tools, Setup check for the details.</source>
             <translation>לפרטים, פתחו כלים, בדיקת הגדרות.</translation>
+        </message>
+        <message>
+            <source>Press to turn it off.</source>
+            <translation>לחצו כדי לכבות.</translation>
         </message>
     </context>
     <context>
@@ -21860,6 +21888,14 @@ Networks: %5</source>
                 <numerusform>%n קבצים</numerusform>
             </translation>
         </message>
+        <message>
+            <source>Calls to Windows</source>
+            <translation>קריאות אל Windows</translation>
+        </message>
+        <message>
+            <source>The calls Studio made to Windows and its libraries that failed, with the code Windows gave and the calls around each. Not the bytes your ports carry. Off unless you turn it on.</source>
+            <translation>הקריאות ש-Studio ביצע אל Windows ואל הספריות שלו ושנכשלו, עם הקוד ש-Windows החזיר והקריאות סביב כל אחת. לא הבתים שהיציאות שלכם נושאות. כבוי אלא אם תפעילו.</translation>
+        </message>
     </context>
     <context>
         <name>SupportDialog</name>
@@ -24685,6 +24721,77 @@ From the plugin %2
             <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
             <source>Stop bits</source>
             <translation>סיביות עצירה</translation>
+        </message>
+    </context>
+    <context>
+        <name>DebugAccess</name>
+        <message>
+            <source>Debug access is off.</source>
+            <translation>גישת ניפוי השגיאות כבויה.</translation>
+        </message>
+        <message>
+            <source>Debug access is on. Programs on this computer that you allow can read what Studio is doing.</source>
+            <translation>גישת ניפוי השגיאות פועלת. תוכנות במחשב זה שתאשרו יכולות לקרוא מה Studio עושה.</translation>
+        </message>
+        <message>
+            <source>Programs connected: %1.</source>
+            <translation>תוכנות מחוברות: %1.</translation>
+        </message>
+        <message>
+            <source>The bytes of traffic can be read.</source>
+            <translation>ניתן לקרוא את בתי התעבורה.</translation>
+        </message>
+        <message>
+            <source>Debug access on</source>
+            <translation>גישת ניפוי שגיאות פועלת</translation>
+        </message>
+        <message>
+            <source>Debug access on (%1 connected)</source>
+            <translation>גישת ניפוי שגיאות פועלת (%1 מחוברות)</translation>
+        </message>
+        <message>
+            <source>read the state of Studio's ports, its engine and Windows</source>
+            <translation>לקרוא את מצב היציאות של Studio, המנוע שלו ו-Windows</translation>
+        </message>
+        <message>
+            <source>try operations on ports, which can change them</source>
+            <translation>לנסות פעולות על יציאות, דבר שעשוי לשנות אותן</translation>
+        </message>
+        <message>
+            <source>read what the window shows and take a picture of it, which can show names and paths</source>
+            <translation>לקרוא מה שהחלון מציג ולצלם אותו, מה שעשוי להציג שמות ונתיבים</translation>
+        </message>
+        <message>
+            <source>read the bytes your ports carry, when the traffic switch is on</source>
+            <translation>לקרוא את הבתים שהיציאות שלכם נושאות, כשמתג התעבורה פועל</translation>
+        </message>
+        <message>
+            <source>%1 (process %2) wants to:%3
+
+Program: %4</source>
+            <translation>%1 (תהליך %2) רוצה:%3
+
+תוכנה: %4</translation>
+        </message>
+        <message>
+            <source>not known</source>
+            <translation>לא ידוע</translation>
+        </message>
+        <message>
+            <source>Don't allow</source>
+            <translation>לא לאפשר</translation>
+        </message>
+        <message>
+            <source>Allow once</source>
+            <translation>לאפשר פעם אחת</translation>
+        </message>
+        <message>
+            <source>Allow until Studio quits</source>
+            <translation>לאפשר עד ש-Studio ייסגר</translation>
+        </message>
+        <message>
+            <source>Allow this program to use debug access?</source>
+            <translation>לאפשר לתוכנה זו להשתמש בגישת ניפוי השגיאות?</translation>
         </message>
     </context>
 </TS>

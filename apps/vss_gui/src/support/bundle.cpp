@@ -12,6 +12,7 @@
 
 #include <vss/config/document.hpp>
 #include <vss/core/profile.hpp>
+#include <vss/debug/trace_text.hpp>
 #include <vss/license/license.hpp>
 
 #include <QCoreApplication>
@@ -466,6 +467,12 @@ bundle_contents build_bundle(const StudioBackend& backend, const EventLog& log,
         contents.sections.push_back(section(
             "serial-ports", "Serial ports on this computer", "serial-ports.txt",
             cleaned(serial_ports_text(backend), identity)));
+    if (selection.call_trace)
+        contents.sections.push_back(section(
+            "trace", "Calls to Windows", "trace.txt",
+            cleaned(QString::fromStdString(vss::debug::failure_context_text(
+                        vss::trace::recorder::global())),
+                    identity)));
     if (selection.licence && bundle_has_licence(backend))
     {
         bundle_identity kept = identity;

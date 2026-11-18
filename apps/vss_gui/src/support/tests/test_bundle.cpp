@@ -12,6 +12,8 @@
 #include "support/bundle.hpp"
 #include "support/event_log.hpp"
 
+#include <vss/trace/recorder.hpp>
+
 #include "licence_samples.hpp"
 #include "test_framework.hpp"
 
@@ -275,6 +277,36 @@ TEST_CASE("support bundle: the manifest lists exactly the sections that "
         QLatin1String(support::kReservedTrafficSection)));
     for (const support::bundle_file& file : files)
         REQUIRE(!file.name.startsWith(QStringLiteral("traffic")));
+}
+
+TEST_CASE("support bundle: the call trace is off until it is turned on")
+{
+    FakeStudioBackend backend;
+    support::EventLog log;
+
+    // The default selection leaves it out, and its own is the only way in.
+    const support::bundle_contents plain = support::build_bundle(
+        backend, log, support::bundle_selection{}, markers(), created());
+    REQUIRE(!manifest_ids(plain).contains(QStringLiteral("trace")));
+    REQUIRE(file_named(plain, QStringLiteral("trace.txt")) == nullptr);
+
+    vss::trace::call_scope failing("SetCommState", 0, "COM5");
+    failing.fail(
+        boost::system::error_code(5, boost::system::system_category()));
+
+    support::bundle_selection with_trace;
+    with_trace.call_trace = true;
+    const support::bundle_contents full =
+        support::build_bundle(backend, log, with_trace, markers(), created());
+    REQUIRE(manifest_ids(full).contains(QStringLiteral("trace")));
+    const support::bundle_file* trace =
+        file_named(full, QStringLiteral("trace.txt"));
+    REQUIRE(trace != nullptr);
+    const QString text = QString::fromUtf8(trace->data);
+    REQUIRE(text.contains(QStringLiteral("SetCommState")));
+    REQUIRE(text.contains(QStringLiteral("FAILED system:5")));
+    // It says it holds no traffic.
+    REQUIRE(text.contains(QStringLiteral("not recorded")));
 }
 
 TEST_CASE("support bundle: without a licence there is no licence section")

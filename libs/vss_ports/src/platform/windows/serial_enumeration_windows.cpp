@@ -5,6 +5,7 @@
 //
 
 #include <vss/core/profile.hpp>
+#include <vss/trace/recorder.hpp>
 
 #include "../serial_enumeration_platform.hpp"
 
@@ -77,14 +78,29 @@ std::optional<std::vector<unsigned char>> read_com_db()
     DWORD size = 0;
     constexpr const wchar_t* key =
         L"SYSTEM\\CurrentControlSet\\Control\\COM Name Arbiter";
-    if (::RegGetValueW(HKEY_LOCAL_MACHINE, key, L"ComDB", RRF_RT_REG_BINARY,
-                       nullptr, nullptr, &size) != ERROR_SUCCESS ||
-        size == 0)
+    const LONG sized =
+        ::RegGetValueW(HKEY_LOCAL_MACHINE, key, L"ComDB", RRF_RT_REG_BINARY,
+                       nullptr, nullptr, &size);
+    if (sized != ERROR_SUCCESS || size == 0)
+    {
+        trace::record_failure(
+            "RegGetValueW(ComDB)", 0, "COM Name Arbiter",
+            boost::system::error_code(static_cast<int>(sized),
+                                      boost::system::system_category()));
         return std::nullopt;
+    }
     std::vector<unsigned char> bitmap(size);
-    if (::RegGetValueW(HKEY_LOCAL_MACHINE, key, L"ComDB", RRF_RT_REG_BINARY,
-                       nullptr, bitmap.data(), &size) != ERROR_SUCCESS)
+    const LONG read =
+        ::RegGetValueW(HKEY_LOCAL_MACHINE, key, L"ComDB", RRF_RT_REG_BINARY,
+                       nullptr, bitmap.data(), &size);
+    if (read != ERROR_SUCCESS)
+    {
+        trace::record_failure(
+            "RegGetValueW(ComDB)", 0, "COM Name Arbiter",
+            boost::system::error_code(static_cast<int>(read),
+                                      boost::system::system_category()));
         return std::nullopt;
+    }
     bitmap.resize(size);
     return bitmap;
 }
