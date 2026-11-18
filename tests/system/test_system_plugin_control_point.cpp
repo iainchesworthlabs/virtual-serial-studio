@@ -612,7 +612,7 @@ TEST_CASE("plugin control point: a text of the longest size is not bad_request")
     fields += peer;
     fields += R"(","reason":")";
     fields += reason;
-    fields += R"(")";
+    fields += '"';
     REQUIRE(rig.offer(request_with(fields)));
     REQUIRE_EQ(code_of(rig.wait_answer(7)), code_name(api_errc::not_granted));
     REQUIRE_EQ(rig.approvals().size(), std::size_t{1});

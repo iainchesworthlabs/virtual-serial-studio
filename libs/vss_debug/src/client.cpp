@@ -79,7 +79,7 @@ find_instances(const std::filesystem::path& directory)
 class client::impl
 {
 public:
-    explicit impl(std::chrono::milliseconds timeout) : timeout(timeout) {}
+    explicit impl(std::chrono::milliseconds limit) : timeout(limit) {}
 
     result<std::optional<agent::frame>>
     read_frame(std::chrono::steady_clock::time_point deadline)

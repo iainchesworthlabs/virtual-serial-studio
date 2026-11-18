@@ -544,10 +544,10 @@ struct rfc2217_client_transport::state
         std::vector<line_break> due;
         while (!marks.empty() && marks.front().at <= consumed)
         {
-            const auto& mark = marks.front().item;
-            if (!mark)
+            const auto& pending_break = marks.front().item;
+            if (!pending_break)
                 break;
-            due.push_back(*mark);
+            due.push_back(*pending_break);
             marks.pop_front();
         }
 
