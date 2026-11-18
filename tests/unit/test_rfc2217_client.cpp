@@ -37,7 +37,7 @@ namespace
 
 constexpr char iac = static_cast<char>(255);
 constexpr char dont = static_cast<char>(254);
-constexpr char do_ = static_cast<char>(253);
+constexpr char do_option = static_cast<char>(253);
 constexpr char wont = static_cast<char>(252);
 constexpr char will = static_cast<char>(251);
 constexpr char sb = static_cast<char>(250);
@@ -133,7 +133,7 @@ struct server
     /// The server agrees to the COM-PORT option.
     void agree()
     {
-        send(command(do_, com_port) + command(will, com_port));
+        send(command(do_option, com_port) + command(will, com_port));
     }
 };
 
@@ -241,8 +241,9 @@ TEST_CASE("rfc2217 client: the greeting offers COM-PORT, BINARY and SGA")
 {
     rfc2217::client_session session;
     REQUIRE_EQ(session.greeting(),
-               command(will, 44) + command(do_, 44) + command(will, 0) +
-                   command(do_, 0) + command(will, 3) + command(do_, 3));
+               command(will, 44) + command(do_option, 44) + command(will, 0) +
+                   command(do_option, 0) + command(will, 3) +
+                   command(do_option, 3));
 }
 
 TEST_CASE("rfc2217 client: the server's answers make COM-PORT active and "
@@ -252,8 +253,8 @@ TEST_CASE("rfc2217 client: the server's answers make COM-PORT active and "
     (void)session.greeting();
     REQUIRE(!session.com_port_active());
 
-    const auto fed = session.feed(command(do_, 44) + command(will, 44) +
-                                  command(do_, 0) + command(will, 0));
+    const auto fed = session.feed(command(do_option, 44) + command(will, 44) +
+                                  command(do_option, 0) + command(will, 0));
     REQUIRE(fed.reply.empty());
     REQUIRE(fed.com_port_changed);
     REQUIRE(session.com_port_active());
@@ -265,7 +266,7 @@ TEST_CASE("rfc2217 client: a server that wants an option we did not offer is "
 {
     rfc2217::client_session session;
     (void)session.greeting();
-    const auto fed = session.feed(command(do_, 1) + command(will, 1));
+    const auto fed = session.feed(command(do_option, 1) + command(will, 1));
     REQUIRE_EQ(fed.reply, command(wont, 1) + command(dont, 1));
 
     const auto refused = session.feed(command(dont, 44) + command(wont, 44));
@@ -762,8 +763,11 @@ TEST_CASE("rfc2217 client: the request forms ask and the answers are read")
         head + std::string("\x68\x02", 2) + tail);
     REQUIRE(fed.answers.baud_rate.has_value());
     REQUIRE_EQ(*fed.answers.baud_rate, 9600U);
+    REQUIRE(fed.answers.data_bits.has_value());
     REQUIRE_EQ(*fed.answers.data_bits, 7U);
+    REQUIRE(fed.answers.parity.has_value());
     REQUIRE(*fed.answers.parity == parity_mode::even);
+    REQUIRE(fed.answers.stop_bits.has_value());
     REQUIRE(*fed.answers.stop_bits == stop_bits_mode::two);
 
     // A zero or an unknown code says nothing.

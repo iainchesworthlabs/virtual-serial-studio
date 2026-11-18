@@ -608,8 +608,12 @@ TEST_CASE("plugin control point: a text of the longest size is not bad_request")
 
     const std::string peer(vss::plugin::host::max_control_peer_size, 'p');
     const std::string reason(vss::plugin::host::max_control_reason_size, 'r');
-    REQUIRE(rig.offer(request_with(R"("scopes":["monitor"],"peer":")" + peer +
-                                   R"(","reason":")" + reason + R"(")")));
+    std::string fields = R"("scopes":["monitor"],"peer":")";
+    fields += peer;
+    fields += R"(","reason":")";
+    fields += reason;
+    fields += R"(")";
+    REQUIRE(rig.offer(request_with(fields)));
     REQUIRE_EQ(code_of(rig.wait_answer(7)), code_name(api_errc::not_granted));
     REQUIRE_EQ(rig.approvals().size(), std::size_t{1});
 }

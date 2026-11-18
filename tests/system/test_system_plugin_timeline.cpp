@@ -165,10 +165,11 @@ struct rig
         context.executor = io.get_executor();
         context.link.answer = [this](std::uint64_t re, api_message message)
         { answers.push_back(answered{re, std::move(message)}); };
-        context.link.notify = [](api_message) {};
-        context.link.request = [](api_message,
-                                  vss::plugin::host::plugin_link::answer_handler,
-                                  std::chrono::milliseconds) {};
+        context.link.notify = [](const api_message&) {};
+        context.link.request =
+            [](const api_message&,
+               const vss::plugin::host::plugin_link::answer_handler&,
+               std::chrono::milliseconds) {};
         handler = make_timeline_point(
             context,
             [this](std::string_view name) -> std::shared_ptr<vss::endpoint>
@@ -386,9 +387,10 @@ TEST_CASE("a replay keeps the chunk boundaries and times of the recording")
     {
         auto next = place->next();
         REQUIRE(next.has_value());
-        if (!next->has_value())
+        const auto& found = *next;
+        if (!found.has_value())
             break;
-        const auto& event = **next;
+        const auto& event = *found;
         if (event.direction != vss::data_direction::rx)
             continue;
         REQUIRE(index < chunks.size());

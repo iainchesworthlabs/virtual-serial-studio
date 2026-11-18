@@ -1813,6 +1813,9 @@ TEST_CASE("studio: a snapshot passes validation for a port that holds a uri")
     }
 }
 
+namespace
+{
+
 /// A port number that is free now, found by asking the system.
 std::string free_port_text()
 {
@@ -1831,6 +1834,8 @@ std::string free_port_text()
         }
     }
 }
+
+} // namespace
 
 TEST_CASE("studio: two listening ports cannot share an address and a port")
 {

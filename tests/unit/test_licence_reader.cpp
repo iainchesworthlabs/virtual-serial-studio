@@ -685,7 +685,7 @@ TEST_CASE("licence reader: agrees with Studio's library on envelopes")
         text +=
             ",\"payload\":\"" + body + "\",\"signature\":\"" + signature + "\"";
         text += extra;
-        text += "}";
+        text += '}';
         return text;
     };
     const std::string licence = "\"licence\"";
