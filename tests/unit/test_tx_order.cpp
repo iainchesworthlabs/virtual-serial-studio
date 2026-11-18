@@ -49,7 +49,8 @@ tx_break_mark ended(std::uint64_t on_time, std::uint64_t off_time,
     return mark;
 }
 
-/// The pieces as text: bytes as themselves, a break as [begin], [end] or [break].
+/// The pieces as text: bytes as themselves, a break as [begin], [end] or
+/// [break].
 std::string show(const std::vector<tx_piece>& pieces)
 {
     std::string out;
@@ -61,9 +62,15 @@ std::string show(const std::vector<tx_piece>& pieces)
             out.append(piece.bytes.begin(), piece.bytes.end());
             out += '|';
             break;
-        case kind::break_begin: out += "[begin]"; break;
-        case kind::break_end: out += "[end]"; break;
-        case kind::break_complete: out += "[break]"; break;
+        case kind::break_begin:
+            out += "[begin]";
+            break;
+        case kind::break_end:
+            out += "[end]";
+            break;
+        case kind::break_complete:
+            out += "[break]";
+            break;
         }
     }
     return out;
@@ -80,7 +87,8 @@ TEST_CASE("tx order: bytes with no marks pass straight through")
     REQUIRE(!out[0].stamp.has_value());
 }
 
-TEST_CASE("tx order: a break falls between the bytes written before and after it")
+TEST_CASE(
+    "tx order: a break falls between the bytes written before and after it")
 {
     tx_order order;
     const std::vector<tx_break_mark> breaks{ended(200, 5200, 2, 2)};
@@ -96,7 +104,8 @@ TEST_CASE("tx order: a break falls between the bytes written before and after it
 TEST_CASE("tx order: a break at the start or the end of the bytes")
 {
     tx_order order;
-    const std::vector<tx_break_mark> breaks{ended(1, 2, 0, 0), ended(3, 4, 2, 2)};
+    const std::vector<tx_break_mark> breaks{ended(1, 2, 0, 0),
+                                            ended(3, 4, 2, 2)};
     order.add_marks(breaks, {});
     order.add_bytes(bytes_of("AB"));
     REQUIRE_EQ(show(order.take()), std::string("[break]AB|[break]"));
@@ -205,7 +214,8 @@ TEST_CASE("tx order: marks may come in a later call than the bytes before them")
     REQUIRE_EQ(*out[1].stamp, 500u);
 }
 
-TEST_CASE("tx order: a restart forgets the bytes and keeps a break that is held")
+TEST_CASE(
+    "tx order: a restart forgets the bytes and keeps a break that is held")
 {
     tx_order order;
     order.add_marks(std::vector<tx_break_mark>{held(10, 0)}, {});
@@ -227,7 +237,8 @@ TEST_CASE("tx order: a restart forgets the bytes and keeps a break that is held"
     REQUIRE_EQ(show(order.take()), std::string("[end]C|"));
 }
 
-TEST_CASE("tx order: a break that ended while the hub had no handle ends at settle")
+TEST_CASE(
+    "tx order: a break that ended while the hub had no handle ends at settle")
 {
     tx_order order;
     order.add_marks(std::vector<tx_break_mark>{held(10, 0)}, {});
