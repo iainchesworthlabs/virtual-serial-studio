@@ -23,8 +23,8 @@
 #include <condition_variable>
 #include <future>
 #include <memory>
-#include <optional>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -56,7 +56,8 @@ public:
         }
         catch (...)
         {
-            // best effort: a destructor must not throw, and nothing can act on a failed stop
+            // best effort: a destructor must not throw, and nothing can act on
+            // a failed stop
         }
         if (thread_.joinable())
             thread_.join();
@@ -75,45 +76,53 @@ public:
     /// Hangs up on the client, as a server that restarted would.
     void drop()
     {
-        asio::post(io_, [this] {
-            boost::system::error_code ignored;
-            if (socket_)
-                socket_->close(ignored);
-            socket_.reset();
-        });
+        asio::post(io_,
+                   [this]
+                   {
+                       boost::system::error_code ignored;
+                       if (socket_)
+                           socket_->close(ignored);
+                       socket_.reset();
+                   });
     }
 
     /// Refuses new connections until #resume.
     void pause()
     {
         std::promise<void> done;
-        asio::post(io_, [this, &done] {
-            boost::system::error_code ignored;
-            acceptor_->close(ignored);
-            done.set_value();
-        });
+        asio::post(io_,
+                   [this, &done]
+                   {
+                       boost::system::error_code ignored;
+                       acceptor_->close(ignored);
+                       done.set_value();
+                   });
         done.get_future().wait();
     }
 
     void resume()
     {
         std::promise<void> done;
-        asio::post(io_, [this, &done] {
-            listen(port_);
-            done.set_value();
-        });
+        asio::post(io_,
+                   [this, &done]
+                   {
+                       listen(port_);
+                       done.set_value();
+                   });
         done.get_future().wait();
     }
 
     void send(const std::string& text)
     {
         std::promise<void> done;
-        asio::post(io_, [this, &text, &done] {
-            boost::system::error_code ignored;
-            if (socket_)
-                asio::write(*socket_, asio::buffer(text), ignored);
-            done.set_value();
-        });
+        asio::post(io_,
+                   [this, &text, &done]
+                   {
+                       boost::system::error_code ignored;
+                       if (socket_)
+                           asio::write(*socket_, asio::buffer(text), ignored);
+                       done.set_value();
+                   });
         done.get_future().wait();
     }
 
@@ -126,9 +135,9 @@ private:
         REQUIRE(!error);
         acceptor_->set_option(asio::socket_base::reuse_address(true), error);
         // Loopback only: a bind to every address makes Windows Firewall ask.
-        acceptor_->bind(asio::ip::tcp::endpoint(
-                            asio::ip::address_v4::loopback(), port),
-                        error);
+        acceptor_->bind(
+            asio::ip::tcp::endpoint(asio::ip::address_v4::loopback(), port),
+            error);
         REQUIRE(!error);
         port_ = acceptor_->local_endpoint().port();
         acceptor_->listen(asio::socket_base::max_listen_connections, error);
@@ -139,7 +148,9 @@ private:
     void accept()
     {
         acceptor_->async_accept(
-            [this](boost::system::error_code error, asio::ip::tcp::socket socket) {
+            [this](boost::system::error_code error,
+                   asio::ip::tcp::socket socket)
+            {
                 if (error)
                     return;
                 socket_ = std::move(socket);
@@ -155,7 +166,8 @@ private:
             return;
         socket_->async_read_some(
             asio::buffer(buffer_),
-            [this](boost::system::error_code error, std::size_t count) {
+            [this](boost::system::error_code error, std::size_t count)
+            {
                 if (error)
                     return;
                 {
@@ -204,7 +216,8 @@ struct log_watch
     {
         id = app.engine().subscribe(
             event_filter{std::nullopt, event_kind::log_message},
-            [mutex = mutex, lines = lines](const endpoint_event& event) {
+            [mutex = mutex, lines = lines](const endpoint_event& event)
+            {
                 std::lock_guard lock(*mutex);
                 lines->push_back(event.message);
             });
@@ -242,9 +255,8 @@ public:
     {
         studio_options made;
         made.make_transport = [this](const transport::executor_type& executor,
-                                     const std::string&,
-                                     const serial_settings*, error_code&)
-        { return open(executor); };
+                                     const std::string&, const serial_settings*,
+                                     error_code&) { return open(executor); };
         return made;
     }
 
@@ -406,7 +418,8 @@ TEST_CASE("reopen: the links of the port stay")
     studio app;
     const auto remote = app.attach_serial("remote", uri_of(server));
     REQUIRE(remote);
-    const auto local = app.create_virtual_port("local", virtual_port_kind::loopback);
+    const auto local =
+        app.create_virtual_port("local", virtual_port_kind::loopback);
     REQUIRE(local);
     const auto link = app.connect("remote", "local");
     REQUIRE(link);
@@ -423,11 +436,12 @@ TEST_CASE("reopen: the links of the port stay")
     // A link made before the loss still joins the two.
     REQUIRE_EQ(app.link_infos().size(), std::size_t{1});
     server.send("through");
-    REQUIRE(wait_until(
-        [&] { return (*local)->stats().bytes_tx >= 7; }, 5000ms));
+    REQUIRE(
+        wait_until([&] { return (*local)->stats().bytes_tx >= 7; }, 5000ms));
 }
 
-TEST_CASE("reopen: a server that is still down reports why and the port stays down")
+TEST_CASE(
+    "reopen: a server that is still down reports why and the port stays down")
 {
     tcp_server server;
     studio app;
@@ -460,7 +474,8 @@ TEST_CASE("reopen: what cannot be made again says so")
 
     const auto fixture = app.create_mock_port("fixture");
     REQUIRE(fixture);
-    REQUIRE_EQ(app.reopen((*fixture)->id()), make_error_code(errc::unsupported));
+    REQUIRE_EQ(app.reopen((*fixture)->id()),
+               make_error_code(errc::unsupported));
 }
 
 TEST_CASE("reopen: a listener binds its address again")
@@ -578,8 +593,8 @@ TEST_CASE("stop_port: a stopped client stays closed and is not retried")
 TEST_CASE("stop_port: a port with no address cannot be stopped")
 {
     studio app;
-    const auto port = app.create_virtual_port("plain",
-                                              virtual_port_kind::loopback);
+    const auto port =
+        app.create_virtual_port("plain", virtual_port_kind::loopback);
     REQUIRE(port);
     REQUIRE(!app.port_stopped((*port)->id()).has_value());
     REQUIRE_EQ(app.stop_port((*port)->id()).error(),
@@ -599,8 +614,8 @@ TEST_CASE("stop_port: starting a client whose server refuses keeps trying")
 
     server.pause();
     REQUIRE(app.start_port((*port)->id()));
-    REQUIRE(wait_until(
-        [&] { return app.connection((*port)->id())->retrying; }, 5000ms));
+    REQUIRE(wait_until([&] { return app.connection((*port)->id())->retrying; },
+                       5000ms));
     server.resume();
     REQUIRE(wait_until([&] { return server.accepted() == 2; }, 5000ms));
     REQUIRE(wait_for_state(*port, endpoint_state::open));
@@ -660,7 +675,8 @@ TEST_CASE("pause_port: a setup with a paused port opens it paused")
     REQUIRE(wait_for_state(port, endpoint_state::open));
 }
 
-TEST_CASE("apply: a client whose server refuses is made, and the rest of the setup opens")
+TEST_CASE("apply: a client whose server refuses is made, and the rest of the "
+          "setup opens")
 {
     tcp_server server;
     studio first;
@@ -687,8 +703,8 @@ TEST_CASE("apply: a client whose server refuses is made, and the rest of the set
 TEST_CASE("pause_port: a port with no address cannot be paused")
 {
     studio app;
-    const auto port = app.create_virtual_port("plain",
-                                              virtual_port_kind::loopback);
+    const auto port =
+        app.create_virtual_port("plain", virtual_port_kind::loopback);
     REQUIRE(port);
     REQUIRE(!app.port_paused((*port)->id()).has_value());
     REQUIRE_EQ(app.pause_port((*port)->id()).error(),
@@ -708,7 +724,8 @@ TEST_CASE("reconnect: it keeps trying while the server is down")
 
     server.pause();
     server.drop();
-    REQUIRE(wait_until([&] { return watch.saw("could not reconnect"); }, 5000ms));
+    REQUIRE(
+        wait_until([&] { return watch.saw("could not reconnect"); }, 5000ms));
     REQUIRE((*port)->state() == endpoint_state::closed);
 
     server.resume();
@@ -823,8 +840,8 @@ TEST_CASE("reopen: a port removed while its new connection is made stays "
 
     // The connection takes its time, and the port is removed meanwhile.
     opener.hold_next();
-    auto outcome = std::async(std::launch::async, [&app, id]
-                              { return app.reopen(id); });
+    auto outcome =
+        std::async(std::launch::async, [&app, id] { return app.reopen(id); });
     REQUIRE(opener.wait_entered());
     REQUIRE(app.remove_port(id));
     opener.release();
@@ -855,8 +872,8 @@ TEST_CASE("reopen: a port that File > Open replaces while its new connection "
     REQUIRE(wait_for_state(old_port, endpoint_state::closed));
 
     opener.hold_next();
-    auto outcome = std::async(std::launch::async, [&app, id]
-                              { return app.reopen(id); });
+    auto outcome =
+        std::async(std::launch::async, [&app, id] { return app.reopen(id); });
     REQUIRE(opener.wait_entered());
 
     // A setup in which the port differs: it is removed and made again.
@@ -934,8 +951,8 @@ TEST_CASE("reopen: a removal that races the hand-over leaves nothing running")
         }
 
         opener.hold_next();
-        auto outcome = std::async(std::launch::async, [&app, id]
-                                  { return app.reopen(id); });
+        auto outcome = std::async(std::launch::async,
+                                  [&app, id] { return app.reopen(id); });
         REQUIRE(opener.wait_entered());
         opener.release();
         REQUIRE(app.remove_port(id));
@@ -945,8 +962,8 @@ TEST_CASE("reopen: a removal that races the hand-over leaves nothing running")
         const auto made = opener.transport_at(fresh);
         REQUIRE(wait_until([&] { return !made->is_open(); }, 10000ms));
         // `made` is an owner too.
-        REQUIRE(wait_until([&] { return opener.owners_of(fresh) == 2; },
-                           10000ms));
+        REQUIRE(
+            wait_until([&] { return opener.owners_of(fresh) == 2; }, 10000ms));
         REQUIRE(app.engine().find_endpoint(id) == nullptr);
         REQUIRE(app.endpoint_infos().empty());
     }
@@ -989,11 +1006,10 @@ public:
     studio_options options()
     {
         studio_options made;
-        made.make_transport = [this](const transport::executor_type& executor,
-                                     const std::string&,
-                                     const serial_settings* settings,
-                                     error_code& ec)
-            -> std::shared_ptr<transport>
+        made.make_transport =
+            [this](const transport::executor_type& executor, const std::string&,
+                   const serial_settings* settings,
+                   error_code& ec) -> std::shared_ptr<transport>
         {
             std::lock_guard lock(mutex_);
             if (refuse_)
@@ -1006,8 +1022,8 @@ public:
                 if (handle->is_open())
                 {
                     ++denied_;
-                    ec = make_error_code(
-                        boost::system::errc::permission_denied);
+                    ec =
+                        make_error_code(boost::system::errc::permission_denied);
                     return nullptr;
                 }
             }
