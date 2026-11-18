@@ -26,6 +26,7 @@
 #include <array>
 #include <cstdint>
 #include <deque>
+#include <iterator>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -268,13 +269,17 @@ struct rfc2217_client_transport::state
                 [self = shared_from_this()](error_code ec, std::size_t)
                 {
                     self->writing = false;
+                    // The write being done is still at the front: #abort_writes
+                    // leaves it, as its bytes are what the socket was given.
+                    auto done = std::move(self->queue.front());
+                    self->queue.pop_front();
                     if (ec)
                     {
+                        if (done.handler)
+                            self->complete(std::move(done.handler), ec, 0);
                         self->fail(ec);
                         return;
                     }
-                    auto done = std::move(self->queue.front());
-                    self->queue.pop_front();
                     if (done.handler)
                         self->complete(std::move(done.handler), {}, done.count);
                     self->write_next();
@@ -582,8 +587,13 @@ struct rfc2217_client_transport::state
 
     void abort_writes(error_code ec)
     {
-        auto waiting = std::move(queue);
-        queue.clear();
+        // A write the socket has been given stays at the front until its
+        // completion runs: it holds the bytes the socket reads, and the
+        // completion takes it off the queue.
+        const auto kept = writing ? queue.begin() + 1 : queue.begin();
+        std::vector<outgoing> waiting(std::make_move_iterator(kept),
+                                      std::make_move_iterator(queue.end()));
+        queue.erase(kept, queue.end());
         for (auto& item : waiting)
             if (item.handler)
                 complete(std::move(item.handler), ec, 0);

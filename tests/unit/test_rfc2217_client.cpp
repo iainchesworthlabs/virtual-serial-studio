@@ -773,3 +773,34 @@ TEST_CASE("rfc2217 client: the request forms ask and the answers are read")
     REQUIRE(!none.answers.baud_rate.has_value());
     REQUIRE(!none.answers.parity.has_value());
 }
+
+TEST_CASE("rfc2217 client: a write that is on its way when the port closes "
+          "is completed once, and the one behind it is refused")
+{
+    // Nothing runs until `run`, so the order is as set here: the greeting goes
+    // to the socket, a write is queued behind it, the port closes, and then
+    // the greeting's completion comes. That completion must take the greeting
+    // off the queue and leave the write behind it to the close, which refuses
+    // it. This does not fail on every build without the fix (the empty queue
+    // is read, not trapped), so it is a check of the path and not a proof.
+    server remote;
+    asio::io_context io;
+    error_code ec;
+    rfc2217_client_transport client(io.get_executor(), remote.uri(), ec);
+    REQUIRE(!ec);
+
+    int completed = 0;
+    error_code result;
+    const std::string payload = "ping";
+    client.async_write_some(asio::buffer(payload),
+                            [&](error_code code, std::size_t)
+                            {
+                                ++completed;
+                                result = code;
+                            });
+    client.close();
+    io.run();
+
+    REQUIRE_EQ(completed, 1);
+    REQUIRE(result == asio::error::operation_aborted);
+}
