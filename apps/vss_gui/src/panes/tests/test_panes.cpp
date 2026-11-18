@@ -1661,23 +1661,49 @@ TEST_CASE("chips: the Inspector's state chip is the Ports table's chip")
                            vss::gui::PortDelegate::state_chip_width(text));
                 REQUIRE_EQ(chip.sizeHint().height(),
                            StatusChip::chip_height(true));
-                // The widget draws exactly what the shared code draws.
+                // The widget draws what the shared code draws. Both go onto
+                // an opaque image of the widget's own background. Everything
+                // but the text must match to the pixel. The text may differ
+                // in the colour fringes of sub-pixel antialiasing, whose
+                // order the widget path takes from the screen and a plain
+                // painter from the font settings, so there it must put ink
+                // on the same pixels, close in colour.
                 chip.resize(chip.sizeHint());
-                QImage widget_image(chip.size(),
-                                    QImage::Format_ARGB32_Premultiplied);
-                widget_image.fill(Qt::transparent);
+                const QColor background = chip.palette().window().color();
+                QImage widget_image(chip.size(), QImage::Format_RGB32);
+                widget_image.fill(background);
                 chip.render(&widget_image);
-                QImage shared_image(chip.size(),
-                                    QImage::Format_ARGB32_Premultiplied);
-                // The widget's own background shows outside the rounded
-                // corner; the shared drawing goes over the same one.
-                shared_image.fill(widget_image.pixelColor(0, 0));
+                QImage shared_image(chip.size(), QImage::Format_RGB32);
+                shared_image.fill(background);
                 {
                     QPainter painter(&shared_image);
                     StatusChip::paint(&painter, QRect(QPoint(0, 0), chip.size()),
                                       text, kind);
                 }
-                REQUIRE(widget_image == shared_image);
+                const int text_left =
+                    chip.width() - 12 -
+                    QFontMetrics(StatusChip::chip_font())
+                        .horizontalAdvance(text);
+                for (int y = 0; y < widget_image.height(); ++y)
+                {
+                    for (int x = 0; x < widget_image.width(); ++x)
+                    {
+                        const QRgb mine = widget_image.pixel(x, y);
+                        const QRgb theirs = shared_image.pixel(x, y);
+                        if (x < text_left - 1)
+                        {
+                            REQUIRE_EQ(mine, theirs);
+                            continue;
+                        }
+                        // In the text area: the same brightness to within
+                        // the fringe, whatever its colour order.
+                        const int bright_mine =
+                            qRed(mine) + qGreen(mine) + qBlue(mine);
+                        const int bright_theirs =
+                            qRed(theirs) + qGreen(theirs) + qBlue(theirs);
+                        REQUIRE(std::abs(bright_mine - bright_theirs) <= 96);
+                    }
+                }
             }
         }
     }
