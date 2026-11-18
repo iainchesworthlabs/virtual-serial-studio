@@ -312,6 +312,11 @@ struct plugin_view
     bool has_licence_report = false;
     vss::license::reason licence_report_reason = vss::license::reason::ok;
     plugin_trust used_copy_trust = plugin_trust::unsigned_plugin;
+    /// Where the copy that runs instead of this one is installed.
+    plugin_installed_for used_copy_installed_for =
+        plugin_installed_for::everyone;
+    /// The copy that runs instead of this one is known.
+    bool has_used_copy = false;
     plugin_isolation isolation = plugin_isolation::none;
     plugin_timing timing = plugin_timing::by_studio;
     int back_off_seconds = 0;
@@ -407,6 +412,12 @@ struct plugin_inspection_view
         not_a_plugin,
         /// A plugin with this id is installed for the user already.
         already_installed,
+        /// A plugin with this id is installed for everyone on the computer,
+        /// and that copy is the one that runs.
+        installed_for_everyone,
+        /// A plugin with this id came with Studio, and that copy is the one
+        /// that runs.
+        came_with_studio,
         /// The user's own plugin folder is off, or cannot be written.
         cannot_write
     };
@@ -440,6 +451,10 @@ enum class plugin_request_error
     not_a_plugin,
     /// "<plugin name> is already installed for you..."
     already_installed,
+    /// "<plugin name> is already installed for everyone..."
+    installed_for_everyone,
+    /// "<plugin name> came with Studio..."
+    came_with_studio,
     /// The per-user folders are off, or the copy failed.
     cannot_write,
     /// The key file's fingerprint is not the one the user confirmed.

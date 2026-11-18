@@ -641,6 +641,14 @@ PluginInstallDialog::PluginInstallDialog(PluginBackend& backend,
                       "a different copy.")
                       .arg(plain_text(plugin.name));
         break;
+    case problem::installed_for_everyone:
+        refusal = installed_elsewhere_text(plugin_installed_for::everyone,
+                                           plugin.name);
+        break;
+    case problem::came_with_studio:
+        refusal = installed_elsewhere_text(plugin_installed_for::with_studio,
+                                           plugin.name);
+        break;
     case problem::cannot_write:
         refusal = QCoreApplication::translate(
             "PluginsDialog",

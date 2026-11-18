@@ -23100,8 +23100,33 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
-            <source>The copy installed for everyone is used. This copy, installed for you only, is not.</source>
-            <translation>די קאָפּיע אינסטאַלירט פֿאַר אַלעמען ווערט גענוצט. די דאָזיקע קאָפּיע, אינסטאַלירט נאָר פֿאַר אײַך, ווערט נישט גענוצט.</translation>
+            <source>The copy that came with Studio runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>אַנשטאָט דעם ווערט גענוצט די קאָפּיע וואָס איז געקומען מיט Studio. די דאָזיקע קאָפּיע, אינסטאַלירט נאָר פֿאַר אײַך, ווערט נישט גענוצט. נעמט אַראָפּ די דאָזיקע קאָפּיע אויב איר דאַרפֿט זי נישט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin, installed for everyone on this computer, runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>אַנשטאָט דעם ווערט גענוצט אַן אַנדערע קאָפּיע פֿון דעם דאָזיקן פּלאַגין, אינסטאַלירט פֿאַר יעדן אויף דעם קאָמפּיוטער. די דאָזיקע קאָפּיע, אינסטאַלירט נאָר פֿאַר אײַך, ווערט נישט גענוצט. נעמט אַראָפּ די דאָזיקע קאָפּיע אויב איר דאַרפֿט זי נישט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>The copy that came with Studio runs instead. This copy, installed for everyone on this computer, is not used. Ask your administrator to remove it.</source>
+            <translation>אַנשטאָט דעם ווערט גענוצט די קאָפּיע וואָס איז געקומען מיט Studio. די דאָזיקע קאָפּיע, אינסטאַלירט פֿאַר יעדן אויף דעם קאָמפּיוטער, ווערט נישט גענוצט. בעט אײַער אַדמיניסטראַטאָר זי אַראָפּצונעמען.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin runs instead. This copy is not used.</source>
+            <translation>אַנשטאָט דעם ווערט גענוצט אַן אַנדערע קאָפּיע פֿון דעם דאָזיקן פּלאַגין. די דאָזיקע קאָפּיע ווערט נישט גענוצט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 came with Studio, and that copy runs. A copy added for you only would not run.</source>
+            <translation>%1 איז געקומען מיט Studio, און יענע קאָפּיע ווערט גענוצט. אַ קאָפּיע צוגעלייגט נאָר פֿאַר אײַך וואָלט נישט גענוצט געווען.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 is already installed for everyone on this computer, and that copy runs. A copy added for you only would not run. Ask your administrator to change it.</source>
+            <translation>%1 איז שוין אינסטאַלירט פֿאַר יעדן אויף דעם קאָמפּיוטער, און יענע קאָפּיע ווערט גענוצט. אַ קאָפּיע צוגעלייגט נאָר פֿאַר אײַך וואָלט נישט גענוצט געווען. בעט אײַער אַדמיניסטראַטאָר דאָס צו בײַטן.</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />

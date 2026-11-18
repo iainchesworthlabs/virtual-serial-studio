@@ -2013,6 +2013,17 @@ void PluginsDialog::on_request_finished(const plugin_request_result& result)
                     "add a different copy.")
                     .arg(plain_text(result.plugin_name)));
         }
+        else if (result.error == plugin_request_error::installed_for_everyone ||
+                 result.error == plugin_request_error::came_with_studio)
+        {
+            show_message(
+                NoteBanner::kind::warn,
+                installed_elsewhere_text(
+                    result.error == plugin_request_error::came_with_studio
+                        ? plugin_installed_for::with_studio
+                        : plugin_installed_for::everyone,
+                    result.plugin_name));
+        }
         else if (result.error == plugin_request_error::not_a_plugin)
         {
             show_message(

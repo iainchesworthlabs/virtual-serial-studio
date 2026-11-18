@@ -42,6 +42,37 @@ QString date_text(const QDate& date)
     return QLocale().toString(date, QLocale::LongFormat);
 }
 
+/// Says which copy of a plugin runs, and where, when this copy does not.
+QString not_used_same_text(const plugin_view& plugin)
+{
+    const bool used_with_studio =
+        plugin.used_copy_installed_for == plugin_installed_for::with_studio;
+    if (plugin.has_used_copy && plugin.installed_for == plugin_installed_for::you_only)
+    {
+        if (used_with_studio)
+            return QCoreApplication::translate(
+                "PluginsDialog",
+                "The copy that came with Studio runs instead. This copy, "
+                "installed for you only, is not used. Remove this copy if you "
+                "do not need it.");
+        return QCoreApplication::translate(
+            "PluginsDialog",
+            "Another copy of this plugin, installed for everyone on this "
+            "computer, runs instead. This copy, installed for you only, is "
+            "not used. Remove this copy if you do not need it.");
+    }
+    if (plugin.has_used_copy && used_with_studio &&
+        plugin.installed_for == plugin_installed_for::everyone)
+        return QCoreApplication::translate(
+            "PluginsDialog",
+            "The copy that came with Studio runs instead. This copy, "
+            "installed for everyone on this computer, is not used. Ask your "
+            "administrator to remove it.");
+    return QCoreApplication::translate(
+        "PluginsDialog",
+        "Another copy of this plugin runs instead. This copy is not used.");
+}
+
 } // namespace
 
 QString plain_text(const QString& text)
@@ -411,6 +442,22 @@ QString timing_sentence(const plugin_view& plugin)
     return {};
 }
 
+QString installed_elsewhere_text(plugin_installed_for place, const QString& name)
+{
+    if (place == plugin_installed_for::with_studio)
+        return QCoreApplication::translate(
+                   "PluginsDialog",
+                   "%1 came with Studio, and that copy runs. A copy added for "
+                   "you only would not run.")
+            .arg(plain_text(name));
+    return QCoreApplication::translate(
+               "PluginsDialog",
+               "%1 is already installed for everyone on this computer, and "
+               "that copy runs. A copy added for you only would not run. Ask "
+               "your administrator to change it.")
+        .arg(plain_text(name));
+}
+
 QString installed_for_text(plugin_installed_for installed)
 {
     switch (installed)
@@ -606,11 +653,7 @@ plugin_note_text note_for(const plugin_view& plugin)
         }
         else
         {
-            set(kind::info,
-                QCoreApplication::translate(
-                    "PluginsDialog",
-                    "The copy installed for everyone is used. This copy, "
-                    "installed for you only, is not."),
+            set(kind::info, not_used_same_text(plugin),
                 {plugin_action::show_used_copy});
         }
         break;

@@ -23234,8 +23234,33 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
-            <source>The copy installed for everyone is used. This copy, installed for you only, is not.</source>
-            <translation>تُستخدم النسخة المثبتة لكل من يستخدم الكمبيوتر. أما هذه النسخة، المثبتة لك وحدك، فلا تُستخدم.</translation>
+            <source>The copy that came with Studio runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>تُستخدم بدلًا منها النسخة التي جاءت مع Studio. أما هذه النسخة، المثبتة لك وحدك، فلا تُستخدم. أزل هذه النسخة إن لم تكن بحاجة إليها.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin, installed for everyone on this computer, runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>تُستخدم بدلًا منها نسخة أخرى من هذه الإضافة، مثبتة لكل من يستخدم هذا الكمبيوتر. أما هذه النسخة، المثبتة لك وحدك، فلا تُستخدم. أزل هذه النسخة إن لم تكن بحاجة إليها.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>The copy that came with Studio runs instead. This copy, installed for everyone on this computer, is not used. Ask your administrator to remove it.</source>
+            <translation>تُستخدم بدلًا منها النسخة التي جاءت مع Studio. أما هذه النسخة، المثبتة لكل من يستخدم هذا الكمبيوتر، فلا تُستخدم. اطلب من المسؤول عندك إزالتها.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin runs instead. This copy is not used.</source>
+            <translation>تُستخدم بدلًا منها نسخة أخرى من هذه الإضافة. أما هذه النسخة فلا تُستخدم.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 came with Studio, and that copy runs. A copy added for you only would not run.</source>
+            <translation>الإضافة %1 جاءت مع Studio، وتُستخدم تلك النسخة. أما النسخة المضافة لك وحدك فلن تُستخدم.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 is already installed for everyone on this computer, and that copy runs. A copy added for you only would not run. Ask your administrator to change it.</source>
+            <translation>الإضافة %1 مثبّتة بالفعل لكل من يستخدم هذا الكمبيوتر، وتُستخدم تلك النسخة. أما النسخة المضافة لك وحدك فلن تُستخدم. اطلب من المسؤول عندك تغيير ذلك.</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />

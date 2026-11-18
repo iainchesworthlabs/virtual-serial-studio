@@ -803,6 +803,14 @@ TEST_CASE("install dialog: it shows the verdict, a plugin that cannot be used "
     plugin_inspection_view admin = inspection_of("org.example.noise", folder);
     admin.failure = plugin_inspection_view::problem::cannot_write;
     admin.can_install = false;
+    plugin_inspection_view everyone =
+        inspection_of("org.example.noise", folder);
+    everyone.failure = plugin_inspection_view::problem::installed_for_everyone;
+    everyone.can_install = false;
+    plugin_inspection_view bundled =
+        inspection_of("org.example.noise", folder);
+    bundled.failure = plugin_inspection_view::problem::came_with_studio;
+    bundled.can_install = false;
     const std::pair<plugin_inspection_view, QString> refused[] = {
         {broken, QStringLiteral("Studio cannot add this plugin.\nIts signature "
                                 "does not match its files. They may have been "
@@ -815,6 +823,14 @@ TEST_CASE("install dialog: it shows the verdict, a plugin that cannot be used "
                                  "folder holds a file named plugin.json.")},
         {admin, QStringLiteral("Your administrator installs the plugins on "
                                "this computer.")},
+        {everyone,
+         QStringLiteral("Line noise is already installed for everyone on this "
+                        "computer, and that copy runs. A copy added for you "
+                        "only would not run. Ask your administrator to change "
+                        "it.")},
+        {bundled, QStringLiteral("Line noise came with Studio, and that copy "
+                                 "runs. A copy added for you only would not "
+                                 "run.")},
     };
     for (const auto& [found, text] : refused)
     {
@@ -876,6 +892,148 @@ TEST_CASE("plugins page: a plugin that failed to be added says why")
     REQUIRE_EQ(dialog.message_banner()->text(),
                QStringLiteral("Modbus fixture is already installed for you. "
                               "Remove it first to add a different copy."));
+}
+
+TEST_CASE("plugins page: adding a plugin that is installed elsewhere names the "
+          "plugin and the place")
+{
+    fixture env;
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    const std::pair<plugin_request_error, QString> cases[] = {
+        {plugin_request_error::installed_for_everyone,
+         QStringLiteral("Modbus fixture is already installed for everyone on "
+                        "this computer, and that copy runs. A copy added for "
+                        "you only would not run. Ask your administrator to "
+                        "change it.")},
+        {plugin_request_error::came_with_studio,
+         QStringLiteral("Modbus fixture came with Studio, and that copy runs. "
+                        "A copy added for you only would not run.")},
+        {plugin_request_error::already_installed,
+         QStringLiteral("Modbus fixture is already installed for you. Remove "
+                        "it first to add a different copy.")},
+    };
+    for (const auto& [error, text] : cases)
+    {
+        env.backend.fail_next_add(error, QStringLiteral("Modbus fixture"));
+        env.backend.add_plugin(QStringLiteral("C:/x"));
+        env.backend.flush();
+        settle();
+        REQUIRE_EQ(dialog.message_banner()->text(), text);
+    }
+}
+
+namespace
+{
+
+/// A copy of one plugin installed in `place`. Every copy has the same hash,
+/// so that two of them are identical.
+plugin_view copy_in(plugin_installed_for place, const QString& folder,
+                    plugin_state state)
+{
+    plugin_view view = sample_of("org.example.noise");
+    view.installed_for = place;
+    view.folder = folder;
+    view.hash = QString(128, QLatin1Char('a'));
+    view.fingerprint = view.hash.left(16);
+    view.state = state;
+    view.note = state == plugin_state::not_used ? plugin_note::not_used_same
+                                                 : plugin_note::none;
+    return view;
+}
+
+} // namespace
+
+TEST_CASE("plugins page: a plugin in two places shows both copies, which one "
+          "runs and where, and removing the user's copy leaves the other")
+{
+    struct row
+    {
+        plugin_installed_for used;
+        plugin_installed_for own;
+        QString note;
+        bool can_remove;
+    };
+    const row rows[] = {
+        {plugin_installed_for::everyone, plugin_installed_for::you_only,
+         QStringLiteral("Another copy of this plugin, installed for everyone "
+                        "on this computer, runs instead. This copy, installed "
+                        "for you only, is not used. Remove this copy if you "
+                        "do not need it."),
+         true},
+        {plugin_installed_for::with_studio, plugin_installed_for::you_only,
+         QStringLiteral("The copy that came with Studio runs instead. This "
+                        "copy, installed for you only, is not used. Remove "
+                        "this copy if you do not need it."),
+         true},
+        {plugin_installed_for::with_studio, plugin_installed_for::everyone,
+         QStringLiteral("The copy that came with Studio runs instead. This "
+                        "copy, installed for everyone on this computer, is "
+                        "not used. Ask your administrator to remove it."),
+         false},
+    };
+    for (const theme_mode mode : {theme_mode::light, theme_mode::dark})
+    {
+        Theme::instance().set_mode(mode);
+        for (const row& each : rows)
+        {
+            const QString used_folder = QStringLiteral("C:/used");
+            const QString own_folder = QStringLiteral("C:/own");
+            plugin_view used =
+                copy_in(each.used, used_folder, plugin_state::available);
+            plugin_view own =
+                copy_in(each.own, own_folder, plugin_state::not_used);
+            own.has_used_copy = true;
+            own.used_copy_installed_for = each.used;
+            own.used_copy_id = used.id;
+            own.used_copy_folder = used_folder;
+            fixture env({used, own});
+            PluginsDialog dialog(env.backend);
+            dialog.show();
+            settle();
+            // Both copies are rows.
+            REQUIRE_EQ(dialog.row_keys().size(), qsizetype{2});
+            REQUIRE(dialog.select(used.id, own_folder));
+            settle();
+            REQUIRE_EQ(detail_note(dialog)->text(), each.note);
+            REQUIRE_EQ(detail_chip(dialog)->text(), QStringLiteral("Not used"));
+            REQUIRE_EQ(dialog.remove_button()->isEnabled(), each.can_remove);
+            REQUIRE(!dialog.grab().isNull());
+            // The copy that runs says where it is installed.
+            REQUIRE(dialog.select(used.id, used_folder));
+            settle();
+            const QLabel* where = dialog.detail()->findChild<QLabel*>(
+                QStringLiteral("pluginDetailInstalledFor"));
+            REQUIRE(where != nullptr);
+            REQUIRE_EQ(where->text(), installed_for_text(each.used));
+        }
+    }
+    Theme::instance().set_mode(theme_mode::system);
+
+    // Remove acts on the user's copy even when the other copy is identical,
+    // and the other copy stays listed.
+    plugin_view used = copy_in(plugin_installed_for::everyone,
+                               QStringLiteral("C:/used"),
+                               plugin_state::available);
+    plugin_view own = copy_in(plugin_installed_for::you_only,
+                              QStringLiteral("C:/own"), plugin_state::not_used);
+    fixture env({used, own});
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    REQUIRE(dialog.select(used.id, QStringLiteral("C:/own")));
+    settle();
+    when_shown<PluginRemoveDialog>([](PluginRemoveDialog& each)
+                                   { each.remove_button()->click(); });
+    dialog.remove_button()->click();
+    settle();
+    REQUIRE_EQ(env.backend.requests().size(), std::size_t{1});
+    env.backend.flush();
+    settle();
+    REQUIRE_EQ(dialog.row_keys().size(), qsizetype{1});
+    REQUIRE(env.backend.snapshot()->plugins[0].installed_for ==
+            plugin_installed_for::everyone);
 }
 
 // -- the decision dialog ------------------------------------------------------
