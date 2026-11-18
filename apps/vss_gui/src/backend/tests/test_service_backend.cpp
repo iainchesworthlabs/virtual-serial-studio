@@ -855,9 +855,16 @@ TEST_CASE("service backend: the same plugin installed for everyone and for the "
         30000));
     const std::size_t finished_before = finished.size();
     backend.add_plugin(QString::fromStdWString(source.wstring()));
+    plugin_request_result refusal;
     REQUIRE(vss_test::wait_until(
-        [&] { return finished.size() > finished_before; }, 30000));
-    const plugin_request_result refusal = finished.back();
+        [&]
+        {
+            if (finished.size() <= finished_before)
+                return false;
+            refusal = finished.back();
+            return true;
+        },
+        30000));
     REQUIRE(refusal.kind == plugin_request_kind::add_plugin);
     REQUIRE(refusal.error == plugin_request_error::installed_for_everyone);
     REQUIRE_EQ(refusal.plugin_name, QStringLiteral("Served"));
