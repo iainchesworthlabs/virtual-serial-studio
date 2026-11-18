@@ -40,6 +40,8 @@ constexpr std::string_view endpoint_word(local_endpoint endpoint) noexcept
         return "control";
     case local_endpoint::control_admin:
         return "admin";
+    case local_endpoint::debug:
+        return "debug";
     }
     return "agent";
 }

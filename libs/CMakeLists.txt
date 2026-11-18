@@ -4,6 +4,7 @@
 #
 
 add_subdirectory(vss_core)
+add_subdirectory(vss_trace)
 add_subdirectory(vss_ports)
 add_subdirectory(vss_config)
 add_subdirectory(vss_rules)
@@ -18,3 +19,4 @@ add_subdirectory(vss_plugin_host)
 add_subdirectory(vss_agent)
 add_subdirectory(vss_control_proto)
 add_subdirectory(vss_control)
+add_subdirectory(vss_debug)

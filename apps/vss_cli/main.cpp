@@ -13,6 +13,7 @@
 #include "build_version.hpp"
 #include "command_line.hpp"
 #include "control_command.hpp"
+#include "debug_command.hpp"
 #include "devices_json.hpp"
 #include "licence_command.hpp"
 #include "permissions_command.hpp"
@@ -200,16 +201,18 @@ void print_usage(std::FILE* out)
         "%s"
         // Second %s: the control commands, supplied by control_usage().
         "%s"
-        // Third %s: the permission options, supplied by permissions_usage().
+        // Third %s: the debug commands, supplied by debug_usage().
         "%s"
-        // Fourth %s: the plugin command, supplied by plugin_usage().
+        // Fourth %s: the permission options, supplied by permissions_usage().
         "%s"
-        // Fifth %s: the licence commands, supplied by licence_usage().
+        // Fifth %s: the plugin command, supplied by plugin_usage().
+        "%s"
+        // Sixth %s: the licence commands, supplied by licence_usage().
         "%s"
         "  Common: --verbose, --quiet\n"
         "\n"
         "  Profiling (Tracy; off unless asked, this computer only):\n"
-        // Sixth %s: the profiling options from vss::profiling::usage().
+        // Seventh %s: the profiling options from vss::profiling::usage().
         "%s"
         "\n"
         // The licence notice is the standard GPL interactive-program text.
@@ -217,8 +220,8 @@ void print_usage(std::FILE* out)
         "License, version 3 or later.  This program comes with ABSOLUTELY NO\n"
         "WARRANTY; see LICENSE for details.\n",
         vss_cli::agent_usage(), vss_cli::control_usage(),
-        vss_cli::permissions_usage(), vss_cli::plugin_usage(),
-        vss_cli::licence_usage(),
+        vss_cli::debug_usage(), vss_cli::permissions_usage(),
+        vss_cli::plugin_usage(), vss_cli::licence_usage(),
         // usage() is a string_view; copy it to get a terminated %s string.
         std::string(vss::profiling::usage()).c_str());
 }
@@ -1541,9 +1544,9 @@ try
     const std::string& command = words[*command_index];
 
     // These five read their own options.
-    const bool reads_own_options = command == "agent" || command == "control" ||
-                                   command == "permissions" ||
-                                   command == "plugin" || command == "licence";
+    const bool reads_own_options =
+        command == "agent" || command == "control" || command == "debug" ||
+        command == "permissions" || command == "plugin" || command == "licence";
     const auto* const spec =
         reads_own_options ? nullptr : vss_cli::find_command_spec(command);
     if (!reads_own_options && spec == nullptr)
@@ -1677,6 +1680,12 @@ try
         {
             VSS_PROFILE_ZONE("cli.control");
             return vss_cli::command_control(
+                std::vector<std::string>(argv + 1, argv + argc));
+        }
+        if (command == "debug")
+        {
+            VSS_PROFILE_ZONE("cli.debug");
+            return vss_cli::command_debug(
                 std::vector<std::string>(argv + 1, argv + argc));
         }
         if (command == "permissions")

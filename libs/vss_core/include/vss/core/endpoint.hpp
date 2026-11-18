@@ -179,6 +179,19 @@ public:
 
     endpoint_stats stats() const;
     endpoint_info info() const;
+
+    /// What waits to be written to the transport.  Read-only; for the debug
+    /// API.
+    struct write_queue_state
+    {
+        /// Writes and breaks queued, the one being written included.
+        std::size_t pending = 0;
+        /// The bytes of the queued writes that have not gone yet.
+        std::size_t bytes = 0;
+        /// A write is in progress on the transport.
+        bool writing = false;
+    };
+    write_queue_state write_queue() const;
     void reset_stats();
 
     /// Applies the modem inputs a peer drives (CTS/DSR/DCD/RI).

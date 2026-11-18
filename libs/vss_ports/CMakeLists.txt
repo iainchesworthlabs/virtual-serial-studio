@@ -27,7 +27,7 @@ target_include_directories(vss_ports PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 target_compile_features(vss_ports PUBLIC cxx_std_23)
-target_link_libraries(vss_ports PUBLIC vss_core Vss::VirtualSerial)
+target_link_libraries(vss_ports PUBLIC vss_core vss_trace Vss::VirtualSerial)
 icl_platform_sources(vss_ports)
 
 # Linux and macOS share these. Windows has its own files in src/platform/windows.

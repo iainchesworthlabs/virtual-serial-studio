@@ -946,6 +946,16 @@ endpoint_stats endpoint::stats() const
     return stats_;
 }
 
+endpoint::write_queue_state endpoint::write_queue() const
+{
+    const std::lock_guard<std::mutex> lock(write_mutex_);
+    write_queue_state out;
+    out.pending = write_queue_.size();
+    out.bytes = write_queue_bytes_;
+    out.writing = writing_;
+    return out;
+}
+
 void endpoint::reset_stats()
 {
     std::lock_guard lock(stats_mutex_);

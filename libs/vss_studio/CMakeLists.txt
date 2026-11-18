@@ -10,7 +10,7 @@ target_include_directories(vss_studio PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 target_compile_features(vss_studio PUBLIC cxx_std_23)
-target_link_libraries(vss_studio PUBLIC vss_core vss_ports vss_config vss_rules)
+target_link_libraries(vss_studio PUBLIC vss_core vss_ports vss_trace vss_config vss_rules)
 
 vss_set_warnings(vss_studio)
 vss_enable_coverage(vss_studio)

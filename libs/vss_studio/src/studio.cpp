@@ -13,6 +13,7 @@
 #include <vss/ports/serial_transport.hpp>
 #include <vss/ports/vcom_driver.hpp>
 #include <vss/ports/waiting_transport.hpp>
+#include <vss/trace/recorder.hpp>
 
 #include "reconnector.hpp"
 
@@ -439,6 +440,18 @@ studio::create_virtual_port(const std::string& name, virtual_port_kind kind,
                             const endpoint_options& options,
                             unsigned com_number)
 {
+    return trace::traced("studio.create_virtual_port", 0,
+                         [&]
+                         {
+                             return create_virtual_port_untraced(
+                                 name, kind, options, com_number);
+                         });
+}
+
+result<std::shared_ptr<endpoint>> studio::create_virtual_port_untraced(
+    const std::string& name, virtual_port_kind kind,
+    const endpoint_options& options, unsigned com_number)
+{
     VSS_PROFILE_ZONE("studio.create_virtual_port");
     if (kind == virtual_port_kind::pty && !supports(virtual_port_kind::pty))
         return create_auto_virtual_port(name, options, com_number);
@@ -636,6 +649,15 @@ result<std::shared_ptr<endpoint>>
 studio::attach_serial(const std::string& name, const std::string& uri,
                       const endpoint_options& options)
 {
+    return trace::traced(
+        "studio.attach_serial", 0,
+        [&] { return attach_serial_untraced(name, uri, options); });
+}
+
+result<std::shared_ptr<endpoint>>
+studio::attach_serial_untraced(const std::string& name, const std::string& uri,
+                               const endpoint_options& options)
+{
     VSS_PROFILE_ZONE_NAMED(zone, "studio.attach_serial");
     if (zone.active())
         zone.text(uri);
@@ -666,6 +688,19 @@ studio::attach_serial(const std::string& name, const std::string& uri,
 result<std::shared_ptr<endpoint>>
 studio::attach_serial(const std::string& name, const std::string& uri,
                       const serial_settings& settings, endpoint_options options)
+{
+    return trace::traced("studio.attach_serial", 0,
+                         [&]
+                         {
+                             return attach_serial_untraced(name, uri, settings,
+                                                           std::move(options));
+                         });
+}
+
+result<std::shared_ptr<endpoint>>
+studio::attach_serial_untraced(const std::string& name, const std::string& uri,
+                               const serial_settings& settings,
+                               endpoint_options options)
 {
     VSS_PROFILE_ZONE_NAMED(zone, "studio.attach_serial");
     if (zone.active())
@@ -976,6 +1011,13 @@ std::optional<serial_settings> studio::port_settings(endpoint_id id) const
 result<void> studio::reconfigure_port(endpoint_id id,
                                       const serial_settings& settings)
 {
+    return trace::traced("studio.reconfigure_port", id, [&]
+                         { return reconfigure_port_untraced(id, settings); });
+}
+
+result<void> studio::reconfigure_port_untraced(endpoint_id id,
+                                               const serial_settings& settings)
+{
     VSS_PROFILE_ZONE("studio.reconfigure_port");
     if (const auto invalid = validate(settings))
         return invalid;
@@ -1184,6 +1226,13 @@ result<void> studio::rename_port(endpoint_id id, const std::string& name)
 
 result<std::string> studio::set_com_number(endpoint_id id, unsigned com_number)
 {
+    return trace::traced("studio.set_com_number", id, [&]
+                         { return set_com_number_untraced(id, com_number); });
+}
+
+result<std::string> studio::set_com_number_untraced(endpoint_id id,
+                                                    unsigned com_number)
+{
     VSS_PROFILE_ZONE("studio.set_com_number");
     std::shared_ptr<transport> driver;
     {
@@ -1347,6 +1396,12 @@ result<void> studio::hand_over(endpoint_id id,
 }
 
 result<void> studio::reopen(endpoint_id id)
+{
+    return trace::traced("studio.reopen", id,
+                         [&] { return reopen_untraced(id); });
+}
+
+result<void> studio::reopen_untraced(endpoint_id id)
 {
     VSS_PROFILE_ZONE("studio.reopen");
     port_record record;
@@ -1565,6 +1620,12 @@ std::optional<bool> studio::held_as(endpoint_id id,
 
 result<void> studio::stop_port(endpoint_id id)
 {
+    return trace::traced("studio.stop_port", id,
+                         [&] { return stop_port_untraced(id); });
+}
+
+result<void> studio::stop_port_untraced(endpoint_id id)
+{
     VSS_PROFILE_ZONE("studio.stop_port");
     return hold_port(id, port_record::run_state::stopped);
 }
@@ -1604,6 +1665,12 @@ result<void> studio::hold_port(endpoint_id id, port_record::run_state how)
 }
 
 result<void> studio::start_port(endpoint_id id)
+{
+    return trace::traced("studio.start_port", id,
+                         [&] { return start_port_untraced(id); });
+}
+
+result<void> studio::start_port_untraced(endpoint_id id)
 {
     VSS_PROFILE_ZONE("studio.start_port");
     return release_port(id);
@@ -1806,6 +1873,12 @@ studio::resolve_all(const std::vector<std::string>& names, error_code& ec) const
 
 result<link_id> studio::connect(std::string_view a, std::string_view b)
 {
+    return trace::traced("studio.connect", 0,
+                         [&] { return connect_untraced(a, b); });
+}
+
+result<link_id> studio::connect_untraced(std::string_view a, std::string_view b)
+{
     VSS_PROFILE_ZONE("studio.connect");
     const auto first = hub_->find_endpoint(a);
     const auto second = hub_->find_endpoint(b);
@@ -1855,6 +1928,13 @@ result<link_id> studio::redirect(std::string_view from, std::string_view to)
 }
 
 result<link_id> studio::monitor(std::string_view from, std::string_view to)
+{
+    return trace::traced("studio.monitor", 0,
+                         [&] { return monitor_untraced(from, to); });
+}
+
+result<link_id> studio::monitor_untraced(std::string_view from,
+                                         std::string_view to)
 {
     VSS_PROFILE_ZONE("studio.monitor");
     const auto first = hub_->find_endpoint(from);

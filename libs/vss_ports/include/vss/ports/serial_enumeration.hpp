@@ -135,6 +135,20 @@ classify_com_numbers(const std::vector<unsigned>& database,
 /// database that cannot be read).
 std::optional<std::vector<com_number_holder>> com_number_holders();
 
+/// What Windows says about COM numbers, before it is classified: the numbers
+/// the COM name database marks, the names that resolve, and every device of
+/// the Ports class with its PortName, present or not.  For the debug API,
+/// which shows the evidence and not only the verdict.
+struct com_number_evidence
+{
+    std::vector<unsigned> database;
+    std::vector<unsigned> resolving;
+    std::vector<com_port_entry> entries;
+};
+
+/// `nullopt` where the computer cannot be asked (see `com_number_holders`).
+std::optional<com_number_evidence> read_com_number_evidence();
+
 /// Removes duplicate and empty entries, keeping the first occurrence.
 std::vector<serial_device_info> normalise(std::vector<serial_device_info> devices);
 

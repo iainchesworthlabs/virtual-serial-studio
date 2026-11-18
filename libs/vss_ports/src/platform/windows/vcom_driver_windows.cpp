@@ -17,6 +17,7 @@
 #include "../../tx_order.hpp"
 
 #include <vss/core/error.hpp>
+#include <vss/trace/recorder.hpp>
 
 #include <boost/asio/error.hpp>
 #include <boost/asio/post.hpp>
@@ -87,9 +88,17 @@ driver_failure failure_record;
 
 void note_failure(const char* step, DWORD code)
 {
-    const std::lock_guard lock(failure_mutex);
-    failure_record.step = step;
-    failure_record.code = code;
+    {
+        const std::lock_guard lock(failure_mutex);
+        failure_record.step = step;
+        failure_record.code = code;
+    }
+    // The same step goes to the call recorder, which keeps it with a time and
+    // the operation it belonged to.
+    trace::record_failure(
+        step, 0, {},
+        boost::system::error_code(static_cast<int>(code),
+                                  boost::system::system_category()));
 }
 
 /// One port of the driver: the COM name an application opens, the path of the

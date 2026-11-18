@@ -5,6 +5,7 @@
 //
 
 #include <vss/ports/listen_transport.hpp>
+#include <vss/trace/recorder.hpp>
 
 #include <vss/core/profile.hpp>
 #include <vss/ports/rfc2217.hpp>
@@ -406,6 +407,8 @@ public:
                 return make_error_code(errc::invalid_uri);
         }
 
+        const std::string bound_text =
+            ip.to_string() + ":" + std::to_string(address_.port);
         if (stream())
         {
             const asio::ip::tcp::endpoint where(ip, address_.port);
@@ -416,11 +419,13 @@ public:
                 static_cast<std::uintptr_t>(acceptor_.native_handle()));
             if (ec)
                 return ec;
+            trace::call_scope binding("net.bind", 0, bound_text);
             acceptor_.bind(where, ec);
-            if (ec)
+            if (binding.finish(ec) != 0)
                 return ec;
+            trace::call_scope listening("net.listen", 0, bound_text);
             acceptor_.listen(asio::socket_base::max_listen_connections, ec);
-            if (ec)
+            if (listening.finish(ec) != 0)
                 return ec;
             port_.store(acceptor_.local_endpoint(ec).port());
         }
@@ -430,8 +435,9 @@ public:
             datagrams_.open(where.protocol(), ec);
             if (ec)
                 return ec;
+            trace::call_scope binding("net.bind", 0, bound_text);
             datagrams_.bind(where, ec);
-            if (ec)
+            if (binding.finish(ec) != 0)
                 return ec;
             port_.store(datagrams_.local_endpoint(ec).port());
         }

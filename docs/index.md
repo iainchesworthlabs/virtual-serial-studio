@@ -13,6 +13,7 @@ drives the modem control lines and records the traffic. It is built on
 |---|---|
 | Use the application | [User guide](user-guide.md) and [Scenarios](scenarios.md) |
 | Drive ports from a script or a test | [Controlling Studio from a script](control-how-to.md) |
+| Find out why a port will not open in a running Studio | [A debug API for a running Studio](debug-api.md) |
 | Build it | [Building](building.md) |
 | Run the tests | [Testing](testing.md), [Fuzzing](fuzzing.md) and [Profiling](profiling.md) |
 | See what the gate and the nightlies check | [Continuous integration](ci.md) |

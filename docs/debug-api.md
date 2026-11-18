@@ -1,7 +1,8 @@
 # A debug API for a running Studio
 
-Status: **proposal**. Nothing on this page is built. [Section 9](#9-decisions-for-the-owner) lists the decisions that
-are the owner's, and the first slice waits for them.
+Status: **accepted and built**. The owner accepted every recommendation of section 9 on 18 November 2026, and all the
+slices of section 8 are in this repository except the last, which is a change to Boost.VirtualSerial. [What is
+built](#what-is-built) says where each part is and what differs from the design as first written.
 
 ## The problem
 
@@ -16,6 +17,35 @@ believed about the COM number.
 This page designs a way for a person, or a coding agent working beside them, to ask a running Studio those questions.
 It is for the person who owns the computer and is looking at the fault. It is not remote control, not telemetry and not
 a support channel.
+
+## What is built
+
+| Part | Where |
+|---|---|
+| The call recorder: the ring, the two rings' sizes (4096 calls and 512 failures), `call_scope`, `operation_scope` and `traced` | `libs/vss_trace` |
+| Calls recorded | The serial open and close (`serial_transport.cpp`), the line and break calls (`native_lines.cpp`), the network client's resolve and connect, the listener's bind and listen, every step of the Windows driver and helper that already had a failure note (`vcom_driver_windows.cpp`), and the studio operations `reconfigure_port`, `set_com_number`, `reopen`, `stop_port`, `start_port`, `connect`, `monitor`, `create_virtual_port` and `attach_serial`, each with the port it was for and, when it failed, the last failed call inside it as its cause |
+| The server, the client, the redaction, the provider interface and the engine provider | `libs/vss_debug` |
+| The pipe name | `\\.\pipe\vss-debug-<user SID>-<process number>`, or `debug-<process number>.sock` in the agent's private directory, from `vss::agent::local_endpoint::debug` |
+| The audit log | `<state folder>/debug/audit`, in the format and with the hash chain of the gateway's log |
+| The instance files a client reads to find a Studio | `<state folder>/debug/instances/<process number>.json` |
+| The switch, the approval dialog, the chip and the window's part of the answers | `apps/vss_gui/src/support/debug_access.cpp`, the **Debug access** section of Settings, Performance, and the chip in `status_bar.cpp` |
+| The command line client | `vss_cli debug` (`apps/vss_cli/debug_command.cpp`) |
+| The support bundle's **Calls to Windows** row | `apps/vss_gui/src/support/bundle.cpp`, `trace.txt` |
+| Read-only counters added to the engine | `hub::dispatch_queue_depth()` and `endpoint::write_queue()`; neither changes behaviour |
+
+Where it differs from the first design:
+
+- **Approval is remembered by program path, not by a token.** `vss_cli` is a new process for each command, so a token held
+  in memory would be asked for again every time, and one written to a file would be a secret on disk. The person chooses
+  *Allow once* (this connection) or *Allow until Studio quits* (this program's path, for the scopes it asked for).
+  The path is what the operating system says and is a hint for the person, as in the agent's peer check.
+- **The window's state is read by walking the active window's controls**, not by a provider in each screen. Fields whose
+  name says password, token, secret or key, and any hidden field, give no value.
+- **`debug.run` calls the studio directly**, not the window's `StudioBackend`. The window follows the engine's events and
+  shows the change within a refresh.
+- **The settings page is in Performance**, beside Profiling, not in a page of its own.
+- **Serial opens are recorded as one call, `serial.open`, with the raw code the library returned.** The calls inside
+  Boost.VirtualSerial (`CreateFile`, `SetCommState` and so on) are not named until that library reports them: slice 5.
 
 ## 1. What exists
 
@@ -205,13 +235,12 @@ inside `vss_gui`, so the gateway cannot reach it. What does fit and is reused as
 | Tokens, the scope and ceiling policy table, the failure limiter, the audit log | `libs/vss_control`, `libs/vss_control_proto/src/policy.cpp` |
 
 What is new is a listener inside the process, its own pipe name (`vss-debug-<user SID>-<process id>`, so two Studios
-do not collide and a stale name is not reused), a short-lived **session token** that Studio makes when the person
-approves the client (held in memory, handed to the client over the same pipe after approval, never written to a file),
-and the operations above. The listener is created when the person switches debug access on and **destroyed when they
-switch it off**; while it is off there is no pipe at all.
+do not collide and a stale name is not reused), the approval by the person (remembered by program path until Studio
+quits, never written to a file), and the operations above. The listener is created when the person switches debug access
+on and **destroyed when they switch it off**; while it is off there is no pipe at all.
 
-A client finds the pipe by asking for the directory's `debug-*.pipe` entries, or on Windows by the name pattern in the
-pipe namespace. If several Studios run, `vss_cli debug` lists them with their process numbers and asks which.
+A client finds a Studio by the file it publishes in `<state folder>/debug/instances` while it listens, named with its
+process number. If several Studios run, `vss_cli debug` lists them and asks for `--pid`.
 
 **Why not a file instead.** A periodic JSON file in a private directory would need no listener, but it cannot approve a
 client, cannot serve a live trace, cannot run an operation and cannot take a screenshot, and it would leave state on
@@ -258,40 +287,27 @@ someone else to read; the debug API is a conversation during the fault, with the
 
 ## 8. Slices
 
-1. **Recorder, snapshot, the pipe, approval, chip, audit, `vss_cli debug status | snapshot | trace`.** The recorder is
-   wired into the Windows transports of this repository and into `serial_transport` at its `open`, `reopen`, `close`
-   and settings calls; the network client and listener are wired on every platform. Tests as in section 5. A
-   changelog fragment. This is the slice the coordinator asked for, and it includes the listener because without one
-   nothing is readable live.
+1. **Recorder, snapshot, the pipe, approval, chip, audit, `vss_cli debug status | snapshot | trace`.** Built.
 2. **COM number picture, driver, helper and plugin state, `debug.traffic` with its switch,** and the trace section of
-   the support bundle.
-3. **`debug.run`.**
-4. **GUI state providers and screenshot.**
+   the support bundle. Built.
+3. **`debug.run`.** Built.
+4. **GUI state and screenshot.** Built.
 5. **Follow-up outside this repository:** an error detail in Boost.VirtualSerial, so the serial open reports the call
-   that failed.
+   that failed. Not built: it is a change to `iainchesworthlabs/virtual-serial`.
 
 ## 9. Decisions for the owner
 
-1. **A listener in `vss_gui`.** The design says the GUI opens no listening socket; the remote control page meant a
-   network socket, and Studio already runs a local server for its single-instance lock and Tracy's loopback listener.
-   May the GUI host an owner-only pipe, only while debug access is switched on? *Recommended: yes.* Without it the only
-   options are a file (no live view, no approval, no operations) or running the engine in `vss_agent` first.
-2. **Which builds.** Debug access in every build including release, since these bugs appear on a release build on a
-   real machine, or in debug and release-candidate builds only? *Recommended: every build, off by default.*
-3. **Approval.** One dialog per client for the session (recommended), or also an approval each time an operation or a
-   screenshot is used? *Recommended: per client for reading, and a further question for each change to a port that
-   has a program attached.*
-4. **Screenshots.** Allowed at all? A window can show names and paths. *Recommended: yes, as its own scope with its
-   own line in the approval dialog.*
-5. **The recorder always on.** It holds no bytes and is never written unless asked, but it does hold device paths and
-   error text in memory for the whole run. Always on (recommended, so a failure is already there), or only while
-   debug access is on?
-6. **A read-only accessor in `vss_core`** for the strand queue depth and the pending read and write counts. It does not
-   change behaviour. May it be added? If not, the snapshot gives these for the transports only.
-7. **Boost.VirtualSerial.** May the library gain an error detail (the failed call and the raw code) beside its
-   `error_code`? It is the only way to see the failing call inside a serial open.
-8. **The support bundle's trace section** (section 6): in, and off by default?
-9. **Edition and documentation.** In Community with no licence check, as the control endpoint is (recommended), and in
-   the user guide under Help and diagnostics, or kept in this page and the developer docs only?
-10. **The agent.** `vss_agent` serves the same operations once it hosts Studio's engine. Agreed that the library is
-    written for both from the first slice?
+The owner accepted every recommendation on 18 November 2026:
+
+1. A listener in `vss_gui`: yes, an owner-only pipe, only while debug access is on.
+2. Every build, including release, off by default, turned on in the client.
+3. Approval once for each program, for the scopes it asked for, and a further question before an operation changes a
+   port that has a program attached. *The further question is not built: `debug.run` needs the `debug.act` scope, which
+   the person grants in the first dialog and which the chip does not yet show separately.*
+4. Screenshots: yes, as their own scope.
+5. The recorder always on, in memory only.
+6. Read-only accessors in `vss_core` for the dispatcher queue and the write queue: yes.
+7. An error detail in Boost.VirtualSerial: yes (slice 5).
+8. The support bundle's trace section: in, off by default.
+9. Community, no licence check, and in the user guide.
+10. `vss_agent` serves the same operations once it hosts Studio's engine: the library is written for both.

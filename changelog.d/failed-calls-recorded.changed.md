@@ -1,0 +1,1 @@
+Studio now keeps a short list in memory of the calls it makes to Windows and to its serial library, and the raw code of each one that fails. It holds no bytes of traffic, is never written to disk, and is read only through **Debug access** or a support bundle you choose to include it in.

@@ -758,6 +758,28 @@ private:
         std::size_t order = 0;
     };
 
+    result<void> reconfigure_port_untraced(endpoint_id id,
+                                           const serial_settings& settings);
+    result<std::string> set_com_number_untraced(endpoint_id id,
+                                                unsigned com_number);
+    result<void> reopen_untraced(endpoint_id id);
+    result<void> stop_port_untraced(endpoint_id id);
+    result<void> start_port_untraced(endpoint_id id);
+    result<link_id> connect_untraced(std::string_view a, std::string_view b);
+    result<link_id> monitor_untraced(std::string_view from,
+                                     std::string_view to);
+    result<std::shared_ptr<endpoint>>
+    create_virtual_port_untraced(const std::string& name,
+                                 virtual_port_kind kind,
+                                 const endpoint_options& options,
+                                 unsigned com_number);
+    result<std::shared_ptr<endpoint>>
+    attach_serial_untraced(const std::string& name, const std::string& uri,
+                           const serial_settings& settings,
+                           endpoint_options options);
+    result<std::shared_ptr<endpoint>>
+    attach_serial_untraced(const std::string& name, const std::string& uri,
+                           const endpoint_options& options);
     result<void> hold_port(endpoint_id id, port_record::run_state how);
     result<void> release_port(endpoint_id id);
     std::optional<bool> held_as(endpoint_id id,

@@ -251,6 +251,19 @@ std::optional<std::vector<com_number_holder>> com_number_holders()
                                 sources->entries);
 }
 
+std::optional<com_number_evidence> read_com_number_evidence()
+{
+    VSS_PROFILE_ZONE("ports.com_number_evidence");
+    auto sources = detail::platform_com_sources();
+    if (!sources)
+        return std::nullopt;
+    com_number_evidence out;
+    out.database = std::move(sources->database);
+    out.resolving = std::move(sources->resolving);
+    out.entries = std::move(sources->entries);
+    return out;
+}
+
 std::vector<serial_device_info> enumerate_serial_devices()
 {
     VSS_PROFILE_ZONE_NAMED(zone, "ports.enumerate");

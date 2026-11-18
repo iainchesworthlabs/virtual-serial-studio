@@ -1825,9 +1825,12 @@ void hub::publish(endpoint_event event)
     // balanced when recording starts between a post and its delivery.
     [[maybe_unused]] const auto queued = pending_events_.up();
     VSS_PROFILE_PLOT("hub.dispatch_queue", queued);
+    dispatch_depth_.fetch_add(1, std::memory_order_relaxed);
     boost::asio::post(event_strand_,
                       [this, event = std::move(event)]() mutable
                       {
+                          dispatch_depth_.fetch_sub(1,
+                                                    std::memory_order_relaxed);
                           [[maybe_unused]] const auto left =
                               pending_events_.down();
                           VSS_PROFILE_PLOT("hub.dispatch_queue", left);

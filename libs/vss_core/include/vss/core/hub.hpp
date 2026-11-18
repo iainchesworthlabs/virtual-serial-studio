@@ -109,6 +109,14 @@ public:
     std::shared_ptr<endpoint> find_endpoint(std::string_view name) const;
     std::vector<std::shared_ptr<endpoint>> endpoints() const;
 
+    /// How many events have been published and not yet handed to the
+    /// subscribers.  Read-only and cheap; for the debug API and for a test
+    /// that wants to know the dispatcher has caught up.
+    std::size_t dispatch_queue_depth() const noexcept
+    {
+        return dispatch_depth_.load(std::memory_order_relaxed);
+    }
+
     // -- topology ----------------------------------------------------------
     //
     // Every call that takes `link_options` refuses a delay over
@@ -533,6 +541,7 @@ private:
     /// Events posted to the dispatcher strand and not yet delivered; feeds the
     /// `hub.dispatch_queue` plot and costs nothing without instrumentation.
     profiling::depth_counter pending_events_;
+    std::atomic<std::size_t> dispatch_depth_{0};
     std::atomic<bool> stopping_{false};
 
     mutable std::shared_mutex mutex_;

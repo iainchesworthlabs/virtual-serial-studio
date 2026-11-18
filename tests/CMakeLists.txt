@@ -20,6 +20,9 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_control_proto.cpp
   unit/test_control_token.cpp
   unit/test_control_token_file.cpp
+  unit/test_debug_redact.cpp
+  unit/test_debug_server.cpp
+  unit/test_debug_trace_text.cpp
   unit/test_document.cpp
   unit/test_driver_setup.cpp
   unit/test_endpoint.cpp
@@ -109,6 +112,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_studio_sources.cpp
   unit/test_studio_targets.cpp
   unit/test_tool_paths.cpp
+  unit/test_trace_recorder.cpp
   unit/test_tx_order.cpp
   unit/test_update_feed.cpp
   unit/test_update_select.cpp
@@ -173,6 +177,12 @@ if(TARGET vss_cli_licence)
   list(APPEND VSS_UNIT_TEST_SOURCES unit/test_cli_licence.cpp)
 endif()
 
+# `vss_cli debug ...` run in the test's own process, against a debug server of
+# the test's own.
+if(TARGET vss_cli_debug)
+  list(APPEND VSS_UNIT_TEST_SOURCES unit/test_debug_cli.cpp)
+endif()
+
 # `vss_cli control ...` run in the test's own process, against a gateway of the
 # test's own, and what it leaves on disk read back as another program would.
 if(TARGET vss_cli_control)
@@ -206,10 +216,13 @@ target_include_directories(vss_unit_tests PRIVATE
   ${PROJECT_SOURCE_DIR}/perf)
 target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core
   vss_agent_proto vss_agent_core vss_plugin vss_plugin_host vss_machine vss_rules
-  vss_control_proto vss_control_core vss_license_test_keys vss_update Vss::BoostJson
-  Vss::Monocypher vss_licence_reader)
+  vss_control_proto vss_control_core vss_debug vss_trace vss_license_test_keys
+  vss_update Vss::BoostJson Vss::Monocypher vss_licence_reader)
 if(TARGET vss_cli_control)
   target_link_libraries(vss_unit_tests PRIVATE vss_cli_control)
+endif()
+if(TARGET vss_cli_debug)
+  target_link_libraries(vss_unit_tests PRIVATE vss_cli_debug)
 endif()
 if(WIN32)
   # public.h of the driver and the helper protocol, for the protocol tests.

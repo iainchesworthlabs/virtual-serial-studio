@@ -5,6 +5,7 @@
 //
 
 #include <vss/ports/rfc2217_client.hpp>
+#include <vss/trace/recorder.hpp>
 
 #include <vss/core/profile.hpp>
 #include <vss/ports/rfc2217.hpp>
@@ -709,11 +710,14 @@ error_code resolve_and_connect(asio::ip::tcp::socket& socket,
 
     error_code ec;
     asio::ip::tcp::resolver resolver(executor);
+    const std::string where = host + ":" + service;
+    trace::call_scope resolving("net.resolve", 0, where);
     const auto results = resolver.resolve(host, service, ec);
-    if (ec)
+    if (resolving.finish(ec) != 0)
         return ec;
+    trace::call_scope connecting("net.connect", 0, where);
     asio::connect(socket, results, ec);
-    if (ec)
+    if (connecting.finish(ec) != 0)
     {
         error_code ignored;
         socket.close(ignored);

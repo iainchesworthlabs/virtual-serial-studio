@@ -1512,7 +1512,8 @@ registry on Windows, a configuration file on Linux and macOS).
 
 - **File → Support bundle** saves a ZIP named `vss-support-<date>.zip` with
   the version and environment, the driver state, the setup, the event log, the
-  port counters and the serial ports on this computer, and the licence number,
+  port counters and the serial ports on this computer (and, if you turn it on,
+  the calls Studio made to Windows that failed), and the licence number,
   edition, term and state when a licence is installed. The bytes your ports
   sent and received are never included, and passwords, the path of your home
   folder, your computer and user names, device serial numbers and the licence
@@ -1520,6 +1521,21 @@ registry on Windows, a configuration file on Linux and macOS).
   licensee name and this computer's name. The right side of the dialog shows
   each file exactly as it will be saved. Nothing is sent anywhere; you choose
   where to save the file.
+- **Settings → Performance → Debug access** lets programs on this computer ask
+  a running Studio what its ports, its engine and Windows are doing. Use it to
+  find out why a port will not open, why Windows refuses a COM number, or why a
+  network client does not connect. It is off every time Studio starts. While it
+  is on, the status bar shows **Debug access on**, and pressing that turns it
+  off. A program that wants to use it asks first, and you choose **Don't
+  allow**, **Allow once** or **Allow until Studio quits**. Each use is written to
+  a log in Studio's data folder. It uses a pipe only you can open, and nothing
+  is sent anywhere. A second switch lets a program read the bytes your ports
+  carry, for ten minutes at most. `vss_cli debug` is the command line client:
+  `vss_cli debug snapshot` shows every port with its state, counters and last
+  error, `vss_cli debug trace --follow` shows the calls Studio makes to Windows
+  as they happen, with the code Windows gave for each one that fails, and
+  `vss_cli debug com` shows which COM numbers Windows keeps and why. See
+  [A debug API for a running Studio](debug-api.md).
 - **Help → Support...** says where to get help for your edition, what to write
   before you ask, and has the **Create support bundle** button and a **Copy**
   button for the version, edition, licence number and operating system. It

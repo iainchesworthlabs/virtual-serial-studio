@@ -8,6 +8,7 @@
 #include <vss/ports/listen_transport.hpp>
 #include <vss/ports/native_lines.hpp>
 #include <vss/ports/serial_transport.hpp>
+#include <vss/trace/recorder.hpp>
 
 #include <boost/asio/bind_executor.hpp>
 #include <boost/asio/error.hpp>
@@ -19,6 +20,23 @@
 namespace vss {
 namespace vs = boost::virtual_serial;
 namespace {
+
+/// Opens a device through the serial library and records the call.  The
+/// library makes several operating system calls inside `make_serial_port`
+/// (CreateFile, then the line settings), and the error it returns is the raw
+/// code of whichever failed; the recorder keeps that code with the target and
+/// the baud rate asked for.
+template <class Executor, class Configuration>
+auto traced_open(const Executor& executor, const Configuration& configuration,
+                 boost::system::error_code& ec)
+{
+    std::string args = configuration.target;
+    args += " baud=" + std::to_string(configuration.baud_rate);
+    trace::call_scope scope("serial.open", 0, args);
+    auto port = vs::make_serial_port(executor, configuration, ec);
+    scope.finish(ec);
+    return port;
+}
 
 endpoint_kind map_kind(vs::backend_kind kind) noexcept
 {
@@ -174,7 +192,7 @@ serial_transport::serial_transport(const executor_type& executor,
     settings_.write_timeout = configuration.write_timeout;
     settings_.exclusive = configuration.exclusive;
 
-    auto port = vs::make_serial_port(executor_, configuration, parse_ec);
+    auto port = traced_open(executor_, configuration, parse_ec);
     if (parse_ec)
     {
         ec = parse_ec;
@@ -227,7 +245,7 @@ serial_transport::serial_transport(const executor_type& executor,
     target_ = configuration.target;
     settings_ = settings;
 
-    auto port = vs::make_serial_port(executor_, configuration, parse_ec);
+    auto port = traced_open(executor_, configuration, parse_ec);
     if (parse_ec)
     {
         ec = parse_ec;
@@ -356,8 +374,10 @@ void serial_transport::close()
     if (!port_)
         return;
     VSS_PROFILE_ZONE("ports.serial.close");
-    boost::system::error_code ignored;
-    port_->close(ignored);
+    boost::system::error_code closed;
+    trace::call_scope scope("serial.close", 0, target_);
+    port_->close(closed);
+    scope.finish(closed);
 }
 
 bool serial_transport::is_line_error(boost::system::error_code ec) const noexcept

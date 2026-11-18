@@ -1,0 +1,1 @@
+**The support bundle can include the calls Studio made to Windows that failed.** A new row, **Calls to Windows**, adds `trace.txt`: each failed call with the code Windows gave, and the calls made in the 30 seconds around it. It is off unless you turn it on, you see it in the preview before you save, and it holds none of the bytes your ports carry.
