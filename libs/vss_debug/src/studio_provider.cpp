@@ -346,12 +346,19 @@ op_result studio_provider::com_numbers()
 
     json::object out;
     out["numbers"] = std::move(rows);
-    json::array keeps;
     if (reserved)
     {
+        json::array refused;
         for (const unsigned number : *reserved)
-            keeps.push_back(number);
-        out["reserved_by_studio_rule"] = std::move(keeps);
+            refused.push_back(number);
+        out["not_available_to_a_new_studio_port"] = std::move(refused);
+    }
+    if (const auto kept = studio_->kept_com_numbers())
+    {
+        json::array numbers_kept;
+        for (const unsigned number : *kept)
+            numbers_kept.push_back(number);
+        out["kept_by_windows"] = std::move(numbers_kept);
     }
     return op_result::done(json::serialize(out));
 }
