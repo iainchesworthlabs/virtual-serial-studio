@@ -23,6 +23,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -256,8 +257,13 @@ TEST_CASE("system: a client linked to an RFC 2217 server carries the frames of "
         forward.push_back(elapsed_ms(device_sent[i], frame_got[i]));
         poll_forward.push_back(elapsed_ms(poll_sent[i], poll_got[i]));
         round_trip.push_back(elapsed_ms(poll_sent[i], answer_got[i]));
+        // How far the gap at the application is from the gap the frames were
+        // sent with, so a sender that was held up and then caught up is not
+        // taken for batching by the link.
         if (i > 0)
-            gaps.push_back(elapsed_ms(frame_got[i - 1], frame_got[i]));
+            gaps.push_back(std::abs(
+                elapsed_ms(frame_got[i - 1], frame_got[i]) -
+                elapsed_ms(device_sent[i - 1], device_sent[i])));
     }
     const timing device_to_application = summarise(forward);
     const timing application_to_device = summarise(poll_forward);
@@ -266,7 +272,7 @@ TEST_CASE("system: a client linked to an RFC 2217 server carries the frames of "
     report("device to application, one frame", device_to_application);
     report("application to device, one poll", application_to_device);
     report("poll to its answer, at the application", poll_round);
-    report("gap between frames at the application (sent 20 ms apart)", spacing);
+    report("gap between frames at the application, less the gap sent", spacing);
 
     REQUIRE(device_to_application.median < 20.0);
     REQUIRE(device_to_application.p99 < 100.0);
@@ -274,7 +280,8 @@ TEST_CASE("system: a client linked to an RFC 2217 server carries the frames of "
     REQUIRE(application_to_device.p99 < 100.0);
     REQUIRE(poll_round.median < 40.0);
     REQUIRE(poll_round.p99 < 150.0);
-    // Batching shows as a long gap followed by a short one.
+    // Batching shows as a gap that is longer than the one sent, followed by
+    // one that is shorter.
     REQUIRE(spacing.p99 < 80.0);
 }
 
