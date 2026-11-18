@@ -6682,6 +6682,16 @@ Networks: %5</source>
             <source>break</source>
             <translation>BREAK</translation>
         </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="123" />
+            <source>The Virtual Serial Studio driver is out of date</source>
+            <translation>Virtual Serial Studio のドライバーが古くなっています</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="162" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Choose Set up Virtual Serial Studio to update it.</source>
+            <translation>この PC のドライバーはこのプログラムより古いため、ドライバーが作るポートは使えません。何も変更していません。更新するには「Virtual Serial Studio をセットアップ」を選んでください。</translation>
+        </message>
     </context>
     <context>
         <name>ReleasePortDialog</name>
@@ -20111,6 +20121,11 @@ Networks: %5</source>
             <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
             <translation>%1 の設定です。モニターは、監視するポートと同じ速度で動作します。</translation>
         </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="388" />
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one.</source>
+            <translation>COM3 のように固定の名前を開くプログラムは、毎回同じ番号が必要です。自動では空き番号を選びます。</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -24224,6 +24239,16 @@ From the plugin %2
         <message>
             <source>Reserved by Windows</source>
             <translation>Windows が予約済み</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="101" />
+            <source>Unplugged Windows device %1</source>
+            <translation>取り外された Windows のデバイス %1</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="105" />
+            <source>Unplugged Windows device</source>
+            <translation>取り外された Windows のデバイス</translation>
         </message>
     </context>
     <context>

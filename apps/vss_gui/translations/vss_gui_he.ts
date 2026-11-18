@@ -6686,6 +6686,16 @@ Networks: %5</source>
             <source>break</source>
             <translation>Break</translation>
         </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="123" />
+            <source>The Virtual Serial Studio driver is out of date</source>
+            <translation>מנהל ההתקן של Virtual Serial Studio מיושן</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="162" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Choose Set up Virtual Serial Studio to update it.</source>
+            <translation>מנהל ההתקן במחשב הזה ישן יותר מהתוכנית הזאת, ולכן אי אפשר להשתמש ביציאות שהוא יוצר. דבר לא שונה. בחרו ב״הגדרת Virtual Serial Studio״ כדי לעדכן אותו.</translation>
+        </message>
     </context>
     <context>
         <name>ReleasePortDialog</name>
@@ -20131,6 +20141,11 @@ Networks: %5</source>
             <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
             <translation>נלקח מ-%1. מוניטור פועל במהירות של היציאה שהוא עוקב אחריה.</translation>
         </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="388" />
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one.</source>
+            <translation>תוכנית שפותחת שם קבוע כמו COM3 צריכה את אותו המספר בכל פעם. אוטומטי בוחר מספר פנוי.</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -24268,6 +24283,16 @@ From the plugin %2
         <message>
             <source>Reserved by Windows</source>
             <translation>שמור על ידי Windows</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="101" />
+            <source>Unplugged Windows device %1</source>
+            <translation>התקן Windows‏ %1 מנותק</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="105" />
+            <source>Unplugged Windows device</source>
+            <translation>התקן Windows מנותק</translation>
         </message>
     </context>
     <context>

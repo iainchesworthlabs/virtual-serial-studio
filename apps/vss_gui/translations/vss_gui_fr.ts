@@ -6686,6 +6686,16 @@ Réseaux : %5</translation>
             <source>break</source>
             <translation>break</translation>
         </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="123" />
+            <source>The Virtual Serial Studio driver is out of date</source>
+            <translation>Le pilote de Virtual Serial Studio est obsolète</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="162" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Choose Set up Virtual Serial Studio to update it.</source>
+            <translation>Le pilote de ce PC est plus ancien que ce programme, donc les ports qu’il crée ne peuvent pas être utilisés. Rien n’a été modifié. Choisissez « Configurer Virtual Serial Studio » pour le mettre à jour.</translation>
+        </message>
     </context>
     <context>
         <name>ReleasePortDialog</name>
@@ -20131,6 +20141,11 @@ Réseaux : %5</translation>
             <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
             <translation>Repris de %1. Un moniteur fonctionne à la vitesse du port qu'il surveille.</translation>
         </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="388" />
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one.</source>
+            <translation>Un programme qui ouvre un nom fixe tel que COM3 a besoin du même numéro à chaque fois. Automatique en choisit un libre.</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -24268,6 +24283,16 @@ Du module %2
         <message>
             <source>Reserved by Windows</source>
             <translation>Réservé par Windows</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="101" />
+            <source>Unplugged Windows device %1</source>
+            <translation>Périphérique Windows %1 débranché</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="105" />
+            <source>Unplugged Windows device</source>
+            <translation>Périphérique Windows débranché</translation>
         </message>
     </context>
     <context>

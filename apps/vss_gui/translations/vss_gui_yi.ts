@@ -6686,6 +6686,16 @@ Networks: %5</source>
             <source>break</source>
             <translation>BREAK</translation>
         </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="123" />
+            <source>The Virtual Serial Studio driver is out of date</source>
+            <translation>דער Virtual Serial Studio דרייווער איז פֿאַרעלטערט</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="162" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Choose Set up Virtual Serial Studio to update it.</source>
+            <translation>דער דרייווער אויף דעם קאָמפּיוטער איז עלטער ווי דער פּראָגראַם, דערפֿאַר קענען די פּאָרטן װאָס ער מאַכט נישט געניצט װערן. גאָרנישט איז געביטן געװאָרן. קלײַבט אױס „אײַנשטעלן Virtual Serial Studio“ כּדי עס אױפֿצודאַטירן.</translation>
+        </message>
     </context>
     <context>
         <name>ReleasePortDialog</name>
@@ -20131,6 +20141,11 @@ Networks: %5</source>
             <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
             <translation>גענומען פון %1. א מאניטאר ארבעט מיט דער גיכקייט פון דער פארט וואס ער קוקט אויף.</translation>
         </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="388" />
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one.</source>
+            <translation>אַ פּראָגראַם װאָס עפֿנט אַ פֿעסטן נאָמען װי COM3 דאַרף דעם זעלבן נומער יעדעס מאָל. אויטאָמאַטיש קלײַבט אױס אַ פֿרײַע.</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -24268,6 +24283,16 @@ From the plugin %2
         <message>
             <source>Reserved by Windows</source>
             <translation>פֿאַרהאַלטן דורך Windows</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="101" />
+            <source>Unplugged Windows device %1</source>
+            <translation>אָפּגעקאָפּלט Windows־מיטל %1</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="105" />
+            <source>Unplugged Windows device</source>
+            <translation>אָפּגעקאָפּלט Windows־מיטל</translation>
         </message>
     </context>
     <context>

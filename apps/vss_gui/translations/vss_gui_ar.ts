@@ -6696,6 +6696,16 @@ Networks: %5</source>
             <source>break</source>
             <translation>BREAK</translation>
         </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="123" />
+            <source>The Virtual Serial Studio driver is out of date</source>
+            <translation>برنامج تشغيل Virtual Serial Studio قديم</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="162" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Choose Set up Virtual Serial Studio to update it.</source>
+            <translation>برنامج التشغيل على هذا الحاسوب أقدم من هذا البرنامج، لذلك لا يمكن استخدام المنافذ التي ينشئها. لم يتغير شيء. اختر «إعداد Virtual Serial Studio» لتحديثه.</translation>
+        </message>
     </context>
     <context>
         <name>ReleasePortDialog</name>
@@ -20205,6 +20215,11 @@ Networks: %5</source>
             <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
             <translation>مأخوذة من %1. يعمل المراقب بسرعة المنفذ الذي يراقبه.</translation>
         </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="388" />
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one.</source>
+            <translation>يحتاج البرنامج الذي يفتح اسمًا ثابتًا مثل COM3 إلى الرقم نفسه في كل مرة. يختار الوضع التلقائي رقمًا حرًا.</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -24438,6 +24453,16 @@ From the plugin %2
         <message>
             <source>Reserved by Windows</source>
             <translation>محجوز من Windows</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="101" />
+            <source>Unplugged Windows device %1</source>
+            <translation>جهاز Windows ‏%1 غير موصول</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="105" />
+            <source>Unplugged Windows device</source>
+            <translation>جهاز Windows غير موصول</translation>
         </message>
     </context>
     <context>
