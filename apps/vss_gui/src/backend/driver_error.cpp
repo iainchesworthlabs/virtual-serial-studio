@@ -120,7 +120,8 @@ QString driver_problem_title(driver_problem problem)
         return QObject::tr(
             "Your account cannot use the Virtual Serial Studio helper");
     case driver_problem::driver_old:
-        return QObject::tr("The Virtual Serial Studio driver is out of date");
+        return QObject::tr(
+            "The Virtual Serial Studio driver on this PC needs updating");
     case driver_problem::none:
     case driver_problem::unknown:
         break;
@@ -160,9 +161,10 @@ QString driver_problem_body(driver_problem problem)
             "Studio to repair it, or ask an administrator of this PC.");
     case driver_problem::driver_old:
         return QObject::tr(
-            "The driver on this PC is older than this program, so the ports "
-            "it makes cannot be used. Nothing was changed. Update the driver to "
-            "install the newer one that comes with this program.");
+            "The driver on this PC is an older version than the one that "
+            "comes with this program, so ports may not work until it is "
+            "updated. Nothing was changed. Update the driver to install the "
+            "newer one.");
     case driver_problem::none:
     case driver_problem::unknown:
         break;
