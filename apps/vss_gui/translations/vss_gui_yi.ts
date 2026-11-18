@@ -447,6 +447,16 @@
             <source>Never</source>
             <translation>קיינמאָל</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="151" />
+            <source>Open Tools, Setup check to update it.</source>
+            <translation>עפֿנט געצײַג, אײַנשטעלונג־קאָנטראָלע כּדי עס צו דערהײַנטיקן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="275" />
+            <source>Driver version</source>
+            <translation>דרייווער־ווערסיע</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -3856,6 +3866,11 @@ Networks: %5</source>
             <source>Set up Virtual Serial Studio</source>
             <translation>אײַנשטעלן Virtual Serial Studio</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_grid.cpp" line="379" />
+            <source>Update the driver</source>
+            <translation>דערהײַנטיקן דעם דרייווער</translation>
+        </message>
     </context>
     <context>
         <name>JsonCodeEdit</name>
@@ -4020,6 +4035,11 @@ Networks: %5</source>
             <location filename="../src/shell/launcher.cpp" line="344" />
             <source>Set up Virtual Serial Studio</source>
             <translation>אײַנשטעלן Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/launcher.cpp" line="357" />
+            <source>Update the driver</source>
+            <translation>דערהײַנטיקן דעם דרייווער</translation>
         </message>
     </context>
     <context>
@@ -6696,6 +6716,11 @@ Networks: %5</source>
             <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Choose Set up Virtual Serial Studio to update it.</source>
             <translation>דער דרייווער אויף דעם קאָמפּיוטער איז עלטער ווי דער פּראָגראַם, דערפֿאַר קענען די פּאָרטן װאָס ער מאַכט נישט געניצט װערן. גאָרנישט איז געביטן געװאָרן. קלײַבט אױס „אײַנשטעלן Virtual Serial Studio“ כּדי עס אױפֿצודאַטירן.</translation>
         </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="162" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Update the driver to install the newer one that comes with this program.</source>
+            <translation>דער דרייווער אויף דעם דאָזיקן קאָמפּיוטער איז עלטער ווי די דאָזיקע פּראָגראַם, דעריבער קענען די פּאָרטן וואָס ער שאַפֿט נישט גענוצט ווערן. גאָרנישט איז געענדערט געוואָרן. דערהײַנטיקט דעם דרייווער כּדי אײַנצושטעלן דעם נײַערן וואָס קומט מיט דער דאָזיקער פּראָגראַם.</translation>
+        </message>
     </context>
     <context>
         <name>ReleasePortDialog</name>
@@ -8025,6 +8050,11 @@ Networks: %5</source>
             <location filename="../src/support/setup_facts.cpp" line="198" />
             <source>Set up Virtual Serial Studio</source>
             <translation>אײַנשטעלן Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/setup_facts.cpp" line="223" />
+            <source>Update the driver</source>
+            <translation>דערהײַנטיקן דעם דרייווער</translation>
         </message>
     </context>
     <context>
@@ -19959,6 +19989,16 @@ Networks: %5</source>
             <source>Setup finished, but this PC still cannot make ports: %1. Copy the details if you ask for help.</source>
             <translation>די אײַנשטעלונג איז פֿאַרענדיקט, אָבער דער דאָזיקער קאָמפּיוטער קען נאָך אַלץ נישט שאַפֿן פּאָרטן: %1. קאָפּירט די פּרטים אויב איר בעט הילף.</translation>
         </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="147" />
+            <source>Updating replaces the driver and restarts the helper, so ports that are open now are closed, and a program that has one open loses it. Studio offers to make the ports again. Windows may ask for a restart before the new driver is used.</source>
+            <translation>דערהײַנטיקן פֿאַרבײַט דעם דרייווער און הייבט אָן פֿון נײַ דעם העלפער־סערוויס, דעריבער ווערן פּאָרטן וואָס זענען איצט אָפֿן פֿאַרמאַכט, און אַ פּראָגראַם וואָס האָט איינעם אָפֿן פֿאַרלירט אים. Studio שלאָגט פֿאָר צו שאַפֿן די פּאָרטן װידער. Windows קען פֿאָדערן אַ ריסטאַרט איידער דער נײַער דרייווער ווערט גענוצט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="217" />
+            <source>Update the driver</source>
+            <translation>דערהײַנטיקן דעם דרייווער</translation>
+        </message>
     </context>
     <context>
         <name>AddSheet</name>
@@ -24740,6 +24780,34 @@ From the plugin %2
             <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
             <source>Stop bits</source>
             <translation>שטאָפּ־ביטן</translation>
+        </message>
+    </context>
+    <context>
+        <name>DriverVersions</name>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="99" />
+            <source>Studio could not read which version of the driver Windows holds.</source>
+            <translation>Studio האָט נישט געקענט לייענען וועלכע ווערסיע פֿון דעם דרייווער Windows האָט.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="106" />
+            <source>The driver in Windows is version %1. This copy of Studio has no driver files to compare it with.</source>
+            <translation>דער דרייווער אין Windows איז ווערסיע %1. די דאָזיקע קאָפּיע פֿון Studio האָט קיין דרייווער־טעקעס נישט צו פֿאַרגלײַכן מיט.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="115" />
+            <source>The driver in Windows is version %1. This copy of Studio carries the newer version %2.</source>
+            <translation>דער דרייווער אין Windows איז ווערסיע %1. די דאָזיקע קאָפּיע פֿון Studio האַלט די נײַערע ווערסיע %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="121" />
+            <source>The driver in Windows is version %1, newer than the version this copy of Studio carries (%2). Nothing needs updating.</source>
+            <translation>דער דרייווער אין Windows איז ווערסיע %1, נײַער ווי די ווערסיע פֿון דער דאָזיקער קאָפּיע פֿון Studio (%2). עס דאַרף גאָרנישט דערהײַנטיקט ווערן.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="131" />
+            <source>The driver in Windows is version %1, the same as this copy of Studio carries.</source>
+            <translation>דער דרייווער אין Windows איז ווערסיע %1, די זעלבע ווי אין דער דאָזיקער קאָפּיע פֿון Studio.</translation>
         </message>
     </context>
 </TS>
