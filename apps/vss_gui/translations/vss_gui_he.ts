@@ -447,6 +447,16 @@
             <source>Never</source>
             <translation>אף פעם</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Open Tools, Setup check to update it.</source>
+            <translation>פתחו כלים, בדיקת הגדרות כדי לעדכן אותו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Driver version</source>
+            <translation>גרסת מנהל ההתקן</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -3856,6 +3866,11 @@ Networks: %5</source>
             <source>Set up Virtual Serial Studio</source>
             <translation>הגדרת Virtual Serial Studio</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_grid.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>עדכון מנהל ההתקן</translation>
+        </message>
     </context>
     <context>
         <name>JsonCodeEdit</name>
@@ -4020,6 +4035,11 @@ Networks: %5</source>
             <location filename="../src/shell/launcher.cpp" line="344" />
             <source>Set up Virtual Serial Studio</source>
             <translation>הגדרת Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/launcher.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>עדכון מנהל ההתקן</translation>
         </message>
     </context>
     <context>
@@ -6686,6 +6706,16 @@ Networks: %5</source>
             <source>break</source>
             <translation>Break</translation>
         </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="1" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Update the driver to install the newer one that comes with this program.</source>
+            <translation>מנהל ההתקן במחשב הזה ישן מהתוכנית הזו, ולכן אי אפשר להשתמש ביציאות שהוא יוצר. דבר לא שונה. עדכנו את מנהל ההתקן כדי להתקין את החדש יותר שמגיע עם התוכנית הזו.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="1" />
+            <source>The Virtual Serial Studio driver is out of date</source>
+            <translation>מנהל ההתקן של Virtual Serial Studio מיושן</translation>
+        </message>
     </context>
     <context>
         <name>ReleasePortDialog</name>
@@ -8015,6 +8045,11 @@ Networks: %5</source>
             <location filename="../src/support/setup_facts.cpp" line="198" />
             <source>Set up Virtual Serial Studio</source>
             <translation>הגדרת Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/setup_facts.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>עדכון מנהל ההתקן</translation>
         </message>
     </context>
     <context>
@@ -14457,6 +14492,11 @@ Networks: %5</source>
             <source>Saved setup</source>
             <translation>תצורה שמורה</translation>
         </message>
+        <message>
+            <location filename="../src/shell/launcher.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>עדכון מנהל ההתקן</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::LineMatrixPanel</name>
@@ -19133,6 +19173,11 @@ Networks: %5</source>
             <source>Open setup check</source>
             <translation>פתיחת בדיקת הגדרות</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_grid.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>עדכון מנהל ההתקן</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::simple::SetupKinds</name>
@@ -19948,6 +19993,16 @@ Networks: %5</source>
             <location filename="../src/support/driver_setup_dialog.cpp" line="273" />
             <source>Setup finished, but this PC still cannot make ports: %1. Copy the details if you ask for help.</source>
             <translation>ההגדרה הסתיימה, אבל המחשב הזה עדיין לא יכול ליצור יציאות: %1. העתיקו את הפרטים אם אתם מבקשים עזרה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>עדכון מנהל ההתקן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="1" />
+            <source>Updating replaces the driver and restarts the helper, so ports that are open now are closed, and a program that has one open loses it. Studio offers to make the ports again. Windows may ask for a restart before the new driver is used.</source>
+            <translation>העדכון מחליף את מנהל ההתקן ומפעיל מחדש את שירות העזר, ולכן יציאות שפתוחות עכשיו ייסגרו, ותוכנית שפתחה אחת מהן תאבד אותה. Studio מציע ליצור את היציאות מחדש. ייתכן ש-Windows יבקש הפעלה מחדש לפני שמנהל ההתקן החדש ישמש.</translation>
         </message>
     </context>
     <context>
@@ -24715,6 +24770,34 @@ From the plugin %2
             <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
             <source>Stop bits</source>
             <translation>סיביות עצירה</translation>
+        </message>
+    </context>
+    <context>
+        <name>DriverVersions</name>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="1" />
+            <source>Studio could not read which version of the driver Windows holds.</source>
+            <translation>Studio לא הצליח לקרוא איזו גרסה של מנהל ההתקן נמצאת ב-Windows.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="1" />
+            <source>The driver in Windows is version %1. This copy of Studio has no driver files to compare it with.</source>
+            <translation>מנהל ההתקן ב-Windows הוא בגרסה %1. בעותק הזה של Studio אין קובצי מנהל התקן להשוואה.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="1" />
+            <source>The driver in Windows is version %1. This copy of Studio carries the newer version %2.</source>
+            <translation>מנהל ההתקן ב-Windows הוא בגרסה %1. העותק הזה של Studio כולל את הגרסה החדשה יותר, %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="1" />
+            <source>The driver in Windows is version %1, newer than the version this copy of Studio carries (%2). Nothing needs updating.</source>
+            <translation>מנהל ההתקן ב-Windows הוא בגרסה %1, חדשה יותר מהגרסה שבעותק הזה של Studio (%2). אין צורך לעדכן.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="1" />
+            <source>The driver in Windows is version %1, the same as this copy of Studio carries.</source>
+            <translation>מנהל ההתקן ב-Windows הוא בגרסה %1, זהה לזו שבעותק הזה של Studio.</translation>
         </message>
     </context>
 </TS>

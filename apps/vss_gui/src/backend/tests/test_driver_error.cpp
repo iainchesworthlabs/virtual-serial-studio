@@ -51,7 +51,10 @@ TEST_CASE("driver error: each set-up problem has its own sentence and next step"
     {
         const QString body = driver_problem_body(problem);
         // A next step, and the action that does it.
-        REQUIRE(body.contains(QStringLiteral("Set up Virtual Serial Studio")));
+        REQUIRE(body.contains(problem == driver_problem::driver_old
+                                  ? QStringLiteral("Update the driver")
+                                  : QStringLiteral(
+                                        "Set up Virtual Serial Studio")));
         REQUIRE(body.contains(QStringLiteral("Nothing was changed")));
         REQUIRE(!bodies.contains(body));
         bodies << body;

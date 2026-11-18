@@ -8,6 +8,8 @@
 
 #include "backend/com_numbers.hpp"
 #include "backend/connection_text.hpp"
+#include "backend/driver_versions.hpp"
+#include "backend/driver_versions.hpp"
 #include "backend/event_bridge.hpp"
 #include "backend/platform/com0com_platform.hpp"
 
@@ -805,19 +807,29 @@ driver_check EngineStudioBackend::check_driver() const
     case vss::driver_setup_state::ready:
         break;
     }
-    // The set-up looks right, yet a port that was made spoke another version:
-    // the driver in Windows' store is older than the one this program carries.
     const vss::driver_failure last = vss::last_driver_failure();
+    const bool ports_differ = last.step == vss::driver_version_step;
+    const auto bundled = bundled_driver_version();
+    check.versions = assess_driver_versions(
+        report.seen.installed_package, bundled,
+        ports_differ ? QString::number(last.code) : QString());
+    check.details = QString::fromStdString(report.detail);
+    if (bundled)
+        check.details += QStringLiteral("; bundled package: version %1")
+                             .arg(check.versions.bundled);
+    // The set-up looks right, yet the driver in Windows' store is older than
+    // the package this program carries, or a port that was made spoke another
+    // version: an older driver was kept when this one was installed. Only a
+    // driver that is actually behind is called out.
     if (check.problem == driver_problem::none &&
-        last.step == vss::driver_version_step)
+        (ports_differ || driver_is_behind(check.versions)))
     {
         check.problem = driver_problem::driver_old;
-        check.details = QString::fromStdString(report.detail) +
-                        QStringLiteral("\nthe driver's ports speak version %1")
-                            .arg(last.code);
-        return check;
+        if (ports_differ)
+            check.details +=
+                QStringLiteral("\nthe driver's ports speak version %1")
+                    .arg(last.code);
     }
-    check.details = QString::fromStdString(report.detail);
     return check;
 }
 

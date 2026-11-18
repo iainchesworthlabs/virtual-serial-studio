@@ -173,6 +173,22 @@ QString problem_word(driver_problem value)
     return QStringLiteral("unknown");
 }
 
+QString age_word(driver_age value)
+{
+    switch (value)
+    {
+    case driver_age::older:
+        return QStringLiteral("installed is older");
+    case driver_age::same:
+        return QStringLiteral("same");
+    case driver_age::newer:
+        return QStringLiteral("installed is newer");
+    case driver_age::unknown:
+        break;
+    }
+    return QStringLiteral("not known");
+}
+
 QString yes_no(bool value)
 {
     return value ? QStringLiteral("yes") : QStringLiteral("no");
@@ -188,6 +204,14 @@ QString driver_text(const StudioBackend& backend)
     out += QStringLiteral("Studio driver version: %1\n")
                .arg(facts.driver_version.isEmpty() ? QStringLiteral("not known")
                                                    : facts.driver_version);
+    const auto known = [](const QString& text)
+    { return text.isEmpty() ? QStringLiteral("not known") : text; };
+    out += QStringLiteral("Driver package in Windows: %1\n")
+               .arg(known(facts.driver.versions.installed));
+    out += QStringLiteral("Driver package in this Studio: %1\n")
+               .arg(known(facts.driver.versions.bundled));
+    out += QStringLiteral("Driver package compared: %1\n")
+               .arg(age_word(facts.driver.versions.age));
     // Nothing reports how the installed driver is signed, so it is not
     // guessed.
     out += QStringLiteral("Studio driver signing: not known\n");

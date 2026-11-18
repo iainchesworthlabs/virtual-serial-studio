@@ -447,6 +447,16 @@
             <source>Never</source>
             <translation>Nunca</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Open Tools, Setup check to update it.</source>
+            <translation>Abra Herramientas, Comprobación de configuración para actualizarlo.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Driver version</source>
+            <translation>Versión del controlador</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -3856,6 +3866,11 @@ Redes: %5</translation>
             <source>Set up Virtual Serial Studio</source>
             <translation>Configurar Virtual Serial Studio</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_grid.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>Actualizar el controlador</translation>
+        </message>
     </context>
     <context>
         <name>JsonCodeEdit</name>
@@ -4020,6 +4035,11 @@ Redes: %5</translation>
             <location filename="../src/shell/launcher.cpp" line="344" />
             <source>Set up Virtual Serial Studio</source>
             <translation>Configurar Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/launcher.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>Actualizar el controlador</translation>
         </message>
     </context>
     <context>
@@ -6686,6 +6706,16 @@ Redes: %5</translation>
             <source>break</source>
             <translation>break</translation>
         </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="1" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Update the driver to install the newer one that comes with this program.</source>
+            <translation>El controlador de este equipo es más antiguo que este programa, así que los puertos que crea no se pueden usar. No se cambió nada. Actualice el controlador para instalar el más reciente que viene con este programa.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="1" />
+            <source>The Virtual Serial Studio driver is out of date</source>
+            <translation>El controlador de Virtual Serial Studio está desactualizado</translation>
+        </message>
     </context>
     <context>
         <name>ReleasePortDialog</name>
@@ -8015,6 +8045,11 @@ Redes: %5</translation>
             <location filename="../src/support/setup_facts.cpp" line="198" />
             <source>Set up Virtual Serial Studio</source>
             <translation>Configurar Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/setup_facts.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>Actualizar el controlador</translation>
         </message>
     </context>
     <context>
@@ -14457,6 +14492,11 @@ Redes: %5</translation>
             <source>Saved setup</source>
             <translation>Configuración guardada</translation>
         </message>
+        <message>
+            <location filename="../src/shell/launcher.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>Actualizar el controlador</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::LineMatrixPanel</name>
@@ -19133,6 +19173,11 @@ Redes: %5</translation>
             <source>Open setup check</source>
             <translation>Abrir comprobación de configuración</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_grid.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>Actualizar el controlador</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::simple::SetupKinds</name>
@@ -19948,6 +19993,16 @@ Redes: %5</translation>
             <location filename="../src/support/driver_setup_dialog.cpp" line="273" />
             <source>Setup finished, but this PC still cannot make ports: %1. Copy the details if you ask for help.</source>
             <translation>La configuración terminó, pero este equipo sigue sin poder crear puertos: %1. Copie los detalles si pide ayuda.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>Actualizar el controlador</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="1" />
+            <source>Updating replaces the driver and restarts the helper, so ports that are open now are closed, and a program that has one open loses it. Studio offers to make the ports again. Windows may ask for a restart before the new driver is used.</source>
+            <translation>Al actualizar se reemplaza el controlador y se reinicia el servicio auxiliar, así que los puertos abiertos ahora se cierran y un programa que tenga uno abierto lo pierde. Studio ofrece crear los puertos de nuevo. Windows puede pedir un reinicio antes de usar el nuevo controlador.</translation>
         </message>
     </context>
     <context>
@@ -24715,6 +24770,34 @@ Del complemento %2
             <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
             <source>Stop bits</source>
             <translation>Bits de parada</translation>
+        </message>
+    </context>
+    <context>
+        <name>DriverVersions</name>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="1" />
+            <source>Studio could not read which version of the driver Windows holds.</source>
+            <translation>Studio no pudo leer qué versión del controlador tiene Windows.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="1" />
+            <source>The driver in Windows is version %1. This copy of Studio has no driver files to compare it with.</source>
+            <translation>El controlador de Windows es la versión %1. Esta copia de Studio no tiene archivos de controlador con los que compararla.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="1" />
+            <source>The driver in Windows is version %1. This copy of Studio carries the newer version %2.</source>
+            <translation>El controlador de Windows es la versión %1. Esta copia de Studio incluye la versión más reciente %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="1" />
+            <source>The driver in Windows is version %1, newer than the version this copy of Studio carries (%2). Nothing needs updating.</source>
+            <translation>El controlador de Windows es la versión %1, más reciente que la versión que incluye esta copia de Studio (%2). No hace falta actualizar nada.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="1" />
+            <source>The driver in Windows is version %1, the same as this copy of Studio carries.</source>
+            <translation>El controlador de Windows es la versión %1, la misma que incluye esta copia de Studio.</translation>
         </message>
     </context>
 </TS>

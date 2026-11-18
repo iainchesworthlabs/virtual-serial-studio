@@ -161,8 +161,8 @@ QString driver_problem_body(driver_problem problem)
     case driver_problem::driver_old:
         return QObject::tr(
             "The driver on this PC is older than this program, so the ports "
-            "it makes cannot be used. Nothing was changed. Choose Set up "
-            "Virtual Serial Studio to update it.");
+            "it makes cannot be used. Nothing was changed. Update the driver to "
+            "install the newer one that comes with this program.");
     case driver_problem::none:
     case driver_problem::unknown:
         break;

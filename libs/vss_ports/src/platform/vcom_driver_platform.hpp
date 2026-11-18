@@ -51,6 +51,10 @@ std::optional<driver_peer_info> platform_driver_peer(const std::string& com_name
 /// needed. Makes no port.
 std::optional<driver_setup_observation> platform_observe_driver_setup();
 
+/// The newest vsscom_um package in the driver store. Empty where there is no
+/// driver store, or when it cannot be read.
+std::optional<driver_package_version> platform_installed_driver_package();
+
 /// The last failed step of making a port in this process.
 driver_failure platform_last_driver_failure();
 

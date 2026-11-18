@@ -7,6 +7,7 @@
 #include "support/driver_setup_dialog.hpp"
 
 #include "backend/driver_error.hpp"
+#include "backend/driver_versions.hpp"
 #include "theme/theme.hpp"
 #include "widgets/common.hpp"
 #include "widgets/dialogs.hpp"
@@ -133,12 +134,34 @@ void DriverSetupDialog::build(driver_problem problem)
             "running without administrator rights. Nothing is downloaded: the "
             "files come from this copy of Virtual Serial Studio."),
         this));
-    layout->addWidget(paragraph(
-        QCoreApplication::translate(
-            "DriverSetup",
-            "The helper restarts, so ports that are open now are closed. "
-            "Studio offers to make them again."),
-        this));
+    const bool update = problem == driver_problem::driver_old;
+    if (update)
+    {
+        // Say which driver is meant, and what an update does to open ports,
+        // before the permission prompt.
+        if (const QString versions =
+                driver_versions_sentence(backend_.check_driver().versions);
+            !versions.isEmpty())
+            layout->addWidget(paragraph(versions, this));
+        layout->addWidget(paragraph(
+            QCoreApplication::translate(
+                "DriverSetup",
+                "Updating replaces the driver and restarts the helper, so "
+                "ports that are open now are closed, and a program that has "
+                "one open loses it. Studio offers to make the ports again. "
+                "Windows may ask for a restart before the new driver is "
+                "used."),
+            this));
+    }
+    else
+    {
+        layout->addWidget(paragraph(
+            QCoreApplication::translate(
+                "DriverSetup",
+                "The helper restarts, so ports that are open now are closed. "
+                "Studio offers to make them again."),
+            this));
+    }
 
     // Show where the setup files come from, but only when they were found.
     const QString directory = driver_package_dir();
@@ -190,8 +213,11 @@ void DriverSetupDialog::build(driver_problem problem)
             [this] { QGuiApplication::clipboard()->setText(details_text()); });
     footer_layout->addWidget(copy_);
 
-    setup_ = make_dialog_button(title, "primary", footer);
-    setup_->setAccessibleName(title);
+    const QString action =
+        update ? QCoreApplication::translate("DriverSetup", "Update the driver")
+               : title;
+    setup_ = make_dialog_button(action, "primary", footer);
+    setup_->setAccessibleName(action);
     // Not an auto-default, so Enter never starts an elevated install by
     // accident; Close is the default button.
     setup_->setAutoDefault(false);

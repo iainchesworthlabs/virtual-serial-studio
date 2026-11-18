@@ -447,6 +447,16 @@
             <source>Never</source>
             <translation>أبدًا</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Open Tools, Setup check to update it.</source>
+            <translation>افتح «أدوات» ثم «فحص الإعداد» لتحديثه.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Driver version</source>
+            <translation>إصدار برنامج التشغيل</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -3862,6 +3872,11 @@ Networks: %5</source>
             <source>Set up Virtual Serial Studio</source>
             <translation>إعداد Virtual Serial Studio</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_grid.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>تحديث برنامج التشغيل</translation>
+        </message>
     </context>
     <context>
         <name>JsonCodeEdit</name>
@@ -4026,6 +4041,11 @@ Networks: %5</source>
             <location filename="../src/shell/launcher.cpp" line="344" />
             <source>Set up Virtual Serial Studio</source>
             <translation>إعداد Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/launcher.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>تحديث برنامج التشغيل</translation>
         </message>
     </context>
     <context>
@@ -6696,6 +6716,16 @@ Networks: %5</source>
             <source>break</source>
             <translation>BREAK</translation>
         </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="1" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Update the driver to install the newer one that comes with this program.</source>
+            <translation>برنامج التشغيل على هذا الكمبيوتر أقدم من هذا البرنامج، لذلك لا يمكن استخدام المنافذ التي ينشئها. لم يتغير شيء. حدّث برنامج التشغيل لتثبيت الإصدار الأحدث المرفق مع هذا البرنامج.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="1" />
+            <source>The Virtual Serial Studio driver is out of date</source>
+            <translation>برنامج تشغيل Virtual Serial Studio قديم</translation>
+        </message>
     </context>
     <context>
         <name>ReleasePortDialog</name>
@@ -8029,6 +8059,11 @@ Networks: %5</source>
             <location filename="../src/support/setup_facts.cpp" line="198" />
             <source>Set up Virtual Serial Studio</source>
             <translation>إعداد Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/setup_facts.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>تحديث برنامج التشغيل</translation>
         </message>
     </context>
     <context>
@@ -14487,6 +14522,11 @@ Networks: %5</source>
             <source>Saved setup</source>
             <translation>إعداد محفوظ</translation>
         </message>
+        <message>
+            <location filename="../src/shell/launcher.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>تحديث برنامج التشغيل</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::LineMatrixPanel</name>
@@ -19183,6 +19223,11 @@ Networks: %5</source>
             <source>Open setup check</source>
             <translation>فتح فحص الإعداد</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_grid.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>تحديث برنامج التشغيل</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::simple::SetupKinds</name>
@@ -20022,6 +20067,16 @@ Networks: %5</source>
             <location filename="../src/support/driver_setup_dialog.cpp" line="273" />
             <source>Setup finished, but this PC still cannot make ports: %1. Copy the details if you ask for help.</source>
             <translation>اكتمل الإعداد، لكن هذا الكمبيوتر ما زال لا يستطيع إنشاء المنافذ: %1. انسخ التفاصيل إذا طلبت المساعدة.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="1" />
+            <source>Update the driver</source>
+            <translation>تحديث برنامج التشغيل</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="1" />
+            <source>Updating replaces the driver and restarts the helper, so ports that are open now are closed, and a program that has one open loses it. Studio offers to make the ports again. Windows may ask for a restart before the new driver is used.</source>
+            <translation>يستبدل التحديث برنامج التشغيل ويعيد تشغيل خدمة المساعد، لذلك تُغلق المنافذ المفتوحة الآن ويفقد أي برنامج يستخدم أحدها اتصاله به. يعرض Studio إنشاء المنافذ من جديد. قد يطلب Windows إعادة التشغيل قبل استخدام برنامج التشغيل الجديد.</translation>
         </message>
     </context>
     <context>
@@ -24885,6 +24940,34 @@ From the plugin %2
             <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
             <source>Stop bits</source>
             <translation>بتات التوقف</translation>
+        </message>
+    </context>
+    <context>
+        <name>DriverVersions</name>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="1" />
+            <source>Studio could not read which version of the driver Windows holds.</source>
+            <translation>لم يتمكن Studio من قراءة إصدار برنامج التشغيل الموجود في Windows.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="1" />
+            <source>The driver in Windows is version %1. This copy of Studio has no driver files to compare it with.</source>
+            <translation>برنامج التشغيل في Windows هو الإصدار %1. لا تحتوي هذه النسخة من Studio على ملفات برنامج تشغيل للمقارنة بها.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="1" />
+            <source>The driver in Windows is version %1. This copy of Studio carries the newer version %2.</source>
+            <translation>برنامج التشغيل في Windows هو الإصدار %1. تتضمن هذه النسخة من Studio الإصدار الأحدث %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="1" />
+            <source>The driver in Windows is version %1, newer than the version this copy of Studio carries (%2). Nothing needs updating.</source>
+            <translation>برنامج التشغيل في Windows هو الإصدار %1، وهو أحدث من الإصدار الذي تتضمنه هذه النسخة من Studio (%2). لا حاجة إلى التحديث.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="1" />
+            <source>The driver in Windows is version %1, the same as this copy of Studio carries.</source>
+            <translation>برنامج التشغيل في Windows هو الإصدار %1، وهو نفسه الذي تتضمنه هذه النسخة من Studio.</translation>
         </message>
     </context>
 </TS>

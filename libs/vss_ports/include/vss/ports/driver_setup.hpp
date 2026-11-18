@@ -18,6 +18,9 @@
 
 #pragma once
 
+#include <vss/ports/driver_package.hpp>
+
+#include <optional>
 #include <string>
 
 namespace vss
@@ -93,6 +96,9 @@ struct driver_setup_observation
     /// The Win32 error behind `service` or `pipe`, or 0. Shown in the details,
     /// never in a sentence for the person.
     unsigned long code = 0;
+    /// The newest driver package in the driver store (its DriverVer), or
+    /// nothing when there is none or the store could not be read.
+    std::optional<driver_package_version> installed_package;
 };
 
 struct driver_setup_report
