@@ -302,6 +302,10 @@ TEST_CASE("topology: a network client shows where it connects and its state")
     ports[2].connection->reason = QStringLiteral("Connection refused");
     ports[3].connection->phase = vss::gui::connect_phase::connected;
 
+    // Whether motion is reduced follows the system setting unless the
+    // variable says otherwise, and a CI session can have animations off. Ask
+    // for motion, so the test does not depend on the machine.
+    qputenv("VSS_REDUCE_MOTION", QByteArrayLiteral("0"));
     topo::TopologyView view;
     view.set_topology(ports, {});
 
