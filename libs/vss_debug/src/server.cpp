@@ -922,18 +922,21 @@ void server::impl::stop()
     bool expected = false;
     if (!stopped_.compare_exchange_strong(expected, true))
         return;
-    std::vector<std::shared_ptr<connection>> open;
-    {
-        const std::lock_guard lock(mutex_);
-        for (auto& item : connections_)
-            open.push_back(item.second);
-    }
     boost::asio::post(io_,
-                      [this, open]
+                      [this]
                       {
                           if (listener_)
                               listener_->close();
                           poll_.cancel();
+                          // The connections are read here, on the io thread,
+                          // so one that was accepted just before is closed
+                          // too.
+                          std::vector<std::shared_ptr<connection>> open;
+                          {
+                              const std::lock_guard lock(mutex_);
+                              for (auto& item : connections_)
+                                  open.push_back(item.second);
+                          }
                           for (const auto& item : open)
                               item->close("server_stopped");
                       });
@@ -942,6 +945,13 @@ void server::impl::stop()
     if (thread_.joinable())
         thread_.join();
     pool_.join();
+    // A connection holds the server, and the loop holds the handlers that
+    // hold the connection.  Stopping the loop left those handlers queued, so
+    // run them now: the closed sockets and cancelled timers complete, and each
+    // handler lets its connection go.  Without this the loop, the connections
+    // and the server keep each other alive for ever.
+    io_.restart();
+    io_.poll();
     {
         const std::lock_guard lock(mutex_);
         connections_.clear();
