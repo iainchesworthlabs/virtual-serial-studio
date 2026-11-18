@@ -39,7 +39,7 @@ std::vector<driver_problem> setup_problem_list()
     return {driver_problem::driver_missing, driver_problem::helper_missing,
             driver_problem::helper_stopped,
             driver_problem::helper_incompatible,
-            driver_problem::helper_denied};
+            driver_problem::helper_denied, driver_problem::driver_old};
 }
 
 } // namespace

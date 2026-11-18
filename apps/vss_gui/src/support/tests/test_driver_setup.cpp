@@ -124,7 +124,7 @@ TEST_CASE("driver setup: each missing piece is a row with the one action")
     for (const driver_problem problem :
          {driver_problem::driver_missing, driver_problem::helper_missing,
           driver_problem::helper_stopped, driver_problem::helper_incompatible,
-          driver_problem::helper_denied})
+          driver_problem::helper_denied, driver_problem::driver_old})
     {
         const auto report = support::build_setup_report(
             windows_facts(problem, problem != driver_problem::driver_missing),

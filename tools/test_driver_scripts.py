@@ -110,7 +110,7 @@ function Get-ItemProperty {
 """
 
 DRIVER_STORE = "C:\\Windows\\System32\\DriverStore\\FileRepository\\"
-INF_TEXT = "[Version]\nSignature=\"$WINDOWS NT$\"\nDriverVer=11/12/2026,1.1.0.0\n"
+INF_TEXT = "[Version]\nSignature=\"$WINDOWS NT$\"\nDriverVer=11/18/2026,1.2.0.0\n"
 
 
 def ps_quote(text: str) -> str:
@@ -403,7 +403,7 @@ class SetupDriver(Harness):
 
     # DRV-11: pnputil answers 259 when no device was updated.
     def test_pnputil_259_is_a_success_when_the_package_is_in_the_driver_store(self) -> None:
-        store = [{"original": "vsscom_um.inf", "version": "1.1.0.0"}]
+        store = [{"original": "vsscom_um.inf", "version": "1.2.0.0"}]
         run = self.setup(add_code=259, store=store)
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
         self.assertIn("installing the helper service", run.stdout)
@@ -421,7 +421,7 @@ class SetupDriver(Harness):
         self.assertEqual(run.calls("Get-WindowsDriver"), ["Get-WindowsDriver"], "no -All")
 
     def test_pnputil_259_is_a_failure_when_the_store_holds_another_version(self) -> None:
-        store = [{"original": "vsscom_um.inf", "version": "1.0.0.0"}, {"original": "other.inf", "version": "1.1.0.0"}]
+        store = [{"original": "vsscom_um.inf", "version": "1.0.0.0"}, {"original": "other.inf", "version": "1.2.0.0"}]
         run = self.setup(add_code=259, store=store)
         self.assertEqual(run.returncode, 7, run.stdout + run.stderr)
 

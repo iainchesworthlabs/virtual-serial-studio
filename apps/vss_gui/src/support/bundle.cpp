@@ -165,6 +165,8 @@ QString problem_word(driver_problem value)
         return QStringLiteral("helper service incompatible");
     case driver_problem::helper_denied:
         return QStringLiteral("helper service refused this user");
+    case driver_problem::driver_old:
+        return QStringLiteral("driver older than this program");
     case driver_problem::unknown:
         return QStringLiteral("unknown");
     }

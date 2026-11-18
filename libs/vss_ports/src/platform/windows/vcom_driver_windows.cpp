@@ -92,6 +92,15 @@ void note_failure(const char* step, DWORD code)
     failure_record.code = code;
 }
 
+/// A port that speaks this program's version means the old complaint about the
+/// driver's version no longer holds.
+void forget_version_failure()
+{
+    const std::lock_guard lock(failure_mutex);
+    if (failure_record.step == driver_version_step)
+        failure_record = {};
+}
+
 /// One port of the driver: the COM name an application opens, the path of the
 /// hub end, and the device instance id (VSSCOM\PORT\0000 for a port that the
 /// control device made).
@@ -1657,12 +1666,17 @@ open_made_port(const transport::executor_type& executor,
     }
 
     VSSCOM_VERSION_INFO version{};
-    if (!read_version(handle, version) || version.Version != VSSCOM_VERSION)
+    const bool read = read_version(handle, version);
+    if (!read || version.Version != VSSCOM_VERSION)
     {
-        note_failure("read the version of the new port", ::GetLastError());
+        if (read)
+            note_failure(driver_version_step, version.Version);
+        else
+            note_failure("read the version of the new port", ::GetLastError());
         ::CloseHandle(handle);
         return make_error_code(errc::unsupported);
     }
+    forget_version_failure();
 
     virtual_port_result out;
     out.path = to_utf8(hub->port);
@@ -2048,10 +2062,12 @@ platform_create_driver_port(const transport::executor_type& executor,
 
         VSSCOM_VERSION_INFO version{};
         VSSCOM_HUB_STATE state{};
-        if (!read_version(handle, version) ||
-            version.Version != VSSCOM_VERSION)
+        const bool read = read_version(handle, version);
+        if (!read || version.Version != VSSCOM_VERSION)
         {
-            // A driver of another version: the hub speaks version 3.
+            // A driver of another version than this program's.
+            if (read)
+                note_failure(driver_version_step, version.Version);
             ::CloseHandle(handle);
             failure = errc::unsupported;
             continue;
