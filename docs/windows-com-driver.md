@@ -569,8 +569,10 @@ What the update does: `pnputil /add-driver vsscom_um.inf /install` adds the newe
 new `oem<N>.inf` and updates the devices that match it. The older package stays in the driver
 store. It is harmless, since a new port gets the newest package, and `remove-driver.ps1` deletes every
 `vsscom_um.inf` package when Studio is uninstalled. The helper is restarted, which closes the
-ports that are open. A port device whose driver host is still running the old DLL may need a
-restart of Windows, which `pnputil` reports with code 3010 and the script as exit code 10.
+ports that are open. Tried in a Windows 11 guest (`tools/vm/driver-update-cell.ps1`): the port device
+that the helper had made was bound to the newer package as soon as `pnputil` had run, with no restart,
+and ports made afterwards (the reused device and a new one) used it too. Should Windows ever need a
+restart, `pnputil` reports it with code 3010 and the script ends with exit code 10, as before.
 
 ### Signing and distribution
 

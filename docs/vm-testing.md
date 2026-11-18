@@ -96,6 +96,16 @@ tools/vm/make-bundle.sh . /mnt/d/bundle-ubuntu
 
 The guest scripts install what the program needs on Ubuntu (cmake for `ctest`, the OpenGL, EGL and fontconfig libraries Qt loads, and Xvfb with the xcb libraries for T9). On Windows the bundle carries a Python, PowerShell 7 for the `vm_*` suites, the Visual C++ runtime and the Qt offscreen plugin. `tools/vm/test-guest-cell.ps1` checks the order of the `vmrun` calls with `-DryRun`.
 
+## Running the driver update scenario
+
+`tools/vm/driver-update-cell.ps1` answers what happens to a PC that already has the user-mode driver when a newer package is set up, set up again, replaced by an older one, installed again with `-ReinstallDriver` and removed. Build the user-mode driver and the helper (`drivers/windows/build.ps1 -Driver umdf`, then `-Driver helper`), stage the packages (`drivers/windows/stage-package.ps1 -Out <old>`), run `python tools/ci/check_driver_version.py --bump`, build and stage again into `<new>`, and put the tree back (`git checkout`) before running:
+
+```powershell
+./tools/vm/driver-update-cell.ps1 -Guest windows11 -Old D:\upd\old -New D:\upd\new -Out D:\upd\evidence
+```
+
+It reverts the guest to `clean`, signs both packages with throwaway certificates made in the guest, runs `tools/vm/guest/win-driver-update.ps1` and brings back `<Out>\<guest>\update-out`: one `snap-<step>.json` for each step (the packages in the driver store and the package each helper-made port device is bound to), the logs, `summary.json` and, when `makensis` is installed, the answer of the installer's driver page (`tools/vm/driver-query.nsi`, run elevated) at each step. It takes about 10 minutes.
+
 ## Running the driver tests: a 32-bit program and a hung program
 
 The Windows guests also run the driver. `drivers/windows/test/test-wow64.ps1` drives it with a small
