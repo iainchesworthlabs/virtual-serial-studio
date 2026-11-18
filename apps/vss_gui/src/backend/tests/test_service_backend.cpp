@@ -278,6 +278,28 @@ std::string ask_for_code()
            R"(\"text\":\"123456\",\"expires_s\":60}")";
 }
 
+/// After a decision, a computer that cannot isolate a plugin keeps an
+/// unsigned one waiting until the person lets it run without isolation (Linux
+/// and macOS give none, and so does a Windows without the isolation the
+/// plugin needs). Says that for the test plugin, as the person would.
+void allow_without_isolation(ServicePluginBackend& backend,
+                             const plugin_view& view)
+{
+    const QString id = view.id;
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* now = find_view(backend.snapshot(), id);
+            return now != nullptr &&
+                   (now->state == plugin_state::available ||
+                    now->state == plugin_state::needs_isolation);
+        },
+        60000));
+    const plugin_view* now = find_view(backend.snapshot(), id);
+    if (now->state == plugin_state::needs_isolation)
+        backend.set_no_isolation(view.id, view.hash, true);
+}
+
 /// Decides about the plugin on the page's behalf and waits for it to run.
 void run_the_plugin(ServicePluginBackend& backend, const QString& id)
 {
@@ -298,6 +320,7 @@ void run_the_plugin(ServicePluginBackend& backend, const QString& id)
     request.granted = {QStringLiteral("ports.read")};
     request.switch_on = true;
     backend.decide(request);
+    allow_without_isolation(backend, view);
 }
 
 } // namespace
@@ -558,6 +581,7 @@ void decide_with(ServicePluginBackend& backend, const QString& id,
     request.granted = granted;
     request.switch_on = true;
     backend.decide(request);
+    allow_without_isolation(backend, view);
 }
 
 vss::license::status a_valid_licence()
