@@ -25,6 +25,8 @@
 .vss-drop__label { display: block; font-weight: 680; }
 .vss-drop__desc { display: block; margin-top: 0.125rem; color: var(--icl-fg-muted); font-size: var(--icl-step--1); line-height: 1.4; }
 .vss-appbar__cta { flex: none; }
+.vss-appbar__sales { display: none; flex: none; }
+@media (min-width: 90rem) { .vss-appbar__sales { display: inline-flex; } }
 
 .vss-menu summary { cursor: pointer; list-style: none; min-height: 2.75rem; display: inline-flex; align-items: center; padding-inline: var(--icl-space-4); font-weight: 650; border: 1px solid var(--icl-border); border-radius: 999px; }
 .vss-menu summary::-webkit-details-marker { display: none; }
@@ -167,3 +169,51 @@
 .vss-stack__row { display: flex; flex-wrap: wrap; gap: var(--icl-space-2); margin: 0; padding: 0; list-style: none; }
 .vss-stack__row li { flex: 1 1 8rem; padding: var(--icl-space-2) var(--icl-space-3); border-radius: var(--icl-radius-s); background: var(--app-tint); font-weight: 620; font-size: var(--icl-step--1); line-height: 1.35; }
 .vss-stack__row li small { display: block; color: var(--icl-fg-muted); font-weight: 450; }
+
+/* ---------- The home page, pricing and the other front pages ---------- */
+
+/* The home page's hero has a picture of Studio beside the text */
+.icl-hero--app .icl-tags { margin-top: var(--icl-space-5); }
+.icl-hero--app .icl-button--ghost { background: transparent; color: var(--app-on-gradient); border-color: var(--app-on-gradient); }
+.icl-hero--app .icl-button--ghost:hover { background: color-mix(in srgb, var(--app-on-gradient) 14%, transparent); }
+.vss-hero-shot { margin: 0; }
+.vss-hero-shot img { display: block; width: 100%; height: auto; border-radius: var(--icl-radius-s); box-shadow: 0 18px 50px color-mix(in srgb, var(--app-gradient-from) 60%, transparent); }
+
+/* The questions and the text of the FAQ keep to the left edge, with a readable line length */
+.icl-section .icl-faq { margin-inline: 0; }
+
+/* The editions: three cards side by side */
+.vss-plans { display: grid; gap: var(--icl-space-5); grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); margin: 0; padding: 0; list-style: none; }
+.vss-plan { display: flex; flex-direction: column; gap: var(--icl-space-3); padding: var(--icl-space-5); background: var(--icl-surface); border: 1px solid var(--icl-border); border-radius: var(--icl-radius-m); }
+.vss-plan--featured { border: 2px solid var(--app-primary); }
+.vss-plan h3 { margin: 0; font-size: var(--icl-step-2); }
+.vss-plan__for { margin: 0; color: var(--icl-fg-muted); }
+.vss-plan__price { margin: 0; font-size: var(--icl-step-2); font-weight: 750; letter-spacing: -0.02em; }
+.vss-plan__price small { display: block; color: var(--icl-fg-muted); font-size: var(--icl-step--1); font-weight: 500; letter-spacing: 0; }
+.vss-plan ul { margin: 0; padding-left: 1.1rem; }
+.vss-plan li { margin-bottom: var(--icl-space-2); }
+.vss-plan .icl-button { margin-top: auto; align-self: flex-start; }
+
+/* The comparison of editions: a mark for what is included, a dash for what is not */
+.vss-compare th:not(:first-child), .vss-compare td { text-align: center; }
+.vss-compare tbody th { text-align: left; }
+.vss-compare .vss-group th { padding-top: var(--icl-space-5); background: transparent; color: var(--app-link); font-size: var(--icl-step--1); letter-spacing: 0.06em; text-transform: uppercase; text-align: left; }
+.vss-yes::before { content: "\2713"; font-weight: 800; color: var(--app-link); }
+.vss-no::before { content: "\2014"; color: var(--icl-fg-muted); }
+
+/* A row of figures that the repository shows */
+.vss-stats { display: grid; gap: var(--icl-space-5); grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); margin: 0 0 var(--icl-space-6); padding: 0; list-style: none; }
+.vss-stats li { padding-top: var(--icl-space-3); border-top: 3px solid var(--app-accent); }
+.vss-stats strong { display: block; font-size: var(--icl-step-3); line-height: 1.1; letter-spacing: -0.02em; }
+.vss-stats span { color: var(--icl-fg-muted); font-size: var(--icl-step--1); }
+
+/* A short list of definitions: the facts a writer needs on the press page */
+.vss-facts { display: grid; gap: var(--icl-space-3) var(--icl-space-6); grid-template-columns: 1fr; margin: 0; }
+.vss-facts dt { font-weight: 700; }
+.vss-facts dd { margin: 0 0 var(--icl-space-3); color: var(--icl-fg-muted); }
+@media (min-width: 40rem) { .vss-facts { grid-template-columns: minmax(9rem, 14rem) 1fr; } .vss-facts dd { margin: 0; } }
+
+/* The app bar keeps each label on one line: with seven menus the bar is full from 64rem. */
+.vss-appbar .icl-appbar__name, .vss-nav__link, .vss-drop > summary { white-space: nowrap; }
+.vss-appbar .vss-nav__list { gap: 0; }
+.vss-plans + p, .vss-plans + ul { margin-top: var(--icl-space-5); }

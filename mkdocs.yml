@@ -10,7 +10,7 @@
 # points nowhere, a link to a heading that is not there and a page that is not in the navigation into errors. (By
 # default MkDocs reports those at INFO, which strict mode lets through.)
 site_name: Virtual Serial Studio
-site_description: A tool for real, virtual and networked serial ports
+site_description: Virtual serial ports, port sharing, a traffic monitor and test automation on one computer.
 repo_url: https://github.com/iainchesworthlabs/virtual-serial-studio
 repo_name: iainchesworthlabs/virtual-serial-studio
 # Gitflow: a change to a page goes through develop.
@@ -41,6 +41,16 @@ not_in_nav: |
   /products/
   /platforms/
   /solutions/
+  /pricing.md
+  /quality.md
+  /security.md
+  /whats-new.md
+  /faq.md
+  /support.md
+  /licence.md
+  /privacy.md
+  /accessibility.md
+  /press.md
 
 # Not published on the site. The files stay in the repository and a published page that links to one gets a link to the
 # file on GitHub instead (tools/docs/mkdocs_hooks.py). tools/docs/site_layout.json says, for each page of docs/, the
@@ -97,6 +107,9 @@ hooks:
   # signed update feed, which is copied unchanged to updates/v1/feed.json. The data is tools/docs/release/ (docs/ci.md, "Release data
   # and the update feed").
   - tools/docs/site_release_hook.py
+  # The released sections of CHANGELOG.md for the What's new page (<!-- changelog:releases -->), with the headings shifted below the page's
+  # h1. Nothing else of CHANGELOG.md is read, and the fragments in changelog.d/ are not.
+  - tools/docs/site_changelog_hook.py
 
 theme:
   name: material

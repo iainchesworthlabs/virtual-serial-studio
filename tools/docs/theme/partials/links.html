@@ -4,13 +4,13 @@
 
     menus: the app bar of the front pages, in order. Each entry is (label, path, items). An entry with items is a menu that opens (a native
            <details>, no script); each item is (path, label, one line on what is there). An entry with no items is a plain link.
-           The menus of docs/plan/site.md are added with their pages, so that no menu leads to a page that is not there. Products,
-           Platforms and Solutions are here; Quality and security, Pricing and Resources come with their pages.
+           The menus of docs/plan/site.md. A menu only links to pages that exist. The guide is in Resources, and the Developers link goes to
+           the developer pages.
     download: where the Download button of the app bar goes, as (path, label): the Downloads page.
+    sales: the Contact sales button beside it, as (path, label): the "Talk to us" heading of the Support page.
     bar:   the slim bar above the guide's own header, back to the front pages.
     more:  the row of links above the company footer. -#}
 {%- set menus = [
-  ("Guide", "guide/", []),
   ("Products", "products/", [
     ("products/", "All products", "What is in the box, and what is in the packages today."),
     ("products/studio/", "Studio", "Make, share and link virtual serial ports, and watch the traffic."),
@@ -36,7 +36,23 @@
     ("solutions/fault-injection-and-timing/", "Fault injection and timing", "Delay, wire timing, faults and collisions."),
   ]),
   ("Developers", "developers/", []),
+  ("Quality and security", "quality/", [
+    ("quality/", "Quality and trust", "Tests, sanitizers, fuzzing, coverage and signed releases."),
+    ("security/", "Security", "Report a vulnerability, verify a download, and what the program sends."),
+  ]),
+  ("Pricing", "pricing/", []),
+  ("Resources", "guide/", [
+    ("guide/", "Guide", "Organised by task, from the first port to the command line."),
+    ("whats-new/", "What's new", "What changed in each release."),
+    ("faq/", "FAQ", "The questions that come up first."),
+    ("support/", "Support", "Report a problem, or talk to us about Pro and Enterprise."),
+    ("licensing/", "Licensing", "The GPL, licence files, and the driver."),
+    ("privacy/", "Privacy", "What the program, this site and the releases send or keep."),
+    ("accessibility/", "Accessibility", "What the program and this site do, and how it is checked."),
+    ("press/", "Press", "The facts a writer needs."),
+  ]),
 ] -%}
 {%- set download = ("downloads/", "Download") -%}
-{%- set bar = [("guide/", "Guide"), ("developers/", "Developers"), ("downloads/", "Downloads")] -%}
-{%- set more = [("products/", "Products"), ("platforms/", "Platforms"), ("solutions/", "Solutions"), ("guide/", "Guide"), ("developers/", "Developers"), ("downloads/", "Downloads")] -%}
+{%- set sales = ("support/#talk-to-us", "Contact sales") -%}
+{%- set bar = [("guide/", "Guide"), ("developers/", "Developers"), ("pricing/", "Pricing"), ("downloads/", "Downloads"), ("support/", "Support")] -%}
+{%- set more = [("products/", "Products"), ("platforms/", "Platforms"), ("solutions/", "Solutions"), ("pricing/", "Pricing"), ("quality/", "Quality"), ("security/", "Security"), ("guide/", "Guide"), ("developers/", "Developers"), ("downloads/", "Downloads"), ("whats-new/", "What's new"), ("faq/", "FAQ"), ("support/", "Support"), ("licensing/", "Licensing"), ("privacy/", "Privacy"), ("accessibility/", "Accessibility"), ("press/", "Press")] -%}

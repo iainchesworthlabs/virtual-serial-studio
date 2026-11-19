@@ -64,6 +64,7 @@ python tools/ci/check_site_pages.py --site build/docs
 python tools/ci/check_release_data.py --site build/docs
 python -I tools/ci/test_site_checks.py        # their own tests; no MkDocs and no built site needed
 python -I tools/ci/test_site_release.py       # the tests of the release data hook and of the refresh; no network
+python -I tools/ci/test_site_changelog.py     # the tests of the What's new hook
 ```
 
 Set `NO_MKDOCS_2_WARNING=true` to keep MkDocs from printing its notice about version 2. `requirements/docs.txt` is made from
@@ -82,12 +83,12 @@ that is not there and a page missing from the navigation at a level that strict 
 The site has three kinds of page.
 
 - **Front pages.** Markdown with `template: marketing.html` in the front matter. That template (`tools/docs/theme/marketing.html`) is
-  plain HTML on the company shell. It does not extend Material and ships no script. Their links are relative. So far there are two: a
-  placeholder home page (`docs/index.md`) with the name, one sentence and a button to the guide, and Downloads (`docs/downloads.md`),
-  which is made from the release data (see [Release data and the update feed](#release-data-and-the-update-feed)). The others in the
-  plan (products, platforms, solutions, pricing and the rest) come in a later pull request. The menus of the app bar are one list in
-  `tools/docs/theme/partials/links.html`; a menu with items opens as a native `<details>`, so it works with no script, and below 64rem
-  the menus fold into one Menu. Only pages that exist are in it.
+  plain HTML on the company shell. It does not extend Material and ships no script. Their links are relative. They are the home page,
+  Products, Platforms and Solutions, Downloads (`docs/downloads.md`, made from the release data: see [Release data and the update
+  feed](#release-data-and-the-update-feed)), Pricing, Quality and trust, Security, What's new, FAQ, Support, Licensing (`docs/licence.md`,
+  because `docs/licensing.md` is the design of licence files), Privacy, Accessibility and Press. What's new is made from `CHANGELOG.md`
+  (see [What's new](#whats-new)). The menus of the app bar are one list in `tools/docs/theme/partials/links.html`; a menu with items
+  opens as a native `<details>`, so it works with no script, and below 64rem the menus fold into one Menu. Only pages that exist are in it.
 - **The guide** (`/virtual-serial-studio/guide/`) **and the pages for programmers** (`/virtual-serial-studio/developers/`). They are
   Material pages, with Material's colours set from the palette and from the browser's own light and dark colours
   (`docs/assets/guide.css`). The menu holds these two groups only.
@@ -122,8 +123,8 @@ The program has another address compiled in, `https://virtual-serial-studio.com`
 page). It is not the site's address, and the program does not change for the site. `tools/ci/check_site_address.py` fails when
 `site_url` is another address, when a page of `docs/` other than this one and the plans writes the site's host or the address of the old
 GitHub Pages site, when a file writes the compiled-in host and is not one of the files that `COMPILED_IN` in the script lists (the
-program's source, tests and translations, the changelog, a sample feed, and the pages that say what the program does with
-that address), and when `README.md` links to the site's host at another address than `site_url`.
+program's source, tests and translations, the changelog, a sample feed, the pages that say what the program does with
+that address, and the Support and Press pages, which write the support address `support@virtual-serial-studio.com` as plain text), and when `README.md` links to the site's host at another address than `site_url`.
 
 ### The company kit and the palette
 
@@ -163,8 +164,8 @@ most, one contact form. The form is not on a page yet. The script already holds 
 as the endpoint expects, the list of topics, a `label for` every field, a honeypot field inside an `aria-hidden` element and out of the
 tab order, and the consent box with its link to the company's privacy text. Stylesheets may not `@import` or load from an address.
 
-`FIXED` in the script lists the files that must be in the built site: the home page, the guide, developer and Downloads pages, `theme.css`,
-`icon.svg` and `icl-app.json`. The company's contract also asks for `privacy/` and `support/`; they are added to `FIXED` with those pages.
+`FIXED` in the script lists the files that must be in the built site: the home page, the guide, developer, Downloads, Privacy and Support
+pages (the company's contract asks for the last two), `theme.css`, `icon.svg` and `icl-app.json`.
 
 The pages `licensing/`, `privacy/` and `pricing/` are drafts until the owner says they are not. `check_site_drafts` in the same script
 fails when one of them is in the built site and its main content no longer contains the word DRAFT. A page that is not built yet is not
@@ -236,6 +237,17 @@ through `update_feed.verify_with_keys_file` (a feed when that file lists no key 
 means nothing to check). And the built feed is the same bytes as `update-feed.json`, with a feed in one place and none in the other
 reported. The action `docs-site` runs it with the other checks.
 
+### What's new
+
+`docs/whats-new.md` holds the marker `<!-- changelog:releases -->` on a line of its own. `tools/docs/site_changelog_hook.py` replaces it
+with the released sections of `CHANGELOG.md` (`## [1.2.3] - 2026-12-01`) as Markdown, each as an `h2` with an address of its own
+(`#v1-2-3`), a link to the release on GitHub and the section's text. The categories under a version stay one level below it, so the page
+keeps one `h1`. The Unreleased section, the link definitions at the foot of the file and the fragments in `changelog.d/` are not read. A
+relative link in an entry is relative to the repository, and becomes a link to the file on GitHub; an address that starts with `http`
+stays as written, and `check_site_pages.py` allows only GitHub and gnu.org on a front page. With no released section the marker becomes one
+sentence that says so, and, if the changelog has entries under Unreleased, an Unreleased heading with them. An unknown `changelog:` marker
+stops the build. `tools/ci/test_site_changelog.py` holds the hook, and the real `CHANGELOG.md`, to this.
+
 ### In CI
 
 `.github/actions/docs-site` installs MkDocs from the hash-locked `requirements/docs.txt` (`uv pip install --require-hashes --no-build`),
@@ -248,8 +260,8 @@ builds strictly, and runs the checks of this section in order (`check_site_kit.p
 - `release.yml`, job `Docs (strict)`: on a tag, before the packages are built, so that a broken page stops a release in a few minutes.
 
 The checks' own tests are `tools/ci/test_site_checks.py`: each check passes a good tree and fails, with a reason, on a bad one. The
-release data hook and the refresh have theirs in `tools/ci/test_site_release.py`, which never uses the network. The `changelog` job of
-`ci.yml` runs both with the other tests of `tools/ci`.
+release data hook and the refresh have theirs in `tools/ci/test_site_release.py`, which never uses the network, and the What's new hook has
+`tools/ci/test_site_changelog.py`. The `changelog` job of `ci.yml` runs all three with the other tests of `tools/ci`.
 
 A change to the documentation tooling alone (`mkdocs.yml`, `tools/docs/`, `tools/ci/site_*.py`, `tools/ci/check_site_*.py`,
 `tools/ci/check_release_data.py`, `tools/ci/test_site_*.py`, `requirements/docs.*` and `.github/actions/docs-site/`) is listed under

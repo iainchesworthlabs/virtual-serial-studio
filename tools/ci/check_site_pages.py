@@ -29,7 +29,7 @@ The front pages (tools/docs/theme/marketing.html), which run under a preview tha
   front pages and are not looked at.
 
 And the pages and files that the company site's contract asks for, and that other pages lead to, exist: see FIXED. The company's contract
-also asks for /virtual-serial-studio/privacy/ and /virtual-serial-studio/support/; they are added to FIXED with their pages.
+asks for /virtual-serial-studio/privacy/ and /virtual-serial-studio/support/, and they are in FIXED.
 """
 
 from __future__ import annotations
@@ -46,7 +46,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import site_tools  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-FIXED = ["index.html", "guide/index.html", "developers/index.html", "downloads/index.html", "theme.css", "icon.svg", "icl-app.json"]
+FIXED = ["index.html", "guide/index.html", "developers/index.html", "downloads/index.html", "privacy/index.html", "support/index.html",
+         "theme.css", "icon.svg", "icl-app.json"]
 # The pages that are drafts until the owner says they are not: the licence and privacy texts are for a solicitor, and the prices are not
 # decided (docs/plan/site.md, decision D). While one of them is built it must say DRAFT in its main content. One that is not built yet
 # is not an error.

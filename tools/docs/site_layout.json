@@ -82,6 +82,46 @@
    "new": "solutions/fault-injection-and-timing/"
   },
   {
+   "src": "pricing.md",
+   "new": "pricing/"
+  },
+  {
+   "src": "quality.md",
+   "new": "quality/"
+  },
+  {
+   "src": "security.md",
+   "new": "security/"
+  },
+  {
+   "src": "whats-new.md",
+   "new": "whats-new/"
+  },
+  {
+   "src": "faq.md",
+   "new": "faq/"
+  },
+  {
+   "src": "support.md",
+   "new": "support/"
+  },
+  {
+   "src": "licence.md",
+   "new": "licensing/"
+  },
+  {
+   "src": "privacy.md",
+   "new": "privacy/"
+  },
+  {
+   "src": "accessibility.md",
+   "new": "accessibility/"
+  },
+  {
+   "src": "press.md",
+   "new": "press/"
+  },
+  {
    "src": "user-guide.md",
    "new": "guide/"
   },

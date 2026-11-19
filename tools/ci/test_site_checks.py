@@ -182,7 +182,7 @@ class Address(unittest.TestCase):
         text = "https://virtual-serial-studio.com/updates/v1/feed.json\n"
         for name in ("apps/vss_gui/src/updates/update_types.hpp", "apps/vss_gui/src/support/app_identity.cpp",
                      "apps/vss_gui/src/support/tests/test_app_identity.cpp", "apps/vss_gui/translations/vss_gui_fr.ts",
-                     "docs/updates.md", "docs/user-guide.md", "changelog.d/x.added.md"):
+                     "docs/updates.md", "docs/user-guide.md", "docs/support.md", "docs/press.md", "changelog.d/x.added.md"):
             self.put(name, text)
         self.assertEqual(check_site_address.check(self.root), [])
 
@@ -375,7 +375,9 @@ def fixed_site(site: Path) -> None:
         path = site / name
         path.parent.mkdir(parents=True, exist_ok=True)
         if name.endswith(".html"):
-            path.write_text(front(name.replace("/index.html", "") or "home"), encoding="utf-8")
+            address = name.replace("index.html", "")
+            body = "<h1>t</h1><p>DRAFT</p>" if address in check_site_pages.DRAFT_PAGES else "<h1>t</h1>"
+            path.write_text(front(name.replace("/index.html", "") or "home", body=body), encoding="utf-8")
         elif name.endswith(".css"):
             path.write_text("a {}\n", encoding="utf-8")
         elif name.endswith(".json"):
@@ -390,7 +392,6 @@ class Pages(unittest.TestCase):
         self.site = Path(self.tmp.name)
         fixed_site(self.site)
         (self.site / "faq").mkdir()
-        (self.site / "support").mkdir()
         (self.site / "press").mkdir()
 
     def tearDown(self) -> None:
@@ -407,7 +408,13 @@ class Pages(unittest.TestCase):
 
     def test_the_required_files_are_the_ones_this_site_has(self) -> None:
         self.assertEqual(set(check_site_pages.FIXED), {"index.html", "guide/index.html", "developers/index.html", "downloads/index.html",
-                                                       "theme.css", "icon.svg", "icl-app.json"})
+                                                       "privacy/index.html", "support/index.html", "theme.css", "icon.svg", "icl-app.json"})
+
+    def test_the_company_contract_pages_are_required(self) -> None:
+        for name in ("privacy/index.html", "support/index.html"):
+            (self.site / name).unlink()
+            self.assertIn(f"{name}: is not in the built site", self.problems())
+            self.put(name, front(name.replace("/index.html", "")))
 
     def test_a_missing_required_page_is_found(self) -> None:
         (self.site / "guide" / "index.html").unlink()
@@ -519,7 +526,6 @@ class ContactForm(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.site = Path(self.tmp.name)
         fixed_site(self.site)
-        (self.site / "support").mkdir()
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
@@ -601,7 +607,8 @@ class Drafts(unittest.TestCase):
 
     def test_no_page_built_is_not_an_error_and_is_named(self) -> None:
         self.assertEqual(check_site_pages.check_site_drafts(self.site), [])
-        self.assertEqual(check_site_pages.absent_drafts(self.site), ["licensing/", "privacy/", "pricing/"])
+        # privacy/ is a required page (FIXED), so fixed_site builds it, with the word.
+        self.assertEqual(check_site_pages.absent_drafts(self.site), ["licensing/", "pricing/"])
 
     def test_a_page_with_the_word_passes(self) -> None:
         for address in check_site_pages.DRAFT_PAGES:
@@ -644,7 +651,7 @@ class Drafts(unittest.TestCase):
         with contextlib.redirect_stdout(out):
             self.assertEqual(check_site_pages.main(["--site", str(self.site), "--root", str(REPO)]), 0)
         self.assertIn("Site pages: ok", out.getvalue())
-        self.assertIn("Site drafts: licensing/, privacy/ not in the built site yet", out.getvalue())
+        self.assertIn("Site drafts: licensing/ not in the built site yet", out.getvalue())
 
 
 def openssl_problem() -> str:
