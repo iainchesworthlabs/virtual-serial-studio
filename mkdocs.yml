@@ -14,9 +14,11 @@ theme:
     - navigation.sections
     - content.code.copy
 # The design bundle (specifications, tokens and HTML mockups) is reference
-# material for the people building the GUI, not part of the site.
+# material for the people building the GUI, not part of the site. Plans are
+# working notes for the owner.
 exclude_docs: |
   gui-design/
+  plan/
 nav:
   - Home: index.md
   - Using the studio:
