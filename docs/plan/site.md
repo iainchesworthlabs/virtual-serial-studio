@@ -119,7 +119,7 @@ Published at `/virtual-serial-studio/`:
 | Front | `index`, `products/` (+ studio, command-line, agent-gateway, plugins, drivers), `platforms/` (+ windows, macos, linux), `solutions/` (seven pages), `quality/`, `security/`, `pricing/`, `downloads/`, `whats-new/`, `faq/`, `support/`, `licensing/`, `privacy/`, `accessibility/`, `press/` |
 | Guide | `guide/` split by task from `docs/user-guide.md` (about 2,100 lines): getting started, ports, the command line, automation, plugins, licences, updates, troubleshooting, limits |
 | Developers | `developers/` with a curated set (proposed: control API, plugin SDK, CLI reference, topology format, building, architecture). The rest stays repository-only. |
-| Generated | `updates/v1/feed.json` (byte copy of the signed feed), `theme.css`, `icon.svg`, `404.html`, `sitemap.xml` |
+| Generated | `updates/v1/feed.json` (byte copy of the signed feed), `theme.css` (the palette), `icon.svg`, `icl-app.json` (the company tile manifest: name, summary, tags, status, icon, order), `404.html`, `sitemap.xml` |
 
 Repository-only (in `exclude_docs`): `gui-design/`, `plan/`, `ci.md`, `releasing.md`, `migration.md`,
 `workstreams.md`, `vm-testing.md`, `fuzzing.md`, `profiling.md`, `app-icon.md`, `i18n.md`, `contributing.md`,
@@ -186,7 +186,7 @@ below it, and the stack is merged down (top into its base, then the next), after
 | # | Branch | Holds |
 |---|---|---|
 | 0 | `docs/site-plan` | This plan only. |
-| icl-1 | icl-site `feature/add-virtual-serial-studio` | `apps.ts` entry (`virtual-serial-studio`, repo id 1442223332, role `icl-site-deploy-virtual-serial-studio`, `publishRef: 'site'`), protected prefix, README, the two test lists. Small, so that previews work early. |
+| icl-1 | icl-site `feature/add-virtual-serial-studio` ([icl-site#18](https://github.com/iainchesworthlabs/icl-site/pull/18)) | `apps.ts` entry (`virtual-serial-studio`, repo id 1442223332, role `icl-site-deploy-virtual-serial-studio`, `publishRef: 'site'`), protected prefix, README, the test lists, and the fallback tile manifest `data/apps/virtual-serial-studio.json` (status coming soon) that the company site's tests require for every app. Small, so that previews work early. Until the site deploys, the company tile links to a page that answers 404. |
 | 1 | `feature/site-shell` | Kit copy, `mkdocs.yml`, hooks, theme, palette, shell checks, composite action, requirements, `ci.md`. A placeholder home page. |
 | 2 | `feature/site-deploy` | `docs.yml` (production, preview, remove-preview, failure notice), the `site` job in `release.yml`, release docs. Previews work for every later PR once the owner has done owner steps 1 to 3. |
 | icl-2 | icl-site `feature/second-domain` | Certificate, aliases, edge function rule, tests. |
@@ -194,7 +194,7 @@ below it, and the stack is merged down (top into its base, then the next), after
 | 4 | `feature/site-guide` | Guide split, text brought up to the code, screenshots. |
 | 5 | `feature/site-claims` and `feature/site-contact-form` | The claims check; the form (after icl-3). |
 | icl-3 | icl-site `feature/contact-source-vss` | `SOURCES` entry and topics (proposed: `pro`, `enterprise`, `trial`, `plugins`, `other`). |
-| icl-4 | icl-site `feature/link-virtual-serial-studio` | "Coming soon" becomes a link in 14 shell files, kit version bump. Merged once the address answers. |
+| icl-4 | icl-site `feature/link-virtual-serial-studio` | The company site now builds its product lists from each app's published `/<slug>/icl-app.json` (icl-site#17), so there are no hand-written "Coming soon" lines to change. This PR switches `data/apps/virtual-serial-studio.json` to status `available` with the icon, and reruns `node tools/tiles.mjs`. A kit version bump is needed only if the kit files change. Merged once the address answers. |
 | 6 | `chore/site-kit-repin` | Re-pin the kit copy to the bumped version. |
 
 Only the release PR edits `CHANGELOG.md`. Website changes count as user-visible for the changelog policy, so PRs 3
@@ -262,6 +262,7 @@ Differences between the brief and the repositories, and stale text to fix in the
   of features, and update checks (inert without keys). The agent and gateway are not in any package yet.
 - **Company-site README is stale** in three places (it says "variables" where the workflow reads secrets, the
   protected-prefix sentence, and the `develop` publish note). The icl-1 PR corrects them.
+- **The company site changed while this was being planned** (icl-site#17, 19 Nov): product lists in the menu, footer, family pages and home tiles are now generated from each app's `/<slug>/icl-app.json` and a fallback in `data/apps/`. VSS publishes `icl-app.json` and `theme.css`, and its tile then appears at the company site's next deploy.
 - **`CHANGELOG.md`'s compare link** still names `iainchesworth/`. That is the release PR's to fix.
 - **Branch names with dots fail precheck**, and `python3` on this machine is the Store stub, so tools are run with
   `python`.
