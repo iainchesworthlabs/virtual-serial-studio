@@ -38,6 +38,9 @@ validation:
 not_in_nav: |
   /index.md
   /downloads.md
+  /products/
+  /platforms/
+  /solutions/
 
 # Not published on the site. The files stay in the repository and a published page that links to one gets a link to the
 # file on GitHub instead (tools/docs/mkdocs_hooks.py). tools/docs/site_layout.json says, for each page of docs/, the

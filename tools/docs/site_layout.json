@@ -10,6 +10,78 @@
    "new": "downloads/"
   },
   {
+   "src": "products/index.md",
+   "new": "products/"
+  },
+  {
+   "src": "products/studio.md",
+   "new": "products/studio/"
+  },
+  {
+   "src": "products/command-line.md",
+   "new": "products/command-line/"
+  },
+  {
+   "src": "products/agent-gateway.md",
+   "new": "products/agent-gateway/"
+  },
+  {
+   "src": "products/plugins.md",
+   "new": "products/plugins/"
+  },
+  {
+   "src": "products/drivers.md",
+   "new": "products/drivers/"
+  },
+  {
+   "src": "platforms/index.md",
+   "new": "platforms/"
+  },
+  {
+   "src": "platforms/windows.md",
+   "new": "platforms/windows/"
+  },
+  {
+   "src": "platforms/macos.md",
+   "new": "platforms/macos/"
+  },
+  {
+   "src": "platforms/linux.md",
+   "new": "platforms/linux/"
+  },
+  {
+   "src": "solutions/index.md",
+   "new": "solutions/"
+  },
+  {
+   "src": "solutions/develop-and-test-without-hardware.md",
+   "new": "solutions/develop-and-test-without-hardware/"
+  },
+  {
+   "src": "solutions/device-emulation.md",
+   "new": "solutions/device-emulation/"
+  },
+  {
+   "src": "solutions/test-automation-and-ci.md",
+   "new": "solutions/test-automation-and-ci/"
+  },
+  {
+   "src": "solutions/capture-and-analysis.md",
+   "new": "solutions/capture-and-analysis/"
+  },
+  {
+   "src": "solutions/sharing-and-bridging-ports.md",
+   "new": "solutions/sharing-and-bridging-ports/"
+  },
+  {
+   "src": "solutions/test-benches.md",
+   "new": "solutions/test-benches/"
+  },
+  {
+   "src": "solutions/fault-injection-and-timing.md",
+   "new": "solutions/fault-injection-and-timing/"
+  },
+  {
    "src": "user-guide.md",
    "new": "guide/"
   },

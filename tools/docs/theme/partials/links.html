@@ -4,15 +4,39 @@
 
     menus: the app bar of the front pages, in order. Each entry is (label, path, items). An entry with items is a menu that opens (a native
            <details>, no script); each item is (path, label, one line on what is there). An entry with no items is a plain link.
-           The menus of docs/plan/site.md (Products, Platforms, Solutions, Developers, Quality and security, Pricing, Resources) are
-           added with their pages, so that no menu leads to a page that is not there.
+           The menus of docs/plan/site.md are added with their pages, so that no menu leads to a page that is not there. Products,
+           Platforms and Solutions are here; Quality and security, Pricing and Resources come with their pages.
     download: where the Download button of the app bar goes, as (path, label): the Downloads page.
     bar:   the slim bar above the guide's own header, back to the front pages.
     more:  the row of links above the company footer. -#}
 {%- set menus = [
   ("Guide", "guide/", []),
+  ("Products", "products/", [
+    ("products/", "All products", "What is in the box, and what is in the packages today."),
+    ("products/studio/", "Studio", "Make, share and link virtual serial ports, and watch the traffic."),
+    ("products/command-line/", "Command line", "vss_cli: ports, setups, capture, replay and scripted devices, with no window."),
+    ("products/agent-gateway/", "Agent and gateway", "Drive ports from a test script, with a JUnit report. Built from source."),
+    ("products/plugins/", "Plugins", "The plugin host, trust, signing and the sandbox."),
+    ("products/drivers/", "Drivers", "COM ports on Windows, and pseudo terminals on Linux and macOS."),
+  ]),
+  ("Platforms", "platforms/", [
+    ("platforms/", "All platforms", "What each system gets and what is tested on it."),
+    ("platforms/windows/", "Windows", "Installer, zip, the driver, and the limits."),
+    ("platforms/macos/", "macOS", "Disk image for Apple silicon, and what has not been tried."),
+    ("platforms/linux/", "Linux", "deb, rpm and archive, and what they need."),
+  ]),
+  ("Solutions", "solutions/", [
+    ("solutions/", "All solutions", "Seven jobs, each with an example and what it does not cover."),
+    ("solutions/develop-and-test-without-hardware/", "Develop and test without hardware", "A port for your program before the device exists."),
+    ("solutions/device-emulation/", "Device emulation", "Scripted answers, a scripted master, and replay."),
+    ("solutions/test-automation-and-ci/", "Test automation and CI", "Run with no window, wait for a reply, keep a JUnit report."),
+    ("solutions/capture-and-analysis/", "Capture and analysis", "Watch, record every byte with its time, and play it back."),
+    ("solutions/sharing-and-bridging-ports/", "Sharing and bridging ports", "One device to several programs, a bus, a network port."),
+    ("solutions/test-benches/", "Test benches", "Ports, links, control lines and a bus, kept as a file."),
+    ("solutions/fault-injection-and-timing/", "Fault injection and timing", "Delay, wire timing, faults and collisions."),
+  ]),
   ("Developers", "developers/", []),
 ] -%}
 {%- set download = ("downloads/", "Download") -%}
 {%- set bar = [("guide/", "Guide"), ("developers/", "Developers"), ("downloads/", "Downloads")] -%}
-{%- set more = [("guide/", "Guide"), ("developers/", "Developers"), ("downloads/", "Downloads")] -%}
+{%- set more = [("products/", "Products"), ("platforms/", "Platforms"), ("solutions/", "Solutions"), ("guide/", "Guide"), ("developers/", "Developers"), ("downloads/", "Downloads")] -%}

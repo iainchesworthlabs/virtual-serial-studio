@@ -73,3 +73,97 @@
 .vss-more p { margin: 0 0 var(--icl-space-3); color: var(--icl-fg-muted); }
 .vss-more ul { display: flex; flex-wrap: wrap; gap: var(--icl-space-1) var(--icl-space-5); margin: 0; padding: 0; list-style: none; }
 .vss-more a { display: inline-block; padding: var(--icl-space-2) 0; }
+
+/* ---------- The product, platform and solution pages ---------- */
+
+/* Keep text on the left edge of the page, with a readable line length */
+.icl-section > .icl-wrap > p { max-width: var(--icl-measure); }
+.vss-head .icl-crumb { margin-bottom: var(--icl-space-3); color: var(--icl-fg-muted); }
+.vss-head .icl-crumb a { color: var(--app-link); }
+
+/* A section's introduction: a heading and one paragraph under it */
+.vss-intro { max-width: 46rem; margin-bottom: var(--icl-space-6); }
+.vss-intro h2 { margin-bottom: var(--icl-space-3); }
+.vss-intro p { color: var(--icl-fg-muted); font-size: var(--icl-step-1); margin: 0; }
+
+/* Cards: the kit's .icl-card, with a kicker above the heading and the status chip at the foot */
+.vss-kicker { margin: 0; color: var(--app-link); font-size: var(--icl-step--1); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.icl-card ul { margin: 0; padding-left: 1.1rem; color: var(--icl-fg-muted); font-size: var(--icl-step--1); }
+.vss-card__status { margin-top: auto; }
+.icl-grid.vss-grid-3 { grid-template-columns: 1fr; }
+@media (min-width: 40rem) { .icl-grid.vss-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 64rem) { .icl-grid.vss-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* Status chips: In the packages, Built from source, Planned. Words carry the meaning; the look only repeats it. */
+.vss-chip { display: inline-block; padding: 0.0625rem var(--icl-space-2); border: 1px solid var(--icl-border); border-radius: 999px; font-size: var(--icl-step--1); font-weight: 650; line-height: 1.5; max-width: 100%; }
+.vss-chip--ok { background: var(--app-primary); border-color: var(--app-primary); color: var(--app-on-primary); }
+.vss-chip--src { border-color: var(--app-link); color: var(--app-link); }
+.vss-chip--plan { border-style: dashed; border-color: var(--icl-fg-muted); color: var(--icl-fg-muted); }
+
+/* Steps */
+.vss-steps { display: grid; gap: var(--icl-space-5); grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); margin: 0; padding: 0; list-style: none; counter-reset: step; }
+.vss-steps li { counter-increment: step; }
+.vss-steps li::before { content: counter(step); display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; margin-bottom: var(--icl-space-3); border-radius: 50%; background: var(--app-primary); color: var(--app-on-primary); font-weight: 750; }
+.vss-steps h3 { margin-top: 0; }
+.vss-steps p { margin: 0; color: var(--icl-fg-muted); }
+
+/* A block of text beside a picture of a window of the program */
+.vss-row { display: grid; gap: var(--icl-space-6); align-items: center; padding-block: var(--icl-space-6); }
+.vss-row > div { min-width: 0; }
+.vss-row p { color: var(--icl-fg-muted); max-width: 52ch; }
+@media (min-width: 52rem) {
+  .vss-row { grid-template-columns: 1fr 1fr; gap: var(--icl-space-8); }
+  .vss-row--flip .vss-shot { order: -1; }
+}
+.vss-shot { margin: 0; }
+.vss-shot img { display: block; width: 100%; height: auto; border: 1px solid var(--icl-border); border-radius: var(--icl-radius-s); }
+.vss-shot figcaption { margin-top: var(--icl-space-2); color: var(--icl-fg-muted); font-size: var(--icl-step--1); }
+
+/* Two columns, then one */
+.vss-two { display: grid; gap: var(--icl-space-7); }
+.vss-two > * { min-width: 0; }
+@media (min-width: 52rem) { .vss-two { grid-template-columns: 1fr 1fr; } }
+.vss-two p { max-width: 52ch; }
+.vss-two h2:not(:first-child) { margin-top: var(--icl-space-7); }
+
+/* Text of a solution page */
+.vss-text { max-width: 46rem; }
+.vss-text h2 { font-size: var(--icl-step-2); margin-top: var(--icl-space-7); margin-bottom: var(--icl-space-3); }
+.vss-text h2:first-child { margin-top: 0; }
+.vss-text h3 { margin-top: var(--icl-space-5); }
+.vss-text ul, .vss-text ol { padding-left: 1.25rem; }
+.vss-text li { margin-bottom: var(--icl-space-2); }
+.vss-text code { overflow-wrap: anywhere; }
+
+/* A list of points with a mark */
+.vss-ticks { margin: 0; padding: 0; list-style: none; }
+.vss-ticks li { position: relative; margin-bottom: var(--icl-space-3); padding-left: 1.75rem; }
+.vss-ticks li::before { content: "\2713"; position: absolute; left: 0; top: 0; color: var(--app-link); font-weight: 800; }
+
+/* Links side by side at the foot of a section */
+.vss-links { display: flex; flex-wrap: wrap; gap: var(--icl-space-2) var(--icl-space-5); margin: var(--icl-space-5) 0 0; padding: 0; list-style: none; font-weight: 650; }
+.vss-links a { display: inline-block; padding: var(--icl-space-1) 0; }
+
+/* Tables of the product pages: commands, files, systems */
+.vss-table { width: 100%; overflow-x: auto; }
+.vss-table table { width: 100%; border-collapse: collapse; font-size: var(--icl-step--1); }
+.vss-table caption { text-align: left; font-weight: 700; padding-bottom: var(--icl-space-2); }
+.vss-table th, .vss-table td { padding: var(--icl-space-3); border-bottom: 1px solid var(--icl-border); text-align: left; vertical-align: top; }
+.vss-table thead th { border-bottom: 2px solid var(--icl-fg); }
+.vss-table tbody th { font-weight: 650; }
+.vss-table td p { margin: 0; }
+.vss-table code { overflow-wrap: anywhere; }
+.vss-table th code { overflow-wrap: normal; white-space: nowrap; }
+.vss-table + p, .vss-table + ul, .vss-table + .vss-table { margin-top: var(--icl-space-5); }
+
+/* Code on a product page */
+.vss-code { margin: var(--icl-space-4) 0; padding: var(--icl-space-4) var(--icl-space-5); background: var(--icl-surface-2); border: 1px solid var(--icl-border); border-radius: var(--icl-radius-s); overflow-x: auto; font-family: var(--icl-font-mono); font-size: var(--icl-step--1); line-height: 1.6; }
+.vss-code code { font-size: inherit; white-space: pre; }
+
+/* How the parts fit: the programs on top, what they stand on below */
+.vss-stack { display: grid; gap: var(--icl-space-2); margin: 0; padding: 0; list-style: none; }
+.vss-stack > li { padding: var(--icl-space-3) var(--icl-space-4); border: 1px solid var(--icl-border); border-radius: var(--icl-radius-s); background: var(--icl-surface); }
+.vss-stack__name { display: block; margin-bottom: var(--icl-space-2); color: var(--icl-fg-muted); font-size: var(--icl-step--1); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.vss-stack__row { display: flex; flex-wrap: wrap; gap: var(--icl-space-2); margin: 0; padding: 0; list-style: none; }
+.vss-stack__row li { flex: 1 1 8rem; padding: var(--icl-space-2) var(--icl-space-3); border-radius: var(--icl-radius-s); background: var(--app-tint); font-weight: 620; font-size: var(--icl-step--1); line-height: 1.35; }
+.vss-stack__row li small { display: block; color: var(--icl-fg-muted); font-weight: 450; }
