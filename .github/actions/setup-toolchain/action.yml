@@ -33,27 +33,27 @@ runs:
   steps:
     - name: Set up GCC
       if: inputs.compiler == 'gcc' || inputs.compiler == 'clang'
-      uses: iainchesworthlabs/icl-common-infra/actions/setup-gcc@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+      uses: iainchesworthlabs/icl-common-infra/actions/setup-gcc@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
       with:
         version: ${{ inputs.gcc-version }}
         export-compiler: ${{ inputs.compiler == 'gcc' && 'true' || 'false' }}
 
     - name: Set up Clang
       if: inputs.compiler == 'clang'
-      uses: iainchesworthlabs/icl-common-infra/actions/setup-llvm@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+      uses: iainchesworthlabs/icl-common-infra/actions/setup-llvm@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
       with:
         version: ${{ inputs.llvm-version }}
 
     - name: Set up MSVC
       if: inputs.compiler == 'msvc'
-      uses: iainchesworthlabs/icl-common-infra/actions/setup-msvc-env@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+      uses: iainchesworthlabs/icl-common-infra/actions/setup-msvc-env@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
 
     - name: Set up CMake
-      uses: iainchesworthlabs/icl-common-infra/actions/setup-cmake@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+      uses: iainchesworthlabs/icl-common-infra/actions/setup-cmake@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
 
     - name: Set up Qt
       if: inputs.qt == 'true'
-      uses: iainchesworthlabs/icl-common-infra/actions/setup-qt@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+      uses: iainchesworthlabs/icl-common-infra/actions/setup-qt@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
       with:
         # The GUI draws its canvas with Qt Canvas Painter, an add-on module
         # (apps/vss_gui/src/rendering).
@@ -82,6 +82,6 @@ runs:
 
     - name: Set up ccache
       if: inputs.ccache != ''
-      uses: iainchesworthlabs/icl-common-infra/actions/setup-ccache@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+      uses: iainchesworthlabs/icl-common-infra/actions/setup-ccache@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
       with:
         key: ${{ inputs.ccache }}

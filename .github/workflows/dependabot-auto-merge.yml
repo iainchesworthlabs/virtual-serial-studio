@@ -18,7 +18,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: iainchesworthlabs/icl-common-infra/.github/workflows/dependabot-auto-merge.yml@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+    uses: iainchesworthlabs/icl-common-infra/.github/workflows/dependabot-auto-merge.yml@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
     with:
       ecosystems: github_actions
       merge-method: ""

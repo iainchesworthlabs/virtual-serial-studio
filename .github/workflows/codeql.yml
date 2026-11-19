@@ -95,7 +95,7 @@ jobs:
       # by hand and cancelled by hand reports nothing: the person who cancelled it knows.
       - name: Report the failure
         if: ${{ (failure() || (cancelled() && github.event_name == 'schedule')) && github.ref == 'refs/heads/develop' }}
-        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
         with:
           engine: CodeQL (${{ matrix.language }})
           detail: The CodeQL analysis failed to build or to complete. Open the run, fix the build or the finding, or dismiss the alert in Security > Code scanning with a justification.

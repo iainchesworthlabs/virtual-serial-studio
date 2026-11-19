@@ -69,7 +69,7 @@ runs:
 
     - name: Sign
       id: sign
-      uses: iainchesworthlabs/icl-common-infra/actions/sign-windows@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+      uses: iainchesworthlabs/icl-common-infra/actions/sign-windows@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
       with:
         mode: ${{ steps.decide.outputs.mode }}
         files: ${{ inputs.files }}

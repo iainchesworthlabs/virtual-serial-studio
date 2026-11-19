@@ -84,7 +84,7 @@ jobs:
       # by hand and cancelled by hand reports nothing: the person who cancelled it knows.
       - name: Report the failure
         if: ${{ (failure() || (cancelled() && github.event_name == 'schedule')) && github.ref == 'refs/heads/develop' }}
-        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
         with:
           engine: newest-${{ matrix.name }}
           detail: The release build or the tests failed with the newest ${{ matrix.name }} (pin ${{ matrix.pin }} in .github/toolchain-versions.json). The run log has the compiler and the first error.
@@ -122,7 +122,7 @@ jobs:
 
       - name: Report the failure
         if: ${{ (failure() || (cancelled() && github.event_name == 'schedule')) && github.ref == 'refs/heads/develop' }}
-        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
         with:
           engine: asan-ubsan-gcc
           detail: AddressSanitizer or UBSan reported a finding with GCC, or the sanitizer build failed. The pull request gate runs the same preset with Clang.
@@ -158,7 +158,7 @@ jobs:
 
       - name: Report the failure
         if: ${{ (failure() || (cancelled() && github.event_name == 'schedule')) && github.ref == 'refs/heads/develop' }}
-        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
         with:
           engine: tsan
           detail: ThreadSanitizer reported a data race or a lock-order problem, or the build failed. Races depend on timing, so a failure here may not repeat on the next run.
@@ -190,7 +190,7 @@ jobs:
 
       - name: Report the failure
         if: ${{ (failure() || (cancelled() && github.event_name == 'schedule')) && github.ref == 'refs/heads/develop' }}
-        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
         with:
           engine: asan-msvc
           detail: AddressSanitizer reported a finding with MSVC, or the sanitizer build failed. MSVC has no UBSan or TSan.
@@ -265,7 +265,7 @@ jobs:
 
       - name: Report the failure
         if: ${{ (failure() || (cancelled() && github.event_name == 'schedule')) && github.ref == 'refs/heads/develop' }}
-        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
         with:
           engine: ccache-seed-${{ matrix.lineage }}
           detail: The build that seeds the ${{ matrix.lineage }} compiler cache failed. The pull request gate and the merge queue build the same preset, so they are likely to fail too.
