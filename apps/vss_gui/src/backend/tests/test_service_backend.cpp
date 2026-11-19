@@ -952,11 +952,20 @@ TEST_CASE("service backend: another version of a plugin the user has replaces "
     // Asked to replace: the program is stopped first, then the folder is
     // replaced, and the new version waits for a decision.
     backend.add_plugin(newer_text, true);
-    REQUIRE(vss_test::wait_until([&] { return !finished.empty(); }, 60000));
-    REQUIRE(finished[0].kind == plugin_request_kind::add_plugin);
-    REQUIRE(finished[0].error == plugin_request_error::none);
-    REQUIRE(finished[0].replaced == plugin_replacement::upgrade);
-    REQUIRE_EQ(finished[0].plugin_name, QStringLiteral("Served"));
+    plugin_request_result upgraded;
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            if (finished.empty())
+                return false;
+            upgraded = finished.back();
+            return true;
+        },
+        60000));
+    REQUIRE(upgraded.kind == plugin_request_kind::add_plugin);
+    REQUIRE(upgraded.error == plugin_request_error::none);
+    REQUIRE(upgraded.replaced == plugin_replacement::upgrade);
+    REQUIRE_EQ(upgraded.plugin_name, QStringLiteral("Served"));
     REQUIRE(read_file(plugins / kPluginId / "plugin.json")
                 .find("\"version\": \"1.3.0\"") != std::string::npos);
     REQUIRE(!fs::exists(plugins / ".vss-work"));
