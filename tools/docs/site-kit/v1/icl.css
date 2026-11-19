@@ -1,0 +1,369 @@
+/*
+  icl.css v1: shared shell for iainchesworthlabs.com
+  Rules: no web fonts, no @import, no external URLs, no inline-style needs. Light/dark follow the system
+  (color-scheme); html[data-theme="light|dark"] forces one. Palette roles: see docs/design/04-theming-contract.md.
+*/
+
+/* ---------- 1. Tokens ---------- */
+:root {
+  color-scheme: light dark;
+
+  /* neutrals (shell-owned) */
+  --icl-surface:   light-dark(#ffffff, #0e1217);
+  --icl-surface-2: light-dark(#f5f6f8, #161c24);
+  --icl-fg:        light-dark(#14181d, #eceff3);
+  --icl-fg-muted:  light-dark(#4a5361, #a3adbb);
+  --icl-border:    light-dark(#d6dbe2, #2a3440);
+  /* PLACEHOLDER company mark colour (owner has not decided). One-line change; the mark shape is in kit/partials/header.html and favicon.svg. */
+  --icl-brand:     light-dark(#2b44c4, #8ea2ff);
+
+  /* type: system stacks only (web fonts would fail in sandboxed previews and add requests) */
+  --icl-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --icl-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --icl-step--1: clamp(0.875rem, 0.85rem + 0.1vw, 0.9375rem);
+  --icl-step-0:  clamp(1rem, 0.97rem + 0.15vw, 1.0625rem);
+  --icl-step-1:  clamp(1.1875rem, 1.12rem + 0.35vw, 1.375rem);
+  --icl-step-2:  clamp(1.4rem, 1.25rem + 0.7vw, 1.75rem);
+  --icl-step-3:  clamp(1.75rem, 1.45rem + 1.4vw, 2.5rem);
+  --icl-step-4:  clamp(2.15rem, 1.6rem + 2.6vw, 3.5rem);
+  --icl-step-5:  clamp(2.5rem, 1.7rem + 3.8vw, 4.5rem);
+
+  /* spacing: 4px base */
+  --icl-space-1: 0.25rem;
+  --icl-space-2: 0.5rem;
+  --icl-space-3: 0.75rem;
+  --icl-space-4: 1rem;
+  --icl-space-5: 1.5rem;
+  --icl-space-6: 2rem;
+  --icl-space-7: 3rem;
+  --icl-space-8: 4rem;
+  --icl-space-9: 6rem;
+  --icl-space-10: 8rem;
+
+  --icl-radius-s: 0.5rem;
+  --icl-radius-m: 0.875rem;
+  --icl-radius-l: 1.5rem;
+  --icl-gutter: clamp(1rem, 4vw, 2rem);
+  --icl-wide: 72rem;
+  --icl-measure: 65ch;
+  --icl-ease: 160ms ease-out;
+}
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"]  { color-scheme: dark; }
+
+/* default palette (company). Low specificity so a theme.css always wins. */
+:where(:root, [data-app]) {
+  --app-primary:       light-dark(#2b44c4, #8ea2ff);
+  --app-on-primary:    light-dark(#ffffff, #0b1130);
+  --app-accent:        light-dark(#3a5af0, #8ea2ff);
+  --app-link:          light-dark(#2339ab, #a5b4ff);
+  --app-tint:          light-dark(#eef1fe, #151b33);
+  --app-gradient-from: light-dark(#1b2a78, #121a45);
+  --app-gradient-to:   light-dark(#3a4fd0, #2a3a9a);
+  --app-on-gradient:   light-dark(#ffffff, #f2f4ff);
+}
+
+/* derived by the shell; apps never set these */
+:where(:root, [data-app]) {
+  --app-gradient: linear-gradient(135deg, var(--app-gradient-from), var(--app-gradient-to));
+  --app-primary-hover: color-mix(in srgb, var(--app-primary) 88%, var(--icl-fg));
+  --app-focus: var(--app-link);
+}
+
+/* Browsers without light-dark(): plain company palette, beats theme.css via !important. */
+@supports not (color: light-dark(#000, #fff)) {
+  :root, [data-app] {
+    --icl-surface: #ffffff !important; --icl-surface-2: #f5f6f8 !important; --icl-fg: #14181d !important;
+    --icl-fg-muted: #4a5361 !important; --icl-border: #d6dbe2 !important;
+    --app-primary: #2b44c4 !important; --app-on-primary: #ffffff !important; --app-accent: #3a5af0 !important;
+    --app-link: #2339ab !important; --app-tint: #eef1fe !important;
+    --app-gradient-from: #1b2a78 !important; --app-gradient-to: #3a4fd0 !important; --app-on-gradient: #ffffff !important;
+  }
+}
+
+/* ---------- 2. Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-padding-top: 5rem; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--icl-surface);
+  color: var(--icl-fg);
+  font: var(--icl-step-0)/1.6 var(--icl-font);
+}
+main { flex: 1 0 auto; }
+img, svg { max-width: 100%; height: auto; }
+h1, h2, h3 { line-height: 1.15; letter-spacing: -0.02em; margin: 0 0 var(--icl-space-4); text-wrap: balance; }
+h1 { font-size: var(--icl-step-4); font-weight: 750; }
+h2 { font-size: var(--icl-step-3); font-weight: 720; }
+h3 { font-size: var(--icl-step-1); font-weight: 680; letter-spacing: -0.01em; }
+p { margin: 0 0 var(--icl-space-4); }
+a { color: var(--app-link); text-underline-offset: 0.18em; text-decoration-thickness: 0.08em; }
+a:hover { text-decoration-thickness: 0.15em; }
+:focus-visible { outline: 3px solid var(--app-focus); outline-offset: 3px; border-radius: 2px; }
+::selection { background: var(--app-tint); }
+code { font-family: var(--icl-font-mono); font-size: 0.92em; }
+
+.icl-wrap { width: min(100% - 2 * var(--icl-gutter), var(--icl-wide)); margin-inline: auto; }
+.icl-prose { width: min(100% - 2 * var(--icl-gutter), 44rem); margin-inline: auto; padding-block: var(--icl-space-8); }
+.icl-prose h2 { font-size: var(--icl-step-2); margin-top: var(--icl-space-7); }
+.icl-section { padding-block: clamp(var(--icl-space-7), 8vw, var(--icl-space-9)); }
+.icl-section--tint { background: var(--app-tint); }
+.icl-section h2 { margin-bottom: var(--icl-space-6); }
+.icl-eyebrow { color: var(--app-link); font-size: var(--icl-step--1); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 var(--icl-space-3); }
+.icl-lead { font-size: var(--icl-step-1); color: var(--icl-fg-muted); max-width: 40ch; }
+.icl-muted { color: var(--icl-fg-muted); }
+.icl-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.icl-skip { position: absolute; left: var(--icl-space-3); top: -4rem; padding: var(--icl-space-2) var(--icl-space-4); background: var(--icl-fg); color: var(--icl-surface); border-radius: var(--icl-radius-s); z-index: 10; }
+.icl-skip:focus { top: var(--icl-space-3); }
+
+/* ---------- 3. Header and app bar ---------- */
+.icl-header { border-bottom: 1px solid var(--icl-border); background: var(--icl-surface); }
+.icl-header .icl-wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--icl-space-2) var(--icl-space-5); min-height: 4rem; padding-block: var(--icl-space-2); }
+.icl-brand { display: inline-flex; align-items: center; gap: var(--icl-space-3); color: var(--icl-fg); text-decoration: none; font-weight: 720; letter-spacing: -0.01em; }
+.icl-mark { width: 1.75rem; height: 1.75rem; color: var(--icl-brand); flex: none; }
+.icl-mark path { stroke: var(--icl-surface); }
+.icl-nav { display: flex; flex-wrap: wrap; gap: var(--icl-space-1) var(--icl-space-4); margin: 0; padding: 0; list-style: none; }
+.icl-nav a { display: inline-block; padding: var(--icl-space-2) var(--icl-space-1); color: var(--icl-fg); text-decoration: none; font-weight: 560; }
+.icl-nav a:hover, .icl-nav a[aria-current] { text-decoration: underline; text-decoration-color: var(--app-accent); text-decoration-thickness: 0.15em; text-underline-offset: 0.3em; }
+
+.icl-appbar { border-bottom: 1px solid var(--icl-border); background: var(--icl-surface-2); }
+.icl-appbar .icl-wrap { display: flex; align-items: center; gap: var(--icl-space-4); min-height: 3.5rem; padding-block: var(--icl-space-2); }
+.icl-appbar__name { display: inline-flex; align-items: center; gap: var(--icl-space-3); font-weight: 720; color: var(--icl-fg); text-decoration: none; margin-right: auto; }
+.icl-appbar__icon { width: 2rem; height: 2rem; border-radius: 0.5rem; flex: none; }
+.icl-appbar nav { display: none; }
+.icl-appbar nav a { margin-left: var(--icl-space-4); color: var(--icl-fg); text-decoration: none; font-weight: 560; }
+.icl-appbar nav a:hover { text-decoration: underline; }
+@media (min-width: 40rem) { .icl-appbar nav { display: block; } }
+
+/* ---------- 4. Buttons, store badge ---------- */
+.icl-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--icl-space-2);
+  min-height: 2.75rem; padding: var(--icl-space-2) var(--icl-space-5);
+  background: var(--app-primary); color: var(--app-on-primary);
+  border: 2px solid var(--app-primary); border-radius: 999px;
+  font: inherit; font-weight: 680; text-decoration: none;
+  transition: background-color var(--icl-ease), transform var(--icl-ease);
+}
+.icl-button:hover { background: var(--app-primary-hover); border-color: var(--app-primary-hover); text-decoration: none; }
+.icl-button:active { transform: translateY(1px); }
+.icl-button--small { min-height: 2.25rem; padding: var(--icl-space-1) var(--icl-space-4); font-size: var(--icl-step--1); }
+.icl-button--ghost { background: transparent; color: var(--app-link); border-color: currentColor; }
+.icl-button--ghost:hover { background: var(--app-tint); }
+/* Placeholder for Apple's official "Download on the App Store" badge. Ship Apple's SVG unmodified in production. */
+.icl-store { display: inline-flex; flex-direction: column; align-items: flex-start; min-height: 3.25rem; padding: var(--icl-space-2) var(--icl-space-5); background: #000; color: #fff; border: 1px solid #8a8f98; border-radius: 0.75rem; text-decoration: none; line-height: 1.15; }
+.icl-store small { font-size: 0.6875rem; }
+.icl-store strong { font-size: 1.25rem; font-weight: 600; }
+.icl-store:hover { background: #1c1c1e; text-decoration: none; }
+.icl-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--icl-space-3) var(--icl-space-4); margin-top: var(--icl-space-5); }
+
+/* ---------- 5. Hero ---------- */
+.icl-hero { padding-block: clamp(var(--icl-space-7), 9vw, var(--icl-space-9)); }
+.icl-hero h1 { font-size: var(--icl-step-5); max-width: 16ch; }
+.icl-hero--app { background: var(--app-gradient); color: var(--app-on-gradient); overflow: hidden; }
+.icl-hero--app h1, .icl-hero--app .icl-lead, .icl-hero--app .icl-eyebrow { color: var(--app-on-gradient); }
+.icl-hero--app .icl-lead { opacity: 1; }
+.icl-hero__grid { display: grid; gap: var(--icl-space-7); align-items: center; }
+.icl-hero__icon { width: 5rem; height: 5rem; border-radius: 1.25rem; margin-bottom: var(--icl-space-5); box-shadow: 0 6px 24px rgb(0 0 0 / 0.25); }
+.icl-hero__meta { margin-top: var(--icl-space-4); font-size: var(--icl-step--1); }
+@media (min-width: 52rem) { .icl-hero__grid { grid-template-columns: 1.15fr 0.85fr; } .icl-hero__grid--solo { grid-template-columns: 1fr; } }
+
+/* ---------- 6. Device frame (screenshots) ---------- */
+.icl-device { margin: 0; justify-self: center; width: min(100%, 16rem); padding: 0.5rem; background: #0b0d10; border-radius: 2.25rem; box-shadow: 0 18px 50px rgb(0 0 0 / 0.35); }
+.icl-device img { display: block; width: 100%; border-radius: 1.8rem; }
+
+/* ---------- 7. App cards (home) ---------- */
+.icl-grid { display: grid; gap: var(--icl-space-5); grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); margin: 0; padding: 0; list-style: none; }
+.icl-card { position: relative; display: flex; flex-direction: column; gap: var(--icl-space-3); height: 100%; padding: var(--icl-space-5); background: var(--app-tint); border: 1px solid var(--icl-border); border-top: 4px solid var(--app-accent); border-radius: var(--icl-radius-m); color: var(--icl-fg); transition: transform var(--icl-ease), border-color var(--icl-ease); }
+.icl-card:hover { transform: translateY(-2px); border-color: var(--app-accent); }
+.icl-card__icon { width: 3.5rem; height: 3.5rem; border-radius: 0.875rem; }
+img.icl-card__icon { display: block; object-fit: cover; background: var(--app-primary); } /* an app's own icon, published by the app */
+.icl-card h3 { margin: 0; }
+.icl-card p { margin: 0; color: var(--icl-fg-muted); }
+.icl-card a { color: inherit; text-decoration: none; }
+.icl-card a::after { content: ""; position: absolute; inset: 0; border-radius: inherit; } /* whole card is the link */
+.icl-card__tag { margin-top: auto; padding-top: var(--icl-space-2); color: var(--app-link); font-weight: 680; font-size: var(--icl-step--1); }
+.icl-card--soon { border-style: dashed; border-top-style: solid; }
+.icl-card--soon:hover { transform: none; border-color: var(--icl-border); }
+.icl-card--soon .icl-card__tag { color: var(--icl-fg-muted); }
+
+/* ---------- 7b. Families, tags, glyphs, install block ---------- */
+.icl-family h2::after { content: ""; display: block; width: 3rem; height: 4px; margin-top: var(--icl-space-3); background: var(--app-accent); border-radius: 2px; }
+.icl-family__intro { max-width: 48ch; color: var(--icl-fg-muted); margin-bottom: var(--icl-space-6); }
+.icl-family__more { margin-top: var(--icl-space-5); }
+.icl-glyph rect { fill: var(--app-primary); }
+.icl-glyph path, .icl-glyph circle { fill: none; stroke: var(--app-on-primary); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.icl-glyph text { fill: var(--app-on-primary); font: 700 34px var(--icl-font); text-anchor: middle; } /* initial of an app that has no icon yet */
+.icl-tags { display: flex; flex-wrap: wrap; gap: var(--icl-space-2); margin: 0; padding: 0; list-style: none; }
+.icl-tags li { padding: 0.125rem var(--icl-space-3); border: 1px solid var(--icl-border); border-radius: 999px; background: var(--icl-surface); color: var(--icl-fg); font-size: var(--icl-step--1); }
+.icl-install { margin: var(--icl-space-5) 0; padding: var(--icl-space-4) var(--icl-space-5); background: var(--icl-surface-2); border: 1px solid var(--icl-border); border-radius: var(--icl-radius-s); overflow-x: auto; font-family: var(--icl-font-mono); font-size: var(--icl-step--1); line-height: 1.7; }
+.icl-install code { font-size: inherit; white-space: pre; }
+.icl-hero--app .icl-tags li { background: transparent; color: var(--app-on-gradient); border-color: currentColor; }
+.icl-hero--app .icl-install { background: rgb(0 0 0 / 0.25); color: var(--app-on-gradient); border-color: transparent; }
+
+/* ---------- 8. Feature rows ---------- */
+.icl-feature { display: grid; gap: var(--icl-space-6); align-items: center; padding-block: var(--icl-space-6); }
+.icl-feature p { color: var(--icl-fg-muted); max-width: 48ch; }
+.icl-feature__media { display: grid; place-items: center; min-height: 14rem; padding: var(--icl-space-5); background: var(--app-tint); border-radius: var(--icl-radius-l); color: var(--app-accent); }
+.icl-feature__media svg { width: 5rem; height: 5rem; }
+@media (min-width: 52rem) {
+  .icl-feature { grid-template-columns: 1fr 1fr; gap: var(--icl-space-8); }
+  .icl-feature--flip .icl-feature__media { order: -1; }
+}
+.icl-points { display: grid; gap: var(--icl-space-5); grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); margin: 0; padding: 0; list-style: none; }
+.icl-points h3 { margin-bottom: var(--icl-space-2); }
+.icl-points p { margin: 0; color: var(--icl-fg-muted); }
+
+/* ---------- 9. Screenshot gallery (CSS scroll-snap, no script) ---------- */
+.icl-gallery { display: flex; gap: var(--icl-space-5); margin: 0; padding: var(--icl-space-3) var(--icl-gutter) var(--icl-space-5); overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: var(--icl-gutter); overscroll-behavior-x: contain; list-style: none; }
+.icl-gallery li { flex: 0 0 min(70vw, 14rem); scroll-snap-align: start; }
+.icl-gallery figure { margin: 0; }
+.icl-gallery img { display: block; width: 100%; border: 1px solid var(--icl-border); border-radius: 1.5rem; }
+.icl-gallery figcaption { margin-top: var(--icl-space-3); font-size: var(--icl-step--1); color: var(--icl-fg-muted); }
+@media (min-width: 60rem) { .icl-gallery { justify-content: center; overflow: visible; } }
+
+/* ---------- 10. FAQ (native details) ---------- */
+.icl-faq { max-width: 44rem; margin-inline: auto; }
+.icl-faq details { border-bottom: 1px solid var(--icl-border); }
+.icl-faq summary { cursor: pointer; padding: var(--icl-space-4) var(--icl-space-6) var(--icl-space-4) 0; font-weight: 650; list-style: none; position: relative; }
+.icl-faq summary::-webkit-details-marker { display: none; }
+.icl-faq summary::after { content: "+"; position: absolute; right: 0; top: var(--icl-space-3); font-size: 1.5rem; line-height: 1.4; color: var(--app-link); }
+.icl-faq details[open] summary::after { content: "\2212"; }
+.icl-faq details p { color: var(--icl-fg-muted); padding-right: var(--icl-space-6); }
+
+/* ---------- 11. Callout, CTA band ---------- */
+.icl-callout { margin: var(--icl-space-5) 0; padding: var(--icl-space-4) var(--icl-space-5); background: var(--app-tint); border-left: 4px solid var(--app-accent); border-radius: 0 var(--icl-radius-s) var(--icl-radius-s) 0; }
+.icl-callout > :last-child { margin-bottom: 0; }
+.icl-callout strong:first-child { display: block; color: var(--app-link); }
+.icl-cta { text-align: center; }
+.icl-cta .icl-actions { justify-content: center; }
+.icl-cta p { margin-inline: auto; }
+
+/* ---------- 12. Footer ---------- */
+.icl-footer { margin-top: auto; border-top: 1px solid var(--icl-border); background: var(--icl-surface-2); padding-block: var(--icl-space-7) var(--icl-space-6); font-size: var(--icl-step--1); }
+.icl-footer .icl-wrap { display: grid; gap: var(--icl-space-6); grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+.icl-footer h2 { font-size: var(--icl-step--1); letter-spacing: 0.06em; text-transform: uppercase; color: var(--icl-fg-muted); margin-bottom: var(--icl-space-3); }
+.icl-footer ul { margin: 0; padding: 0; list-style: none; }
+.icl-footer li a { display: inline-block; padding: var(--icl-space-1) 0; color: var(--icl-fg); }
+.icl-footer__note { grid-column: 1 / -1; color: var(--icl-fg-muted); border-top: 1px solid var(--icl-border); padding-top: var(--icl-space-5); margin: 0; }
+
+/* ---------- 13. Motion: small, optional, never required ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  .icl-card:hover, .icl-button:active { transform: none; }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+@media (forced-colors: active) { .icl-button, .icl-card { border: 2px solid ButtonText; } }
+@media print { .icl-header, .icl-appbar, .icl-footer, .icl-actions { display: none; } body { color: #000; background: #fff; } }
+
+/*
+  next.css: additions for the next-generation shell. New classes only, so they can be appended to
+  site/assets/v1/icl.css without breaking existing pages (v1 stays backwards compatible).
+  No script: the Products menu is a native <details>. Open and close by click or Enter/Space;
+  Tab moves through the links. Without script it does not close on outside click (known limit).
+*/
+
+/* ---------- Header: sticky, with a Products menu ---------- */
+.icl-header--next { position: sticky; top: 0; z-index: 20; }
+.icl-header--next .icl-nav { align-items: center; }
+.icl-menu > summary {
+  display: inline-flex; align-items: center; gap: var(--icl-space-2); cursor: pointer; list-style: none;
+  padding: var(--icl-space-2) var(--icl-space-1); font-weight: 560; color: var(--icl-fg);
+}
+.icl-menu > summary::-webkit-details-marker { display: none; }
+.icl-menu > summary::after {
+  content: ""; width: 0.5em; height: 0.5em; border: solid currentColor; border-width: 0 2px 2px 0;
+  transform: translateY(-0.15em) rotate(45deg); transition: transform var(--icl-ease);
+}
+.icl-menu[open] > summary { text-decoration: underline; text-decoration-color: var(--app-accent); text-decoration-thickness: 0.15em; text-underline-offset: 0.3em; }
+.icl-menu[open] > summary::after { transform: translateY(0.1em) rotate(-135deg); }
+.icl-menu > summary:hover { text-decoration: underline; text-decoration-color: var(--app-accent); text-decoration-thickness: 0.15em; text-underline-offset: 0.3em; }
+.icl-menu__panel {
+  position: absolute; left: 0; right: 0; top: 100%;
+  background: var(--icl-surface); border-bottom: 1px solid var(--icl-border);
+  box-shadow: 0 24px 40px rgb(0 0 0 / 0.14);
+  max-height: calc(100vh - 4rem); overflow-y: auto;
+}
+.icl-menu__inner { width: min(100% - 2 * var(--icl-gutter), var(--icl-wide)); margin-inline: auto; display: grid; gap: var(--icl-space-5) var(--icl-space-6); padding-block: var(--icl-space-6); }
+@media (min-width: 52rem) { .icl-menu__inner { grid-template-columns: repeat(4, 1fr) 0.8fr; } }
+.icl-menu__fam { border-top: 4px solid var(--app-accent); padding-top: var(--icl-space-3); }
+.icl-menu__fam h2, .icl-menu__side h2 { font-size: var(--icl-step--1); letter-spacing: 0.06em; text-transform: uppercase; color: var(--app-link); margin: 0 0 var(--icl-space-3); }
+.icl-menu__side { border-top: 4px solid var(--icl-border); padding-top: var(--icl-space-3); }
+.icl-menu__side h2 { color: var(--icl-fg-muted); }
+.icl-menu ul { margin: 0; padding: 0; list-style: none; }
+.icl-menu li { padding-block: var(--icl-space-1); }
+.icl-menu li > a, .icl-menu li > span { display: block; padding: var(--icl-space-1) 0; color: var(--icl-fg); text-decoration: none; }
+.icl-menu li > a strong { display: block; font-weight: 680; }
+.icl-menu li > a:hover strong { text-decoration: underline; text-decoration-color: var(--app-accent); text-decoration-thickness: 0.12em; text-underline-offset: 0.2em; }
+.icl-menu li small { display: block; color: var(--icl-fg-muted); font-size: var(--icl-step--1); line-height: 1.4; }
+.icl-menu li > span { color: var(--icl-fg-muted); }
+.icl-menu li > span strong { font-weight: 560; }
+.icl-menu .icl-menu__all { display: inline-block; margin-top: var(--icl-space-2); padding-inline: 0; color: var(--app-link); font-weight: 650; }
+
+/* ---------- Brand hero and quick pills ---------- */
+.icl-hero--brand { background: var(--app-gradient); color: var(--app-on-gradient); padding-block: clamp(var(--icl-space-8), 10vw, var(--icl-space-10)); }
+.icl-hero--brand h1, .icl-hero--brand .icl-lead { color: var(--app-on-gradient); }
+.icl-hero--brand h1 { max-width: 14ch; }
+.icl-hero--brand .icl-lead { max-width: 36ch; }
+.icl-pills { display: flex; flex-wrap: wrap; gap: var(--icl-space-3); margin: var(--icl-space-6) 0 0; padding: 0; list-style: none; }
+.icl-pills a {
+  display: inline-flex; align-items: center; gap: var(--icl-space-2); min-height: 2.75rem; padding: var(--icl-space-2) var(--icl-space-4);
+  border: 2px solid currentColor; border-radius: 999px; color: inherit; font-weight: 650; text-decoration: none;
+  transition: background-color var(--icl-ease);
+}
+.icl-pills a:hover { background: rgb(255 255 255 / 0.16); }
+.icl-pills a::before { content: ""; width: 0.75rem; height: 0.75rem; border-radius: 50%; background: var(--app-accent-pill, currentColor); border: 2px solid currentColor; }
+
+/* ---------- Family tiles (each family in its own colour) ---------- */
+.icl-tiles { display: grid; gap: var(--icl-space-5); grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); margin: 0; padding: 0; list-style: none; }
+.icl-tile {
+  position: relative; display: flex; flex-direction: column; gap: var(--icl-space-3); height: 100%; min-height: 18rem;
+  padding: var(--icl-space-6); border-radius: var(--icl-radius-l);
+  background: var(--app-gradient); color: var(--app-on-gradient);
+  transition: transform var(--icl-ease);
+}
+.icl-tile:hover { transform: translateY(-3px); }
+.icl-tile h3 { font-size: var(--icl-step-3); margin: 0; color: inherit; }
+.icl-tile p { margin: 0; max-width: 34ch; }
+.icl-tile__list { display: flex; flex-wrap: wrap; gap: var(--icl-space-2); margin: 0; padding: 0; list-style: none; }
+.icl-tile__list li { padding: 0.125rem var(--icl-space-3); border: 1px solid currentColor; border-radius: 999px; font-size: var(--icl-step--1); }
+.icl-tile__go { margin-top: auto; font-weight: 700; }
+.icl-tile__go::after { content: " \2192"; }
+.icl-tile a { color: inherit; text-decoration: none; }
+.icl-tile a::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.icl-tile a:focus-visible { outline: none; }
+.icl-tile:focus-within { outline: 3px solid var(--icl-fg); outline-offset: 4px; }
+
+/* ---------- Spotlight (one product that exists now) ---------- */
+.icl-spot { display: grid; gap: var(--icl-space-6); align-items: center; padding: var(--icl-space-6); background: var(--app-tint); border: 1px solid var(--icl-border); border-left: 6px solid var(--app-accent); border-radius: var(--icl-radius-l); }
+@media (min-width: 52rem) { .icl-spot { grid-template-columns: 1fr auto; padding: var(--icl-space-7); } }
+.icl-spot h2 { margin-bottom: var(--icl-space-3); }
+.icl-spot p { color: var(--icl-fg-muted); max-width: 52ch; }
+.icl-spot .icl-eyebrow { margin-bottom: var(--icl-space-2); }
+
+/* ---------- Family page header ---------- */
+.icl-prose-wide { max-width: 44rem; }
+.icl-hero--family { padding-block: clamp(var(--icl-space-7), 8vw, var(--icl-space-9)); }
+.icl-hero--family h1 { font-size: var(--icl-step-5); max-width: 14ch; }
+.icl-crumb { margin: 0 0 var(--icl-space-4); font-size: var(--icl-step--1); }
+.icl-crumb a { color: inherit; }
+
+@media (prefers-reduced-motion: reduce) { .icl-tile:hover { transform: none; } }
+@media (forced-colors: active) { .icl-tile, .icl-spot { border: 2px solid ButtonText; } .icl-pills a { border-color: ButtonText; } }
+@media print { .icl-menu { display: none; } }
+
+/* ---------- Line art (inline SVG, decorative, takes the text colour of its block) ---------- */
+.icl-art { position: absolute; right: var(--icl-space-5); top: var(--icl-space-5); width: min(34%, 8rem); height: auto; opacity: 0.32; pointer-events: none; }
+/* The tile is its own stacking context and the art sits behind its text (z-index -1), so no child needs
+   position: relative to stay above the art. A positioned child would become the containing block of the
+   tile link's ::after overlay and shrink the clickable area to that child (the heading only). */
+.icl-tile { isolation: isolate; }
+.icl-tile .icl-art { z-index: -1; }
+.icl-hero--family > .icl-wrap { position: relative; }
+.icl-hero--family { position: relative; }
+.icl-hero--family .icl-art { top: 50%; bottom: auto; right: var(--icl-gutter); width: min(40%, 22rem); transform: translateY(-50%); opacity: 0.28; }
+@media (max-width: 39.99rem) { .icl-hero--family .icl-art { top: auto; bottom: var(--icl-space-4); transform: none; width: 9rem; opacity: 0.22; } }
+@media (forced-colors: active) { .icl-art { display: none; } }
+@media print { .icl-art { display: none; } }

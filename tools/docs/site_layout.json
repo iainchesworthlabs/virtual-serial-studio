@@ -1,0 +1,149 @@
+{
+ "comment": "Source file -> where the page is on iainchesworthlabs.com/virtual-serial-studio/. new: null means the file is published on GitHub only (exclude_docs in mkdocs.yml). Nothing was ever public at an older address, so there are no old addresses to keep. Read by tools/docs/site_layout_hook.py and tools/ci/check_site_layout.py (docs/ci.md, \"The site layout\").",
+ "pages": [
+  {
+   "src": "index.md",
+   "new": ""
+  },
+  {
+   "src": "user-guide.md",
+   "new": "guide/"
+  },
+  {
+   "src": "scenarios.md",
+   "new": "guide/scenarios/"
+  },
+  {
+   "src": "ux.md",
+   "new": "guide/interface-design/"
+  },
+  {
+   "src": "control-how-to.md",
+   "new": "guide/control-from-a-script/"
+  },
+  {
+   "src": "posix-virtual-ports.md",
+   "new": "guide/virtual-ports-on-linux-and-macos/"
+  },
+  {
+   "src": "developers.md",
+   "new": "developers/"
+  },
+  {
+   "src": "architecture.md",
+   "new": "developers/architecture/"
+  },
+  {
+   "src": "building.md",
+   "new": "developers/building/"
+  },
+  {
+   "src": "testing.md",
+   "new": "developers/testing/"
+  },
+  {
+   "src": "platforms.md",
+   "new": "developers/platforms/"
+  },
+  {
+   "src": "plugin-api-reference.md",
+   "new": "developers/plugin-api/"
+  },
+  {
+   "src": "agent.md",
+   "new": null
+  },
+  {
+   "src": "app-icon.md",
+   "new": null
+  },
+  {
+   "src": "break-event-plan.md",
+   "new": null
+  },
+  {
+   "src": "ci.md",
+   "new": null
+  },
+  {
+   "src": "contributing.md",
+   "new": null
+  },
+  {
+   "src": "debug-api.md",
+   "new": null
+  },
+  {
+   "src": "editions.md",
+   "new": null
+  },
+  {
+   "src": "engine-serial-audit.md",
+   "new": null
+  },
+  {
+   "src": "fuzzing.md",
+   "new": null
+  },
+  {
+   "src": "i18n.md",
+   "new": null
+  },
+  {
+   "src": "licensing.md",
+   "new": null
+  },
+  {
+   "src": "migration.md",
+   "new": null
+  },
+  {
+   "src": "nine-bit-serial.md",
+   "new": null
+  },
+  {
+   "src": "plugins.md",
+   "new": null
+  },
+  {
+   "src": "profiling.md",
+   "new": null
+  },
+  {
+   "src": "releasing.md",
+   "new": null
+  },
+  {
+   "src": "remote-control.md",
+   "new": null
+  },
+  {
+   "src": "response-timing.md",
+   "new": null
+  },
+  {
+   "src": "updates.md",
+   "new": null
+  },
+  {
+   "src": "vm-testing.md",
+   "new": null
+  },
+  {
+   "src": "windows-com-driver.md",
+   "new": null
+  },
+  {
+   "src": "wire-timing-lateness.md",
+   "new": null
+  },
+  {
+   "src": "wire-timing-plan.md",
+   "new": null
+  },
+  {
+   "src": "workstreams.md",
+   "new": null
+  }
+ ]
+}

@@ -19,7 +19,14 @@ on:
     paths:
       - "docs/**"
       - "mkdocs.yml"
+      - "requirements/docs.in"
       - "requirements/docs.txt"
+      - "CMakeLists.txt"
+      - "tools/docs/**"
+      - "tools/ci/site_*.py"
+      - "tools/ci/check_site_*.py"
+      - "tools/ci/test_site_checks.py"
+      - ".github/actions/docs-site/**"
       - "README.md"
       - "CMakePresets.json"
       - "tools/check_docs.py"
@@ -62,12 +69,21 @@ jobs:
           python3 -m unittest discover -s tools -p "test_check_docs.py"
           python3 tools/check_docs.py
 
+  # The strict build and the checks of the site (docs/ci.md, "Documentation site"), the same action as the
+  # `Docs build (strict)` job of ci.yml.
   build:
     name: Build site
     if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: read
-    uses: iainchesworthlabs/icl-common-infra/.github/workflows/docs.yml@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/docs-site
 
   website:
     name: Build and check the website

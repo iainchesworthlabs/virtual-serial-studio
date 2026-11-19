@@ -12,7 +12,16 @@
     "cmake/**/README.md",
     "website/README.md",
     "LICENSE*",
-    "changelog.d/**"
+    "changelog.d/**",
+    "mkdocs.yml",
+    "requirements/docs.in",
+    "requirements/docs.txt",
+    "tools/docs/**",
+    ".github/actions/docs-site/**",
+    "tools/ci/site_address.py",
+    "tools/ci/site_tools.py",
+    "tools/ci/check_site_*.py",
+    "tools/ci/test_site_checks.py"
   ],
   "no_build": [
     ".github/dependabot.yml",

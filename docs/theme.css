@@ -1,0 +1,16 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* The palette of the /virtual-serial-studio/ pages: the one file that holds their colours. Eight roles, each light-dark(light, dark).
+   Held to the company contract by tools/ci/check_site_kit.py (WCAG 2.2 AA, light and dark, against the company shell's neutrals).
+   Change a colour here and run: python tools/ci/check_site_kit.py
+   Graphite and blue: the application's blue (apps/vss_gui/src/theme/resources/tokens.json) for the accent and links, graphite for
+   buttons and the hero. docs/ci.md, "The company kit and the palette". */
+[data-app="virtual-serial-studio"] {
+  --app-primary:           light-dark(#2b3647, #a9bcdb);
+  --app-on-primary:        light-dark(#ffffff, #0d141f);
+  --app-accent:            light-dark(#2160e0, #5b8def);
+  --app-link:              light-dark(#1a52c4, #8ab4ff);
+  --app-tint:              light-dark(#eef1f6, #131821);
+  --app-gradient-from:     light-dark(#14171c, #0e1218);
+  --app-gradient-to:       light-dark(#1f4fb8, #1d3e82);
+  --app-on-gradient:       light-dark(#ffffff, #eef3fc);
+}

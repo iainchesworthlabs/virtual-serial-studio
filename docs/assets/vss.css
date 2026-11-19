@@ -1,0 +1,67 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* The layout of the /virtual-serial-studio/ front pages on top of the company shell (assets/icl.css). Colours come only from the shell's
+   variables (--icl-*) and the palette in theme.css (--app-*). No web font, no image from another site, no inline style anywhere. Only what
+   the pages use is here: the rest of the front pages' rules come with them. */
+
+/* The app bar (tools/docs/theme/partials/appbar.html). Its menus are native <details>: no script. From 64rem the menus sit in the bar
+   and each opens a panel under it; below 64rem they fold into one Menu that opens under the whole bar. */
+.vss-appbar { position: relative; z-index: 6; }
+.vss-appbar .icl-wrap { gap: var(--icl-space-3); }
+.icl-appbar .vss-nav { display: none; }
+.vss-nav__list { display: flex; align-items: center; gap: var(--icl-space-1); margin: 0; padding: 0; list-style: none; }
+.vss-nav__list > li { position: relative; }
+.icl-appbar .vss-nav a { margin-left: 0; }
+.vss-nav__link, .vss-drop > summary { display: inline-flex; align-items: center; min-height: 2.75rem; padding-inline: var(--icl-space-3); color: var(--icl-fg); font-weight: 560; text-decoration: none; border-radius: var(--icl-radius-s); }
+.vss-drop > summary { cursor: pointer; list-style: none; gap: var(--icl-space-2); }
+.vss-drop > summary::-webkit-details-marker { display: none; }
+.vss-drop > summary::after { content: ""; width: 0.45rem; height: 0.45rem; margin-top: -0.2rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); }
+.vss-drop[open] > summary::after { margin-top: 0.2rem; transform: rotate(-135deg); }
+.vss-nav__link:hover, .vss-drop > summary:hover, .vss-drop[open] > summary { background: var(--app-tint); }
+.vss-nav__link[aria-current], .vss-drop--current > summary { text-decoration: underline; text-decoration-color: var(--app-accent); text-decoration-thickness: 0.15em; text-underline-offset: 0.35em; }
+.vss-drop__panel { position: absolute; left: 0; top: calc(100% + var(--icl-space-2)); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--icl-space-1); width: 36rem; margin: 0; padding: var(--icl-space-3); list-style: none; background: var(--icl-surface); border: 1px solid var(--icl-border); border-top: 3px solid var(--app-accent); border-radius: var(--icl-radius-m); box-shadow: 0 16px 40px color-mix(in srgb, var(--icl-fg) 16%, transparent); }
+.vss-drop--end .vss-drop__panel { left: auto; right: 0; }
+.vss-drop__panel a { display: block; height: 100%; padding: var(--icl-space-3); color: var(--icl-fg); text-decoration: none; border-radius: var(--icl-radius-s); }
+.vss-drop__panel a:hover, .vss-drop__panel a[aria-current] { background: var(--app-tint); }
+.vss-drop__label { display: block; font-weight: 680; }
+.vss-drop__desc { display: block; margin-top: 0.125rem; color: var(--icl-fg-muted); font-size: var(--icl-step--1); line-height: 1.4; }
+.vss-appbar__cta { flex: none; }
+
+.vss-menu summary { cursor: pointer; list-style: none; min-height: 2.75rem; display: inline-flex; align-items: center; padding-inline: var(--icl-space-4); font-weight: 650; border: 1px solid var(--icl-border); border-radius: 999px; }
+.vss-menu summary::-webkit-details-marker { display: none; }
+.vss-menu__panel { position: absolute; left: 0; right: 0; top: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: var(--icl-space-4) var(--icl-space-5); max-height: calc(100vh - 8rem); overflow-y: auto; padding: var(--icl-space-5) var(--icl-gutter); background: var(--icl-surface); border-bottom: 1px solid var(--icl-border); box-shadow: 0 16px 40px color-mix(in srgb, var(--icl-fg) 16%, transparent); }
+.vss-menu__title { margin: 0 0 var(--icl-space-1); color: var(--icl-fg-muted); font-size: var(--icl-step--1); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.vss-menu__panel ul { margin: 0; padding: 0; list-style: none; }
+.vss-menu__panel a { display: block; padding: var(--icl-space-2) 0; color: var(--icl-fg); text-decoration: none; font-weight: 560; }
+.vss-menu__panel a:hover, .vss-menu__panel a[aria-current] { text-decoration: underline; }
+.vss-menu__strong { font-weight: 700; }
+@media (max-width: 29.99rem) { .vss-appbar__cta { display: none; } }
+@media (min-width: 64rem) {
+  .icl-appbar .vss-nav { display: block; }
+  .vss-menu { display: none; }
+}
+
+/* Hero */
+.icl-hero--app a { color: var(--app-on-gradient); }
+.icl-hero--app .icl-button { background: var(--app-on-gradient); color: var(--app-gradient-from); border-color: var(--app-on-gradient); }
+.icl-hero--app h1 { max-width: 20ch; font-size: var(--icl-step-4); }
+.icl-hero--app .icl-lead { max-width: 52ch; }
+
+/* Pages that are not the home page start with a plain heading */
+.vss-head { padding-block: clamp(var(--icl-space-6), 6vw, var(--icl-space-8)) var(--icl-space-5); }
+.vss-head h1 { font-size: var(--icl-step-4); max-width: 24ch; }
+.vss-head .icl-lead { max-width: 56ch; }
+
+/* Markdown pages inside .icl-prose (Privacy, Support and the like) */
+.icl-prose table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.icl-prose th, .icl-prose td { border: 1px solid var(--icl-border); padding: var(--icl-space-2) var(--icl-space-3); text-align: left; vertical-align: top; }
+.icl-prose ul, .icl-prose ol { padding-left: 1.25rem; }
+.icl-prose li { margin-bottom: var(--icl-space-2); }
+.icl-prose code { overflow-wrap: anywhere; }
+/* The permalink mark MkDocs puts after a heading is for the guide; the front pages do not need it. */
+.icl-prose .headerlink { display: none; }
+
+/* The row of links above the company footer */
+.vss-more { padding-block: var(--icl-space-6); border-top: 1px solid var(--icl-border); font-size: var(--icl-step--1); }
+.vss-more p { margin: 0 0 var(--icl-space-3); color: var(--icl-fg-muted); }
+.vss-more ul { display: flex; flex-wrap: wrap; gap: var(--icl-space-1) var(--icl-space-5); margin: 0; padding: 0; list-style: none; }
+.vss-more a { display: inline-block; padding: var(--icl-space-2) 0; }

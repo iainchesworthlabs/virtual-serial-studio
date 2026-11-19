@@ -1,0 +1,18 @@
+{#- SPDX-License-Identifier: GPL-3.0-or-later
+    The pages of the guide and of the pages for programmers (MkDocs Material). A slim bar above Material's header takes the reader back to the
+    front pages, and docs/assets/guide.css sets Material's colours from the palette in docs/theme.css. No web font is loaded. -#}
+{% extends "base.html" %}
+{% block extrahead %}
+<link rel="stylesheet" href="{{ base_url }}/theme.css">
+<link rel="stylesheet" href="{{ base_url }}/assets/guide.css">
+{{ super() }}
+{% endblock %}
+{% block announce %}
+{%- import "partials/links.html" as links with context -%}
+<div class="vss-guidebar"><div class="vss-guidebar__in">
+  <a href="{{ base_url }}/">&larr; Virtual Serial Studio</a>
+  {% for path, label in links.bar %}<a href="{{ base_url }}/{{ path }}">{{ label }}</a>
+  {% endfor %}<a href="{{ links.download[0] }}">{{ links.download[1] }}</a>
+  <span class="vss-guidebar__version">Describes version {{ config.extra.version }}</span>
+</div></div>
+{% endblock %}

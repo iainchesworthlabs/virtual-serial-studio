@@ -53,7 +53,7 @@ abstraction that lets the transport be replaced.
 - [docs/building.md](docs/building.md), [docs/testing.md](docs/testing.md), [docs/ci.md](docs/ci.md), [docs/fuzzing.md](docs/fuzzing.md), [docs/profiling.md](docs/profiling.md) and [docs/releasing.md](docs/releasing.md) — build, test, CI, fuzzing, profiling and release.
 - [docs/workstreams.md](docs/workstreams.md) and [docs/migration.md](docs/migration.md) — where the platform work stands, and the move to the shared repository standard.
 
-The same pages are published as a site by the Docs workflow (`mkdocs build --strict`).
+Some of these pages are built as a site by the Docs workflow (`mkdocs build --strict`); [docs/ci.md](docs/ci.md#documentation-site) says which, and the others stay on GitHub.
 
 ## Building
 

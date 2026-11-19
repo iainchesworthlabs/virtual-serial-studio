@@ -1,0 +1,48 @@
+{#-
+    SPDX-License-Identifier: GPL-3.0-or-later
+    The app bar of the front pages: the product's name, the menus (partials/links.html), and a Download button. A menu is a native
+    <details>, so it opens with no script (a preview blocks every script); the shared name lets only one be open at a time where the
+    browser supports it. Below 64rem the menus fold into one Menu. Nothing in a menu is a heading, so the page keeps one h1.
+-#}
+{%- import "partials/links.html" as links with context -%}
+<div class="icl-appbar vss-appbar"><div class="icl-wrap">
+  <a class="icl-appbar__name" href="{{ base_url }}/"{% if page.is_homepage %} aria-current="page"{% endif %}><img class="icl-appbar__icon" src="{{ base_url }}/icon.svg" width="32" height="32" alt="">Virtual Serial Studio</a>
+  <nav class="vss-nav" aria-label="Virtual Serial Studio">
+    <ul class="vss-nav__list">
+    {%- for label, path, items in links.menus %}
+      {%- if items %}
+      {%- set ns = namespace(current=false) %}
+      {%- for ipath, ilabel, idesc in items %}{% if ipath == page.url %}{% set ns.current = true %}{% endif %}{% endfor %}
+      <li><details class="vss-drop{% if loop.index > 2 %} vss-drop--end{% endif %}{% if ns.current %} vss-drop--current{% endif %}" name="vss-nav">
+        <summary>{{ label }}</summary>
+        <ul class="vss-drop__panel">
+        {%- for ipath, ilabel, idesc in items %}
+          <li><a href="{{ base_url }}/{{ ipath }}"{% if ipath == page.url %} aria-current="page"{% endif %}><span class="vss-drop__label">{{ ilabel }}</span><span class="vss-drop__desc">{{ idesc }}</span></a></li>
+        {%- endfor %}
+        </ul>
+      </details></li>
+      {%- else %}
+      <li><a class="vss-nav__link" href="{{ base_url }}/{{ path }}"{% if page.url == path %} aria-current="page"{% endif %}>{{ label }}</a></li>
+      {%- endif %}
+    {%- endfor %}
+    </ul>
+  </nav>
+  <a class="icl-button icl-button--small vss-appbar__cta" href="{{ links.download[0] }}">{{ links.download[1] }}</a>
+  <details class="vss-menu">
+    <summary>Menu</summary>
+    <div class="vss-menu__panel">
+    {%- for label, path, items in links.menus %}
+      {%- if items %}
+      <div class="vss-menu__group">
+        <p class="vss-menu__title">{{ label }}</p>
+        <ul>{% for ipath, ilabel, idesc in items %}<li><a href="{{ base_url }}/{{ ipath }}"{% if ipath == page.url %} aria-current="page"{% endif %}>{{ ilabel }}</a></li>{% endfor %}</ul>
+      </div>
+      {%- else %}
+      <div class="vss-menu__group">
+        <ul><li><a class="vss-menu__strong" href="{{ base_url }}/{{ path }}"{% if page.url == path %} aria-current="page"{% endif %}>{{ label }}</a></li></ul>
+      </div>
+      {%- endif %}
+    {%- endfor %}
+    </div>
+  </details>
+</div></div>
