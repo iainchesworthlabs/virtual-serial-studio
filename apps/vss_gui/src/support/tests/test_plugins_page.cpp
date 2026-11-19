@@ -849,8 +849,8 @@ TEST_CASE("install dialog: it shows the verdict, a plugin that cannot be used "
                                 "changed. Get the plugin again from its "
                                 "author.")},
         {twice,
-         QStringLiteral("Line noise is already installed for you. Remove "
-                        "it first to add a different copy.")},
+         QStringLiteral("Line noise is already installed for you. Its files "
+                        "are the same as the ones in this folder.")},
         {nothing, QStringLiteral("That folder is not a plugin. A plugin's "
                                  "folder holds a file named plugin.json.")},
         {admin, QStringLiteral("Your administrator installs the plugins on "
@@ -908,6 +908,165 @@ TEST_CASE("install dialog: text from the manifest is shown as plain text, and "
         if (button->isVisibleTo(&dialog))
             REQUIRE(button->width() >= button->sizeHint().width() - 1);
     }
+
+    // The longer text of a replacement, with the plugin's own text, fits too.
+    plugin_inspection_view older = found;
+    older.replaces = plugin_replacement::downgrade;
+    older.installed_version = QStringLiteral("9.9.9");
+    PluginInstallDialog replacing(backend, older);
+    replacing.show();
+    settle();
+    REQUIRE(all_text_plain(replacing, removed_characters()));
+    REQUIRE(replacing.width() <= 700);
+    vss_test::scale_text(&replacing, 2.0);
+    settle();
+    REQUIRE(vss_test::footer_fully_visible(replacing));
+    for (QPushButton* button : replacing.findChildren<QPushButton*>())
+    {
+        if (button->isVisibleTo(&replacing))
+            REQUIRE(button->width() >= button->sizeHint().width() - 1);
+    }
+}
+
+TEST_CASE("install dialog: another version of a plugin the user has replaces "
+          "it, says so, and asks the host to replace")
+{
+    FakePluginBackend backend;
+    const QString folder = QStringLiteral("C:/plugins/noise");
+
+    struct expected
+    {
+        plugin_replacement how;
+        QString title;
+        QString button;
+        QString lead;
+    };
+    const expected cases[] = {
+        {plugin_replacement::upgrade, QStringLiteral("Upgrade Line noise?"),
+         QStringLiteral("Upgrade plugin"), QString()},
+        {plugin_replacement::replace, QStringLiteral("Replace Line noise?"),
+         QStringLiteral("Replace plugin"),
+         QStringLiteral("Your copy has the same version, 1.0.0, with other "
+                        "files.")},
+        {plugin_replacement::downgrade,
+         QStringLiteral("Replace Line noise with an older version?"),
+         QStringLiteral("Replace plugin"),
+         QStringLiteral("Your copy is version 1.0.0. This folder holds an "
+                        "older version.")},
+    };
+    for (const expected& each : cases)
+    {
+        plugin_inspection_view found = inspection_of("org.example.noise", folder);
+        found.replaces = each.how;
+        found.installed_version = QStringLiteral("1.0.0");
+        PluginInstallDialog dialog(backend, found);
+        dialog.show();
+        settle();
+        REQUIRE_EQ(dialog.windowTitle(), each.title);
+        REQUIRE_EQ(dialog.add_button()->text(), each.button);
+        REQUIRE_EQ(accessible_name(dialog.add_button()), each.button);
+        REQUIRE(dialog.add_button()->isEnabled());
+        REQUIRE(dialog.cancel_button()->isDefault());
+        REQUIRE(dialog.cancel_button()->hasFocus());
+        // The version the person has is listed beside the new one.
+        auto* yours =
+            dialog.findChild<QLabel*>(QStringLiteral("installYourVersion"));
+        REQUIRE(yours != nullptr);
+        REQUIRE_EQ(yours->text(), QStringLiteral("1.0.0"));
+        // A copy that is not newer says so first, and is a warning at least.
+        if (each.lead.isEmpty())
+        {
+            REQUIRE(!dialog.banner()->text().contains(QStringLiteral("Your copy")));
+        }
+        else
+        {
+            REQUIRE(dialog.banner()->text().startsWith(each.lead));
+            REQUIRE(dialog.banner()->get_kind() != NoteBanner::kind::info);
+        }
+        // Enter alone cancels, and nothing is sent until the button is used.
+        backend.clear_requests();
+        key_click(&dialog, Qt::Key_Return);
+        settle();
+        REQUIRE(dialog.result() == QDialog::Rejected);
+        REQUIRE(backend.requests().empty());
+    }
+    for (const expected& each : cases)
+    {
+        plugin_inspection_view found = inspection_of("org.example.noise", folder);
+        found.replaces = each.how;
+        found.installed_version = QStringLiteral("1.0.0");
+        PluginInstallDialog dialog(backend, found);
+        dialog.show();
+        backend.clear_requests();
+        dialog.add_button()->click();
+        REQUIRE_EQ(backend.requests().size(), std::size_t{1});
+        REQUIRE(backend.requests()[0].kind == plugin_request_kind::add_plugin);
+        REQUIRE_EQ(backend.requests()[0].path, folder);
+        REQUIRE(backend.requests()[0].flag);
+    }
+
+    // A plugin the user does not have is added, not replaced.
+    {
+        PluginInstallDialog dialog(backend,
+                                   inspection_of("org.example.noise", folder));
+        dialog.show();
+        backend.clear_requests();
+        dialog.add_button()->click();
+        REQUIRE_EQ(backend.requests().size(), std::size_t{1});
+        REQUIRE(!backend.requests()[0].flag);
+        REQUIRE(dialog.findChild<QLabel*>(
+                    QStringLiteral("installYourVersion")) == nullptr);
+    }
+}
+
+TEST_CASE("install dialog: the command for a plugin installed for everyone "
+          "replaces that copy")
+{
+    FakePluginBackend backend;
+    plugin_inspection_view everyone =
+        inspection_of("org.example.noise", QStringLiteral("C:/my plugins/tool"));
+    everyone.failure = plugin_inspection_view::problem::installed_for_everyone;
+    everyone.can_install = false;
+    PluginInstallDialog dialog(backend, everyone);
+    dialog.show();
+    settle();
+    REQUIRE_EQ(dialog.everyone_command(),
+               QStringLiteral("vss_cli plugin install \"C:/my plugins/tool\" "
+                              "--for-everyone --replace"));
+}
+
+TEST_CASE("plugins page: a plugin the user has is upgraded after the person "
+          "confirms, and its row is the one shown")
+{
+    fixture env;
+    PluginsDialog dialog(env.backend);
+    const plugin_view scanner = sample_of("org.hobby.scanner");
+    const plugin_view noise = sample_of("org.example.noise");
+    REQUIRE(dialog.select(scanner.id, scanner.folder));
+
+    const QString chosen = QStringLiteral("C:/somewhere/newer-noise");
+    dialog.set_folder_picker([&chosen] { return chosen; });
+    dialog.show();
+    settle();
+    plugin_inspection_view found = inspection_of("org.example.noise", chosen);
+    found.replaces = plugin_replacement::upgrade;
+    found.installed_version = noise.version;
+    env.backend.set_inspection(chosen, found);
+
+    when_shown<PluginInstallDialog>([](PluginInstallDialog& each)
+                                    { each.add_button()->click(); });
+    env.backend.clear_requests();
+    dialog.add_button()->click();
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            return env.backend.count_of(plugin_request_kind::add_plugin) == 1;
+        }));
+    REQUIRE_EQ(env.backend.requests()[0].path, chosen);
+    REQUIRE(env.backend.requests()[0].flag);
+    // No row is new, so the row that was upgraded is selected.
+    REQUIRE(dialog.selected() != nullptr);
+    REQUIRE_EQ(dialog.selected()->id, noise.id);
 }
 
 TEST_CASE("plugins page: a plugin that failed to be added says why")
@@ -918,12 +1077,11 @@ TEST_CASE("plugins page: a plugin that failed to be added says why")
     settle();
     env.backend.fail_next_add(plugin_request_error::already_installed,
                               QStringLiteral("Modbus fixture"));
-    env.backend.add_plugin(QStringLiteral("C:/x"));
+    env.backend.add_plugin(QStringLiteral("C:/x"), false);
     env.backend.flush();
     settle();
     REQUIRE_EQ(dialog.message_banner()->text(),
-               QStringLiteral("Modbus fixture is already installed for you. "
-                              "Remove it first to add a different copy."));
+               QStringLiteral("Modbus fixture is already installed for you."));
 }
 
 TEST_CASE("plugins page: adding a plugin that is installed elsewhere names the "
@@ -943,13 +1101,12 @@ TEST_CASE("plugins page: adding a plugin that is installed elsewhere names the "
          QStringLiteral("Modbus fixture came with Studio, and that copy runs. "
                         "A copy added for you only would not run.")},
         {plugin_request_error::already_installed,
-         QStringLiteral("Modbus fixture is already installed for you. Remove "
-                        "it first to add a different copy.")},
+         QStringLiteral("Modbus fixture is already installed for you.")},
     };
     for (const auto& [error, text] : cases)
     {
         env.backend.fail_next_add(error, QStringLiteral("Modbus fixture"));
-        env.backend.add_plugin(QStringLiteral("C:/x"));
+        env.backend.add_plugin(QStringLiteral("C:/x"), false);
         env.backend.flush();
         settle();
         REQUIRE_EQ(dialog.message_banner()->text(), text);

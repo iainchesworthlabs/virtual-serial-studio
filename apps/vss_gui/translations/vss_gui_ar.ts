@@ -22707,6 +22707,56 @@ Networks: %5</source>
             <source>Add plugin</source>
             <translation>إضافة الملحق</translation>
         </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Upgrade %1?</source>
+            <translation>تحديث %1؟</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Replace %1?</source>
+            <translation>استبدال %1؟</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Replace %1 with an older version?</source>
+            <translation>استبدال %1 بإصدار أقدم؟</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio stops the plugin, replaces your copy with the files in this folder and keeps its settings and saved data. A version you have not decided about does not run until you do.</source>
+            <translation>يوقف Studio الإضافة، ويستبدل نسختك بالملفات الموجودة في هذا المجلد، ويحتفظ بتفضيلاتها وبياناتها المحفوظة. لا يعمل إصدار لم تقرر بشأنه بعد إلى أن تقرر.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your copy has the same version, %1, with other files.</source>
+            <translation>تحمل نسختك الإصدار نفسه، %1، لكن بملفات أخرى.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your copy is version %1. This folder holds an older version.</source>
+            <translation>نسختك هي الإصدار %1. يحتوي هذا المجلد على إصدار أقدم.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your version</source>
+            <translation>إصدارك</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Upgrade plugin</source>
+            <translation>تحديث الإضافة</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Replace plugin</source>
+            <translation>استبدال الإضافة</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>%1 is already installed for you. Its files are the same as the ones in this folder.</source>
+            <translation>الإضافة %1 مثبّتة لك بالفعل. ملفاتها هي نفسها الموجودة في هذا المجلد.</translation>
+        </message>
     </context>
     <context>
         <name>PluginKeyImportDialog</name>
@@ -23613,11 +23663,6 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_dialogs.cpp" line="1" />
-            <source>%1 is already installed for you. Remove it first to add a different copy.</source>
-            <translation>الإضافة %1 مثبّتة لك بالفعل. أزلها أولًا لإضافة نسخة مختلفة.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
             <source>Your administrator installs the plugins on this computer.</source>
             <translation>يثبّت المسؤول الإضافات على هذا الحاسوب.</translation>
         </message>
@@ -24131,6 +24176,21 @@ Networks: %5</source>
             <location filename="../src/support/plugins_dialog.cpp" line="1" />
             <source>Technical details</source>
             <translation>التفاصيل التقنية</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Upgraded %1. Review it before it runs.</source>
+            <translation>تم تحديث %1. راجعها قبل تشغيلها.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Replaced %1. Review it before it runs.</source>
+            <translation>تم استبدال %1. راجعها قبل تشغيلها.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1 is already installed for you.</source>
+            <translation>الإضافة %1 مثبّتة لك بالفعل.</translation>
         </message>
     </context>
     <context>

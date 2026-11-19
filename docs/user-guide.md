@@ -1675,6 +1675,30 @@ the page shows under the list. If your
 administrator has turned your own plugin folder off, those two buttons are
 disabled.
 
+### Upgrading a plugin
+
+To put a new version of a plugin that you added for yourself in place of the
+one you have, choose **Add a plugin...** and pick the folder of the new version.
+Studio sees that you have a copy of that plugin, and the question reads
+**Upgrade** *name*. It lists the new version and the version you have. It
+replaces your copy only when you choose **Upgrade plugin**. Studio switches the
+plugin off first if it is running, waits until it has stopped, and replaces the
+plugin's folder. The plugin's settings, its instances and its saved data stay.
+
+The new files are a version you have not decided about, so the plugin does not
+run until you do. Its row is in **Needs your decision**, and **Review and
+decide** says what changed since the version you approved. You do not have to
+remove the plugin first.
+
+A folder with the same version as your copy but other files is offered as
+**Replace**, and a folder with an older version as **Replace** with a warning
+that it is older. A folder with exactly the files you have is refused, because
+there is nothing to change. A plugin that your administrator installed for
+everyone, or that came with Studio, is not replaced from here: that copy is the
+one that runs. The administrator replaces it with
+`vss_cli plugin install <folder> --for-everyone --replace`, and the question
+shows that command.
+
 ## Updates
 
 Studio can ask whether a newer version has been published, tell you, and

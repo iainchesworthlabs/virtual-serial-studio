@@ -1972,7 +1972,26 @@ void PluginsDialog::on_plugin_inspected(quint64 request,
     waiting_for_add_ = true;
     PluginInstallDialog dialog(backend_, found, this);
     if (dialog.exec() != QDialog::Accepted)
+    {
         waiting_for_add_ = false;
+        return;
+    }
+    // A plugin that replaces the user's copy has no new row: the row that is
+    // there is the one to show.
+    if (found.replaces == plugin_replacement::none)
+        return;
+    waiting_for_add_ = false;
+    if (!snapshot_)
+        return;
+    for (const plugin_view& each : snapshot_->plugins)
+    {
+        if (each.id == found.plugin.id &&
+            each.installed_for == plugin_installed_for::you_only)
+        {
+            selected_key_ = key_of(each);
+            break;
+        }
+    }
 }
 
 void PluginsDialog::import_key()
@@ -2097,22 +2116,39 @@ void PluginsDialog::on_request_finished(const plugin_request_result& result)
     case plugin_request_kind::add_plugin:
         if (result.error == plugin_request_error::none)
         {
-            ToastManager::instance().show(
-                this, QCoreApplication::translate(
-                          "PluginsDialog",
-                          "Added for you only. Review it before it runs."));
+            const QString name = plain_text(result.plugin_name);
+            QString text;
+            switch (result.replaced)
+            {
+            case plugin_replacement::none:
+                text = QCoreApplication::translate(
+                    "PluginsDialog",
+                    "Added for you only. Review it before it runs.");
+                break;
+            case plugin_replacement::upgrade:
+                text = QCoreApplication::translate("PluginsDialog",
+                                                   "Upgraded %1. Review it "
+                                                   "before it runs.")
+                           .arg(name);
+                break;
+            case plugin_replacement::replace:
+            case plugin_replacement::downgrade:
+                text = QCoreApplication::translate("PluginsDialog",
+                                                   "Replaced %1. Review it "
+                                                   "before it runs.")
+                           .arg(name);
+                break;
+            }
+            ToastManager::instance().show(this, text);
             break;
         }
         waiting_for_add_ = false;
         if (result.error == plugin_request_error::already_installed)
         {
-            show_message(
-                NoteBanner::kind::warn,
-                QCoreApplication::translate(
-                    "PluginsDialog",
-                    "%1 is already installed for you. Remove it first to "
-                    "add a different copy.")
-                    .arg(plain_text(result.plugin_name)));
+            show_message(NoteBanner::kind::warn,
+                         QCoreApplication::translate(
+                             "PluginsDialog", "%1 is already installed for you.")
+                             .arg(plain_text(result.plugin_name)));
         }
         else if (result.error == plugin_request_error::installed_for_everyone ||
                  result.error == plugin_request_error::came_with_studio)

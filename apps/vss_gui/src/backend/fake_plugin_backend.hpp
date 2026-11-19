@@ -29,7 +29,8 @@ struct fake_plugin_request
     QString hash;
     QString key_id;
     QStringList granted;
-    /// Switch on, the choice, or "also delete saved data".
+    /// Switch on, the choice, "also delete saved data", or, for an add,
+    /// "replace the user's copy".
     bool flag = false;
     /// A key file, or a folder.
     QString path;
@@ -60,7 +61,7 @@ public:
     void start_again(const QString& plugin_id) override;
     void rescan() override;
     quint64 inspect_plugin(const QString& folder) override;
-    void add_plugin(const QString& folder) override;
+    void add_plugin(const QString& folder, bool replace) override;
     void remove_plugin(const QString& plugin_id, const QString& hash,
                        bool delete_saved_data) override;
     void add_instance(const QString& plugin_id, const QString& point_id,

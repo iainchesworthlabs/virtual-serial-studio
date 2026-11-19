@@ -55,7 +55,8 @@ void write_file(const fs::path& path, const std::string& text)
 /// `plugin.json` that lists them, as the system tests lay one out.
 fs::path make_plugin(const fs::path& root, const std::string& more_args = {},
                      const std::string& more_permissions = {},
-                     const std::string& point_extra = {})
+                     const std::string& point_extra = {},
+                     const std::string& version = "1.2.0")
 {
     const fs::path program = fs::absolute(fs::path(VSS_TEST_PLUGIN_PROGRAM));
     const fs::path directory = root / kPluginId;
@@ -70,15 +71,16 @@ fs::path make_plugin(const fs::path& root, const std::string& more_args = {},
     std::string manifest;
     manifest += "{\n  \"manifest_version\": 1,\n  \"id\": \"";
     manifest += kPluginId;
-    manifest += "\",\n  \"name\": \"Served\",\n  \"version\": \"1.2.0\",\n";
+    manifest += "\",\n  \"name\": \"Served\",\n  \"version\": \"" + version +
+                "\",\n";
     manifest += "  \"author\": { \"name\": \"Example Ltd\" },\n";
     manifest += "  \"requires\": { \"api\": { \"min\": \"1.0\", \"max\": "
                 "\"1.x\" } },\n";
     manifest += "  \"run\": { \"executable\": \"" + name +
                 "\", \"args\": [ "
                 "\"--hello-id=" +
-                std::string(kPluginId) + "\", \"--hello-version=1.2.0\"" +
-                more_args + ", \"--serve\" ],\n";
+                std::string(kPluginId) + "\", \"--hello-version=" + version +
+                "\"" + more_args + ", \"--serve\" ],\n";
     manifest += "    \"platforms\": [ \"windows-x64\", \"windows-arm64\", "
                 "\"linux-x64\", \"linux-arm64\", \"macos-x64\", "
                 "\"macos-arm64\" ] },\n";
@@ -810,7 +812,7 @@ TEST_CASE("service backend: the same plugin installed for everyone and for the "
     REQUIRE(vss_test::wait_until([&] { return !inspected.empty(); }, 30000));
     REQUIRE(inspected[0].failure ==
             plugin_inspection_view::problem::already_installed);
-    backend.add_plugin(QString::fromStdWString(source.wstring()));
+    backend.add_plugin(QString::fromStdWString(source.wstring()), false);
     REQUIRE(vss_test::wait_until([&] { return !finished.empty(); }, 30000));
     REQUIRE(finished[0].kind == plugin_request_kind::add_plugin);
     REQUIRE(finished[0].error == plugin_request_error::already_installed);
@@ -854,7 +856,7 @@ TEST_CASE("service backend: the same plugin installed for everyone and for the "
         },
         30000));
     const std::size_t finished_before = finished.size();
-    backend.add_plugin(QString::fromStdWString(source.wstring()));
+    backend.add_plugin(QString::fromStdWString(source.wstring()), false);
     plugin_request_result refusal;
     REQUIRE(vss_test::wait_until(
         [&]
@@ -877,5 +879,105 @@ TEST_CASE("service backend: the same plugin installed for everyone and for the "
     REQUIRE(inspection.failure ==
             plugin_inspection_view::problem::installed_for_everyone);
     REQUIRE(!inspection.can_install);
+    backend.shut_down();
+}
+
+TEST_CASE("service backend: another version of a plugin the user has replaces "
+          "it once the program has stopped, and the saved data stays")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path plugins = root / "plugins";
+    const fs::path incoming = root / "incoming";
+    make_plugin(plugins);
+    const fs::path newer = make_plugin(incoming, {}, {}, {}, "1.3.0");
+    const QString newer_text = QString::fromStdWString(newer.wstring());
+
+    ServicePluginBackend backend(options_for(root, plugins));
+    const QString id = QString::fromLatin1(kPluginId);
+    // Only the answers to adding: deciding and running the plugin finish
+    // requests of their own.
+    std::vector<plugin_request_result> finished;
+    QObject::connect(&backend, &PluginBackend::request_finished, &backend,
+                     [&finished](const plugin_request_result& result)
+                     {
+                         if (result.kind == plugin_request_kind::add_plugin)
+                             finished.push_back(result);
+                     });
+    std::vector<plugin_inspection_view> inspected;
+    QObject::connect(&backend, &PluginBackend::plugin_inspected, &backend,
+                     [&inspected](quint64, const plugin_inspection_view& found)
+                     { inspected.push_back(found); });
+    const auto version_is = [&](const char* wanted)
+    {
+        const plugin_view* view = find_view(backend.snapshot(), id);
+        return view != nullptr && view->version == QLatin1String(wanted);
+    };
+
+    // The user's copy runs, and has saved data.
+    run_the_plugin(backend, id);
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* view = find_view(backend.snapshot(), id);
+            return view != nullptr && view->state == plugin_state::available;
+        },
+        60000));
+    const fs::path saved = root / "data" / kPluginId;
+    {
+        std::error_code ignored;
+        fs::create_directories(saved, ignored);
+        write_file(saved / "note.txt", "kept through the upgrade");
+    }
+
+    // The folder is another version of that plugin: it replaces the copy.
+    backend.inspect_plugin(newer_text);
+    REQUIRE(vss_test::wait_until([&] { return !inspected.empty(); }, 30000));
+    REQUIRE(inspected[0].failure == plugin_inspection_view::problem::none);
+    REQUIRE(inspected[0].can_install);
+    REQUIRE(inspected[0].replaces == plugin_replacement::upgrade);
+    REQUIRE_EQ(inspected[0].installed_version, QStringLiteral("1.2.0"));
+    REQUIRE_EQ(inspected[0].plugin.version, QStringLiteral("1.3.0"));
+
+    // A request that was not asked to replace changes nothing.
+    backend.add_plugin(newer_text, false);
+    REQUIRE(vss_test::wait_until([&] { return !finished.empty(); }, 30000));
+    REQUIRE(finished[0].kind == plugin_request_kind::add_plugin);
+    REQUIRE(finished[0].error == plugin_request_error::already_installed);
+    REQUIRE(read_file(plugins / kPluginId / "plugin.json")
+                .find("\"version\": \"1.2.0\"") != std::string::npos);
+    REQUIRE(version_is("1.2.0"));
+    finished.clear();
+
+    // Asked to replace: the program is stopped first, then the folder is
+    // replaced, and the new version waits for a decision.
+    backend.add_plugin(newer_text, true);
+    REQUIRE(vss_test::wait_until([&] { return !finished.empty(); }, 60000));
+    REQUIRE(finished[0].kind == plugin_request_kind::add_plugin);
+    REQUIRE(finished[0].error == plugin_request_error::none);
+    REQUIRE(finished[0].replaced == plugin_replacement::upgrade);
+    REQUIRE_EQ(finished[0].plugin_name, QStringLiteral("Served"));
+    REQUIRE(read_file(plugins / kPluginId / "plugin.json")
+                .find("\"version\": \"1.3.0\"") != std::string::npos);
+    REQUIRE(!fs::exists(plugins / ".vss-work"));
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* view = find_view(backend.snapshot(), id);
+            return version_is("1.3.0") &&
+                   view->state == plugin_state::needs_decision;
+        },
+        60000));
+    REQUIRE(fs::exists(saved / "note.txt"));
+
+    // The same files again are installed already.
+    const std::size_t looked = inspected.size();
+    backend.inspect_plugin(newer_text);
+    REQUIRE(vss_test::wait_until([&] { return inspected.size() > looked; },
+                                 30000));
+    REQUIRE(inspected.back().failure ==
+            plugin_inspection_view::problem::already_installed);
+    REQUIRE(!inspected.back().can_install);
+    REQUIRE(inspected.back().replaces == plugin_replacement::none);
     backend.shut_down();
 }

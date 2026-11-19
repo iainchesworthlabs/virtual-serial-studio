@@ -63,7 +63,13 @@ public:
     virtual quint64 inspect_plugin(const QString& folder) = 0;
     /// Copies a plugin's folder into the user's plugin folder, for this user
     /// only. The page asks for it after the user saw the inspection.
-    virtual void add_plugin(const QString& folder) = 0;
+    ///
+    /// When the user has a copy of the plugin already, the request is refused
+    /// with `already_installed` unless `replace` is set. With `replace` the
+    /// plugin is stopped first and the folder takes the place of the user's
+    /// copy; its settings and saved data stay. The new copy is a version
+    /// nobody decided about, so it does not run until the user decides.
+    virtual void add_plugin(const QString& folder, bool replace) = 0;
     /// Stops a plugin and deletes its folder, and its saved data too when
     /// `delete_saved_data`.
     virtual void remove_plugin(const QString& plugin_id, const QString& hash,

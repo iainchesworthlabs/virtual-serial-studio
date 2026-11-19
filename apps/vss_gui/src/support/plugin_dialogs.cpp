@@ -610,17 +610,50 @@ PluginInstallDialog::PluginInstallDialog(PluginBackend& backend,
     using problem = plugin_inspection_view::problem;
     const plugin_view& plugin = found_.plugin;
     const bool is_plugin = found_.failure != problem::not_a_plugin;
+    const plugin_replacement how = found_.replaces;
+    QString title = QCoreApplication::translate("PluginInstallDialog",
+                                                "Add a plugin");
+    if (is_plugin)
+    {
+        const QString name = plain_text(plugin.name);
+        switch (how)
+        {
+        case plugin_replacement::none:
+            title = QCoreApplication::translate("PluginInstallDialog",
+                                                "Add %1?")
+                        .arg(name);
+            break;
+        case plugin_replacement::upgrade:
+            title = QCoreApplication::translate("PluginInstallDialog",
+                                                "Upgrade %1?")
+                        .arg(name);
+            break;
+        case plugin_replacement::replace:
+            title = QCoreApplication::translate("PluginInstallDialog",
+                                                "Replace %1?")
+                        .arg(name);
+            break;
+        case plugin_replacement::downgrade:
+            title = QCoreApplication::translate(
+                        "PluginInstallDialog",
+                        "Replace %1 with an older version?")
+                        .arg(name);
+            break;
+        }
+    }
     frame parts = build_frame(
-        this,
-        is_plugin
-            ? QCoreApplication::translate("PluginInstallDialog", "Add %1?")
-                  .arg(plain_text(plugin.name))
-            : QCoreApplication::translate("PluginInstallDialog",
-                                          "Add a plugin"),
-        QCoreApplication::translate(
-            "PluginInstallDialog",
-            "Studio copies the folder into your own plugin folder. Nothing "
-            "runs."),
+        this, title,
+        how == plugin_replacement::none
+            ? QCoreApplication::translate(
+                  "PluginInstallDialog",
+                  "Studio copies the folder into your own plugin folder. "
+                  "Nothing runs.")
+            : QCoreApplication::translate(
+                  "PluginInstallDialog",
+                  "Studio stops the plugin, replaces your copy with the "
+                  "files in this folder and keeps its settings and saved "
+                  "data. A version you have not decided about does not run "
+                  "until you do."),
         560);
     QVBoxLayout* body = parts.body;
 
@@ -636,9 +669,9 @@ PluginInstallDialog::PluginInstallDialog(PluginBackend& backend,
         break;
     case problem::already_installed:
         refusal = QCoreApplication::translate(
-                      "PluginsDialog",
-                      "%1 is already installed for you. Remove it first to add "
-                      "a different copy.")
+                      "PluginInstallDialog",
+                      "%1 is already installed for you. Its files are the "
+                      "same as the ones in this folder.")
                       .arg(plain_text(plugin.name));
         break;
     case problem::installed_for_everyone:
@@ -677,11 +710,34 @@ PluginInstallDialog::PluginInstallDialog(PluginBackend& backend,
     {
         // It can be added: what it will be, in the spec's own words.
         const plugin_note_text what = note_for(plugin);
-        note_->set_kind(what.shown ? what.kind : NoteBanner::kind::info);
-        note_->set_text(what.shown ? what.text
-                                   : QCoreApplication::translate(
-                                         "PluginInstallDialog",
-                                         "Nothing is wrong with it."));
+        NoteBanner::kind kind = what.shown ? what.kind : NoteBanner::kind::info;
+        QString text = what.shown ? what.text
+                                  : QCoreApplication::translate(
+                                        "PluginInstallDialog",
+                                        "Nothing is wrong with it.");
+        // A copy that is not newer than the user's own says so first, and
+        // is never shown as plain information.
+        QString lead;
+        if (how == plugin_replacement::replace)
+            lead = QCoreApplication::translate(
+                       "PluginInstallDialog",
+                       "Your copy has the same version, %1, with other "
+                       "files.")
+                       .arg(plain_text(found_.installed_version));
+        else if (how == plugin_replacement::downgrade)
+            lead = QCoreApplication::translate(
+                       "PluginInstallDialog",
+                       "Your copy is version %1. This folder holds an older "
+                       "version.")
+                       .arg(plain_text(found_.installed_version));
+        if (!lead.isEmpty())
+        {
+            text = lead + QLatin1Char('\n') + text;
+            if (kind == NoteBanner::kind::info)
+                kind = NoteBanner::kind::warn;
+        }
+        note_->set_kind(kind);
+        note_->set_text(text);
     }
     body->addWidget(note_);
 
@@ -706,6 +762,10 @@ PluginInstallDialog::PluginInstallDialog(PluginBackend& backend,
         };
         row(QCoreApplication::translate("PluginsDialog", "Version"),
             plugin.version, QStringLiteral("installVersion"), true);
+        row(QCoreApplication::translate("PluginInstallDialog",
+                                        "Your version"),
+            found_.installed_version, QStringLiteral("installYourVersion"),
+            true);
         row(QCoreApplication::translate("PluginsDialog", "Made by"),
             plugin.trust == plugin_trust::official ? display_author(plugin)
                                                    : plugin.author,
@@ -723,11 +783,15 @@ PluginInstallDialog::PluginInstallDialog(PluginBackend& backend,
     // Installing for everyone needs rights Studio never asks for: the command
     // is shown as text to copy.
     const QString folder = found_.folder;
+    // A copy for everyone is there already, and the command puts this one in
+    // its place.
     command_ = QStringLiteral("vss_cli plugin install ") +
                (folder.contains(QLatin1Char(' '))
                     ? QLatin1Char('"') + folder + QLatin1Char('"')
                     : folder) +
                QStringLiteral(" --for-everyone");
+    if (found_.failure == problem::installed_for_everyone)
+        command_ += QStringLiteral(" --replace");
     if (found_.failure != problem::not_a_plugin)
     {
         body->addWidget(make_plain_label(
@@ -751,10 +815,16 @@ PluginInstallDialog::PluginInstallDialog(PluginBackend& backend,
         QCoreApplication::translate("PluginInstallDialog", "Cancel"), nullptr,
         QStringLiteral("installCancel"));
     connect(cancel_, &QPushButton::clicked, this, &QDialog::reject);
-    add_ = footer_button(
-        parts.footer,
-        QCoreApplication::translate("PluginInstallDialog", "Add plugin"),
-        "primary", QStringLiteral("installAdd"));
+    QString add_text =
+        QCoreApplication::translate("PluginInstallDialog", "Add plugin");
+    if (how == plugin_replacement::upgrade)
+        add_text = QCoreApplication::translate("PluginInstallDialog",
+                                               "Upgrade plugin");
+    else if (how != plugin_replacement::none)
+        add_text = QCoreApplication::translate("PluginInstallDialog",
+                                               "Replace plugin");
+    add_ = footer_button(parts.footer, add_text, "primary",
+                         QStringLiteral("installAdd"));
     add_->setEnabled(found_.can_install &&
                      found_.failure == plugin_inspection_view::problem::none);
     connect(add_, &QPushButton::clicked, this, [this] { add(); });
@@ -766,7 +836,9 @@ void PluginInstallDialog::add()
 {
     if (!add_->isEnabled())
         return;
-    backend_.add_plugin(found_.folder);
+    // The person was asked about replacing their copy only when there is one.
+    backend_.add_plugin(found_.folder,
+                        found_.replaces != plugin_replacement::none);
     accept();
 }
 

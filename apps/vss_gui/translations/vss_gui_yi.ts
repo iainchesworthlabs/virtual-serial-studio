@@ -22581,6 +22581,56 @@ Networks: %5</source>
             <source>Add plugin</source>
             <translation>צולייגן דעם פּלאַגין</translation>
         </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Upgrade %1?</source>
+            <translation>דערהײַנטיקן %1?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Replace %1?</source>
+            <translation>פֿאַרבײַטן %1?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Replace %1 with an older version?</source>
+            <translation>פֿאַרבײַטן %1 מיט אַן עלטערע ווערסיע?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio stops the plugin, replaces your copy with the files in this folder and keeps its settings and saved data. A version you have not decided about does not run until you do.</source>
+            <translation>Studio שטעלט אָפּ דעם פּלאַגין, פֿאַרבײַט אײַער קאָפּיע מיט די טעקעס אין דער דאָזיקער פּאַפּקע און האַלט זײַנע פּרעפֿערענצן און געראַטעוועטע דאַטן. אַ ווערסיע וועגן וועלכער איר האָט נאָך נישט באַשלאָסן לויפֿט נישט ביז איר באַשליסט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your copy has the same version, %1, with other files.</source>
+            <translation>אײַער קאָפּיע האָט די זעלבע ווערסיע, %1, מיט אַנדערע טעקעס.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your copy is version %1. This folder holds an older version.</source>
+            <translation>אײַער קאָפּיע איז ווערסיע %1. אין דער דאָזיקער פּאַפּקע איז אַן עלטערע ווערסיע.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your version</source>
+            <translation>אײַער ווערסיע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Upgrade plugin</source>
+            <translation>דערהײַנטיקן דעם פּלאַגין</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Replace plugin</source>
+            <translation>פֿאַרבײַטן דעם פּלאַגין</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>%1 is already installed for you. Its files are the same as the ones in this folder.</source>
+            <translation>%1 איז שוין אינסטאַלירט פֿאַר אײַך. זײַנע טעקעס זענען די זעלבע ווי די אין דער דאָזיקער פּאַפּקע.</translation>
+        </message>
     </context>
     <context>
         <name>PluginKeyImportDialog</name>
@@ -23463,11 +23513,6 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_dialogs.cpp" line="1" />
-            <source>%1 is already installed for you. Remove it first to add a different copy.</source>
-            <translation>%1 איז שוין אינסטאַלירט פֿאַר אײַך. נעמט עס אַראָפּ ערשט כּדי צוצולייגן אַן אַנדער קאָפּיע.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
             <source>Your administrator installs the plugins on this computer.</source>
             <translation>אײַער אַדמיניסטראַטאָר אינסטאַלירט די פּלאַגינס אויף דעם קאָמפּיוטער.</translation>
         </message>
@@ -23981,6 +24026,21 @@ Networks: %5</source>
             <location filename="../src/support/plugins_dialog.cpp" line="1" />
             <source>Technical details</source>
             <translation>טעכנישע דעטאַלן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Upgraded %1. Review it before it runs.</source>
+            <translation>%1 איז דערהײַנטיקט געוואָרן. קוקט עס איבער איידער עס לויפֿט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Replaced %1. Review it before it runs.</source>
+            <translation>%1 איז פֿאַרבײַט געוואָרן. קוקט עס איבער איידער עס לויפֿט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1 is already installed for you.</source>
+            <translation>%1 איז שוין אינסטאַלירט פֿאַר אײַך.</translation>
         </message>
     </context>
     <context>
