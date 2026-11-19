@@ -1553,8 +1553,9 @@ registry on Windows, a configuration file on Linux and macOS).
   system, architecture, Qt running, display and the language chosen), Licences
   (the components this build contains: Qt, Boost, Boost.VirtualSerial and, in a
   build with profiling, Tracy) and Fonts (IBM Plex Mono, Noto Sans Arabic and Noto Sans Hebrew, which are built into the program). The version reads
-  like `v0.1.0-rc.3+build.123-abc1234`: the release, the CI run number and the
-  short commit. Each of the two data tabs has a button that copies it, and
+  like `v0.1.0-rc.5+18.gabc1234.build.123`: the release, the number of commits
+  after it, the short commit and the CI run number. A plugin's version is written the
+  same way, so a build of a plugin shows which commit it was made from. Each of the two data tabs has a button that copies it, and
   **Copy diagnostic information** copies both.
 
 The application is available in nine languages (English, French, Spanish,

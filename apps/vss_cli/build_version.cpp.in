@@ -16,29 +16,8 @@ namespace vss_cli
 
 std::string build_version()
 {
-    const std::string version = "@VSS_STAMP_version@";
-    const std::string commit = "@VSS_STAMP_commit@";
-    const std::string build_number = "@VSS_STAMP_build_number@";
-    const bool dirty = std::string("@VSS_STAMP_dirty@") == "true";
-
-    // The same composition as the window's: v<version>+build.<number>-<commit>
-    // with -dirty after a commit of a modified tree.
-    std::string result = "v" + version;
-    const bool has_commit = !commit.empty() && commit != "unknown";
-    if (build_number.empty() && !has_commit)
-        return result;
-    result += '+';
-    if (!build_number.empty())
-        result += "build." + build_number;
-    if (has_commit)
-    {
-        if (!build_number.empty())
-            result += '-';
-        result += commit;
-        if (dirty)
-            result += "-dirty";
-    }
-    return result;
+    // The same string as the window's, composed once by cmake/VssVersion.cmake.
+    return "v@VSS_STAMP_full_version@";
 }
 
 } // namespace vss_cli

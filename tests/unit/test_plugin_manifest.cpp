@@ -527,7 +527,7 @@ TEST_CASE("plugin manifest: the minimal manifest is read")
 
     REQUIRE_EQ(value.id, "com.example.fixture");
     REQUIRE_EQ(value.name, "Example fixture");
-    const plugin_version version{1, 2, 3, std::string()};
+    const plugin_version version{1, 2, 3, std::string(), std::string()};
     REQUIRE(value.version == version);
     REQUIRE_EQ(to_string(value.version), "1.2.3");
     REQUIRE(value.author.name.empty());
@@ -634,7 +634,7 @@ TEST_CASE("plugin manifest: the full manifest, header and needs")
 
     REQUIRE_EQ(value.id, "com.example.full-plugin");
     REQUIRE_EQ(value.name, "Full plugin");
-    const plugin_version version{2, 10, 3, "rc.1"};
+    const plugin_version version{2, 10, 3, "rc.1", {}};
     REQUIRE(value.version == version);
     REQUIRE_EQ(to_string(value.version), "2.10.3-rc.1");
     REQUIRE_EQ(value.author.name, "Example Ltd");
@@ -1143,7 +1143,13 @@ TEST_CASE("plugin manifest: good versions")
                                            "999999.999999.999999",
                                            "1.2.3-alpha-1",
                                            "1.2.3-0",
-                                           "1.2.3-" + std::string(32, 'a')};
+                                           "1.2.3-" + std::string(32, 'a'),
+                                           "1.2.3+57.g7ffbece",
+                                           "1.2.3+57.g7ffbece.dirty",
+                                           "1.2.3-rc.1+b",
+                                           "0.1.0-rc.5+18.g7d42b4e7.build.6083",
+                                           "1.2.3+a-b.007",
+                                           "1.2.3+" + std::string(64, 'a')};
     for (const std::string& text : good)
     {
         const manifest value = parse_ok(with_string("version", "1.2.3", text));
@@ -1152,8 +1158,19 @@ TEST_CASE("plugin manifest: good versions")
 
     const manifest release =
         parse_ok(with_string("version", "1.2.3", "4.5.6-beta.2"));
-    const plugin_version expected{4, 5, 6, "beta.2"};
+    const plugin_version expected{4, 5, 6, "beta.2", {}};
     REQUIRE(release.version == expected);
+
+    // The build metadata is kept apart from the pre-release, and a hyphen
+    // in it does not start a pre-release.
+    const manifest built =
+        parse_ok(with_string("version", "1.2.3", "0.1.0-rc.5+18.g7d42b4e7"));
+    const plugin_version built_expected{0, 1, 0, "rc.5", "18.g7d42b4e7"};
+    REQUIRE(built.version == built_expected);
+    const manifest hyphen =
+        parse_ok(with_string("version", "1.2.3", "1.0.0+a-b"));
+    const plugin_version hyphen_expected{1, 0, 0, {}, "a-b"};
+    REQUIRE(hyphen.version == hyphen_expected);
 }
 
 TEST_CASE("plugin manifest: bad versions")
@@ -1165,8 +1182,16 @@ TEST_CASE("plugin manifest: bad versions")
                                           "1.2.03",
                                           "1.2.3-",
                                           "v1.2.3",
-                                          "1.2.3+build",
-                                          "1.2.3-rc.1+b",
+                                          "1.2.3+",
+                                          "1.2.3-rc.1+",
+                                          "1.2.3+a..b",
+                                          "1.2.3+.a",
+                                          "1.2.3+a.",
+                                          "1.2.3+a+b",
+                                          "1.2.3+a_b",
+                                          "1.2.3+" + std::string(65, 'a'),
+                                          "1.2.3+caf\\u00e9",
+                                          "+57.g7ffbece",
                                           "1000000.0.0",
                                           "",
                                           "1..3",
@@ -2883,11 +2908,16 @@ TEST_CASE("plugin manifest: names of kinds, classes and types")
 
 TEST_CASE("plugin manifest: versions are written as they were read")
 {
-    const plugin_version plain{3, 14, 159, std::string()};
+    const plugin_version plain{3, 14, 159, std::string(), std::string()};
     REQUIRE_EQ(to_string(plain), "3.14.159");
-    const plugin_version pre{1, 0, 0, "rc.1"};
+    const plugin_version pre{1, 0, 0, "rc.1", {}};
     REQUIRE_EQ(to_string(pre), "1.0.0-rc.1");
     REQUIRE(!(plain == pre));
+    const plugin_version built{1, 0, 0, {}, "57.g7ffbece"};
+    REQUIRE_EQ(to_string(built), "1.0.0+57.g7ffbece");
+    const plugin_version both{1, 0, 0, "rc.1", "57.g7ffbece.dirty"};
+    REQUIRE_EQ(to_string(both), "1.0.0-rc.1+57.g7ffbece.dirty");
+    REQUIRE(!(built == plain));
 }
 
 // -- errors -------------------------------------------------------------------

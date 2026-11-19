@@ -505,6 +505,30 @@ TEST_CASE("plugins page: only the host's own trust level shows the Virtual "
                QStringLiteral("Signed by Example Instruments"));
 }
 
+TEST_CASE("plugins page: the build of a plugin is shown with its version")
+{
+    // A build says which commit it was made from after a plus sign, so that a
+    // newer build of the same version can be told from an older one.
+    plugin_view built = fake_plugin_samples().front();
+    built.trust = plugin_trust::official;
+    built.version = QStringLiteral("0.1.0+57.g7ffbece");
+    REQUIRE_EQ(row_second_line(built),
+               QStringLiteral("Official, version 0.1.0+57.g7ffbece"));
+    REQUIRE(copy_details_text(built).contains(
+        QStringLiteral("Version: 0.1.0+57.g7ffbece")));
+
+    fixture env({built});
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    dialog.select(built.id);
+    settle();
+    auto* version = dialog.detail()->findChild<QLabel*>(
+        QStringLiteral("pluginDetailVersion"));
+    REQUIRE(version != nullptr);
+    REQUIRE_EQ(version->text(), QStringLiteral("0.1.0+57.g7ffbece"));
+}
+
 TEST_CASE("plugins page: hostile text is shown as plain text and breaks "
           "nothing")
 {

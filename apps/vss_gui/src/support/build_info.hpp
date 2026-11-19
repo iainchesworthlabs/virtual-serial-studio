@@ -28,6 +28,9 @@ struct build_info
 {
     // Build information.
     QString version; ///< Semantic version, for example "0.1.0-rc.3".
+    /// The version and the build metadata, for example
+    /// "0.1.0-rc.3+18.g3de4617"; the form a plugin's version is written in.
+    QString version_with_build;
     QString tag;     ///< The git tag, empty when the build saw none.
     int commits_since_tag = 0;
     QString commit;      ///< Short revision.
@@ -55,16 +58,11 @@ struct build_info
     QString language;
 
     /// The single version string, for example
-    /// "v0.1.0-rc.3+build.6083-3de4617".
+    /// "v0.1.0-rc.3+18.g3de4617.build.6083": the release, the commits after
+    /// its tag, the short commit, the CI run number and ".dirty" for a
+    /// modified tree.  Whatever is not known is left out.
     QString full_version() const;
 };
-
-/// "v<version>+build.<number>-<commit>", the way the other Iain Chesworth
-/// Labs applications write it.  The build number part is left out when there
-/// is none, the commit part when it is unknown, and "-dirty" follows the
-/// commit when the tree differed from it.
-QString compose_version(const QString& version, const QString& build_number,
-                        const QString& commit, bool dirty);
 
 /// The full version string of this binary, without gathering anything else.
 QString current_version_string();

@@ -576,7 +576,7 @@ exceptions) is failed with `error: timeout` and, for the host, counts as a miss 
 
 | Message | From | Content |
 |---|---|---|
-| `hello` | plugin | `api` (`major.minor`), `plugin_id`, `pid`, `version`. The channel is the identity; the id is checked against the manifest |
+| `hello` | plugin | `api` (`major.minor`), `plugin_id`, `pid`, `version`. The channel is the identity; the id and the version are checked against the manifest, the version without its build metadata (13.3) |
 | `hello_ack` | host | The negotiated `api`, the **granted** permissions, the parameter values (already validated), the engine capability flags by name, the limits (frame rate, bytes per second, instances, queue sizes), `clock` (see below; **not built**), the plugin's data directory |
 | `ping`, `pong` | either | Liveness |
 | `status` | plugin | `level` (`ok`, `warning`, `error`), a text of at most 200 characters, a `code` from the manifest's declared messages (optional) |
@@ -1557,7 +1557,7 @@ parser), so a misspelling is found. Duplicate keys are errors. Strings have leng
 |---|---|
 | `manifest_version` | Integer. This design is 1. A higher number is `manifest_invalid: unsupported_version`, as the reader cannot know what it means. A change that only adds an optional key keeps the number; any other change raises it |
 | `id` | Reverse-domain, lower case, `[a-z0-9.-]`, 3 to 128 characters. Identity for trust and state |
-| `version` | Semantic version. Compared only for display and the "newer than trusted" note |
+| `version` | Semantic version. Compared only for display and the "newer than trusted" note. Build metadata may follow a plus sign (`0.1.0+57.g7ffbece`, 1 to 64 letters, digits, hyphens and dots, none of the dot-separated words empty). It is kept and shown, and it takes no part in the order, as Semantic Versioning says: two builds of one version are equal. See 13.3 |
 | `not_after` | A date. Optional for third party, required for official |
 | `released` | A date. Optional. Used by the licence's version window (`updates_until`, section 8.7) |
 | `contributes.bundle_sections` | Optional. Sections the plugin can add to a support bundle (section 19) |
@@ -1575,6 +1575,19 @@ parser), so a misspelling is found. Duplicate keys are errors. Strings have leng
 `unsupported_version`; it never guesses. An older plugin with `manifest_version: 1` keeps loading in a host that also
 reads 2, because each host version keeps its readers; the policy is to keep the readers for every version shipped.
 The plugin API range (`requires.api`) is separate: a plugin may keep an old manifest and require a newer API.
+
+### 13.3 The version of a build
+
+A plugin's `version` is the version its author gives it. The build of it says which commit it was made from, in
+build metadata, so that a user and a bug report can tell one build of `0.1.0` from another: `0.1.0+57.g7ffbece` is
+the 57th commit of the plugin's repository, `g7ffbece` is that commit (the short form git writes), and `.dirty` follows
+it when the tree differed from the commit. Studio's own version has the same form, `0.1.0-rc.5+18.g7d42b4e`, where the
+number is the commits after the release tag (`docs/building.md`, "The version a build reports"). Studio shows the whole
+string in the Plugins list, in the detail, in "Copy details" and in `vss_cli plugin list`. The packaging step of a
+plugin writes it into `plugin.json` before the files are hashed and signed, so a signed build says what it is and a
+changed string is a changed plugin. The `hello` of a plugin names its version, and the host compares it with the
+manifest's without the build metadata: a plugin whose manifest says `0.1.0+57.g7ffbece` may say `0.1.0` in its `hello`,
+because which files make the plugin is a question for the hash. The numbers and the pre-release must be the same.
 
 ## 14. Code layout
 

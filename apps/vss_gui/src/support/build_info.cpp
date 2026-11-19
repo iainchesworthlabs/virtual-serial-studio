@@ -76,38 +76,14 @@ QString report_text(const QString& heading,
 
 } // namespace
 
-QString compose_version(const QString& version, const QString& build_number,
-                        const QString& commit, bool dirty)
-{
-    QString result = QStringLiteral("v") + version;
-    const bool has_commit =
-        !commit.isEmpty() && commit != QLatin1String("unknown");
-    if (build_number.isEmpty() && !has_commit)
-        return result;
-    result += QLatin1Char('+');
-    if (!build_number.isEmpty())
-        result += QStringLiteral("build.") + build_number;
-    if (has_commit)
-    {
-        if (!build_number.isEmpty())
-            result += QLatin1Char('-');
-        result += commit;
-        if (dirty)
-            result += QStringLiteral("-dirty");
-    }
-    return result;
-}
-
 QString build_info::full_version() const
 {
-    return compose_version(version, build_number, commit, dirty);
+    return QStringLiteral("v") + version_with_build;
 }
 
 QString current_version_string()
 {
-    const build_stamp& stamp = generated_build_stamp();
-    return compose_version(text(stamp.version), text(stamp.build_number),
-                           text(stamp.commit), stamp.dirty);
+    return QStringLiteral("v") + text(generated_build_stamp().full_version);
 }
 
 build_info current_build_info()
@@ -115,6 +91,7 @@ build_info current_build_info()
     const build_stamp& stamp = generated_build_stamp();
     build_info info;
     info.version = text(stamp.version);
+    info.version_with_build = text(stamp.full_version);
     info.tag = text(stamp.tag);
     info.commits_since_tag = stamp.commits_since_tag;
     info.commit = text(stamp.commit);

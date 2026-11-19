@@ -454,6 +454,18 @@ target_link_libraries(vss_header_selftest PRIVATE vss_studio vss_testkit
 vss_set_warnings(vss_header_selftest)
 add_test(NAME headers COMMAND vss_header_selftest)
 
+# The version every build carries: how it is written, and what the stamp makes
+# of a throwaway git history. Git is optional; without it only the writing is
+# checked.
+find_package(Git QUIET)
+add_test(NAME version_stamp
+  COMMAND ${CMAKE_COMMAND}
+    -DSOURCE_ROOT=${PROJECT_SOURCE_DIR}
+    -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
+    -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/version_stamp
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/test_version_stamp.cmake)
+set_tests_properties(version_stamp PROPERTIES TIMEOUT 120)
+
 # The VM harness is checked against a stand-in for vmrun, so no VM is needed.
 # PowerShell 7 is on every hosted runner and optional elsewhere.
 find_program(VSS_PWSH NAMES pwsh)

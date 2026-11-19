@@ -96,20 +96,37 @@ it costs and how to capture a trace are in [Profiling](profiling.md#building-it)
 ## The version a build reports
 
 About and `vss_gui --version` show one string, for example
-`v0.1.0-rc.3+build.6083-3de4617`: the semantic version, the CI run number and the short
-commit (`-dirty` follows the commit when the tree was modified). `cmake/VssBuildStamp.cmake`
-works it out before every build and writes a generated source file, so a new commit shows
-without a reconfigure and no preprocessor definition is involved.
+`v0.1.0-rc.5+18.g7d42b4e.build.6083`: the semantic version of the nearest release tag, the number of
+commits after that tag, `g` and the short commit, the CI run number, and `.dirty` when the tree was
+modified. It is what `git describe --long --dirty` says, written so that it is still a valid Semantic
+Version: everything after the plus sign is build metadata and takes no part in the order, so that
+build is "0.1.0-rc.5" to anything that compares versions, and `+18.g7d42b4e` tells two builds of it
+apart. `cmake/VssBuildStamp.cmake` works it out before every build, `cmake/VssVersion.cmake` writes
+the string, and a generated source file carries it, so a new commit shows without a reconfigure and
+no preprocessor definition is involved. The window, `vss_cli --version`, the diagnostic information
+(`environment.txt` in a support bundle) and the plugins' manifests all use this one form. The bundle's `manifest.json`
+keeps the plain semantic version in `studio_version`, which a replay compares.
+
+| Example | Means |
+|---|---|
+| `v0.1.0-rc.6+0.g1a2b3c4.build.6112` | The build is on the tag `v0.1.0-rc.6` |
+| `v0.1.0-rc.6+18.g7d42b4e` | 18 commits after the tag, built outside CI |
+| `v0.1.0-rc.6+18.g7d42b4e.dirty` | The same, and the tree differed from the commit |
+| `v0.1.0-dev+g7d42b4e` | No tag was visible (a shallow CI clone), so the number of commits is not known and is left out |
 
 | Part | Where it comes from |
 |---|---|
 | Version and tag | The tag of a tag build in GitHub Actions, else the nearest `v*` tag git can see, else `<project version>-dev` (a shallow CI clone has no tags) |
+| Commits after the tag | `git rev-list --count <tag>..HEAD`; none without a tag, or when the tag is not a version |
 | Build number | `-DVSS_BUILD_NUMBER=`, else the GitHub Actions run number, else none |
 | Commit | `GITHUB_SHA`, else git `HEAD` (a pull request build is the merge commit) |
 | Branch | The pull request's head branch, else the branch Actions built, else the checked-out branch; on a detached `HEAD` the tag, or a branch pointing at the commit |
 | Time | UTC, refreshed only when one of the above changes |
 
-`-DVSS_VERSION_TAG=v1.2.3` takes the version from a tag when git is not available.
+`-DVSS_VERSION_TAG=v1.2.3` takes the version from a tag when git is not available. A job that builds
+a package from a branch needs the tags, so it checks out with `fetch-depth: 0`; without them the
+version is `<project version>-dev`. `ctest -R version_stamp` checks the string against a throwaway
+git history.
 
 ## Language standard
 

@@ -176,7 +176,7 @@ struct plugin_under_test
     plugin_under_test()
     {
         declared.id = "com.example.plugin";
-        declared.version = plugin_version{1, 2, 0, {}};
+        declared.version = plugin_version{1, 2, 0, {}, {}};
     }
 
     /// What a correct `plugin.sig` of this plugin signs.
@@ -793,7 +793,7 @@ TEST_CASE("plugin signature: what was signed must be this plugin")
     {
         plugin_under_test plugin;
         plugin.sign_with("plugins-2026", plugins_fill);
-        plugin.declared.version = plugin_version{1, 2, 1, {}};
+        plugin.declared.version = plugin_version{1, 2, 1, {}, {}};
         require_invalid(plugin, "another version");
     }
     {
