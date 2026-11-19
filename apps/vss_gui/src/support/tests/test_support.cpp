@@ -293,6 +293,7 @@ TEST_CASE("support: build information and environment are separate reports")
     // A fixed identity prints as it should, including a build outside CI.
     support::build_info fixed = info;
     fixed.version = QStringLiteral("0.10.0-beta.1");
+    fixed.version_with_build = QStringLiteral("0.10.0-beta.1+3.g3de4617.dirty");
     fixed.tag = QStringLiteral("v0.10.0-beta.1");
     fixed.commits_since_tag = 3;
     fixed.commit = QStringLiteral("3de4617");
@@ -301,7 +302,8 @@ TEST_CASE("support: build information and environment are separate reports")
     fixed.dirty = true;
     fixed.build_number = QString();
     const QString text = support::build_information_report(fixed);
-    REQUIRE(text.contains(QStringLiteral("Version: v0.10.0-beta.1+3de4617-dirty")));
+    REQUIRE(text.contains(
+        QStringLiteral("Version: v0.10.0-beta.1+3.g3de4617.dirty")));
     REQUIRE(text.contains(QStringLiteral("Git tag: v0.10.0-beta.1, 3 commits later")));
     REQUIRE(text.contains(QStringLiteral("Working tree: modified")));
     REQUIRE(text.contains(QStringLiteral("Branch: develop")));

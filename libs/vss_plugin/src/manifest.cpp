@@ -229,9 +229,9 @@ bool is_version_words(std::string_view text, std::size_t most) noexcept
     if (text.empty() || text.size() > most || text.front() == '.' ||
         text.back() == '.' || text.find("..") != std::string_view::npos)
         return false;
-    return std::ranges::all_of(text, [](char c) {
-        return is_alpha(c) || is_digit(c) || c == '.' || c == '-';
-    });
+    return std::ranges::all_of(
+        text, [](char c)
+        { return is_alpha(c) || is_digit(c) || c == '.' || c == '-'; });
 }
 
 std::optional<plugin_version> parse_version(std::string_view text) noexcept

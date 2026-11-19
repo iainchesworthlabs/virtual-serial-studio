@@ -167,18 +167,12 @@ TEST_CASE("plugin verify: versions are ordered as Semantic Versioning says")
 {
     // The chain of the Semantic Versioning text, each earlier than the next.
     const std::vector<plugin_version> chain{
-        {0, 9, 9, {}, {}},
-        {1, 0, 0, "alpha", {}},
-        {1, 0, 0, "alpha.1", {}},
-        {1, 0, 0, "alpha.beta", {}},
-        {1, 0, 0, "beta", {}},
-        {1, 0, 0, "beta.2", {}},
-        {1, 0, 0, "beta.11", {}},
-        {1, 0, 0, "rc.1", {}},
-        {1, 0, 0, {}, {}},
-        {1, 0, 1, {}, {}},
-        {1, 1, 0, "0", {}},
-        {1, 1, 0, {}, {}},
+        {0, 9, 9, {}, {}},        {1, 0, 0, "alpha", {}},
+        {1, 0, 0, "alpha.1", {}}, {1, 0, 0, "alpha.beta", {}},
+        {1, 0, 0, "beta", {}},    {1, 0, 0, "beta.2", {}},
+        {1, 0, 0, "beta.11", {}}, {1, 0, 0, "rc.1", {}},
+        {1, 0, 0, {}, {}},        {1, 0, 1, {}, {}},
+        {1, 1, 0, "0", {}},       {1, 1, 0, {}, {}},
         {2, 0, 0, {}, {}}};
     for (std::size_t i = 0; i < chain.size(); ++i)
     {

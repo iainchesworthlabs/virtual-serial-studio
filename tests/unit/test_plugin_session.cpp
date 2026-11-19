@@ -336,8 +336,8 @@ TEST_CASE("plugin session: the build metadata of a version is not compared")
 {
     // A manifest that names the build (docs/plugins.md, 13.3) accepts a program
     // that says the version only, and the other way round.
-    const auto accepted = [](const std::string& manifest_version,
-                             const std::string& said)
+    const auto accepted =
+        [](const std::string& manifest_version, const std::string& said)
     {
         session_options options = options_for_test();
         options.version = manifest_version;
@@ -353,8 +353,8 @@ TEST_CASE("plugin session: the build metadata of a version is not compared")
     accepted("1.2.0-rc.1+57.g7ffbece", "1.2.0-rc.1");
 
     // The numbers and the pre-release still have to agree.
-    const auto refused = [](const std::string& manifest_version,
-                            const std::string& said)
+    const auto refused =
+        [](const std::string& manifest_version, const std::string& said)
     {
         session_options options = options_for_test();
         options.version = manifest_version;
