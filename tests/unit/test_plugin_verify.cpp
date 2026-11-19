@@ -425,11 +425,11 @@ TEST_CASE("plugin verify: a revocation list reads and answers")
     REQUIRE(!parsed->revokes_hash(
         plugin_hash{sha512_of(std::string_view("another"))}));
 
-    REQUIRE(parsed->revokes_plugin("com.example.plugin", {1, 2, 0, {}}));
-    REQUIRE(parsed->revokes_plugin("com.example.plugin", {1, 2, 0, "rc.1"}));
-    REQUIRE(parsed->revokes_plugin("com.example.plugin", {0, 1, 0, {}}));
-    REQUIRE(!parsed->revokes_plugin("com.example.plugin", {1, 2, 1, {}}));
-    REQUIRE(!parsed->revokes_plugin("com.example.other", {1, 0, 0, {}}));
+    REQUIRE(parsed->revokes_plugin("com.example.plugin", {1, 2, 0, {}, {}}));
+    REQUIRE(parsed->revokes_plugin("com.example.plugin", {1, 2, 0, "rc.1", {}}));
+    REQUIRE(parsed->revokes_plugin("com.example.plugin", {0, 1, 0, {}, {}}));
+    REQUIRE(!parsed->revokes_plugin("com.example.plugin", {1, 2, 1, {}, {}}));
+    REQUIRE(!parsed->revokes_plugin("com.example.other", {1, 0, 0, {}, {}}));
 
     const auto least = parse_revocations(
         R"({ "revocations_version": 1, "serial": 1,
@@ -673,7 +673,7 @@ TEST_CASE("plugin verify: a withdrawn key, copy or version does not run")
         scene where;
         where.use_revocations();
         where.revoked.plugins = {
-            revoked_plugin{"com.example.plugin", {1, 2, 0, {}}}};
+            revoked_plugin{"com.example.plugin", {1, 2, 0, {}, {}}}};
         require_refused(where, plugin_errc::revoked, "this version");
         where.declared.version = plugin_version{1, 1, 9, {}, {}};
         require_refused(where, plugin_errc::revoked, "this version");
