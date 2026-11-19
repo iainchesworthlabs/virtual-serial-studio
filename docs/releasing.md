@@ -118,7 +118,7 @@ the packaging jobs for that branch. Unpack each package on its system and run
 
 ## The site
 
-The live site, <https://iainchesworthlabs.com/virtual-serial-studio/>, describes the latest published release, a release candidate
+The live site (at the address `site_url` gives in `mkdocs.yml`) describes the latest published release, a release candidate
 included. The company stack trusts a push to the branch `site` of this repository, and to no other branch, to deploy it. The `site` job
 of `release.yml` fast-forwards `site` to the tagged commit (the `version` job has already checked that the commit is on `develop`, so
 `site` only moves forward along `develop`). It runs after the `feed` job, so the site is built with the signed update feed that the
