@@ -4,8 +4,8 @@ name: Release
 # A tag v* pushed from develop builds the packages for each platform, signs the
 # Windows ones as the SIGN_WINDOWS repository variable says, and hands them to the
 # shared publish workflow, which checks the tag, signs, attests and publishes
-# (docs/releasing.md); a last job signs the update feed when the owner has set up the
-# feed keys. Without a tag the same packages are built and kept as workflow
+# (docs/releasing.md); a job then signs the update feed when the owner has set up the
+# feed keys, and a last job moves the `site` branch, which publishes the site. Without a tag the same packages are built and kept as workflow
 # artifacts and nothing is published: by hand (`gh workflow run release.yml`), every
 # Monday so the install rules cannot rot unseen, and on a pull request that changes
 # this workflow.
@@ -67,10 +67,29 @@ jobs:
           prerelease: ${{ steps.tag.outputs.prerelease }}
           output-file: ${{ runner.temp }}/notes.md
 
+  # The documentation site is built strictly and checked first, so that a broken page stops a release in a
+  # minute and not after the packages have been built (docs/ci.md, "Documentation site").
+  docs:
+    name: Docs (strict)
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/docs-site
+
   package:
     name: Package (${{ matrix.name }})
-    needs: version
-    if: ${{ !cancelled() && (needs.version.result == 'success' || needs.version.result == 'skipped') }}
+    needs: [version, docs]
+    if: >-
+      ${{ !cancelled()
+      && (needs.version.result == 'success' || needs.version.result == 'skipped')
+      && (needs.docs.result == 'success' || needs.docs.result == 'skipped') }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     permissions:
@@ -511,8 +530,46 @@ jobs:
         run: |
           set -euo pipefail
           gh release upload "$TAG" "$RUNNER_TEMP/feed/update-feed.json" --clobber
-          echo "The update feed was signed and attached to $TAG as update-feed.json. Run the Docs workflow on main so that the website serves it." >> "$GITHUB_STEP_SUMMARY"
+          echo "The update feed was signed and attached to $TAG as update-feed.json. The site job moves the site branch next, which builds the site with it." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Remove the key file
         if: always()
         run: rm -f "$RUNNER_TEMP/update-feed.key"
+
+  # The live site describes the latest published release, release candidates included. The company site trusts a push
+  # to the branch `site` of this repository and to no other branch (icl-site, infra/lib/apps.ts), and the Docs workflow
+  # deploys on that push. This job fast-forwards `site` to the tagged commit, which the version job has checked is on
+  # develop, so `site` only ever moves forward along develop. It runs last, after the feed job has attached
+  # update-feed.json, so that the site is built with the feed. The push is made with the release bot's App token,
+  # because a push made with GITHUB_TOKEN does not start workflows. The shared publish workflow moves `main` for a final
+  # release and has no way to move a branch for a release candidate, so the move is here (docs/releasing.md, "The site").
+  site:
+    name: Move the site branch
+    needs: [publish, feed]
+    if: ${{ !cancelled() && github.ref_type == 'tag' && needs.publish.result == 'success' && needs.feed.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions: {}
+    steps:
+      - name: Create a token for the release bot
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Fast-forward the site branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # force=false: the move must be a fast-forward, so a tag that is not ahead of the branch stops here.
+          if gh api "repos/$REPO/git/ref/heads/site" >/dev/null 2>&1; then
+            gh api --method PATCH "repos/$REPO/git/refs/heads/site" -f sha="$GITHUB_SHA" -F force=false
+          else
+            gh api --method POST "repos/$REPO/git/refs" -f ref="refs/heads/site" -f sha="$GITHUB_SHA"
+          fi
+          echo "The site branch is now at $GITHUB_SHA. The Docs workflow publishes the site from it." >> "$GITHUB_STEP_SUMMARY"

@@ -40,7 +40,7 @@ was cancelled or was skipped.
 |---|---|---|
 | `fuzz.yml` | Push to `develop`, every night | Fuzzes each target for 60 seconds, or 10 minutes at night, within a budget for the whole run; see [Fuzzing](fuzzing.md) |
 | `release.yml` | A `v*` tag, every Monday, on request | Builds the packages and publishes them for a tag; see [Releasing](releasing.md) |
-| `docs.yml` | A pull request that changes the docs, a push to `develop` or `main` | Checks the presets and badges against the repository, then builds this site with `mkdocs build --strict` and checks it (see [Documentation site](#documentation-site)). A change under `website/` also builds the product website with `tools/site_build.py` and checks its links, that it loads nothing from another host, and its accessibility rules with `tools/site_check.py`. From `main`, and from `develop` when the run is started by hand, it publishes both to GitHub Pages: the website at the root and this site under `docs/`. The push to `develop` gives the branch a status of its own |
+| `docs.yml` | A pull request that changes the docs (also when it closes), a push to `develop` or `site` | Checks the presets and badges against the repository, then builds this site with `mkdocs build --strict` and checks it (see [Documentation site](#documentation-site)). A change under `website/` also builds the old product website with `tools/site_build.py` and checks it with `tools/site_check.py`, until the front pages replace it. A pull request from this repository gets a preview on the company site, and a push to `site` deploys the live site (see [Publishing](#publishing)). The push to `develop` gives the branch a status of its own |
 | `cache-hygiene.yml` | After a CI run on `develop`, a closed pull request, on request | Deletes Actions caches that nothing can restore any more, to keep the repository within its cache quota |
 | `dependabot-auto-merge.yml` | Dependabot pull requests | Turns on auto-merge for minor and patch updates of actions |
 
@@ -185,7 +185,8 @@ builds strictly, and runs the four checks of this section in order (`check_site_
 
 - `ci.yml`, job `Docs build (strict)`: on every run of the workflow: a pull request, draft or ready, a queue entry, a push to `develop` and a run by hand. It has no path filter, because a required
   check that does not run blocks the pull request; `CI Status` waits for it like it does for the other static jobs.
-- `docs.yml`, job `Build site`: on a pull request that changes the documentation, and on a push to `develop`.
+- `docs.yml`, job `Build site`: on a pull request that changes the documentation, and on a push to `develop` or `site`.
+- `release.yml`, job `Docs (strict)`: on a tag, before the packages are built, so that a broken page stops a release in a few minutes.
 
 The checks' own tests are `tools/ci/test_site_checks.py`: each check passes a good tree and fails, with a reason, on a bad one. The
 `changelog` job of `ci.yml` runs them with the other tests of `tools/ci`.
@@ -194,9 +195,36 @@ A change to the documentation tooling alone (`mkdocs.yml`, `tools/docs/`, `tools
 `tools/ci/test_site_checks.py`, `requirements/docs.*` and `.github/actions/docs-site/`) is listed under `docs` in `.github/ci/plan.json`,
 so it does not start the build legs.
 
-**Not built yet.** The deploy to the company site, with a preview for each pull request, is a later pull request (the plan has the
-order). Until then `docs.yml` still publishes `website/` and this site to GitHub Pages as before, and the site is read locally
-(`mkdocs serve`).
+### Publishing
+
+The site is the `/virtual-serial-studio/` section of <https://iainchesworthlabs.com>, served from the company stack in the
+`iainchesworthlabs/icl-site` repository. `docs.yml` calls the shared `docs-deploy-aws.yml` of `icl-common-infra` (v0.1.30) three ways, all
+with `prefix: virtual-serial-studio` and `region: us-east-1`:
+
+- **Production**, on a push to the branch `site` (`production-ref: refs/heads/site`). The release workflow moves `site`; see
+  [Releasing](releasing.md#the-site).
+- **A preview** for each pull request from this repository that changes the documentation, at
+  `https://iainchesworthlabs.com/_preview/virtual-serial-studio/pr-<n>/`. The workflow comments the address on the pull request. A preview
+  is public to anyone with the link, is `noindex`, and cannot run script or submit a form (its content security policy forbids both), so
+  the search box and a form are tried on the live site.
+- **Removal of the preview** when the pull request closes.
+
+A pull request from a fork gets no secrets, so no preview. A run without the four secrets skips the deploy with a warning, and a run by
+hand cannot deploy, because the role the company stack creates trusts only a push to `site` and a pull request of this repository.
+
+**What the owner does** (the company stack and this repository's settings are not changed by a pull request here):
+
+1. In `iainchesworthlabs/icl-site`, merge the pull request that adds the `virtual-serial-studio` entry to `infra/lib/apps.ts`, then from
+   `main` run `npx cdk diff` and `npx cdk deploy` in its `infra` folder. The outputs include `DeployRoleArnVirtualSerialStudio` and
+   `PreviewRoleArnVirtualSerialStudio`.
+2. Customise this repository's OIDC subject claim (immutable subject, claim keys `repo`, `context`, `event_name`), as the icl-site README says.
+3. Set the four repository secrets `DOCS_ROLE_ARN`, `DOCS_PREVIEW_ROLE_ARN`, `DOCS_BUCKET` and `DOCS_DISTRIBUTION_ID` from the stack outputs
+   (`DeployRoleArnVirtualSerialStudio`, `PreviewRoleArnVirtualSerialStudio`, `BucketName`, `DistributionId`).
+4. Create the branch `site` at a commit of `develop`, and allow the release bot (the GitHub App of `RELEASE_BOT_APP_ID`) to push to it in
+   the rulesets. That first push also publishes the site; every later release moves it.
+
+The old GitHub Pages site never served anything and is no longer published from this repository. Turn Pages off in the repository settings
+when the second domain answers (the plan, `docs/plan/site.md`, has the steps).
 
 ## Windows signing
 
