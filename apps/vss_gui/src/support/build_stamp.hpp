@@ -20,6 +20,12 @@ struct build_stamp
     /// The semantic version, for example "0.1.0-rc.3"; "0.1.0-dev" when the
     /// build could not see a release tag.
     std::string_view version;
+    /// The version with what the build knows of itself after a plus sign, for
+    /// example "0.1.0-rc.3+18.g3de4617": the commits after the tag, the commit,
+    /// ".build.<CI run number>" in a CI build and ".dirty" for a modified tree.
+    /// cmake/VssVersion.cmake writes it. It is still the semantic version
+    /// "0.1.0-rc.3" to anything that compares versions.
+    std::string_view full_version;
     /// The git tag the build is on or after; empty when none was visible.
     std::string_view tag;
     /// Commits between the tag and this build; 0 on the tag itself.

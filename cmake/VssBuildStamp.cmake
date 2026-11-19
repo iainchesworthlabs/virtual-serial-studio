@@ -16,14 +16,21 @@
 #                  nearest v* tag git can see, else none (a shallow CI clone)
 #   version        that tag without its leading v; 0.1.0-dev (the project()
 #                  version) when there is no tag
+#   distance       the commits between that tag and the commit, 0 on the tag;
+#                  not known (and then left out of the version) without a tag
 #   build number   BUILD_NUMBER, else GITHUB_RUN_NUMBER, else none
 #   commit         GITHUB_SHA, else git HEAD
 #   branch         GITHUB_HEAD_REF (pull requests), else the branch GitHub
 #                  Actions built, else the checked-out branch; on a detached
 #                  HEAD the tag, or a branch that points at the commit
 #   dirty          whether the working tree differs from the commit (git only)
+#   full version   all of the above in one string, 0.1.0-rc.5+18.g7d42b4e (see
+#                  VssVersion.cmake); the form the window, `--version` and the
+#                  plugins' manifests use
 #   build time     UTC, refreshed only when something above changed, so an
 #                  unchanged tree does not relink on every build
+
+include("${CMAKE_CURRENT_LIST_DIR}/VssVersion.cmake")
 
 function(vss_git out)
   set(${out} "" PARENT_SCOPE)
@@ -62,24 +69,28 @@ endif()
 
 # --- tag, version and distance from the tag ---------------------------------
 set(tag "")
-set(distance 0)
 if(VERSION_OVERRIDE)
   set(tag "${VERSION_OVERRIDE}")
 elseif("$ENV{GITHUB_REF_TYPE}" STREQUAL "tag")
   set(tag "$ENV{GITHUB_REF_NAME}")
 else()
   vss_git(tag describe --tags --match "v*" --abbrev=0 HEAD)
-  if(tag)
-    vss_git(distance rev-list --count "${tag}..HEAD")
-  endif()
-endif()
-if(NOT distance)
-  set(distance 0)
 endif()
 
 set(version "${PROJECT_VERSION}-dev")
+# Empty means "not known": there is no tag to count from, or git cannot say.
+set(distance "")
 if(tag MATCHES "^v?([0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?)$")
   set(version "${CMAKE_MATCH_1}")
+  vss_git(distance rev-list --count "${tag}..HEAD")
+  if("${distance}" STREQUAL "" AND "$ENV{GITHUB_REF_TYPE}" STREQUAL "tag")
+    set(distance 0)
+  endif()
+endif()
+if("${distance}" STREQUAL "")
+  set(distance_number 0)
+else()
+  set(distance_number "${distance}")
 endif()
 if(NOT tag)
   set(tag_text "")
@@ -136,6 +147,18 @@ if(NOT build_number)
   set(build_number "$ENV{GITHUB_RUN_NUMBER}")
 endif()
 
+# --- the full version -------------------------------------------------------
+set(dirty_flag "")
+if(dirty STREQUAL "true")
+  set(dirty_flag DIRTY)
+endif()
+vss_compose_version(full_version
+  VERSION "${version}"
+  DISTANCE "${distance}"
+  COMMIT "${commit}"
+  BUILD_NUMBER "${build_number}"
+  ${dirty_flag})
+
 # --- write ------------------------------------------------------------------
 set(state "${version}|${tag_text}|${distance}|${commit_full}|${branch}|${dirty}|${build_number}|${BUILD_TYPE}|${COMPILER}")
 set(state_file "${OUT}.state")
@@ -148,12 +171,12 @@ if(previous STREQUAL state)
 endif()
 
 string(TIMESTAMP build_time "%Y-%m-%dT%H:%M:%SZ" UTC)
-foreach(name version tag_text commit commit_full branch build_number build_time)
+foreach(name version full_version tag_text commit commit_full branch build_number build_time)
   vss_escape(VSS_STAMP_${name} "${${name}}")
 endforeach()
 vss_escape(VSS_STAMP_build_type "${BUILD_TYPE}")
 vss_escape(VSS_STAMP_compiler "${COMPILER}")
-set(VSS_STAMP_distance "${distance}")
+set(VSS_STAMP_distance "${distance_number}")
 set(VSS_STAMP_dirty "${dirty}")
 configure_file("${IN}" "${OUT}" @ONLY)
 file(WRITE "${state_file}" "${state}")

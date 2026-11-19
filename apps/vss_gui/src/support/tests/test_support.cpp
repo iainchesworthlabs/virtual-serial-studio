@@ -209,34 +209,44 @@ using vss::gui::test_zip::zip_entry;
 
 } // namespace
 
-TEST_CASE("support: the version string is composed from its parts")
+TEST_CASE("support: the version string says which build this is")
 {
-    using support::compose_version;
-    REQUIRE_EQ(compose_version(QStringLiteral("0.10.0-beta.1"),
-                               QStringLiteral("6083"),
-                               QStringLiteral("3de4617"), false),
-               QStringLiteral("v0.10.0-beta.1+build.6083-3de4617"));
-    REQUIRE_EQ(compose_version(QStringLiteral("0.1.0"), QString(),
-                               QStringLiteral("3de4617"), false),
-               QStringLiteral("v0.1.0+3de4617"));
-    REQUIRE_EQ(compose_version(QStringLiteral("0.1.0-dev"),
-                               QStringLiteral("12"), QString(), false),
-               QStringLiteral("v0.1.0-dev+build.12"));
-    REQUIRE_EQ(compose_version(QStringLiteral("0.1.0"), QString(),
-                               QStringLiteral("unknown"), false),
-               QStringLiteral("v0.1.0"));
-    REQUIRE_EQ(compose_version(QStringLiteral("0.1.0-rc.3"),
-                               QStringLiteral("7"), QStringLiteral("abc1234"),
-                               true),
-               QStringLiteral("v0.1.0-rc.3+build.7-abc1234-dirty"));
-
-    // This binary's own string is built the same way from the stamp.
+    // The text is composed once, by the build (cmake/VssVersion.cmake, and
+    // tests/cmake/test_version_stamp.cmake for the cases it knows); here it is
+    // checked against what the same stamp says in its other fields.
     const support::build_info info = support::current_build_info();
     REQUIRE_EQ(info.full_version(), support::current_version_string());
-    REQUIRE(info.full_version().startsWith(QStringLiteral("v") + info.version));
+    REQUIRE_EQ(info.full_version(),
+               QStringLiteral("v") + info.version_with_build);
+
     static const QRegularExpression semver(
         QStringLiteral("^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?$"));
     REQUIRE(semver.match(info.version).hasMatch());
+    REQUIRE(info.version_with_build.startsWith(info.version));
+
+    // What follows the version is build metadata, after a plus sign.
+    static const QRegularExpression words(
+        QStringLiteral("^\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*$"));
+    const QString rest = info.version_with_build.mid(info.version.size());
+    REQUIRE(rest.isEmpty() || words.match(rest).hasMatch());
+
+    const bool has_commit =
+        !info.commit.isEmpty() && info.commit != QLatin1String("unknown");
+    REQUIRE_EQ(rest.contains(QStringLiteral("g") + info.commit), has_commit);
+    REQUIRE_EQ(rest.endsWith(QStringLiteral(".dirty")),
+               has_commit && info.dirty);
+    REQUIRE_EQ(rest.contains(QStringLiteral("build.")),
+               !info.build_number.isEmpty());
+    if (!info.build_number.isEmpty())
+    {
+        REQUIRE(rest.contains(QStringLiteral("build.") + info.build_number));
+    }
+    // After the tag, the commits after it come first.
+    if (has_commit && info.commits_since_tag > 0)
+    {
+        REQUIRE(rest.startsWith(
+            QStringLiteral("+%1.g").arg(info.commits_since_tag)));
+    }
 }
 
 TEST_CASE("support: build information and environment are separate reports")
@@ -283,6 +293,7 @@ TEST_CASE("support: build information and environment are separate reports")
     // A fixed identity prints as it should, including a build outside CI.
     support::build_info fixed = info;
     fixed.version = QStringLiteral("0.10.0-beta.1");
+    fixed.version_with_build = QStringLiteral("0.10.0-beta.1+3.g3de4617.dirty");
     fixed.tag = QStringLiteral("v0.10.0-beta.1");
     fixed.commits_since_tag = 3;
     fixed.commit = QStringLiteral("3de4617");
@@ -291,7 +302,8 @@ TEST_CASE("support: build information and environment are separate reports")
     fixed.dirty = true;
     fixed.build_number = QString();
     const QString text = support::build_information_report(fixed);
-    REQUIRE(text.contains(QStringLiteral("Version: v0.10.0-beta.1+3de4617-dirty")));
+    REQUIRE(text.contains(
+        QStringLiteral("Version: v0.10.0-beta.1+3.g3de4617.dirty")));
     REQUIRE(text.contains(QStringLiteral("Git tag: v0.10.0-beta.1, 3 commits later")));
     REQUIRE(text.contains(QStringLiteral("Working tree: modified")));
     REQUIRE(text.contains(QStringLiteral("Branch: develop")));

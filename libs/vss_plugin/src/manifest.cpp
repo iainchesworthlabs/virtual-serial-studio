@@ -222,23 +222,41 @@ std::optional<std::uint64_t> parse_digits(std::string_view text,
     return value;
 }
 
+/// Dot-separated words of letters, digits and hyphens, none of them empty:
+/// the form of a pre-release and of build metadata.
+bool is_version_words(std::string_view text, std::size_t most) noexcept
+{
+    if (text.empty() || text.size() > most || text.front() == '.' ||
+        text.back() == '.' || text.find("..") != std::string_view::npos)
+        return false;
+    return std::ranges::all_of(
+        text, [](char c)
+        { return is_alpha(c) || is_digit(c) || c == '.' || c == '-'; });
+}
+
 std::optional<plugin_version> parse_version(std::string_view text) noexcept
 {
     plugin_version out;
     std::string_view numbers = text;
-    if (const std::size_t hyphen = text.find('-');
+    // The build metadata comes last and may hold hyphens, so it is taken off
+    // before the pre-release is looked for.
+    if (const std::size_t plus = numbers.find('+');
+        plus != std::string_view::npos)
+    {
+        const std::string_view build = numbers.substr(plus + 1);
+        if (!is_version_words(build, 64))
+            return std::nullopt;
+        out.build = std::string(build);
+        numbers = numbers.substr(0, plus);
+    }
+    if (const std::size_t hyphen = numbers.find('-');
         hyphen != std::string_view::npos)
     {
-        numbers = text.substr(0, hyphen);
-        const std::string_view pre = text.substr(hyphen + 1);
-        if (pre.empty() || pre.size() > 32 || pre.front() == '.' ||
-            pre.back() == '.' || pre.find("..") != std::string_view::npos)
-            return std::nullopt;
-        if (!std::ranges::all_of(pre, [](char c) {
-                return is_alpha(c) || is_digit(c) || c == '.' || c == '-';
-            }))
+        const std::string_view pre = numbers.substr(hyphen + 1);
+        if (!is_version_words(pre, 32))
             return std::nullopt;
         out.pre_release = std::string(pre);
+        numbers = numbers.substr(0, hyphen);
     }
     std::uint32_t* const parts[] = {&out.major, &out.minor, &out.patch};
     for (std::size_t i = 0; i < std::size(parts); ++i)
@@ -1856,6 +1874,11 @@ std::string to_string(const plugin_version& value)
     {
         out += '-';
         out += value.pre_release;
+    }
+    if (!value.build.empty())
+    {
+        out += '+';
+        out += value.build;
     }
     return out;
 }

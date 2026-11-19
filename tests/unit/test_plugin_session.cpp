@@ -313,6 +313,8 @@ TEST_CASE("plugin session: a first message that is not a good hello ends "
     // Another plugin, or another version, than the manifest's.
     refused(bytes_of(hello(1, {1, 0}, "com.example.other")));
     refused(bytes_of(hello(1, {1, 0}, "com.example.plugin", "9.9.9")));
+    refused(bytes_of(hello(1, {1, 0}, "com.example.plugin", "1.2.1")));
+    refused(bytes_of(hello(1, {1, 0}, "com.example.plugin", "1.2.0-rc.1")));
     // A frame whose header is not a message.
     {
         agent::frame frame;
@@ -328,6 +330,43 @@ TEST_CASE("plugin session: a first message that is not a good hello ends "
         frame.blob.assign(max_header_size + 4096, byte{0});
         refused(agent::encode_frame(frame).value());
     }
+}
+
+TEST_CASE("plugin session: the build metadata of a version is not compared")
+{
+    // A manifest that names the build (docs/plugins.md, 13.3) accepts a program
+    // that says the version only, and the other way round.
+    const auto accepted =
+        [](const std::string& manifest_version, const std::string& said)
+    {
+        session_options options = options_for_test();
+        options.version = manifest_version;
+        host_session session(options, start);
+        const session_output out = session.on_bytes(
+            bytes_of(hello(1, {1, 0}, "com.example.plugin", said)), start);
+        REQUIRE_EQ(events_of<ready_event>(out).size(), std::size_t{1});
+    };
+    accepted("1.2.0+57.g7ffbece", "1.2.0");
+    accepted("1.2.0+57.g7ffbece", "1.2.0+57.g7ffbece");
+    accepted("1.2.0+57.g7ffbece", "1.2.0+12.g0123456.dirty");
+    accepted("1.2.0", "1.2.0+57.g7ffbece");
+    accepted("1.2.0-rc.1+57.g7ffbece", "1.2.0-rc.1");
+
+    // The numbers and the pre-release still have to agree.
+    const auto refused =
+        [](const std::string& manifest_version, const std::string& said)
+    {
+        session_options options = options_for_test();
+        options.version = manifest_version;
+        host_session session(options, start);
+        const session_output out = session.on_bytes(
+            bytes_of(hello(1, {1, 0}, "com.example.plugin", said)), start);
+        require_closed(out, plugin_errc::bad_hello);
+    };
+    refused("1.2.0+57.g7ffbece", "1.2.1");
+    refused("1.2.0+57.g7ffbece", "1.2.1+57.g7ffbece");
+    refused("1.2.0+57.g7ffbece", "1.2.0-rc.1");
+    refused("1.2.0-rc.1+57.g7ffbece", "1.2.0");
 }
 
 // -- being alive ------------------------------------------------------------

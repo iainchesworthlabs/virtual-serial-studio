@@ -6,6 +6,8 @@
 
 #include <vss/plugin/session.hpp>
 
+#include "reader.hpp"
+
 #include <algorithm>
 #include <utility>
 
@@ -21,6 +23,21 @@ using std::chrono::seconds;
 /// header of the largest size, the two length fields and a little more.  A
 /// "hello" carries no blob, so nothing larger is expected yet.
 constexpr std::size_t first_frame_limit = max_header_size + 64;
+
+/// Whether the version a plugin says in its hello is the version of its
+/// manifest. The build metadata is not part of a version (docs/plugins.md,
+/// 13.3), so a manifest that says `0.1.0+57.g7ffbece` accepts a program that
+/// says `0.1.0`: which files make the plugin is the hash's question, not the
+/// hello's. The numbers and the pre-release must be the same.
+bool same_version(std::string_view said, std::string_view declared) noexcept
+{
+    if (said == declared)
+        return true;
+    const auto a = detail::version_from_text(said);
+    const auto b = detail::version_from_text(declared);
+    return a && b && a->major == b->major && a->minor == b->minor &&
+           a->patch == b->patch && a->pre_release == b->pre_release;
+}
 
 /// A request of the host that waits for its answer.
 struct waiting_request
@@ -206,7 +223,7 @@ struct host_session::state_data
             return;
         }
         if (hello->plugin_id != options.plugin_id ||
-            hello->version != options.version)
+            !same_version(hello->version, options.version))
         {
             close(out, make_error_code(plugin_errc::bad_hello),
                   "the hello names another plugin or version than the "

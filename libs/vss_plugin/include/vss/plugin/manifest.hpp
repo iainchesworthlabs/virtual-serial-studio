@@ -95,13 +95,18 @@ struct localized_text
                            const localized_text&) = default;
 };
 
-/// `major.minor.patch`, with an optional pre-release after a hyphen.
+/// `major.minor.patch`, with an optional pre-release after a hyphen and
+/// optional build metadata after a plus sign, as Semantic Versioning writes
+/// them. A build of a plugin says which commit it was made from there, for
+/// example `0.1.0+57.g7ffbece`: the number of commits and the commit. The
+/// metadata is kept and shown, and it takes no part in the order.
 struct plugin_version
 {
     std::uint32_t major = 0;
     std::uint32_t minor = 0;
     std::uint32_t patch = 0;
     std::string pre_release;
+    std::string build;
 
     friend bool operator==(const plugin_version&,
                            const plugin_version&) = default;
@@ -112,7 +117,8 @@ std::string to_string(const plugin_version& value);
 /// Which of two versions is the earlier, by the rules of Semantic
 /// Versioning: the numbers first; then a version with a pre-release comes
 /// before the same version without one; and two pre-releases are compared
-/// part by part, a number before a word and fewer parts before more.
+/// part by part, a number before a word and fewer parts before more. The
+/// build metadata is not looked at, so two builds of one version are equal.
 std::strong_ordering compare(const plugin_version& left,
                              const plugin_version& right) noexcept;
 

@@ -47,7 +47,7 @@ manifest good_manifest()
     manifest value;
     value.id = "com.example.plugin";
     value.name = "Example";
-    value.version = plugin_version{1, 2, 0, {}};
+    value.version = plugin_version{1, 2, 0, {}, {}};
     value.needs.api = api_range{api_version{1, 0}, 1, std::nullopt};
     value.run.executable = "bin/plugin";
     value.files = {file("bin/plugin", "program")};
@@ -167,11 +167,13 @@ TEST_CASE("plugin verify: versions are ordered as Semantic Versioning says")
 {
     // The chain of the Semantic Versioning text, each earlier than the next.
     const std::vector<plugin_version> chain{
-        {0, 9, 9, {}},          {1, 0, 0, "alpha"},  {1, 0, 0, "alpha.1"},
-        {1, 0, 0, "alpha.beta"}, {1, 0, 0, "beta"},   {1, 0, 0, "beta.2"},
-        {1, 0, 0, "beta.11"},    {1, 0, 0, "rc.1"},   {1, 0, 0, {}},
-        {1, 0, 1, {}},           {1, 1, 0, "0"},      {1, 1, 0, {}},
-        {2, 0, 0, {}}};
+        {0, 9, 9, {}, {}},        {1, 0, 0, "alpha", {}},
+        {1, 0, 0, "alpha.1", {}}, {1, 0, 0, "alpha.beta", {}},
+        {1, 0, 0, "beta", {}},    {1, 0, 0, "beta.2", {}},
+        {1, 0, 0, "beta.11", {}}, {1, 0, 0, "rc.1", {}},
+        {1, 0, 0, {}, {}},        {1, 0, 1, {}, {}},
+        {1, 1, 0, "0", {}},       {1, 1, 0, {}, {}},
+        {2, 0, 0, {}, {}}};
     for (std::size_t i = 0; i < chain.size(); ++i)
     {
         for (std::size_t j = 0; j < chain.size(); ++j)
@@ -180,11 +182,22 @@ TEST_CASE("plugin verify: versions are ordered as Semantic Versioning says")
         }
     }
     // Leading zeros do not make a number larger.
-    REQUIRE(compare({1, 0, 0, "007"}, {1, 0, 0, "7"}) == 0);
-    REQUIRE(compare({1, 0, 0, "0"}, {1, 0, 0, "00"}) == 0);
-    REQUIRE(compare({1, 0, 0, "10"}, {1, 0, 0, "9"}) > 0);
+    REQUIRE(compare({1, 0, 0, "007", {}}, {1, 0, 0, "7", {}}) == 0);
+    REQUIRE(compare({1, 0, 0, "0", {}}, {1, 0, 0, "00", {}}) == 0);
+    REQUIRE(compare({1, 0, 0, "10", {}}, {1, 0, 0, "9", {}}) > 0);
     // A number comes before a word, whatever its size.
-    REQUIRE(compare({1, 0, 0, "999"}, {1, 0, 0, "a"}) < 0);
+    REQUIRE(compare({1, 0, 0, "999", {}}, {1, 0, 0, "a", {}}) < 0);
+    // Build metadata is not part of the order: two builds of one version are
+    // equal, and a later version wins whatever the builds say.
+    const plugin_version older_build{1, 2, 0, {}, "9.gaaaaaaa"};
+    const plugin_version newer_build{1, 2, 0, {}, "57.gbbbbbbb"};
+    const plugin_version no_build{1, 2, 0, {}, {}};
+    const plugin_version pre_with_build{1, 2, 0, "rc.1", "99.gaaaaaaa"};
+    const plugin_version next_patch{1, 2, 1, {}, "1.gaaaaaaa"};
+    REQUIRE(compare(older_build, newer_build) == 0);
+    REQUIRE(compare(newer_build, no_build) == 0);
+    REQUIRE(compare(pre_with_build, no_build) < 0);
+    REQUIRE(compare(newer_build, next_patch) < 0);
 }
 
 // -- the policy -------------------------------------------------------------
@@ -412,11 +425,11 @@ TEST_CASE("plugin verify: a revocation list reads and answers")
     REQUIRE(!parsed->revokes_hash(
         plugin_hash{sha512_of(std::string_view("another"))}));
 
-    REQUIRE(parsed->revokes_plugin("com.example.plugin", {1, 2, 0, {}}));
-    REQUIRE(parsed->revokes_plugin("com.example.plugin", {1, 2, 0, "rc.1"}));
-    REQUIRE(parsed->revokes_plugin("com.example.plugin", {0, 1, 0, {}}));
-    REQUIRE(!parsed->revokes_plugin("com.example.plugin", {1, 2, 1, {}}));
-    REQUIRE(!parsed->revokes_plugin("com.example.other", {1, 0, 0, {}}));
+    REQUIRE(parsed->revokes_plugin("com.example.plugin", {1, 2, 0, {}, {}}));
+    REQUIRE(parsed->revokes_plugin("com.example.plugin", {1, 2, 0, "rc.1", {}}));
+    REQUIRE(parsed->revokes_plugin("com.example.plugin", {0, 1, 0, {}, {}}));
+    REQUIRE(!parsed->revokes_plugin("com.example.plugin", {1, 2, 1, {}, {}}));
+    REQUIRE(!parsed->revokes_plugin("com.example.other", {1, 0, 0, {}, {}}));
 
     const auto least = parse_revocations(
         R"({ "revocations_version": 1, "serial": 1,
@@ -660,14 +673,14 @@ TEST_CASE("plugin verify: a withdrawn key, copy or version does not run")
         scene where;
         where.use_revocations();
         where.revoked.plugins = {
-            revoked_plugin{"com.example.plugin", {1, 2, 0, {}}}};
+            revoked_plugin{"com.example.plugin", {1, 2, 0, {}, {}}}};
         require_refused(where, plugin_errc::revoked, "this version");
-        where.declared.version = plugin_version{1, 1, 9, {}};
+        where.declared.version = plugin_version{1, 1, 9, {}, {}};
         require_refused(where, plugin_errc::revoked, "this version");
-        where.declared.version = plugin_version{1, 2, 1, {}};
+        where.declared.version = plugin_version{1, 2, 1, {}, {}};
         REQUIRE(where.run().has_value());
         // An official signature does not save a withdrawn version.
-        where.declared.version = plugin_version{1, 2, 0, {}};
+        where.declared.version = plugin_version{1, 2, 0, {}, {}};
         where.make_official();
         require_refused(where, plugin_errc::revoked, "this version");
     }

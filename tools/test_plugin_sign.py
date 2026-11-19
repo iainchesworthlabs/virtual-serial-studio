@@ -244,10 +244,13 @@ class ManifestPayloadTests(unittest.TestCase):
             self.assertTrue(ps.is_plugin_id(good), good)
         for bad in ("", "ab", "plugin", "Com.example", "a..b", "a.b-", ".a.b"):
             self.assertFalse(ps.is_plugin_id(bad), bad)
-        for good in ("0.0.0", "1.2.0", "10.20.30-beta.1", "1.0.0-rc-1"):
+        for good in ("0.0.0", "1.2.0", "10.20.30-beta.1", "1.0.0-rc-1",
+                     "0.1.0+57.g7ffbece", "1.2.3-rc.1+57.g7ffbece.dirty", "1.0.0+a-b.007",
+                     "1.0.0+" + "a" * 64):
             self.assertTrue(ps.is_plugin_version(good), good)
         for bad in ("1.2", "1.2.3.4", "01.2.3", "1.2.3-", "1.2.3-a..b", "v1.2.3",
-                    "1.2.3+build", "1.2.x", "9999999.0.0"):
+                    "1.2.3+", "1.2.3-rc.1+", "1.2.3+a..b", "1.2.3+.a", "1.2.3+a.", "1.2.3+a+b",
+                    "1.2.3+a_b", "1.0.0+" + "a" * 65, "+57.g7ffbece", "1.2.x", "9999999.0.0"):
             self.assertFalse(ps.is_plugin_version(bad), bad)
 
 

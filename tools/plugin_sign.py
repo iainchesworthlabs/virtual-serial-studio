@@ -275,23 +275,34 @@ def _is_number_part(text: str) -> bool:
     return len(text) == 1 or text[0] != "0"
 
 
+def _is_version_words(text: str, most: int) -> bool:
+    """Dot-separated words of letters, digits and hyphens, none of them empty:
+    the form of a pre-release and of build metadata."""
+    return not (
+        not text
+        or len(text) > most
+        or text[0] == "."
+        or text[-1] == "."
+        or ".." in text
+        or any(not (c.isascii() and (c.isalnum() or c in ".-")) for c in text)
+    )
+
+
 def is_plugin_version(text: Any) -> bool:
-    """``major.minor.patch`` with an optional ``-pre.release``."""
+    """``major.minor.patch`` with an optional ``-pre.release`` and an optional
+    ``+build.metadata`` (the build the plugin was made from, such as
+    ``0.1.0+57.g7ffbece``; docs/plugins.md, section 13.3)."""
     if not isinstance(text, str):
         return False
     numbers = text
-    if "-" in text:
-        numbers, pre = text.split("-", 1)
-        if (
-            not pre
-            or len(pre) > 32
-            or pre[0] == "."
-            or pre[-1] == "."
-            or ".." in pre
-            or any(
-                not (c.isascii() and (c.isalnum() or c in ".-")) for c in pre
-            )
-        ):
+    # The build metadata comes last and may hold hyphens, so it goes first.
+    if "+" in numbers:
+        numbers, build = numbers.split("+", 1)
+        if not _is_version_words(build, 64):
+            return False
+    if "-" in numbers:
+        numbers, pre = numbers.split("-", 1)
+        if not _is_version_words(pre, 32):
             return False
     parts = numbers.split(".")
     return len(parts) == 3 and all(_is_number_part(p) for p in parts)

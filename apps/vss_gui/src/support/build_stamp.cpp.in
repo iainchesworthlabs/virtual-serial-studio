@@ -15,6 +15,7 @@ const build_stamp& generated_build_stamp() noexcept
 {
     static const build_stamp stamp{
         "@VSS_STAMP_version@",
+        "@VSS_STAMP_full_version@",
         "@VSS_STAMP_tag_text@",
         @VSS_STAMP_distance@,
         "@VSS_STAMP_commit@",
