@@ -1583,9 +1583,20 @@ with **Run without isolation...**.
 ### The list and the detail
 
 The list is on the left, with a box to filter it by name. A row shows the
-plugin's name, who stands behind it, its version, its state and a switch. The
-rows that need attention are first. Choose a row to see its detail on the
-right. F6 moves between the list and the detail.
+plugin's name, who stands behind it, its version and a switch that says On or
+Off. A row has a state beside the switch only when the state is neither On nor
+Off, such as Needs your decision or Stopped, so a row with a state is one to
+read. The rows that need attention are first. Choose a row to see its detail on
+the right. F6 moves between the list and the detail.
+
+Under the list, **Add a plugin...** adds a plugin, and **More options** has
+**Import a key...**, **Open the plugin folder** and **Check again**.
+
+The detail starts with the plugin's name and state, then why it is in that state
+and what to do about it, then what it adds, who made it and what its signature
+says, and what it may do. The facts that matter less, such as the fingerprint,
+where its files are and how far it is kept apart, come last under **Technical
+details**.
 
 The line under the name says who stands behind the plugin:
 
@@ -1623,13 +1634,13 @@ when the new version asks for more than the one you approved.
 ### Approving an author's key
 
 An author of plugins publishes a small public key file, which ends in
-`.vsskey.json`. Choose **Import a key...** and pick the file. Studio shows the
-author's name, the key's id and its fingerprint in groups of four. Compare the
-fingerprint with the one the author published on their website or sent you, tick
-the box and choose **Approve this key**. Studio never looks for key files in a
-plugin's folder, and approving a key never switches a plugin on: each plugin
-still needs its own decision. **Remove this key...** in the detail of a plugin
-takes it back, and the plugins signed with it ask again.
+`.vsskey.json`. Choose **More options**, then **Import a key...**, and pick the
+file. Studio shows the author's name, the key's id and its fingerprint in groups
+of four. Compare the fingerprint with the one the author published on their
+website or sent you, tick the box and choose **Approve this key**. Studio never
+looks for key files in a plugin's folder, and approving a key never switches a
+plugin on: each plugin still needs its own decision. **Remove this key...** in
+the detail of a plugin takes it back, and the plugins signed with it ask again.
 
 ### Running a plugin without isolation
 

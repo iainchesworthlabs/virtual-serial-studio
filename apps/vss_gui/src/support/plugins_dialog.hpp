@@ -25,6 +25,7 @@
 #include <functional>
 #include <vector>
 
+class QAction;
 class QLabel;
 class QLineEdit;
 class QListWidget;
@@ -97,12 +98,19 @@ public:
     QPushButton* remove_button() const noexcept { return remove_; }
     QPushButton* copy_details_button() const noexcept { return copy_; }
     QPushButton* add_button() const noexcept { return add_; }
-    QPushButton* import_key_button() const noexcept { return import_; }
-    QPushButton* folder_button() const noexcept { return folder_; }
-    QPushButton* check_button() const noexcept { return check_; }
+    /// The menu button under the list, "More options".
+    QPushButton* more_button() const noexcept { return more_; }
+    /// The entries of its menu.
+    QAction* import_key_action() const noexcept { return import_action_; }
+    QAction* folder_action() const noexcept { return folder_action_; }
+    QAction* check_action() const noexcept { return check_action_; }
     /// The Switch of the row of this plugin, or null.
     Switch* row_switch(const QString& plugin_id,
                        const QString& folder = {}) const;
+    /// The state chip of the row of this plugin, or null. It is hidden in a
+    /// row whose Switch already says the state.
+    StatusChip* row_chip(const QString& plugin_id,
+                         const QString& folder = {}) const;
     /// The rows of the list in the order they are shown, as "<id>|<folder>".
     QStringList row_keys() const;
     /// The text the footer's "Copy details" would copy.
@@ -188,9 +196,10 @@ private:
     QLabel* empty_text_ = nullptr;
     QPushButton* empty_button_ = nullptr;
     QPushButton* add_ = nullptr;
-    QPushButton* import_ = nullptr;
-    QPushButton* folder_ = nullptr;
-    QPushButton* check_ = nullptr;
+    QPushButton* more_ = nullptr;
+    QAction* import_action_ = nullptr;
+    QAction* folder_action_ = nullptr;
+    QAction* check_action_ = nullptr;
     QLabel* machine_line_ = nullptr;
     CopyButton* machine_copy_ = nullptr;
     QScrollArea* detail_scroll_ = nullptr;

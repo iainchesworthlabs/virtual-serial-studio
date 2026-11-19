@@ -23972,6 +23972,16 @@ Réseaux : %5</translation>
             <source>What %1 found</source>
             <translation>Ce qu'a trouvé %1</translation>
         </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>More options</source>
+            <translation>Plus d'options</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Technical details</source>
+            <translation>Détails techniques</translation>
+        </message>
     </context>
     <context>
         <name>PluginToolbox</name>

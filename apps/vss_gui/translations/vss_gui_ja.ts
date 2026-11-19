@@ -23933,6 +23933,16 @@ Networks: %5</source>
             <source>What %1 found</source>
             <translation>%1 の検出内容</translation>
         </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>More options</source>
+            <translation>その他のオプション</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Technical details</source>
+            <translation>技術的な詳細</translation>
+        </message>
     </context>
     <context>
         <name>PluginToolbox</name>

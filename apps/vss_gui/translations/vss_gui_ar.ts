@@ -24122,6 +24122,16 @@ Networks: %5</source>
             <source>What %1 found</source>
             <translation>ما وجده %1</translation>
         </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>More options</source>
+            <translation>خيارات أخرى</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Technical details</source>
+            <translation>التفاصيل التقنية</translation>
+        </message>
     </context>
     <context>
         <name>PluginToolbox</name>
