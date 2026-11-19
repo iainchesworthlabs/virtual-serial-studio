@@ -369,7 +369,7 @@ void add_summary(std::string& out, std::size_t count)
         out += std::to_string(count);
         out += " plugins found.";
     }
-    out += " This build does not run plugins.\n";
+    out += '\n';
 }
 
 std::string text_of(const report& result)

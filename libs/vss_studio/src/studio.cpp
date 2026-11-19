@@ -9,12 +9,19 @@
 #include <vss/studio/studio.hpp>
 
 #include <vss/ports/listen_transport.hpp>
+#include <vss/ports/rfc2217_client.hpp>
 #include <vss/ports/serial_transport.hpp>
 #include <vss/ports/vcom_driver.hpp>
+#include <vss/ports/waiting_transport.hpp>
+#include <vss/trace/recorder.hpp>
 
 #include "reconnector.hpp"
 
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ip/udp.hpp>
 #include <boost/asio/post.hpp>
+#include <boost/system/errc.hpp>
 
 #include <algorithm>
 #include <filesystem>
@@ -75,6 +82,18 @@ open_transport(const transport::executor_type& executor, const std::string& uri,
         if (ec)
             return nullptr;
         return listening;
+    }
+
+    if (is_rfc2217_client_uri(uri))
+    {
+        auto client =
+            settings != nullptr
+                ? std::make_shared<rfc2217_client_transport>(executor, uri,
+                                                             *settings, ec)
+                : std::make_shared<rfc2217_client_transport>(executor, uri, ec);
+        if (ec)
+            return nullptr;
+        return client;
     }
 
     auto serial =
@@ -182,6 +201,8 @@ std::optional<config::link_entry> entry_of_link(
     entry.delay_ms = link.options.delay_ms;
     entry.jitter_ms = link.options.jitter_ms;
     entry.half_duplex = link.options.half_duplex;
+    entry.wire_timing = link.options.wire_timing;
+    entry.direction = link.options.direction;
     if (const auto kept = plugins.find(link.id); kept != plugins.end())
         entry.plugins = kept->second;
     return entry;
@@ -272,11 +293,51 @@ studio::studio(const studio_options& options)
                 state == endpoint_state::closed)
                 retry->lost(event.endpoint);
         });
+
+    // What the engine itself says (a port opening, stopping or failing, a log
+    // line, a bus fault) goes to the call recorder too, so that the engine's
+    // own account sits in time order beside the calls to Windows.  Traffic,
+    // counters and line changes are not recorded: the recorder holds no bytes.
+    trace_subscription_ = hub_->subscribe(
+        event_filter{},
+        [](const endpoint_event& event)
+        {
+            std::string_view call;
+            switch (event.kind)
+            {
+            case event_kind::started:
+                call = "engine.started";
+                break;
+            case event_kind::stopped:
+                call = "engine.stopped";
+                break;
+            case event_kind::error:
+                call = "engine.error";
+                break;
+            case event_kind::log_message:
+                call = "engine.log";
+                break;
+            case event_kind::bus_fault:
+                call = "engine.bus_fault";
+                break;
+            default:
+                return;
+            }
+            trace::call_scope scope(call, event.endpoint, event.message);
+            if (event.error)
+                scope.fail(event.error);
+            else if (event.kind == event_kind::error)
+                scope.fail(0, "engine", event.message);
+            else
+                scope.ok();
+        });
 }
 
 studio::~studio()
 {
     VSS_PROFILE_ZONE("studio.destroy");
+    if (hub_ && trace_subscription_ != 0)
+        hub_->unsubscribe(trace_subscription_);
     if (hub_ && reconnect_subscription_ != 0)
         hub_->unsubscribe(reconnect_subscription_);
     // A rule set's actions call the studio, so every set is closed first.
@@ -416,7 +477,20 @@ studio::register_port(port_record record, std::shared_ptr<transport> transport,
 
 result<std::shared_ptr<endpoint>>
 studio::create_virtual_port(const std::string& name, virtual_port_kind kind,
-                            const endpoint_options& options, unsigned com_number)
+                            const endpoint_options& options,
+                            unsigned com_number)
+{
+    return trace::traced("studio.create_virtual_port", 0,
+                         [&]
+                         {
+                             return create_virtual_port_untraced(
+                                 name, kind, options, com_number);
+                         });
+}
+
+result<std::shared_ptr<endpoint>> studio::create_virtual_port_untraced(
+    const std::string& name, virtual_port_kind kind,
+    const endpoint_options& options, unsigned com_number)
 {
     VSS_PROFILE_ZONE("studio.create_virtual_port");
     if (kind == virtual_port_kind::pty && !supports(virtual_port_kind::pty))
@@ -451,7 +525,8 @@ studio::create_virtual_port(const std::string& name, virtual_port_kind kind,
 
 result<std::shared_ptr<endpoint>>
 studio::create_auto_virtual_port(const std::string& name,
-                                 const endpoint_options& options, unsigned com_number)
+                                 const endpoint_options& options,
+                                 unsigned com_number)
 {
     VSS_PROFILE_ZONE("studio.create_auto_virtual_port");
     const std::string final_name = unique_name(name);
@@ -538,13 +613,96 @@ studio::create_auto_virtual_port(const std::string& name,
     return register_port(std::move(record), std::move(created->port), options);
 }
 
+bool listen_uris_overlap(const std::string& first, const std::string& second)
+{
+    const auto left = parse_listen_uri(first);
+    const auto right = parse_listen_uri(second);
+    if (!left || !right || left->port == 0 || left->port != right->port ||
+        (left->protocol == listen_protocol::udp) !=
+            (right->protocol == listen_protocol::udp))
+        return false;
+    const auto every = [](const listen_address& address)
+    { return address.host.empty() || address.host == "0.0.0.0"; };
+    return every(*left) || every(*right) || left->host == right->host;
+}
+
+result<void> studio::check_listen_free(const std::string& uri,
+                                       endpoint_id ignore, bool probe) const
+{
+    VSS_PROFILE_ZONE("studio.check_listen_free");
+    const auto wanted = parse_listen_uri(uri);
+    if (!wanted)
+        return {};
+    const auto in_use = boost::system::errc::make_error_code(
+        boost::system::errc::address_in_use);
+    const auto datagram = [](const listen_address& address)
+    { return address.protocol == listen_protocol::udp; };
+    const auto every = [](const listen_address& address)
+    { return address.host.empty() || address.host == "0.0.0.0"; };
+
+    if (wanted->port != 0)
+    {
+        std::lock_guard lock(record_mutex_);
+        for (const auto& [id, record] : records_)
+        {
+            if (id != ignore && listen_uris_overlap(record.uri, uri))
+                return in_use;
+        }
+    }
+
+    if (probe && wanted->port != 0)
+    {
+        // Another program may hold the port.  Bind it the way the port
+        // would, with nothing listening, and let go at once.
+        boost::asio::io_context io;
+        boost::system::error_code ec;
+        const auto ip =
+            every(*wanted)
+                ? boost::asio::ip::address(boost::asio::ip::address_v4::any())
+                : boost::asio::ip::make_address(wanted->host, ec);
+        if (!ec)
+        {
+            if (datagram(*wanted))
+            {
+                const boost::asio::ip::udp::endpoint where(ip, wanted->port);
+                boost::asio::ip::udp::socket socket(io);
+                socket.open(where.protocol(), ec);
+                if (!ec)
+                    socket.bind(where, ec);
+            }
+            else
+            {
+                const boost::asio::ip::tcp::endpoint where(ip, wanted->port);
+                boost::asio::ip::tcp::acceptor acceptor(io);
+                acceptor.open(where.protocol(), ec);
+                if (!ec)
+                    acceptor.bind(where, ec);
+            }
+            if (ec == boost::asio::error::address_in_use)
+                return in_use;
+        }
+    }
+    return {};
+}
+
 result<std::shared_ptr<endpoint>>
 studio::attach_serial(const std::string& name, const std::string& uri,
                       const endpoint_options& options)
 {
+    return trace::traced(
+        "studio.attach_serial", 0,
+        [&] { return attach_serial_untraced(name, uri, options); });
+}
+
+result<std::shared_ptr<endpoint>>
+studio::attach_serial_untraced(const std::string& name, const std::string& uri,
+                               const endpoint_options& options)
+{
     VSS_PROFILE_ZONE_NAMED(zone, "studio.attach_serial");
     if (zone.active())
         zone.text(uri);
+    if (const auto taken = check_listen_free(uri); !taken)
+        return taken.error();
     const std::string final_name = unique_name(name);
 
     boost::system::error_code ec;
@@ -571,6 +729,16 @@ result<std::shared_ptr<endpoint>>
 studio::attach_serial(const std::string& name, const std::string& uri,
                       const serial_settings& settings, endpoint_options options)
 {
+    return trace::traced(
+        "studio.attach_serial", 0,
+        [&] { return attach_serial_untraced(name, uri, settings, options); });
+}
+
+result<std::shared_ptr<endpoint>>
+studio::attach_serial_untraced(const std::string& name, const std::string& uri,
+                               const serial_settings& settings,
+                               endpoint_options options)
+{
     VSS_PROFILE_ZONE_NAMED(zone, "studio.attach_serial");
     if (zone.active())
         zone.text(uri);
@@ -578,6 +746,8 @@ studio::attach_serial(const std::string& name, const std::string& uri,
         return invalid;
 
     options.serial = settings;
+    if (const auto taken = check_listen_free(uri); !taken)
+        return taken.error();
     const std::string final_name = unique_name(name);
 
     boost::system::error_code ec;
@@ -599,6 +769,47 @@ studio::attach_serial(const std::string& name, const std::string& uri,
     record.advertised = transport->public_path();
 
     return register_port(std::move(record), std::move(transport), options);
+}
+
+result<std::shared_ptr<endpoint>>
+studio::attach_waiting(const std::string& name, const std::string& uri,
+                       const serial_settings& settings)
+{
+    VSS_PROFILE_ZONE("studio.attach_waiting");
+    if (const error_code invalid = validate(settings))
+        return invalid;
+    const auto kind = classify_uri(uri);
+    if (!kind ||
+        (*kind != endpoint_kind::tcp && *kind != endpoint_kind::rfc2217) ||
+        is_listen_uri(uri))
+        return make_error_code(errc::invalid_uri);
+
+    endpoint_options options = default_options();
+    options.serial = settings;
+    port_record record;
+    record.name = unique_name(name);
+    record.uri = uri;
+    record.capture = options.capture_traffic;
+    record.serial = settings;
+    record.settings_given = true;
+    record.kind = to_string(*kind);
+
+    auto stand_in = std::make_shared<waiting_transport>(hub_->executor(), uri);
+    auto added = register_port(std::move(record), std::move(stand_in), options);
+    if (!added)
+        return added;
+
+    if (!reconnector_->policy().enabled)
+    {
+        reconnect_policy policy;
+        policy.enabled = true;
+        reconnector_->set_policy(policy);
+    }
+    // The stop that the first read causes may come before the port is allowed
+    // in `register_port`'s caller, so the loss is announced here as well.
+    reconnector_->allow((*added)->id());
+    reconnector_->lost((*added)->id());
+    return added;
 }
 
 result<std::shared_ptr<endpoint>>
@@ -668,6 +879,20 @@ result<void> studio::inject_fault(endpoint_id id, fault_kind fault)
     const auto target = hub_->find_endpoint(id);
     if (!target)
         return make_error_code(errc::not_found);
+
+    if (fault == fault_kind::break_condition)
+    {
+        // A break at a fixture is an item of the stream, in order with the
+        // bytes it has read, one character long as a real device's break is
+        // at least: not a read error that stops the fixture.
+        line_break item;
+        item.phase = break_phase::complete;
+        item.start = hub_->now();
+        item.duration = target->options().serial.character_duration();
+        item.measured = false;
+        target->receive_break(item);
+        return {};
+    }
 
     // The fixture is not thread safe, and the endpoint reads from it on its
     // strand, so the injection runs there too.  The lambda holds the
@@ -823,6 +1048,13 @@ std::optional<serial_settings> studio::port_settings(endpoint_id id) const
 result<void> studio::reconfigure_port(endpoint_id id,
                                       const serial_settings& settings)
 {
+    return trace::traced("studio.reconfigure_port", id, [&]
+                         { return reconfigure_port_untraced(id, settings); });
+}
+
+result<void> studio::reconfigure_port_untraced(endpoint_id id,
+                                               const serial_settings& settings)
+{
     VSS_PROFILE_ZONE("studio.reconfigure_port");
     if (const auto invalid = validate(settings))
         return invalid;
@@ -896,14 +1128,37 @@ result<void> studio::reconfigure_port(endpoint_id id,
         uri.starts_with("udp://"))
         return make_error_code(errc::unsupported);
 
+    // A real serial device lets one handle have it open at a time (Windows
+    // answers a second open with "Access is denied"), so the old handle is
+    // closed, on the endpoint's strand and waited for, before the new one is
+    // opened.  A network client has no such limit and keeps the order of
+    // opening first.
+    const bool exclusive = record.kind == "physical";
+    if (exclusive)
+    {
+        auto closed = std::make_shared<std::promise<void>>();
+        auto done = closed->get_future();
+        found->shutdown([closed] { closed->set_value(); });
+        done.wait();
+    }
+
     boost::system::error_code ec;
     auto fresh = open_address(record.uri, &settings, ec);
-    if (ec)
-        return ec;
-    if (!fresh)
-        return make_error_code(errc::internal);
-    if (const auto reopened = hand_over(id, found, std::move(fresh));
-        !reopened)
+    if (ec || !fresh)
+    {
+        const error_code why = ec ? ec : make_error_code(errc::internal);
+        // The device was closed to make room: put it back as it was.
+        if (exclusive)
+        {
+            boost::system::error_code ignored;
+            if (auto back = open_address(
+                    record.uri, record.settings_given ? &record.serial : nullptr,
+                    ignored))
+                static_cast<void>(hand_over(id, found, std::move(back)));
+        }
+        return why;
+    }
+    if (const auto reopened = hand_over(id, found, std::move(fresh)); !reopened)
         return reopened.error();
     store(true);
     return {};
@@ -1031,6 +1286,13 @@ result<void> studio::rename_port(endpoint_id id, const std::string& name)
 }
 
 result<std::string> studio::set_com_number(endpoint_id id, unsigned com_number)
+{
+    return trace::traced("studio.set_com_number", id, [&]
+                         { return set_com_number_untraced(id, com_number); });
+}
+
+result<std::string> studio::set_com_number_untraced(endpoint_id id,
+                                                    unsigned com_number)
 {
     VSS_PROFILE_ZONE("studio.set_com_number");
     std::shared_ptr<transport> driver;
@@ -1196,6 +1458,12 @@ result<void> studio::hand_over(endpoint_id id,
 
 result<void> studio::reopen(endpoint_id id)
 {
+    return trace::traced("studio.reopen", id,
+                         [&] { return reopen_untraced(id); });
+}
+
+result<void> studio::reopen_untraced(endpoint_id id)
+{
     VSS_PROFILE_ZONE("studio.reopen");
     port_record record;
     {
@@ -1267,7 +1535,261 @@ result<void> studio::reopen(endpoint_id id)
     return hand_over(id, found, std::move(fresh));
 }
 
+result<void> studio::set_address(endpoint_id id, const std::string& uri,
+                                 bool keep_trying)
+{
+    VSS_PROFILE_ZONE("studio.set_address");
+    port_record record;
+    {
+        std::lock_guard lock(record_mutex_);
+        const auto it = records_.find(id);
+        if (it == records_.end())
+            return make_error_code(errc::not_found);
+        record = it->second;
+    }
+    const auto found = hub_->find_endpoint(id);
+    if (!found)
+        return make_error_code(errc::not_found);
+
+    const auto is_network = [](const std::string& address)
+    {
+        const auto kind = classify_uri(address);
+        return kind &&
+               (*kind == endpoint_kind::tcp || *kind == endpoint_kind::udp ||
+                *kind == endpoint_kind::rfc2217);
+    };
+    if (record.uri.empty() || !is_network(record.uri))
+        return make_error_code(errc::unsupported);
+    if (!is_network(uri))
+        return make_error_code(errc::invalid_uri);
+    const auto kind = classify_uri(uri);
+    if (const auto taken = check_listen_free(uri, id); !taken)
+        return taken.error();
+
+    // A listener holds its address until it is closed, and the new one may
+    // want the same address, so the old one goes first.
+    const bool was_listening = is_listen_uri(record.uri);
+    if (was_listening)
+    {
+        auto closed = std::make_shared<std::promise<void>>();
+        auto done = closed->get_future();
+        found->shutdown([closed] { closed->set_value(); });
+        done.wait();
+    }
+
+    const serial_settings* settings =
+        record.settings_given ? &record.serial : nullptr;
+    boost::system::error_code ec;
+    std::shared_ptr<transport> fresh = open_address(uri, settings, ec);
+    bool waiting = false;
+    if (ec && keep_trying && !is_listen_uri(uri) &&
+        (*kind == endpoint_kind::tcp || *kind == endpoint_kind::rfc2217))
+    {
+        fresh = std::make_shared<waiting_transport>(hub_->executor(), uri);
+        waiting = true;
+        ec = {};
+    }
+    if (ec || !fresh)
+    {
+        // Put back what was there, when it was closed to make room.
+        if (was_listening)
+        {
+            boost::system::error_code ignored;
+            if (auto back = open_address(record.uri, settings, ignored))
+                static_cast<void>(hand_over(id, found, std::move(back)));
+        }
+        return ec ? ec : make_error_code(errc::internal);
+    }
+    const std::string path = fresh->public_path();
+    // A port that waits stops at once, as the endpoint starts, and says so.
+    if (const auto handed = hand_over(id, found, std::move(fresh));
+        !handed && !waiting)
+        return handed;
+
+    port_record changed;
+    {
+        std::lock_guard lock(record_mutex_);
+        const auto it = records_.find(id);
+        if (it == records_.end())
+            return {};
+        claimed_paths_.erase(it->second.target);
+        claimed_paths_.erase(it->second.advertised);
+        it->second.uri = uri;
+        it->second.kind = to_string(*kind);
+        it->second.target = path;
+        it->second.advertised = path;
+        if (!path.empty())
+            claimed_paths_.insert(path);
+        changed = it->second;
+    }
+    if (reconnector_)
+    {
+        if (reconnects(changed))
+            reconnector_->allow(id);
+        else
+            reconnector_->disallow(id);
+        if (waiting)
+        {
+            if (!reconnector_->policy().enabled)
+            {
+                reconnect_policy policy;
+                policy.enabled = true;
+                reconnector_->set_policy(policy);
+            }
+            reconnector_->lost(id);
+        }
+    }
+    return {};
+}
+
+namespace
+{
+
+/// A port that was made from an address can be closed and opened again.
+bool stoppable_record(const std::string& kind, const std::string& uri)
+{
+    return !uri.empty() && kind != "mock" && kind != "virtual";
+}
+
+} // namespace
+
+std::optional<bool> studio::port_stopped(endpoint_id id) const
+{
+    return held_as(id, port_record::run_state::stopped);
+}
+
+std::optional<bool> studio::port_paused(endpoint_id id) const
+{
+    return held_as(id, port_record::run_state::paused);
+}
+
+std::optional<bool> studio::held_as(endpoint_id id,
+                                    port_record::run_state wanted) const
+{
+    bool flagged = false;
+    {
+        std::lock_guard lock(record_mutex_);
+        const auto it = records_.find(id);
+        if (it == records_.end() ||
+            !stoppable_record(it->second.kind, it->second.uri))
+            return std::nullopt;
+        flagged = it->second.run == wanted;
+    }
+    const auto found = hub_->find_endpoint(id);
+    return flagged && found && !found->is_open();
+}
+
+result<void> studio::stop_port(endpoint_id id)
+{
+    return trace::traced("studio.stop_port", id,
+                         [&] { return stop_port_untraced(id); });
+}
+
+result<void> studio::stop_port_untraced(endpoint_id id)
+{
+    VSS_PROFILE_ZONE("studio.stop_port");
+    return hold_port(id, port_record::run_state::stopped);
+}
+
+result<void> studio::pause_port(endpoint_id id)
+{
+    VSS_PROFILE_ZONE("studio.pause_port");
+    return hold_port(id, port_record::run_state::paused);
+}
+
+result<void> studio::hold_port(endpoint_id id, port_record::run_state how)
+{
+    {
+        std::lock_guard lock(record_mutex_);
+        const auto it = records_.find(id);
+        if (it == records_.end())
+            return make_error_code(errc::not_found);
+        if (!stoppable_record(it->second.kind, it->second.uri))
+            return make_error_code(errc::unsupported);
+        it->second.run = how;
+    }
+    const auto found = hub_->find_endpoint(id);
+    if (!found)
+        return make_error_code(errc::not_found);
+    // No retry, and none already waiting, before the port stops: its stop
+    // would otherwise look like a lost connection.
+    if (reconnector_)
+    {
+        reconnector_->disallow(id);
+        reconnector_->forget(id);
+    }
+    auto closed = std::make_shared<std::promise<void>>();
+    auto done = closed->get_future();
+    found->shutdown([closed] { closed->set_value(); });
+    done.wait();
+    return {};
+}
+
+result<void> studio::start_port(endpoint_id id)
+{
+    return trace::traced("studio.start_port", id,
+                         [&] { return start_port_untraced(id); });
+}
+
+result<void> studio::start_port_untraced(endpoint_id id)
+{
+    VSS_PROFILE_ZONE("studio.start_port");
+    return release_port(id);
+}
+
+result<void> studio::resume_port(endpoint_id id)
+{
+    VSS_PROFILE_ZONE("studio.resume_port");
+    return release_port(id);
+}
+
+result<void> studio::release_port(endpoint_id id)
+{
+    port_record record;
+    auto before = port_record::run_state::running;
+    {
+        std::lock_guard lock(record_mutex_);
+        const auto it = records_.find(id);
+        if (it == records_.end())
+            return make_error_code(errc::not_found);
+        if (!stoppable_record(it->second.kind, it->second.uri))
+            return make_error_code(errc::unsupported);
+        before = it->second.run;
+        it->second.run = port_record::run_state::running;
+        record = it->second;
+    }
+    const bool client = reconnects(record);
+    if (client && reconnector_)
+        reconnector_->allow(id);
+    const auto opened = reopen(id);
+    if (!client || !reconnector_ || opened)
+    {
+        if (!opened)
+        {
+            std::lock_guard lock(record_mutex_);
+            if (const auto it = records_.find(id); it != records_.end())
+                it->second.run = before;
+        }
+        return opened;
+    }
+    // The remote end refused: keep trying, as a client made to wait does.
+    if (!reconnector_->policy().enabled)
+    {
+        reconnect_policy policy;
+        policy.enabled = true;
+        reconnector_->set_policy(policy);
+    }
+    reconnector_->lost(id);
+    return {};
+}
+
 result<void> studio::reconnect_attempt(endpoint_id id)
+{
+    return trace::traced("studio.reconnect_attempt", id,
+                         [&] { return reconnect_attempt_untraced(id); });
+}
+
+result<void> studio::reconnect_attempt_untraced(endpoint_id id)
 {
     VSS_PROFILE_ZONE("studio.reconnect_attempt");
     if (!hub_->running())
@@ -1286,6 +1808,26 @@ result<void> studio::reconnect_attempt(endpoint_id id)
 void studio::set_reconnect_policy(const reconnect_policy& policy)
 {
     reconnector_->set_policy(policy);
+}
+
+std::optional<studio::connection_status>
+studio::connection(endpoint_id id) const
+{
+    connection_status out;
+    {
+        std::lock_guard lock(record_mutex_);
+        const auto it = records_.find(id);
+        if (it == records_.end() || it->second.uri.empty())
+            return std::nullopt;
+        out.uri = it->second.uri;
+    }
+    const auto progress = reconnector_->status(id);
+    out.retrying = progress.retrying;
+    out.attempts = progress.attempts;
+    out.last_error = progress.last_error;
+    out.last_error_code = progress.last_error_code;
+    out.next_try_in = progress.next_in;
+    return out;
 }
 
 reconnect_policy studio::current_reconnect_policy() const
@@ -1399,6 +1941,12 @@ studio::resolve_all(const std::vector<std::string>& names, error_code& ec) const
 
 result<link_id> studio::connect(std::string_view a, std::string_view b)
 {
+    return trace::traced("studio.connect", 0,
+                         [&] { return connect_untraced(a, b); });
+}
+
+result<link_id> studio::connect_untraced(std::string_view a, std::string_view b)
+{
     VSS_PROFILE_ZONE("studio.connect");
     const auto first = hub_->find_endpoint(a);
     const auto second = hub_->find_endpoint(b);
@@ -1449,6 +1997,13 @@ result<link_id> studio::redirect(std::string_view from, std::string_view to)
 
 result<link_id> studio::monitor(std::string_view from, std::string_view to)
 {
+    return trace::traced("studio.monitor", 0,
+                         [&] { return monitor_untraced(from, to); });
+}
+
+result<link_id> studio::monitor_untraced(std::string_view from,
+                                         std::string_view to)
+{
     VSS_PROFILE_ZONE("studio.monitor");
     const auto first = hub_->find_endpoint(from);
     const auto second = hub_->find_endpoint(to);
@@ -1486,11 +2041,13 @@ void studio::forget_plugins_of_removed_links()
     // no call into the hub is made while the records are locked.
     const auto links = hub_->links();
     std::lock_guard lock(record_mutex_);
-    std::erase_if(link_plugins_, [&links](const auto& kept) {
-        return std::ranges::none_of(links, [&kept](const link_info& link) {
-            return link.id == kept.first;
-        });
-    });
+    std::erase_if(link_plugins_,
+                  [&links](const auto& kept)
+                  {
+                      return std::ranges::none_of(
+                          links, [&kept](const link_info& link)
+                          { return link.id == kept.first; });
+                  });
 }
 
 result<void> studio::add_target(link_id id, std::string_view target)
@@ -1619,6 +2176,55 @@ result<link_id> studio::join_ports(const std::vector<std::string>& source_uris,
     return join(sources, (*target)->name());
 }
 
+result<studio::network_attachment>
+studio::attach_network(endpoint_id existing, const std::string& name,
+                       const std::string& uri, bool keep_trying)
+{
+    VSS_PROFILE_ZONE("studio.attach_network");
+    network_attachment out;
+    if (existing == 0)
+    {
+        auto made = create_auto_virtual_port(name, default_options());
+        if (!made)
+            return made.error();
+        existing = (*made)->id();
+        out.created = existing;
+    }
+    else if (!hub_->find_endpoint(existing))
+    {
+        return make_error_code(errc::not_found);
+    }
+    const auto undo = [this, &out]
+    {
+        if (out.created != 0)
+            static_cast<void>(remove_port(out.created));
+    };
+
+    auto added = attach_serial(name, uri);
+    if (!added && keep_trying && added.error() != errc::invalid_uri &&
+        added.error() != boost::system::errc::address_in_use)
+    {
+        added = attach_waiting(name, uri);
+        out.waiting = static_cast<bool>(added);
+    }
+    if (!added)
+    {
+        undo();
+        return added.error();
+    }
+    out.port = (*added)->id();
+
+    const auto link = hub_->connect(existing, out.port);
+    if (!link)
+    {
+        static_cast<void>(remove_port(out.port));
+        undo();
+        return link.error();
+    }
+    out.link = *link;
+    return out;
+}
+
 result<link_id> studio::bridge(const std::string& from_uri,
                                const std::string& to_uri)
 {
@@ -1679,6 +2285,16 @@ studio::make_port(const config::port_entry& port)
     else
     {
         added = attach_serial(port.name, port.uri, port.serial, options);
+        // A client of a network address whose server is not there, or is
+        // busy with another client, is still made, and keeps trying.  Without
+        // that one refusal stops the whole setup from opening.
+        if (!added && added.error() != errc::invalid_uri &&
+            added.error() != boost::system::errc::address_in_use)
+        {
+            auto waiting = attach_waiting(port.name, port.uri, port.serial);
+            if (waiting)
+                added = std::move(waiting);
+        }
     }
 
     if (!added)
@@ -1734,6 +2350,8 @@ studio::make_links(const std::vector<config::link_entry>& links,
         options.delay_ms = link.delay_ms;
         options.jitter_ms = link.jitter_ms;
         options.half_duplex = link.half_duplex;
+        options.wire_timing = link.wire_timing;
+        options.direction = link.direction;
 
         result<link_id> added = make_error_code(errc::config_error);
         if (link.mode == "bus")
@@ -1928,9 +2546,9 @@ result<void> studio::replace(const config::document& value)
         }
         auto made =
             removed_at.has_value()
-                ? retry_while_number_busy(
-                      [&] { return make_port(entry); }, *removed_at,
-                      options_.com_number_step, options_.com_number_wait)
+                ? retry_while_number_busy([&] { return make_port(entry); },
+                                          *removed_at, options_.com_number_step,
+                                          options_.com_number_wait)
                 : make_port(entry);
         if (made && numbered)
             freed.erase(entry.com_number);
@@ -2075,6 +2693,11 @@ result<void> studio::apply(const config::document& value,
         }
         created.push_back((*added)->id());
         ids.emplace(port.name, (*added)->id());
+        // A paused port is made, then held, as it was when the setup was
+        // written.  A port that cannot be held (a pause is only for ports
+        // made from an address) stays as made.
+        if (port.paused)
+            static_cast<void>(pause_port((*added)->id()));
     }
 
     std::vector<link_id> made;
@@ -2113,6 +2736,7 @@ config::port_entry studio::entry_of(const port_record& record)
         record.virtual_kind, record.serial, record.capture);
     entry.com_number = record.com_number;
     entry.plugins = record.plugins;
+    entry.paused = record.run == port_record::run_state::paused;
     if (record.kind == "mock")
     {
         // A fixture made from an address has no target of its own: the
@@ -2199,7 +2823,19 @@ std::vector<serial_device_info> studio::serial_devices() const
 std::optional<std::vector<unsigned>> studio::reserved_com_numbers() const
 {
     VSS_PROFILE_ZONE("studio.reserved_com_numbers");
+    return vss::unavailable_com_numbers();
+}
+
+std::optional<std::vector<unsigned>> studio::kept_com_numbers() const
+{
+    VSS_PROFILE_ZONE("studio.kept_com_numbers");
     return vss::reserved_com_numbers();
+}
+
+std::optional<std::vector<com_number_holder>> studio::com_number_holders() const
+{
+    VSS_PROFILE_ZONE("studio.com_number_holders");
+    return vss::com_number_holders();
 }
 
 } // namespace vss

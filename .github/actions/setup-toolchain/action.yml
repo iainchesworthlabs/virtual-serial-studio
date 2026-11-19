@@ -14,7 +14,7 @@ inputs:
   nsis:
     description: >
       true to install NSIS (makensis) at the `nsis` pin, for the Windows installer. Windows runners only; the
-      release workflow is the only caller.
+      release workflow and the Windows tool tests are the callers.
     default: "false"
   gcc-version:
     description: GCC major version. Empty uses the `gcc` pin; the nightly newest-compiler leg passes `gcc_newest`.

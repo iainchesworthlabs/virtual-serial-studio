@@ -5,6 +5,7 @@
 //
 
 #include "test_framework.hpp"
+#include "qt_input.hpp"
 #include "zip_reader.hpp"
 
 #include "backend/fake_studio_backend.hpp"
@@ -26,6 +27,7 @@
 #include "support/troubleshoot_dialog.hpp"
 #include "support/zip_writer.hpp"
 #include "theme/theme.hpp"
+#include "widgets/chips.hpp"
 #include "widgets/controls.hpp"
 #include "widgets/dialogs.hpp"
 
@@ -52,10 +54,12 @@
 #include <QSettings>
 #include <QSlider>
 #include <QStandardPaths>
+#include <QTabBar>
 #include <QTabWidget>
 #include <QTemporaryDir>
 
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 
 namespace
@@ -714,6 +718,84 @@ TEST_CASE("support: setup check dialog reads engine facts")
                QStringLiteral("Virtual port driver"));
 }
 
+TEST_CASE("support: setup check rows keep chips in one column and actions "
+          "under the text")
+{
+    FakeStudioBackend backend;
+    vss::gui::setup_facts studio = windows_facts();
+    studio.driver_found = true;
+    studio.driver_version = QStringLiteral("2");
+    backend.set_facts(studio);
+    backend.set_devices({{QStringLiteral("COM3"),
+                          QStringLiteral("Serial"),
+                          {},
+                          false,
+                          false,
+                          -1,
+                          {}}});
+    const auto theme_before = vss::gui::Theme::instance().mode();
+    for (const auto mode :
+         {vss::gui::theme_mode::light, vss::gui::theme_mode::dark})
+    {
+        vss::gui::Theme::instance().set_mode(mode);
+        for (const double factor : {1.0, 2.0})
+        {
+            support::SetupCheckDialog dialog(backend);
+            dialog.show();
+            if (factor != 1.0)
+                vss_test::scale_text(&dialog, factor);
+            QApplication::processEvents();
+
+            int chip_right = -1;
+            int chip_width = -1;
+            for (int i = 0; i < dialog.row_count(); ++i)
+            {
+                auto* row = dialog.row_widget(i);
+                REQUIRE(row != nullptr);
+                vss::gui::StatusChip* chip = nullptr;
+                for (auto* label : row->findChildren<QLabel*>())
+                    if (auto* found =
+                            dynamic_cast<vss::gui::StatusChip*>(label))
+                        chip = found;
+                if (chip != nullptr)
+                {
+                    const int right =
+                        chip->mapTo(&dialog, QPoint(chip->width(), 0)).x();
+                    if (chip_right < 0)
+                    {
+                        chip_right = right;
+                        chip_width = chip->width();
+                    }
+                    REQUIRE_EQ(right, chip_right);
+                    REQUIRE_EQ(chip->width(), chip_width);
+                    // The chip never runs into the title or the text.
+                    REQUIRE(chip->geometry().right() <= row->width());
+                }
+                if (auto* action = row->action_button())
+                {
+                    REQUIRE(action->height() >= 24);
+                    REQUIRE(action->geometry().right() < chip_right);
+                }
+            }
+            REQUIRE(chip_right > 0);
+
+            const QString dir = qEnvironmentVariable("VSS_SHOT_DIR");
+            if (!dir.isEmpty())
+            {
+                QDir().mkpath(dir);
+                const QString name =
+                    QStringLiteral("setup-check-%1-%2.png")
+                        .arg(mode == vss::gui::theme_mode::light ? QStringLiteral("light")
+                                                       : QStringLiteral("dark"))
+                        .arg(factor == 1.0 ? QStringLiteral("100")
+                                           : QStringLiteral("200"));
+                dialog.grab().save(QDir(dir).filePath(name));
+            }
+        }
+    }
+    vss::gui::Theme::instance().set_mode(theme_before);
+}
+
 TEST_CASE("support: troubleshooting checklist reports each state honestly")
 {
     const auto now = vss::clock_type::now();
@@ -1154,6 +1236,22 @@ TEST_CASE("support: About reports the build and environment and copies them")
     REQUIRE_EQ(tabs->tabText(2), QStringLiteral("Environment"));
     REQUIRE_EQ(tabs->tabText(3), QStringLiteral("Licences"));
     REQUIRE_EQ(tabs->tabText(4), QStringLiteral("Fonts"));
+
+    // The first tab starts level with the text of the page below it.
+    dialog.resize(760, 520);
+    dialog.show();
+    QApplication::processEvents();
+    QLabel* notice = nullptr;
+    for (QLabel* label : dialog.findChildren<QLabel*>())
+    {
+        if (label->text().startsWith(QStringLiteral("This program is free")))
+            notice = label;
+    }
+    REQUIRE(notice != nullptr);
+    const int tab_left =
+        tabs->tabBar()->mapTo(&dialog, tabs->tabBar()->tabRect(0).topLeft()).x();
+    const int text_left = notice->mapTo(&dialog, QPoint(0, 0)).x();
+    REQUIRE(std::abs(tab_left - text_left) <= 2);
 
     // The header carries the single full version string.
     bool has_version = false;

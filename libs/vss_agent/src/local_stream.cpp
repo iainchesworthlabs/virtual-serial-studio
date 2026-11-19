@@ -7,11 +7,17 @@
 #include <vss/agent/local_stream.hpp>
 
 #include "platform/local_stream_platform.hpp"
+#include "platform/process_platform.hpp"
 
 #include <algorithm>
 
 namespace vss::agent
 {
+
+std::uint64_t current_process_id() noexcept
+{
+    return platform::process_id();
+}
 
 bool valid_instance_name(std::string_view name) noexcept
 {

@@ -196,6 +196,12 @@ public:
     /// running may finish.
     void set_notice_sink(notice_sink sink) override;
 
+    /// A break an RFC 2217 client makes (SET-CONTROL 5 then 6) is reported as
+    /// a `begin` and an `end`, in order with the bytes the client sent, with
+    /// the length between the two commands (it includes the delay of the
+    /// network).  A client that goes with its break on ends it.
+    void set_break_sink(break_sink sink) override;
+
 private:
     class state;
     std::shared_ptr<state> state_;

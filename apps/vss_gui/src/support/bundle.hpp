@@ -44,6 +44,10 @@ struct bundle_selection
     bool event_log = true;
     bool counters = true;
     bool serial_ports = true;
+    /// Off by default: the calls Studio made to Windows and its libraries
+    /// that failed, with the calls around them, in `trace.txt`.  No bytes of
+    /// traffic.
+    bool call_trace = false;
     /// Licence number, edition, term and state. Ignored when no licence is
     /// installed: the row is then absent. Never the licence file.
     bool licence = true;
@@ -63,8 +67,8 @@ struct bundle_file
 /// One section of the bundle.
 struct bundle_section
 {
-    /// `environment`, `driver`, `setup`, `log`, `counters`, `serial-ports`
-    /// or `licence`.
+    /// `environment`, `driver`, `setup`, `log`, `counters`, `serial-ports`,
+    /// `trace` or `licence`.
     QString id;
     /// The English title the manifest carries. The checklist shows its own
     /// translated label.

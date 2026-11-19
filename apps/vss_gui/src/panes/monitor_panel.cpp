@@ -9,7 +9,10 @@
 
 #include "panes/monitor_cell_delegate.hpp"
 #include "panes/monitor_model.hpp"
+#include "panes/port_model.hpp"
 #include "panes/ports_panel.hpp"
+#include "theme/dense_table.hpp"
+#include "widgets/filter_controls.hpp"
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
 #include "widgets/chips.hpp"
@@ -66,21 +69,6 @@ static_assert(MonitorPanel::kMinimumColumnWidth ==
 /// A port name longer than this is not measured further when the Port column
 /// is sized; the cell shows the rest cut with an ellipsis.
 constexpr int kLongestPortName = 24;
-
-/// The least height of a Monitor row. A row is a pointer target (a click on it
-/// selects the row and its port), so it is the target size of the
-/// accessibility spec.
-///
-/// Open question 1 of the Monitor design asks the owner whether the Compact
-/// density may use 20 px rows, which needs a written exception to the 24 px
-/// target rule (`06-accessibility.md`, rule 6). It is not answered, so both
-/// densities have the 24 px floor. If the answer is yes, this takes the
-/// density again and returns 0 for Compact, and a Compact row is its text plus
-/// 2 px above and below.
-int row_floor()
-{
-    return Theme::instance().metric(QStringLiteral("minTarget"));
-}
 
 /// Sets a flag for as long as it lives and puts it back as it was, so the
 /// scopes may nest.
@@ -162,6 +150,8 @@ QString kind_name(vss::event_kind kind)
         return QObject::tr("log");
     case vss::event_kind::bus_fault:
         return QObject::tr("bus");
+    case vss::event_kind::line_break:
+        return QObject::tr("break");
     }
     return {};
 }
@@ -331,10 +321,7 @@ void MonitorPanel::build()
     QHBoxLayout* advanced_layout = advanced_layout_;
     page_layout_ = page_layout;
     advanced_bar_->installEventFilter(this);
-    port_filter_ = new QComboBox(advanced_bar_);
-    port_filter_->setAccessibleName(tr("Filter by port"));
-    port_filter_->setMinimumWidth(120);
-    port_filter_->setMaximumWidth(160);
+    port_filter_ = make_port_filter(tr("Filter by port"), advanced_bar_);
     rx_ = new QCheckBox(tr("RX"), advanced_bar_);
     tx_ = new QCheckBox(tr("TX"), advanced_bar_);
     drop_ = new QCheckBox(tr("Dropped"), advanced_bar_);
@@ -342,11 +329,7 @@ void MonitorPanel::build()
     rx_->setChecked(true);
     tx_->setChecked(true);
     drop_->setChecked(true);
-    search_ = new QLineEdit(advanced_bar_);
-    search_->setPlaceholderText(tr("Search payload"));
-    search_->setAccessibleName(tr("Search payload"));
-    search_->setClearButtonEnabled(true);
-    search_->setMaximumWidth(190);
+    search_ = make_search_field(tr("Search payload"), advanced_bar_);
     mode_ = new SegmentedControl(advanced_bar_);
     mode_->set_compact(true);
     mode_->setAccessibleName(tr("Preview format"));
@@ -800,10 +783,9 @@ void MonitorPanel::apply_metrics()
     }
 
     // D2: the taller of the two cell fonts, and a little above and below.
-    const int vertical = compact ? theme.space(0) / 2 : theme.space(0);
     const int text = std::max(QFontMetrics(cell_style_.data).height(),
                               QFontMetrics(cell_style_.caption).height());
-    const int row = std::max(row_floor(), text + 2 * vertical);
+    const int row = dense_row_height(text);
     // The header's own least size depends on its font and would keep a row
     // taller than the rule gives.
     table_->verticalHeader()->setMinimumSectionSize(row);
@@ -812,9 +794,7 @@ void MonitorPanel::apply_metrics()
     // D3: the header is its text and a little above and below, and at least a
     // target.
     QHeaderView* header = table_->horizontalHeader();
-    header->setFixedHeight(
-        std::max(theme.metric(QStringLiteral("minTarget")),
-                 QFontMetrics(header->font()).height() + 2 * theme.space(0)));
+    header->setFixedHeight(dense_header_height(header->font()));
 
     apply_column_widths();
     table_->viewport()->update();
@@ -964,6 +944,21 @@ void MonitorPanel::set_selected_port(vss::endpoint_id id)
     model_->set_selected_port(id);
 }
 
+bool MonitorPanel::show_only_port(vss::endpoint_id id)
+{
+    model_->set_selected_port(id);
+    if (!advanced_ || port_filter_ == nullptr)
+        return false;
+    // The list of ports may be a moment behind a port just made.
+    refresh_ports();
+    const int index =
+        port_filter_->findData(QVariant::fromValue<qulonglong>(id));
+    if (index < 0)
+        return false;
+    port_filter_->setCurrentIndex(index);
+    return true;
+}
+
 void MonitorPanel::refresh_ports()
 {
     QStringList signature;
@@ -977,26 +972,18 @@ void MonitorPanel::refresh_ports()
         return;
     port_signature_ = signature;
 
-    const vss::endpoint_id previous =
-        port_filter_ != nullptr && port_filter_->currentIndex() >= 0
-            ? static_cast<vss::endpoint_id>(
-                  port_filter_->currentData().toULongLong())
-            : 0;
     refreshing_ports_ = true;
     if (port_filter_ != nullptr)
     {
-        const QSignalBlocker blocker(port_filter_);
-        port_filter_->clear();
-        port_filter_->addItem(tr("All ports"),
-                              QVariant::fromValue<qulonglong>(0));
+        std::vector<std::pair<QString, QVariant>> choices;
         for (const auto& port : backend_.ports())
         {
-            port_filter_->addItem(port.name,
-                                  QVariant::fromValue<qulonglong>(port.id));
+            choices.emplace_back(port.name,
+                                 QVariant::fromValue<qulonglong>(port.id));
         }
-        const int index =
-            port_filter_->findData(QVariant::fromValue<qulonglong>(previous));
-        port_filter_->setCurrentIndex(index >= 0 ? index : 0);
+        // The choice stays when its port is still there.
+        fill_filter_choices(port_filter_, tr("All ports"),
+                            QVariant::fromValue<qulonglong>(0), choices);
     }
     refreshing_ports_ = false;
     if (all_ports_ != nullptr)
@@ -1127,7 +1114,27 @@ void MonitorPanel::update_empty()
         content_->setCurrentWidget(table_);
         return;
     }
-    if (model_->total_rows() > 0)
+    // One port chosen, with no search: say what the port is doing, so that a
+    // port that is connecting or has failed shows why nothing is here.
+    const vss::endpoint_id chosen =
+        advanced_ && port_filter_ != nullptr && port_filter_->currentIndex() >= 0
+            ? static_cast<vss::endpoint_id>(
+                  port_filter_->currentData().toULongLong())
+            : 0;
+    const auto chosen_port = chosen != 0 && search_->text().isEmpty()
+                                 ? backend_.port(chosen)
+                                 : std::optional<port_view>{};
+    if (chosen_port)
+    {
+        QString text = tr("No traffic on %1 yet. %2.")
+                           .arg(chosen_port->name,
+                                PortModel::state_text(*chosen_port));
+        const QString why = PortModel::status_text(*chosen_port);
+        if (!why.isEmpty())
+            text += QLatin1Char(' ') + why;
+        empty_->setText(text);
+    }
+    else if (model_->total_rows() > 0)
     {
         empty_->setText(tr("No traffic matches these filters."));
     }

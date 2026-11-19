@@ -133,6 +133,8 @@ private:
         std::uint64_t seconds = 0;
         std::uint64_t dropped = 0;
         bool over = false;
+        /// True when it ended because it could not be written.
+        bool failed = false;
     };
 
     void answer(std::uint64_t id, api_message message)
@@ -327,14 +329,22 @@ private:
             if (!write(run, index, when, item))
                 break;
         }
-        if (running() && batch.dropped_bytes > 0)
+        // What the tap could not hold is written for the place it was
+        // lost at, at the moment it was noticed.
+        for (const tap_drop& lost : batch.dropped)
         {
-            // What the tap could not hold is written where it was noticed.
+            if (!running() || lost.bytes == 0)
+                continue;
+            const auto found = std::ranges::find(run.names, lost.place);
+            if (found == run.names.end())
+                continue;
+            const auto index =
+                static_cast<std::size_t>(found - run.names.begin());
             const std::uint64_t when =
                 std::max(nanoseconds_between(run.started, clock_type::now()),
-                         run.last_ns.front());
-            run.last_ns.front() = when;
-            took(run, run.writer->add_dropped(0, when, batch.dropped_bytes));
+                         run.last_ns[index]);
+            run.last_ns[index] = when;
+            took(run, run.writer->add_dropped(index, when, lost.bytes));
         }
         if (running() && run.tap->queued_items() > 0)
         {
@@ -375,6 +385,9 @@ private:
         case tap_item_kind::bus_fault:
             return took(
                 run, run.writer->add_fault(index, when, to_string(item.fault)));
+        case tap_item_kind::loss:
+            // Never queued: this tap does not ask for loss items.
+            return true;
         }
         return true;
     }
@@ -385,10 +398,33 @@ private:
     {
         if (outcome && *outcome == add_outcome::written)
             return true;
+        // A limit is the recording's ordinary end; anything else is not.
+        if (!outcome)
+            run.failed = true;
         // The tap is let go at once: nothing more is wanted from the hub.
         run.over = true;
         run.tap.reset();
         return false;
+    }
+
+    /// The bytes of the files of a recording that is being written.
+    std::uint64_t size_of_folder(const std::string& place) const
+    {
+        std::uint64_t total = 0;
+        std::error_code failed;
+        const std::filesystem::path folder =
+            context_.data_directory / std::filesystem::path(place);
+        for (std::filesystem::directory_iterator next(folder, failed), end;
+             !failed && next != end; next.increment(failed))
+        {
+            std::error_code ignored;
+            if (!next->is_regular_file(ignored) || ignored)
+                continue;
+            const std::uintmax_t size = next->file_size(ignored);
+            if (!ignored)
+                total += static_cast<std::uint64_t>(size);
+        }
+        return total;
     }
 
     /// Finishes the recording that runs, when one does.
@@ -413,6 +449,8 @@ private:
         run.writer.reset();
         if (finished)
             run.summary = std::move(*finished);
+        else
+            run.failed = true;
     }
 
     void stop(const api_message& message)
@@ -467,6 +505,7 @@ private:
         answer_body.running = running();
         answer_body.ring = run.ring;
         answer_body.recording = run.place;
+        answer_body.failed = run.failed;
         if (run.summary.has_value())
         {
             answer_body.bytes = run.summary->bytes;
@@ -479,6 +518,7 @@ private:
             answer_body.bytes = run.writer->bytes();
             answer_body.seconds = run.writer->seconds();
             answer_body.dropped = run.writer->dropped();
+            answer_body.size = size_of_folder(run.place);
         }
         else
         {

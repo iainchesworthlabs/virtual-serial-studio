@@ -62,6 +62,11 @@ inline constexpr std::size_t max_snapshot_kinds = 16;
 /// The most seconds of `before_s` and of `after_s`.  A choice: ten minutes.
 inline constexpr std::uint64_t max_snapshot_seconds = 600;
 
+/// The name of the capability a host offers when it plays a recording as a
+/// timeline (`timeline.load`).  A host that does not offer it answers
+/// `timeline.load` with `unsupported`.
+inline constexpr std::string_view timeline_capability = "timeline";
+
 /// The least and the most `time_scale` of `timeline.load`.  A choice: a
 /// replay a hundred times slower or faster.
 inline constexpr double min_time_scale = 0.01;
@@ -177,6 +182,10 @@ struct capture_result_message
     std::string recording;
     /// The bytes of that file so far, 0 to `max_api_number`.
     std::uint64_t size = 0;
+    /// True when the recording ended because it could not be written, such
+    /// as a full disk: what it holds may be incomplete.  Left out when
+    /// false.
+    bool failed = false;
 
     friend bool operator==(const capture_result_message&,
                            const capture_result_message&) = default;
@@ -202,6 +211,10 @@ struct timeline_load_message
     /// The seed of the replay, 0 to `max_api_number`.  None keeps the one
     /// the recording has.
     std::optional<std::uint64_t> seed;
+    /// Whether the bytes the recorded place sent (`W` lines) are played too,
+    /// in the order they were recorded, each at its time.  False plays only
+    /// what the place received.
+    bool include_sent = false;
 
     friend bool operator==(const timeline_load_message&,
                            const timeline_load_message&) = default;

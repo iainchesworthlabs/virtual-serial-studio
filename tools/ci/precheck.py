@@ -109,6 +109,7 @@ def main(argv: list[str] | None = None) -> int:
         ok = ok and shared.returncode == 0
 
     ok = run("changelog tool", [py, "tools/changelog.py", "--check"]) and ok
+    ok = run("driver version", [py, "tools/ci/check_driver_version.py", "--base", base]) and ok
     ok = run("design tokens", [py, "tools/check_contrast.py"]) and ok
     ok = run("tool unit tests", [py, "-m", "unittest", "discover", "-s", "tools", "-p", "test_*.py"]) and ok
     ok = run("planner unit tests", [py, "-m", "unittest", "discover", "-s", "tools/ci", "-p", "test_*.py"]) and ok

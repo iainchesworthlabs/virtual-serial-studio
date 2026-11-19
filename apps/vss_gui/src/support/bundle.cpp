@@ -12,6 +12,7 @@
 
 #include <vss/config/document.hpp>
 #include <vss/core/profile.hpp>
+#include <vss/debug/trace_text.hpp>
 #include <vss/license/license.hpp>
 
 #include <QCoreApplication>
@@ -165,10 +166,28 @@ QString problem_word(driver_problem value)
         return QStringLiteral("helper service incompatible");
     case driver_problem::helper_denied:
         return QStringLiteral("helper service refused this user");
+    case driver_problem::driver_old:
+        return QStringLiteral("driver older than this program");
     case driver_problem::unknown:
         return QStringLiteral("unknown");
     }
     return QStringLiteral("unknown");
+}
+
+QString age_word(driver_age value)
+{
+    switch (value)
+    {
+    case driver_age::older:
+        return QStringLiteral("installed is older");
+    case driver_age::same:
+        return QStringLiteral("same");
+    case driver_age::newer:
+        return QStringLiteral("installed is newer");
+    case driver_age::unknown:
+        break;
+    }
+    return QStringLiteral("not known");
 }
 
 QString yes_no(bool value)
@@ -186,6 +205,14 @@ QString driver_text(const StudioBackend& backend)
     out += QStringLiteral("Studio driver version: %1\n")
                .arg(facts.driver_version.isEmpty() ? QStringLiteral("not known")
                                                    : facts.driver_version);
+    const auto known = [](const QString& text)
+    { return text.isEmpty() ? QStringLiteral("not known") : text; };
+    out += QStringLiteral("Driver package in Windows: %1\n")
+               .arg(known(facts.driver.versions.installed));
+    out += QStringLiteral("Driver package in this Studio: %1\n")
+               .arg(known(facts.driver.versions.bundled));
+    out += QStringLiteral("Driver package compared: %1\n")
+               .arg(age_word(facts.driver.versions.age));
     // Nothing reports how the installed driver is signed, so it is not
     // guessed.
     out += QStringLiteral("Studio driver signing: not known\n");
@@ -466,6 +493,12 @@ bundle_contents build_bundle(const StudioBackend& backend, const EventLog& log,
         contents.sections.push_back(section(
             "serial-ports", "Serial ports on this computer", "serial-ports.txt",
             cleaned(serial_ports_text(backend), identity)));
+    if (selection.call_trace)
+        contents.sections.push_back(section(
+            "trace", "Calls to Windows", "trace.txt",
+            cleaned(QString::fromStdString(vss::debug::failure_context_text(
+                        vss::trace::recorder::global())),
+                    identity)));
     if (selection.licence && bundle_has_licence(backend))
     {
         bundle_identity kept = identity;

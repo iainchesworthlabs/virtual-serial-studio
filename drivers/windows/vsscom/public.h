@@ -78,6 +78,74 @@ enum
         CTL_CODE(FILE_DEVICE_VSSCOM, 0x805, METHOD_BUFFERED, FILE_ANY_ACCESS)
 };
 
+// Gives the break marks and the write marks that the hub has not been given, and
+// takes them out of the driver. No input. Output: VSSCOM_HUB_MARKS, which the
+// buffer must have room for in full.
+//
+// The hub reads the bytes the application wrote as one stream, which loses two
+// things about the application's calls: where it called SetCommBreak and
+// ClearCommBreak among the bytes, and where each WriteFile began. The driver keeps
+// both. A mark is a time, the raw count of the performance counter at the call
+// (QpcFrequency counts a second), and an offset: how many bytes the application
+// had put into the transmit buffer before the call, counted from the start of the
+// hub handle. The hub counts the bytes it reads from 0 the same way, so a mark at
+// offset N falls between byte N-1 and byte N of what the hub read.
+//
+// A break mark is made by SET_BREAK_ON and ended by SET_BREAK_OFF, or by the
+// application closing the port or the handle being revoked, whichever comes first.
+// A break that has ended is given once. A break still held is given every time with
+// VSSCOM_BREAK_MARK_OPEN set, until it ends. Bytes the application wrote while a
+// break was held lie between OnOffset and OffOffset. A write mark is given once
+// the hub has read the first byte of that write; a write that waited for room has
+// the time of the call and the offset of the byte that went in first.
+//
+// The driver keeps 64 break marks and 256 write marks. A full set drops the oldest
+// and counts it: BreaksDropped (a break that was not given) and WritesMerged (a
+// write whose bytes now belong to the one before). The counts start again from 0
+// after each call. The hub reads the marks after a read of the bytes and before it
+// waits for the next change; a mark is stored before any byte after it, so a read
+// made after the bytes cannot miss the marks of those bytes.
+enum
+{
+    IOCTL_VSSCOM_HUB_READ_BREAKS =
+        CTL_CODE(FILE_DEVICE_VSSCOM, 0x806, METHOD_BUFFERED, FILE_ANY_ACCESS)
+};
+
+enum
+{
+    VSSCOM_MAX_BREAK_MARKS = 64,
+    VSSCOM_MAX_WRITE_MARKS = 256,
+    // VSSCOM_BREAK_MARK.Flags
+    VSSCOM_BREAK_MARK_OPEN = 1 // still held: OffTime and OffOffset mean nothing
+};
+
+typedef struct _VSSCOM_BREAK_MARK
+{
+    ULONGLONG OnTime;    // performance counter at SET_BREAK_ON
+    ULONGLONG OffTime;   // at SET_BREAK_OFF, or at the close
+    ULONGLONG OnOffset;  // bytes written before SET_BREAK_ON
+    ULONGLONG OffOffset; // bytes written before SET_BREAK_OFF
+    ULONG Flags;
+    ULONG Reserved;
+} VSSCOM_BREAK_MARK, *PVSSCOM_BREAK_MARK;
+
+typedef struct _VSSCOM_WRITE_MARK
+{
+    ULONGLONG Time;   // performance counter when the application called WriteFile
+    ULONGLONG Offset; // bytes written before the first byte of this call
+} VSSCOM_WRITE_MARK, *PVSSCOM_WRITE_MARK;
+
+typedef struct _VSSCOM_HUB_MARKS
+{
+    ULONGLONG QpcFrequency; // counts a second
+    ULONG BreakCount;       // entries of Breaks in use
+    ULONG WriteCount;       // entries of Writes in use
+    ULONG BreaksDropped;    // since the last call
+    ULONG WritesMerged;     // since the last call
+    VSSCOM_BREAK_MARK Breaks[VSSCOM_MAX_BREAK_MARKS]; // oldest first
+    VSSCOM_WRITE_MARK Writes[VSSCOM_MAX_WRITE_MARKS]; // oldest first
+} VSSCOM_HUB_MARKS, *PVSSCOM_HUB_MARKS;
+
 // The bits of VSSCOM_HUB_LINE_ERROR.Errors, the same values as SERIAL_ERROR_* in
 // ntddser.h. (ClearCommError reports them to a Win32 program as CE_BREAK,
 // CE_FRAME, CE_OVERRUN, CE_RXOVER and CE_RXPARITY, which have other values.)
@@ -108,8 +176,9 @@ typedef struct _VSSCOM_HUB_LINE_ERROR
 // 2 added the hub end. 3 added AppProcessId to the hub state, the revoke request
 // and the effect of the DTR and RTS settings of SET_HANDFLOW. 4 added the line
 // error request, the error bits of IOCTL_SERIAL_GET_COMMSTATUS, EV_ERR, EV_BREAK
-// and EV_RXFLAG, and the abort-on-error setting.
-#define VSSCOM_VERSION 4
+// and EV_RXFLAG, and the abort-on-error setting. 5 added BreakCount to the hub
+// state and IOCTL_VSSCOM_HUB_READ_BREAKS, which gives the break and write marks.
+#define VSSCOM_VERSION 5
 
 typedef struct _VSSCOM_VERSION_INFO
 {
@@ -143,6 +212,7 @@ typedef struct _VSSCOM_HUB_STATE
     ULONG Lines;    // the input lines the hub last set
     ULONG TxQueued; // bytes the application wrote that the hub has not read
     ULONG AppProcessId; // the process that has the port open; 0 when none (version 3)
+    ULONG BreakCount;   // breaks begun since the port was made; wraps (version 5)
 } VSSCOM_HUB_STATE, *PVSSCOM_HUB_STATE;
 
 // ---------------------------------------------------------------------------

@@ -6,16 +6,20 @@
 
 add_library(vss_ports
   src/com0com.cpp
+  src/driver_package.cpp
   src/driver_setup.cpp
   src/listen_transport.cpp
   src/loopback_transport.cpp
+  src/waiting_transport.cpp
   src/native_lines.cpp
   src/peer_open.cpp
   src/permissions.cpp
   src/rfc2217.cpp
+  src/rfc2217_client.cpp
   src/serial_enumeration.cpp
   src/serial_transport.cpp
   src/stable_link.cpp
+  src/tx_order.cpp
   src/vcom_driver.cpp
   src/virtual_port.cpp)
 add_library(Vss::ports ALIAS vss_ports)
@@ -24,7 +28,7 @@ target_include_directories(vss_ports PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 target_compile_features(vss_ports PUBLIC cxx_std_23)
-target_link_libraries(vss_ports PUBLIC vss_core Vss::VirtualSerial)
+target_link_libraries(vss_ports PUBLIC vss_core vss_trace Vss::VirtualSerial)
 icl_platform_sources(vss_ports)
 
 # Linux and macOS share these. Windows has its own files in src/platform/windows.

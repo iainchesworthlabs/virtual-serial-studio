@@ -404,6 +404,30 @@ TEST_CASE("service mapping: permissions, manifest, decisions, shadowing and "
     REQUIRE(revised.note == plugin_note::decision_changed);
     REQUIRE(revised.differs_from_approved);
 
+    // A copy nobody decided about, of a plugin the user decided about before:
+    // what it asks beyond that decision is new.
+    plug::plugin_decision before;
+    before.plugin_id = "org.example.thing";
+    before.hash.bytes[0] = 0x99;
+    before.level = plug::trust_level::unsigned_plugin;
+    before.enabled = true;
+    before.granted = {plug::permission::ports_read};
+    before.decided_on = day(2026, 11, 1);
+    host::service_plugin later =
+        with_problem("org.example.thing", plug::plugin_errc::signature_missing);
+    later.asked = {needed, optional_one};
+    later.earlier_decision = before;
+    const plugin_view later_view = one(later);
+    REQUIRE(later_view.note == plugin_note::decision_changed);
+    REQUIRE(later_view.differs_from_approved);
+    REQUIRE(!later_view.permissions[0].is_new);
+    REQUIRE(later_view.permissions[1].is_new);
+    // Without an earlier decision it is a first question.
+    later.earlier_decision.reset();
+    const plugin_view first_view = one(later);
+    REQUIRE(first_view.note == plugin_note::decision_first);
+    REQUIRE(!first_view.differs_from_approved);
+
     // The notes at the top.
     host::service_snapshot noted;
     noted.notes = {"The policy file could not be used: others can write it."};
@@ -452,4 +476,80 @@ TEST_CASE("service mapping: what a plugin says is carried as it was said, and "
     REQUIRE_EQ(view.log.size(), std::size_t{2});
     // And a trust level the host did not give is never "official".
     REQUIRE(view.trust == plugin_trust::unsigned_plugin);
+}
+
+TEST_CASE("service mapping: what a plugin said of its licence check")
+{
+    host::service_plugin plugin = make_entry("org.example.thing");
+    REQUIRE(!one(plugin).has_licence_report);
+    host::plugin_licence_report report;
+    report.reason = vss::license::reason::expired;
+    report.licence_id = "someone's text";
+    plugin.licence_report = report;
+    const plugin_view view = one(plugin);
+    REQUIRE(view.has_licence_report);
+    REQUIRE(view.licence_report_reason == vss::license::reason::expired);
+    // Ok is carried too; the page shows nothing for it.
+    plugin.licence_report->reason = vss::license::reason::ok;
+    REQUIRE(one(plugin).has_licence_report);
+    REQUIRE(one(plugin).licence_report_reason == vss::license::reason::ok);
+}
+
+TEST_CASE("service mapping: what a decoder found, newest first, with counts")
+{
+    host::decode_store store;
+    host::decoded_frame older;
+    older.place = "Alpha";
+    older.direction = host::decode_direction::rx;
+    older.length = 4;
+    older.t_start_ns = 1'000'000'000;
+    older.t_end_ns = 1'000'000'100;
+    older.message = "hello";
+    older.summary = "a frame";
+    host::decoded_frame newer = older;
+    newer.direction = host::decode_direction::tx;
+    newer.t_start_ns = 3'000'000'000;
+    newer.t_end_ns = 3'000'000'100;
+    newer.summary = "<b>later</b>";
+    const std::vector<host::decoded_frame> frames = {older, newer};
+    REQUIRE_EQ(store.add_records(frames, 5'000'000'000).accepted,
+               std::size_t{2});
+    host::decoded_trigger framing;
+    framing.kind = host::decode_trigger_kind::framing;
+    framing.when_ns = 2'000'000'000;
+    framing.place = "Alpha";
+    framing.text = "bad frame";
+    host::decoded_trigger custom = framing;
+    custom.kind = host::decode_trigger_kind::custom;
+    custom.code = "my_code";
+    custom.when_ns = 4'000'000'000;
+    const std::vector<host::decoded_trigger> triggers = {framing, custom};
+    REQUIRE_EQ(store.add_triggers(triggers, 5'000'000'000).accepted,
+               std::size_t{2});
+    // One that is refused is counted.
+    host::decoded_frame empty = older;
+    empty.message.clear();
+    const std::vector<host::decoded_frame> bad = {empty};
+    REQUIRE_EQ(store.add_records(bad, 5'000'000'000).rejected, std::size_t{1});
+
+    const plugin_found_ptr found = map_decode_snapshot(*store.snapshot());
+    REQUIRE(found != nullptr);
+    REQUIRE_EQ(found->rows.size(), std::size_t{4});
+    // Newest first.
+    REQUIRE_EQ(found->rows[0].time_ns, quint64{4'000'000'000});
+    REQUIRE(found->rows[0].trigger);
+    REQUIRE_EQ(found->rows[0].kind, QStringLiteral("my_code"));
+    REQUIRE_EQ(found->rows[1].what, QStringLiteral("<b>later</b>"));
+    REQUIRE(!found->rows[1].received);
+    REQUIRE_EQ(found->rows[2].kind, QStringLiteral("Framing"));
+    REQUIRE_EQ(found->rows[3].kind, QStringLiteral("hello"));
+    REQUIRE(found->rows[3].received);
+    REQUIRE_EQ(found->refused, quint64{1});
+    REQUIRE(found->revision != 0);
+
+    // The revision follows the store.
+    const quint64 before = found->revision;
+    const std::vector<host::decoded_frame> one = {older};
+    static_cast<void>(store.add_records(one, 6'000'000'000));
+    REQUIRE(map_decode_snapshot(*store.snapshot())->revision != before);
 }

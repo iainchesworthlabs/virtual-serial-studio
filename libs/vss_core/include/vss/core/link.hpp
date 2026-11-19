@@ -10,9 +10,11 @@
 #include <vss/core/control_lines.hpp>
 #include <vss/core/stats.hpp>
 #include <vss/core/types.hpp>
+#include <vss/core/wire_time.hpp>
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 namespace vss {
@@ -28,11 +30,7 @@ inline constexpr std::uint32_t max_link_delay_ms = 60'000;
 /// The slowest and the fastest line rate a half-duplex bus takes, in bits
 /// per second.
 inline constexpr std::uint32_t min_bus_bit_rate = 50;
-inline constexpr std::uint32_t max_bus_bit_rate = 4'000'000;
-
-/// The bits one byte takes on the wire of a half-duplex bus: a start bit,
-/// eight data bits and a stop bit.
-inline constexpr std::uint32_t bus_bits_per_byte = 10;
+inline constexpr std::uint32_t max_bus_bit_rate = 12'000'000;
 
 /// How far ahead of the line rate a member of a half-duplex bus may get.  A
 /// chunk that could not start within this long of being read is dropped and
@@ -44,7 +42,8 @@ inline constexpr std::uint32_t max_bus_backlog_ms = 60'000;
 /// time.  For #hub::bus only; every other link refuses it.
 ///
 /// The line has a rate.  A chunk of `n` bytes occupies the wire for
-/// `n * bus_bits_per_byte / bit_rate` seconds from the moment the hub reads
+/// `n * bits_per_character / bit_rate` seconds (ten bits for 8N1, or what the
+/// sender's own framing makes of it, see #vss::wire_time) from the moment the hub reads
 /// it (or from the end of the same member's chunk before it), and the other
 /// members hear it when its last byte has left the wire, not before.  A chunk
 /// from another member that starts inside that time has collided with it,
@@ -78,6 +77,32 @@ struct half_duplex_options
 
     friend bool operator==(const half_duplex_options&,
                            const half_duplex_options&) = default;
+};
+
+/// Makes a link carry bytes and breaks at the speed a wire would, instead of
+/// as fast as they were written.
+///
+/// Every chunk is held for as long as the chunk before it takes on the wire
+/// (start, data, parity and stop bits at the sender's rate), so a long write
+/// arrives over the time it would take, and a break holds back what follows
+/// it for its own length.  The rate is the sender's: the one the program set
+/// on the sender's port, then the one set on the endpoint, then `bit_rate`
+/// and `framing` here.  Where none is known the link is not paced and the
+/// log says so once.  Off (the default) leaves the link exactly as it is
+/// without the option.
+struct wire_timing_options
+{
+    bool enabled = false;
+
+    /// Bits per second to use when the sender has none, #min_bus_bit_rate to
+    /// #max_bus_bit_rate.  Zero is none given.
+    std::uint32_t bit_rate = 0;
+
+    /// The framing to use with `bit_rate`.  Not given is `8N1`.
+    std::optional<wire_framing> framing;
+
+    friend bool operator==(const wire_timing_options&,
+                           const wire_timing_options&) = default;
 };
 
 /// Tuning for one link.
@@ -115,9 +140,26 @@ struct link_options
     /// `errc::unsupported` on any link but a bus.
     half_duplex_options half_duplex;
 
+    /// Carries the link's traffic at wire speed.  Off by default, and
+    /// `errc::unsupported` on a bus, which has a wire of its own.
+    wire_timing_options wire_timing;
+
+    /// For a monitor (a one-way link of one source without modem lines): which
+    /// bytes of the monitored port it copies.  `both` (the default) copies
+    /// what the port's program writes and what links write into the port,
+    /// `transmit` the first and `receive` the second.  `errc::unsupported`
+    /// on any other link.
+    monitor_direction direction = monitor_direction::both;
+
     bool has_latency() const noexcept
     {
         return delay_ms != 0 || jitter_ms != 0;
+    }
+
+    /// True when the link holds its traffic in a delay line.
+    bool needs_delay_line() const noexcept
+    {
+        return has_latency() || wire_timing.enabled;
     }
 };
 
@@ -136,6 +178,19 @@ valid_half_duplex(const half_duplex_options& options) noexcept
     return !options.enabled || (options.bit_rate >= min_bus_bit_rate &&
                                 options.bit_rate <= max_bus_bit_rate &&
                                 options.turnaround_ms <= max_link_delay_ms);
+}
+
+/// True when the wire timing option is off or its values are within the
+/// limits.
+inline constexpr bool
+valid_wire_timing(const wire_timing_options& options) noexcept
+{
+    if (!options.enabled)
+        return true;
+    if (options.bit_rate != 0 && (options.bit_rate < min_bus_bit_rate ||
+                                  options.bit_rate > max_bus_bit_rate))
+        return false;
+    return !options.framing || valid_framing(*options.framing);
 }
 
 /// Snapshot of a link for the GUI and the CLI.

@@ -17,12 +17,14 @@
 
 #include <QByteArray>
 #include <QByteArrayView>
+#include <QDateTime>
 #include <QMetaType>
 #include <QString>
 #include <QStringList>
 #include <QVector>
 #include <QtGlobal>
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -64,6 +66,70 @@ enum class link_style
     elbow
 };
 
+/// Where a network client is in reaching the other computer.
+enum class connect_phase
+{
+    /// A try is under way.
+    connecting,
+    connected,
+    /// The last try failed and none is planned.
+    failed,
+    /// The last try failed and the studio will try again.
+    retrying,
+    /// Closed on purpose: no try is made until it is started.
+    stopped,
+    /// Held by the user for a while: closed, no try is made until it is
+    /// resumed, and the setup keeps the pause.
+    paused
+};
+
+/// One thing that happened to a connection, for the short history the
+/// Inspector shows.
+struct connection_event
+{
+    QDateTime when;
+    QString text;
+
+    friend bool operator==(const connection_event&,
+                           const connection_event&) = default;
+};
+
+/// What a network client knows about its connection.  Empty on a port that
+/// is not a client, and on a backend that cannot say (capability
+/// `network_status`).
+struct connection_view
+{
+    /// The address it connects to, for example `tcp://192.168.1.50:4001`.
+    QString target;
+    connect_phase phase = connect_phase::connecting;
+    /// Tries that have failed in the running sequence.
+    unsigned attempts = 0;
+    /// Why the last try failed, in the engine's words, or empty.  Kept after
+    /// the connection comes up, so it is also the last error.
+    QString reason;
+    /// When this connection came up, as Studio saw it; invalid unless the
+    /// phase is `connected`.
+    QDateTime connected_at;
+    /// The last error as category and number, such as "system:10061".
+    QString error_code;
+    /// When Studio will try again; invalid unless the phase is `retrying`.
+    QDateTime next_try_at;
+    /// How many times the connection has come up again after the first.
+    unsigned reconnects = 0;
+    /// The last events of the connection, oldest first.
+    QVector<connection_event> history;
+    /// The port's counters when this connection came up.  What it has moved
+    /// since is the port's counters less these, so a counter that changes
+    /// does not change the connection.
+    quint64 base_bytes_rx = 0;
+    quint64 base_bytes_tx = 0;
+    quint64 base_reads = 0;
+    quint64 base_writes = 0;
+
+    friend bool operator==(const connection_view&,
+                           const connection_view&) = default;
+};
+
 /// One endpoint as the GUI needs it.  Engine snapshots are converted here,
 /// once, so no screen includes a core header for display data.
 struct port_view
@@ -89,6 +155,17 @@ struct port_view
     /// Connected remote clients of a listening endpoint; empty for any other
     /// kind of port, so "none connected" and "not a listener" differ.
     std::optional<std::size_t> clients;
+    /// The target and state of a network client; see #connection_view.
+    std::optional<connection_view> connection;
+    /// The port was made from an address, so it can be stopped and started
+    /// again (capability `port_stop`): a network client or server, or a
+    /// serial device.  A virtual port or a fixture cannot.
+    bool can_stop = false;
+    /// Closed on purpose, with its links kept and no retry running.
+    bool stopped = false;
+    /// Paused by the user (capability `port_pause`): closed like a stopped
+    /// port, but a pause is saved in the setup.  Never set with `stopped`.
+    bool paused = false;
     /// The names of the ports on a shared link that run at a different baud
     /// rate or framing from this one.  Empty when they all agree or the
     /// formats are not known.
@@ -202,8 +279,41 @@ enum class driver_problem
     helper_incompatible,
     /// The helper is there and refused this user.
     helper_denied,
+    /// The driver on this PC makes ports, and they speak another version than
+    /// this program: an older driver was kept when this one was installed.
+    driver_old,
     /// Something else, or the answer was not understood.
     unknown
+};
+
+/// How the driver package in Windows' driver store compares with the one this
+/// copy of Studio carries (Windows compares the date, then the four parts).
+enum class driver_age
+{
+    /// One of the two could not be read: no driver store, no package files
+    /// beside Studio, or no driver.
+    unknown,
+    /// The installed package is older than the bundled one.
+    older,
+    /// The same.
+    same,
+    /// The installed package is newer than the bundled one.
+    newer
+};
+
+/// The three versions Studio knows of the driver, as text for the person:
+/// `1.5.1.0 (2026-11-18)`, or empty when not known.
+struct driver_versions
+{
+    /// The newest package in the driver store.
+    QString installed;
+    /// The package carried by this copy of Studio (its driver folder).
+    QString bundled;
+    /// The interface version of the ports that are running, e.g. `5`.
+    QString ports;
+    driver_age age = driver_age::unknown;
+
+    bool operator==(const driver_versions&) const = default;
 };
 
 /// The answer of a check of the driver set-up.
@@ -213,6 +323,8 @@ struct driver_check
     /// One English line with what was seen, and the Win32 error behind it; for
     /// the "Copy details" text and the log, never a sentence for the person.
     QString details;
+    /// What Studio knows of the driver's versions (Windows).
+    driver_versions versions;
 
     bool operator==(const driver_check&) const = default;
 };
@@ -296,7 +408,14 @@ struct gui_event
     vss::control_lines lines;
     QString message;
     QString error;
+    /// The error as category and number, such as "system:10061", or empty.
+    QString error_code;
     vss::time_point when{};
+    /// For a `line_break`: which part, how long (zero for a begin) and
+    /// whether the length was measured.
+    vss::break_phase phase = vss::break_phase::complete;
+    std::chrono::nanoseconds duration{0};
+    bool measured = false;
 };
 
 using event_batch = QVector<gui_event>;
@@ -309,8 +428,27 @@ struct share_view
     vss::link_id link = 0;
 };
 
+/// The result of `StudioBackend::attach_network`.
+struct network_attach_view
+{
+    /// The network port.
+    vss::endpoint_id port = 0;
+    /// The two-way link between it and the port it serves.
+    vss::link_id link = 0;
+    /// The remote end refused, and the port waits and tries again.
+    bool waiting = false;
+    /// A Studio port made for the network port to link to, or 0 when the
+    /// user chose a port that was there already.
+    vss::endpoint_id created = 0;
+};
+
 /// One-line rendering of an engine error, used by dialogs and the status bar.
 QString error_text(const vss::error_code& error);
+
+/// What a break row says in its Detail: the length ("88 µs"), "at least"
+/// the length for one that was not measured, and "running" for a begin.
+QString break_detail(vss::break_phase phase, std::chrono::nanoseconds duration,
+                     bool measured);
 
 } // namespace vss::gui
 

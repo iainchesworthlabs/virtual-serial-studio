@@ -12,12 +12,14 @@
 #include <vss/plugin/hash.hpp>
 #include <vss/plugin/licence.hpp>
 #include <vss/plugin/lifecycle.hpp>
+#include <vss/plugin/parameters.hpp>
 
 #include <QCoreApplication>
 #include <QDate>
 
 #include <algorithm>
 #include <cmath>
+#include <span>
 
 namespace vss::gui
 {
@@ -134,6 +136,22 @@ QString permission_id(plug::permission value)
     return from_std(std::string(plug::to_string(value)));
 }
 
+/// Why Studio, or the plugin, refused an instance, in a sentence.
+QString refusal_text(const vss::error_code& problem)
+{
+    if (is_plugin_code(problem, plug::plugin_errc::capability_missing))
+        return QCoreApplication::translate("PluginsDialog",
+                                           "The plugin does not offer this.");
+    if (is_plugin_code(problem, plug::plugin_errc::too_many))
+        return QCoreApplication::translate(
+            "PluginsDialog", "The plugin allows no more of these.");
+    if (is_plugin_code(problem, plug::plugin_errc::unresponsive))
+        return QCoreApplication::translate("PluginsDialog",
+                                           "The plugin did not answer.");
+    return QCoreApplication::translate("PluginsDialog",
+                                       "The plugin turned it down.");
+}
+
 bool contains(const std::vector<plug::permission>& list, plug::permission value)
 {
     return std::find(list.begin(), list.end(), value) != list.end();
@@ -159,6 +177,33 @@ void fill_from_manifest(plugin_view& view, const plug::manifest& declared)
         addition.type_name =
             from_std(best.empty() ? point.id : std::string(best));
         addition.type_id = from_std(point.id);
+        addition.max_instances = static_cast<int>(point.max_instances);
+        addition.decoder = point.kind == plug::extension_kind::decoder;
+        // A setting with no default must be given. Studio asks for the ones
+        // that are text in a small dialog; a point with another kind of
+        // setting that has no default cannot be started yet.
+        for (const plug::parameter& setting : point.parameters)
+        {
+            if (!std::holds_alternative<std::monostate>(setting.default_value))
+                continue;
+            const bool text = setting.type == plug::parameter_type::string ||
+                              setting.type == plug::parameter_type::port ||
+                              setting.type == plug::parameter_type::link;
+            if (!text)
+            {
+                addition.needs_settings = true;
+                continue;
+            }
+            plugin_parameter_ask ask;
+            ask.id = from_std(setting.id);
+            const std::string_view label = setting.label.best("");
+            ask.label =
+                from_std(label.empty() ? setting.id : std::string(label));
+            ask.help = from_std(std::string(setting.help.best("")));
+            ask.place_name = setting.id == "port" || setting.id == "place" ||
+                             setting.id == "places";
+            addition.asks.push_back(std::move(ask));
+        }
         addition.description =
             from_std(std::string(point.description.best("")));
         view.adds.push_back(addition);
@@ -360,6 +405,82 @@ plugin_snapshot map_service_snapshot(const host::service_snapshot& snapshot,
             view.override_active = decision->run_without_sandbox;
             view.override_on = date_of(decision->decided_on);
         }
+        // A copy nobody has decided about, of a plugin the user decided
+        // about before: what it asks beyond that decision is new.
+        if (decision == nullptr && plugin.earlier_decision.has_value())
+        {
+            view.differs_from_approved = true;
+            for (plugin_permission_view& permission : view.permissions)
+            {
+                permission.is_new = !std::any_of(
+                    plugin.earlier_decision->granted.begin(),
+                    plugin.earlier_decision->granted.end(),
+                    [&permission](plug::permission each)
+                    { return permission_id(each) == permission.id; });
+            }
+        }
+        // What the plugin said of its own check of the licence. Its claim:
+        // the page shows Studio's sentence for the reason, never its words.
+        if (plugin.licence_report.has_value())
+        {
+            view.has_licence_report = true;
+            view.licence_report_reason = plugin.licence_report->reason;
+        }
+
+        // What Studio runs of this plugin. A plugin that is not running keeps
+        // its instances, shown as not running.
+        {
+            const bool alive =
+                plugin.run != nullptr &&
+                plugin.run->state != plug::run_state::stopped &&
+                plugin.run->state != plug::run_state::quarantined;
+            for (const host::instance_view& each : plugin.instances)
+            {
+                plugin_instance_view made;
+                made.number = each.spec.instance;
+                made.point_id = from_std(each.spec.type);
+                made.point_name = made.point_id;
+                for (const plugin_addition& point : view.adds)
+                {
+                    if (point.type_id == made.point_id)
+                        made.point_name = point.type_name;
+                }
+                made.settings_pending = each.params_pending;
+                made.decoder = each.spec.kind == plug::extension_kind::decoder;
+                if (!alive)
+                {
+                    made.state = plugin_instance_state::not_running;
+                }
+                else
+                {
+                    switch (each.state)
+                    {
+                    case host::instance_state::waiting:
+                        made.state = plugin_instance_state::waiting;
+                        break;
+                    case host::instance_state::creating:
+                        made.state = plugin_instance_state::starting;
+                        break;
+                    case host::instance_state::running:
+                        made.state = plugin_instance_state::running;
+                        break;
+                    case host::instance_state::stopping:
+                        made.state = plugin_instance_state::stopping;
+                        break;
+                    case host::instance_state::refused:
+                        made.state = plugin_instance_state::refused;
+                        break;
+                    }
+                }
+                if (made.state == plugin_instance_state::refused)
+                {
+                    made.refusal = refusal_text(each.problem);
+                    made.reason = from_std(each.reason);
+                }
+                view.instances.push_back(std::move(made));
+            }
+        }
+
         // What this plugin's sandbox is, or what this computer can give it.
         const host::sandbox_report& report =
             plugin.run ? plugin.run->sandbox : inputs.available;
@@ -472,6 +593,9 @@ plugin_snapshot map_service_snapshot(const host::service_snapshot& snapshot,
                     view.used_copy_trust = gui_trust(other.level);
                     view.used_copy_author = from_std(other.author);
                     view.used_copy_id = from_std(other.id);
+                    view.used_copy_installed_for =
+                        installed_for_scope(other.scope);
+                    view.has_used_copy = true;
                     if (other.level != plugin.level ||
                         other.key_id != plugin.key_id)
                         note = plugin_note::not_used_different_signer;
@@ -577,6 +701,89 @@ plugin_snapshot map_service_snapshot(const host::service_snapshot& snapshot,
                  inputs.licence.state == vss::license::state::none)
             out.banner = plugin_banner::no_licence_for_official;
     }
+    return out;
+}
+
+plugin_found_ptr map_decode_snapshot(const host::decode_snapshot& window)
+{
+    auto out = std::make_shared<plugin_found>();
+    if (!window.frames || !window.triggers)
+        return out;
+    constexpr std::size_t kRows = 300;
+    for (const auto& item : window.frames->items)
+    {
+        plugin_found_row row;
+        row.time_ns = item->value.t_start_ns;
+        row.place = QString::fromStdString(item->value.place);
+        row.received = item->value.direction == host::decode_direction::rx;
+        row.what = QString::fromStdString(item->value.summary);
+        row.kind = QString::fromStdString(item->value.message);
+        out->rows.push_back(std::move(row));
+    }
+    for (const auto& item : window.triggers->items)
+    {
+        plugin_found_row row;
+        row.time_ns = item->value.when_ns;
+        row.place = QString::fromStdString(item->value.place);
+        row.received = item->value.direction == host::decode_direction::rx;
+        row.what = QString::fromStdString(item->value.text);
+        row.trigger = true;
+        switch (item->value.kind)
+        {
+        case host::decode_trigger_kind::framing:
+            row.kind = QCoreApplication::translate("PluginsDialog", "Framing");
+            break;
+        case host::decode_trigger_kind::unknown_type:
+            row.kind =
+                QCoreApplication::translate("PluginsDialog", "Unknown type");
+            break;
+        case host::decode_trigger_kind::unknown_value:
+            row.kind =
+                QCoreApplication::translate("PluginsDialog", "Unknown value");
+            break;
+        case host::decode_trigger_kind::check:
+            row.kind = QCoreApplication::translate("PluginsDialog", "Check");
+            break;
+        case host::decode_trigger_kind::length:
+            row.kind = QCoreApplication::translate("PluginsDialog", "Length");
+            break;
+        case host::decode_trigger_kind::timeout:
+            row.kind = QCoreApplication::translate("PluginsDialog", "Timeout");
+            break;
+        case host::decode_trigger_kind::sequence:
+            row.kind = QCoreApplication::translate("PluginsDialog", "Sequence");
+            break;
+        case host::decode_trigger_kind::contention:
+            row.kind =
+                QCoreApplication::translate("PluginsDialog", "Contention");
+            break;
+        case host::decode_trigger_kind::line_error:
+            row.kind =
+                QCoreApplication::translate("PluginsDialog", "Line error");
+            break;
+        case host::decode_trigger_kind::decoder_lost:
+            row.kind =
+                QCoreApplication::translate("PluginsDialog", "Decoder lost");
+            break;
+        case host::decode_trigger_kind::custom:
+            row.kind = QString::fromStdString(item->value.code);
+            break;
+        }
+        out->rows.push_back(std::move(row));
+    }
+    std::stable_sort(out->rows.begin(), out->rows.end(),
+                     [](const plugin_found_row& a, const plugin_found_row& b)
+                     { return a.time_ns > b.time_ns; });
+    out->held = out->rows.size();
+    if (out->rows.size() > kRows)
+        out->rows.resize(kRows);
+    out->dropped = window.frames->dropped + window.triggers->dropped;
+    out->refused = window.frames->rejected + window.triggers->rejected;
+    out->over_budget =
+        window.frames->over_budget + window.triggers->over_budget;
+    out->revision = window.frames->next_sequence * 1000003ULL +
+                    window.triggers->next_sequence + out->dropped +
+                    out->refused + out->over_budget;
     return out;
 }
 

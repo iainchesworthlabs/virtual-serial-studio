@@ -29,9 +29,11 @@ constexpr std::chrono::milliseconds foreign_clock_poll{1};
 
 bus_wire::bus_wire(const boost::asio::any_io_executor& executor,
                    clock_function clock,
-                   std::shared_ptr<std::atomic<std::uint64_t>> garbled)
+                   std::shared_ptr<std::atomic<std::uint64_t>> garbled,
+                   forward_function forward)
     : strand_(boost::asio::make_strand(executor)), timer_(strand_),
-      clock_(std::move(clock)), garbled_(std::move(garbled))
+      clock_(std::move(clock)), garbled_(std::move(garbled)),
+      forward_(std::move(forward))
 {
 }
 
@@ -40,12 +42,24 @@ time_point bus_wire::now() const
     return clock_ ? clock_() : clock_type::now();
 }
 
-void bus_wire::push(endpoint_id sender, time_point due, bytes_view data,
+void bus_wire::push(endpoint_id sender, time_point due,
+                    const stream_item& item,
                     std::shared_ptr<bus_transmission> transmission,
-                    std::vector<delivery> receivers)
+                    std::vector<delivery> receivers, visited_set visited)
 {
-    if (data.empty() || receivers.empty())
+    if (receivers.empty())
         return;
+    owned_item owned;
+    if (const auto* bytes = std::get_if<bytes_view>(&item))
+    {
+        if (bytes->empty())
+            return;
+        owned = byte_buffer(bytes->begin(), bytes->end());
+    }
+    else
+    {
+        owned = std::get<line_break>(item);
+    }
 
     VSS_PROFILE_ZONE("link.wire_push");
 
@@ -55,8 +69,8 @@ void bus_wire::push(endpoint_id sender, time_point due, bytes_view data,
         if (closed_)
             return;
         const auto placed = queue_.emplace(
-            due, item{sender, byte_buffer(data.begin(), data.end()),
-                      std::move(transmission), std::move(receivers)});
+            due, slot{sender, std::move(owned), std::move(transmission),
+                       std::move(receivers), std::move(visited)});
         first = placed == queue_.begin();
         VSS_PROFILE_PLOT("link.wire_queue", queue_.size());
     }
@@ -80,8 +94,8 @@ void bus_wire::forget(endpoint_id member)
     for (auto it = queue_.begin(); it != queue_.end();)
     {
         auto& receivers = it->second.receivers;
-        std::erase_if(receivers, [member](const delivery& entry)
-                      { return entry.target->id() == member; });
+        std::erase_if(receivers, [member](const delivery& hearer)
+                      { return hearer.target->id() == member; });
         if (it->second.sender == member || receivers.empty())
             it = queue_.erase(it);
         else
@@ -133,14 +147,14 @@ void bus_wire::fire()
     // Only this strand and close() take it, so it is free unless the hub is
     // replacing the wire.
     std::lock_guard delivering(deliver_mutex_);
-    std::vector<item> ready = take_due();
+    std::vector<slot> ready = take_due();
     deliver(ready);
     arm();
 }
 
-std::vector<bus_wire::item> bus_wire::take_due()
+std::vector<bus_wire::slot> bus_wire::take_due()
 {
-    std::vector<item> ready;
+    std::vector<slot> ready;
     std::lock_guard lock(mutex_);
     const time_point current = now();
     while (!queue_.empty() && queue_.begin()->first <= current)
@@ -151,24 +165,34 @@ std::vector<bus_wire::item> bus_wire::take_due()
     return ready;
 }
 
-void bus_wire::deliver(std::vector<item>& ready)
+void bus_wire::deliver(std::vector<slot>& ready)
 {
     for (auto& chunk : ready)
     {
         // Read here and not when the chunk was queued: a chunk that ran into
         // this one while it was on the wire set the flag since.
-        if (chunk.transmission && chunk.transmission->garble.load())
+        auto* bytes = std::get_if<byte_buffer>(&chunk.data);
+        // A break is not inverted: it is the wire held low.
+        if (bytes && chunk.transmission && chunk.transmission->garble.load())
         {
-            for (auto& value : chunk.data)
+            for (auto& value : *bytes)
                 value = static_cast<byte_buffer::value_type>(~value);
-            garbled_->fetch_add(chunk.data.size() * chunk.receivers.size());
+            garbled_->fetch_add(bytes->size() * chunk.receivers.size());
         }
-        for (const delivery& entry : chunk.receivers)
+        const stream_item shown = view_of(chunk.data);
+        for (const delivery& target : chunk.receivers)
         {
-            if (entry.delay)
-                entry.delay->push(chunk.data);
+            if (target.delay)
+            {
+                target.delay->push(shown, chunk.visited);
+                continue;
+            }
+            if (chunk.visited && forward_)
+                forward_(target.target->id(), shown, chunk.visited, now());
+            if (bytes)
+                target.target->write(bytes_view(*bytes));
             else
-                entry.target->write(bytes_view(chunk.data));
+                target.target->write_break(std::get<line_break>(chunk.data));
         }
     }
 }

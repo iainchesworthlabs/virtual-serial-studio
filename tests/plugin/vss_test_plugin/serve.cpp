@@ -153,6 +153,18 @@ std::optional<api_message> request_with_header(std::string_view text,
     return std::move(message).value();
 }
 
+/// A notification whose header is `text`, a JSON object that holds an "op"
+/// and no "id".  Nothing when it is not a message.
+std::optional<api_message> notification_with_header(std::string_view text)
+{
+    vss::agent::frame frame;
+    frame.header = std::string(text);
+    auto message = decode_message(frame);
+    if (message.has_error() || message.value().id != 0)
+        return std::nullopt;
+    return std::move(message).value();
+}
+
 /// The bytes of a message, or nothing when it cannot be written.
 std::optional<vss::byte_buffer> bytes_of(const api_message& message)
 {
@@ -301,6 +313,13 @@ private:
             if (!request.has_value() || !channel_.send(*request))
                 return exit_write_failed;
             ++header_id;
+        }
+        for (const std::string& header : options_.notify_headers)
+        {
+            const std::optional<api_message> notification =
+                notification_with_header(header);
+            if (!notification.has_value() || !channel_.send(*notification))
+                return exit_write_failed;
         }
         if (options_.garbage_after_ready)
         {
@@ -512,6 +531,16 @@ bool take_serve_modifier(std::string_view argument, serve_options& options)
             (*text)[last] != '}')
             return false;
         options.send_headers.emplace_back(*text);
+        return true;
+    }
+    if (const auto text = value_after(argument, "--notify-header="))
+    {
+        const std::size_t first = text->find_first_not_of(" \t\r\n");
+        const std::size_t last = text->find_last_not_of(" \t\r\n");
+        if (first == std::string_view::npos || (*text)[first] != '{' ||
+            (*text)[last] != '}')
+            return false;
+        options.notify_headers.emplace_back(*text);
         return true;
     }
     if (const auto text = value_after(argument, "--echo-op="))

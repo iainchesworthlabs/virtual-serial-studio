@@ -23,6 +23,7 @@ class QListView;
 class QStackedWidget;
 class QTableView;
 class QTimer;
+class QToolButton;
 
 namespace vss::gui
 {
@@ -52,8 +53,17 @@ public:
     QTableView* table() const noexcept { return table_; }
     /// Smallest a table column can be dragged to (a 24 px target and more).
     static constexpr int kMinimumColumnWidth = 48;
-    /// Writes the column widths now rather than after the usual short delay.
-    void save_column_widths() const;
+    /// Writes the column order, visibility and widths now rather than after
+    /// the usual short delay.
+    void save_column_layout() const;
+    /// The filter box, for tests.
+    QLineEdit* filter_edit() const noexcept { return filter_; }
+    /// Shows or hides a column of the table; the Port column cannot be hidden.
+    void set_column_visible(int column, bool visible);
+    /// Puts the columns back in their default order, widths and visibility.
+    void reset_columns();
+    /// Orders the table by a column, or leaves the engine's order with -1.
+    void sort_by(int column, Qt::SortOrder order);
 
     /// How a port's menu reads its Send, Monitor and fixture actions; see
     /// `add_port_menu_actions`.
@@ -79,7 +89,12 @@ public:
 private:
     void build();
     void set_default_column_widths();
-    void restore_column_widths();
+    void restore_column_layout();
+    void move_column_by_key(int column, int direction);
+    void cycle_sort_by_key(int column);
+    void restore_sort();
+    void open_column_menu(const QPoint& global);
+    void schedule_refresh();
     void resize_column_by_key(int column, int delta);
     void fit_column_by_key(int column);
     void refresh_others();
@@ -95,7 +110,11 @@ private:
     QListView* simple_ = nullptr;
     QTableView* table_ = nullptr;
     QStackedWidget* stack_ = nullptr;
+    QWidget* filter_row_ = nullptr;
     QLineEdit* filter_ = nullptr;
+    QToolButton* clear_button_ = nullptr;
+    bool centring_clear_button_ = false;
+    bool refresh_queued_ = false;
     QLabel* others_ = nullptr;
     QTimer* others_timer_ = nullptr;
     QTimer* column_save_timer_ = nullptr;

@@ -142,6 +142,7 @@ Timing sentences, as tooltips and accessible descriptions:
 | `modifier.inline` | "Hold, change or drop data on the links you use it on." |
 | `faults` | "Cause line errors and disconnections, and set timed replies." |
 | `serial.devices` | "See the list of serial devices on this computer." |
+| `licence.read` | "Read your licence file. The file holds your name." |
 | `fs.read` | "Read files in a folder you choose." |
 | `fs.write` | "Write files in a folder you choose." |
 | `net.listen` | "Accept connections on <address>." With a loopback address: "Accept connections from programs on this computer, on <address>." |
@@ -194,7 +195,7 @@ Top NoteBanner:
 - Signed, author not approved (warn): "Signed by <author name>. Not verified by Virtual Serial Studio. Only run it if you know who that is."
 - Unsigned (danger): "Unofficial plugin. It can do anything Studio can." Second line: "Studio cannot tell who made it or whether it was changed."
 
-A changed plugin adds, above the list (warn): "This is a different version from the one you approved." and, when it asks for more, "It asks for more than before:" with the new permission sentences.
+A plugin that changed after the person decided about an earlier copy adds, above the list (warn): "You allowed an earlier version of this plugin. Look at what changed before you allow this one." and, when it asks for more, "It asks for more than before:" with the new permission sentences.
 
 Body: the plugin's name, version and fingerprint (fixed font); "What it adds" as in the detail; then the heading "It asks to:" and the permission list. A permission the plugin marks as needed is a row with a check mark and the muted word "Needed". One it marks as optional is a check box, ticked by default, that the user can untick. The amber rows are amber here too.
 
@@ -252,6 +253,95 @@ Check box "I understand that Studio is not keeping this plugin apart" (off). "Ru
 Afterwards the Isolation row says so and offers Undo, and the plugin's row and every part it provides carry the trust line unchanged; nothing presents the plugin as safer than it is.
 
 Acceptance: the dialog cannot be answered by Enter alone; it is never shown on an install for everyone without the policy; the override is stored for that fingerprint only and Undo removes it and stops the plugin; a screen reader hears the banner before the buttons.
+
+## A plugin shows a code (width 480)
+Context `PluginSecretDialog`. Opens when a running plugin hands Studio a secret to show, such as a pairing code or a one-time password (`secret.show`, `libs/vss_plugin_host/include/vss/plugin/host/secret_point.hpp`). Modal to the main window. Initial focus and default are Close. Studio shows the secret once and keeps it nowhere: not in the log, not in a snapshot, not in a setting, not in a support bundle.
+
+Title "Code from a plugin". Sub (Studio's own words): "<plugin name> asks you to read this." with the plugin's name from its manifest, as plain text. Under it, smaller, the plugin's id.
+
+Body, in this order:
+- A box with a border and the heading "The plugin says" that sets the plugin's words apart from Studio's:
+  - the plugin's label for the code (plain text, body font, at most 64 bytes), for example "Pairing code";
+  - the code itself, in the fixed font at the large size, selectable with the mouse and the keyboard, never rich text and never a link. A long code wraps; nothing is cut. The accessible name is the label, and the accessible description is the code with a space between the characters, so that a screen reader reads it one character at a time.
+- A countdown line: "Good for <time>." with the time as "4 min 30 s", "5 min" or "45 s". It changes once a second. It is announced as a polite live region at a minute, at 30 seconds, at 10 seconds and at the end, not every second. At zero the code is removed from the dialog, Copy is disabled, and the line says "This code is no longer good. Ask the plugin for a new one."
+- A muted line: "Studio does not keep this code. Only give it to someone you mean to."
+
+Buttons: "Copy" (quiet) puts the code on the clipboard and changes to "Copied" for two seconds; nothing else ever copies it. "Close" (primary, default). Close, Escape and the window's close button all do the same.
+
+What the plugin is told. Seen: the dialog was on the screen and the person pressed Copy, or closed it (Close, Escape, the window's button), while the code was still shown. Not seen: the dialog could not be shown, Studio is closing, or the time ran out before the person did anything. The code is removed from memory when the dialog closes or its time runs out.
+
+Two plugins at once: the second dialog waits until the first is closed, and Studio shows one such dialog at a time. A code's time counts from the moment the plugin asked, so a code whose time ran out while it waited is not shown, and the plugin is told it was not seen.
+
+Acceptance: the dialog works at 200 percent text; a screen reader reads the plugin's name, then "The plugin says", the label and the code, then the buttons; a label or code with markup, direction marks or control characters is shown as plain text and never as markup.
+
+## A plugin asks for a control session (width 560)
+Context `PluginControlDialog`. Opens when a running plugin asks Studio's remote control for a session on someone's behalf (`control.session.request`, `docs/plugins.md`, section 7.7). Modal to the main window. Initial focus and default are Refuse. Closing the dialog, Escape and the window's close button are Refuse. Nothing is remembered: every session asks.
+
+Title "Allow remote control?". Sub "<plugin name> asks to use this computer's ports for another computer."
+
+Body, in this order:
+- "It says the other computer is: <peer>", the plugin's own text, or "It did not say which computer." when it gave none.
+- When the plugin gave a reason, a box with a border and the heading "The plugin's own words", holding the reason in quotation marks.
+- The heading "It asks to be allowed to:" and one row for each scope, with one sentence (a scope that appears twice is shown once):
+
+| Scope | Sentence |
+|---|---|
+| `monitor` | "See the ports, links and their state" |
+| `monitor.data` | "See the bytes that pass through the ports" |
+| `control.ports` | "Add, change and remove ports and links" |
+| `control.data` | "Send bytes into the ports" |
+| `control.faults` | "Cause faults on ports and links" |
+| `control.apply` | "Apply a whole setup" |
+| `record` | "Start and stop recordings" |
+| any other name | "<scope>. Studio does not describe this one." |
+
+  `monitor.data`, `control.data`, `record` and a scope Studio does not describe are drawn as amber rows with the warning icon, with the accessible description "This lets the other side see or send data." Studio draws `record` amber as well as the two data scopes, because a recording is the data. When any row is amber, a warn banner follows the list: "The other computer can read or write what your ports carry."
+- "This lasts <n> hour(s), or until the plugin stops. You are asked again each time." The time is the request's `token_life` in whole hours, or in minutes when it is not a whole number of hours.
+
+Buttons: "Refuse" (default), "Allow" (primary, not the default). The dialog cannot be answered by Enter alone on Allow.
+
+What the plugin is told: Allow is yes. Refuse, close, Escape, a plugin that stopped first and a Studio that is closing are all no.
+
+Two plugins at once: the second dialog waits until the first is answered. A request that waited more than two minutes is answered no without being shown, because the plugin has stopped waiting.
+
+Acceptance: the dialog works at 200 percent text; a screen reader reads the title, the sub, the two lines of the plugin's own, then every scope row, then the buttons; the amber rows carry the warning icon and the description above, never colour alone.
+
+## What a plugin runs (in the detail)
+Context `PluginsDialog`. A section headed "What it runs", between the permissions and "Used in this setup", for a plugin whose description declares extension points. It lists the instances Studio asks the plugin for, which are kept by plugin id in Studio's own settings (the file `plugin-instances.json` in Studio's folder) so that they come back at the next start. They are not in the setup file: the setup schema does not change. An instance names its ports by name inside its settings; there is no other binding to the setup yet.
+
+- None yet: the muted line "Nothing is set up yet."
+- One row for each instance: the name of its extension point from the description (plain text), its state in words on the right, and a quiet button "Remove" (accessible name "Remove <point name>"). States: "Not running" (the plugin is not running; the instance is kept), "Waiting", "Starting", "Running", "Stopping", "Refused".
+- A refused instance shows Studio's sentence under its row (muted): "The plugin does not offer this." (the description has no such point), "The plugin allows no more of these.", "The plugin did not answer." or "The plugin turned it down."; and when the plugin gave a reason of its own, "The plugin says: “<reason>”" as plain text.
+- While the plugin still has older settings than the ones set, the muted line "Sending the new settings".
+- A quiet button "Add..." opens a menu with one entry for each extension point of the plugin. An entry is disabled when the plugin allows no more of that point (tooltip "The plugin allows no more of these.") and when the point has a setting with no default, which Studio cannot ask for yet (tooltip "This needs settings that Studio cannot ask for yet."). Adding makes the instance with the next free number and the default settings, and calls the service with the whole new list. The button is disabled for a plugin that cannot be used, needs a newer Studio, is blocked or is not used.
+- A point with a setting that has no default (a port or a link to name, or plain text) asks for it first, in the dialog "Add <point name>" below. A point with another kind of setting that has no default (a number, a path, a secret) cannot be added from the page yet: its entry in the menu is disabled with the tooltip "This needs settings that Studio cannot ask for yet.". Forms for changing an instance's settings afterwards are not part of this release: `Settings forms`, below, are the design.
+
+### Support bundle sections
+A plugin that declares sections for the support bundle is answered when it sends `bundle.result`, so that nothing is refused as an unknown message. The support bundle dialog does not ask a plugin for a section in this release: nothing is added to a bundle from a plugin, and no row for one is shown.
+
+### What it found (decoders)
+Context `PluginsDialog`. Under the row of each running instance of a decoder, a section headed "What it found": a plain table of the newest frames and triggers the decoder handed Studio, newest first, at most 300 rows. Columns: "Time" (seconds on the hub's clock, for example "12.345 s"), "Place", "Direction" ("Received" or "Sent"), "What" (a frame's summary; a trigger's text) and "Kind" (a frame: its message name; a trigger: "Framing", "Unknown type", "Unknown value", "Check", "Length", "Timeout", "Sequence", "Contention", "Line error", "Decoder lost", or for a custom one the plugin's own code). The table is read only, has the accessible name "What <point name> found", and is reachable by keyboard.
+
+Every text in a row is the plugin's own: plain text, never rich text, with control characters and direction marks removed. A muted line under the heading says "These words come from the plugin." With nothing yet: "Nothing found yet." When the store has dropped or refused anything, a muted line: "Left out: <n> dropped to stay within the limits, <n> refused, <n> over the rate limit." (only the counts that are not zero). When more than 300 rows are held: "Showing the newest 300 of <n>."
+
+The table is refreshed about four times a second while it is on the screen, from the instance's store (which the decoder fills; the page never touches the plugin's threads). The store keeps what it holds for as long as the plugin is installed. A trigger has a kind and no severity in the plugin API, so the table shows none.
+
+The places a decoder reads come from its settings: a setting named `places` (a list of names, or one name), `place` or `port`. There is no binding in the setup file yet.
+
+### Add <point name> (width 520)
+Context `PluginInstanceDialog`. Opens from an entry of the "Add..." menu whose extension point has settings to ask for. Modal. Title "Add <point name>". Sub "<plugin name> needs these settings first."
+
+One row for each setting that has no default and is text: the plugin's label (plain text), then the field, then the plugin's help text as a muted line. A setting named `port`, `place` or `places` is an editable combo box of the names of the ports and links in the setup, with nothing chosen at first; any other is a line of text. The label is the field's accessible name and the help its accessible description. A muted line under the rows: "These words come from the plugin."
+
+Buttons: Cancel, "Add" (primary). "Add" is disabled until every field has text. Nothing is made if the person cancels. Studio checks what was given against the plugin's description (type, length, plain text); a value it refuses makes no instance.
+
+Acceptance: every row and button is reachable by keyboard in the order of the page; the state words are text, never colour alone; the section reads as a list.
+
+## What a plugin said of its licence
+Context `PluginsDialog`. An official plugin checks the licence itself and tells Studio what it found (`licence.report`, reason as the licence library names it, `ok` when it accepted). When the reason is not `ok`, the detail shows a warn banner under the Licence row: "This plugin did not accept the licence: <sentence>", where the sentence is the one the Licence page already shows for that reason, never text from the plugin. When Studio's own check found the licence fine and the plugin's row does not say it needs one, the banner adds: "Studio and the plugin disagree. Check that Studio and the plugin are both up to date."
+
+## Plugins that record, and the places they may use
+A plugin that was granted `traffic.tap` and asks Studio to record names the places it wants by name: a port by its name as the Ports list shows it, and a link by the names of its ends, "<first end> - <second end>" (several ends on one side are joined by "+"). A name Studio does not know is refused, and the plugin is told so. Studio publishes the table of names, with each port's line settings and control lines, from the GUI thread whenever the ports or links change, so that nothing the plugin does waits on the GUI. The "Recording" chip in the status bar shows while one runs.
 
 ## Toolbox (Advanced mode)
 Context `Toolbox`, extending `screens/07-canvas-editor.md`. A third group under **Ports** and **Bundles**, with the group label **Plugins**. The group is absent when it would be empty. One tile for each fixture type of each plugin that is installed and on, ordered by plugin name, then type name.

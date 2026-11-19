@@ -360,8 +360,11 @@ A deterrent only, as decided.
   its per-user application data folder, and updates it when it starts and once
   an hour. The file is a small JSON object with `latest_seen` (a time) and
   `applied_resets` (the reset tokens already used). Studio does not pass the
-  stored time to a plugin; an official plugin that needs it reads that file
-  itself.
+  stored time to a plugin. A plugin runs confined and cannot read Studio's
+  folder, so a plugin that checks the licence keeps its own latest time in its
+  own data directory, uses its release date and the licence's `issued_at` as
+  the other lower bounds, and applies a `clock_reset` token to its own file in
+  the same way, once.
 * Two more lower bounds cost nothing: the build date of Studio itself and the
   `issued_at` of the licence.
 * If the clock reads more than 48 hours before the highest of those, the state
@@ -498,6 +501,46 @@ control gateway and the plugin host do not ask it yet.
 The plugin framework session should build its signature check on
 `vss::signed_file` and not write a second one. A note saying so is in the
 shared notes folder.
+
+### The plugin's own check
+
+An official plugin checks the licence itself and does not take Studio's word
+for it. It may not copy or link `libs/vss_license`, which is GPL. So there is a
+second reader for a plugin to copy, in `sdk/licence-reader`: one header and one
+source file in C++17, which need only the standard library and the plugin
+author's own copy of Monocypher.
+
+`sdk/licence-reader` is the one exception to the rule that every first-party
+file in this repository is GPL-3.0-or-later. The reader is under the BSD
+2-Clause licence and the test vectors beside it are under CC0 1.0. The
+exception covers that folder and nothing else. The reader was written from
+this page and includes nothing from the rest of the repository.
+
+What the reader does:
+
+* It checks the file as this page describes: the size, the envelope, the
+  purpose, the signature, the payload, `critical`, the key's window, the
+  clock, the term, the features and the version window.
+* The caller passes in the list of keys it trusts, the time, its build date
+  and its stored latest time. The reader has no trust list, reads no file and
+  reads no clock.
+* It answers with one of the reason names of `vss::license::reason` as text,
+  and the `licence_id`, which the plugin sends in `licence.report` unchanged.
+* It does not look at a revocation list or at `machines`. A plugin has no
+  revocation list and no use for the computer's name; Studio checks both
+  before it starts the plugin.
+
+`sdk/licence-reader/vectors` holds licence files with the answer a reader must
+give for each: a good licence, one that is expiring, in grace, expired or not
+yet valid, a wrong purpose, an unknown key, a key outside its window, bad and
+malleable signatures, an unknown critical member, an unknown format, a file
+over 64 KiB, a missing feature, a suspect clock, bad base64url and duplicate
+members. Every file is signed with the published test key `test-rfc8032-1` and
+never with a key that issues real licences. A unit test runs each vector
+through `libs/vss_license` and through the reference reader, and fails when
+either gives another answer or when the two disagree. The same test puts
+several thousand changed and odd files through both. The files are made by
+the test tool `vss_licence_vectors`; the folder's README has the command.
 
 ### `vss_license`
 

@@ -17,6 +17,7 @@
 #include "widgets/port_menu.hpp"
 
 #include <QMainWindow>
+#include <QPointer>
 #include <QString>
 
 #include <functional>
@@ -40,12 +41,18 @@ class InspectorPanel;
 class Launcher;
 class LicenceNotice;
 class PluginNotice;
+namespace support
+{
+class PluginPromptQueue;
+class DecodedDialog;
+}
 class FixtureBehaviours;
 struct setup_group;
 class MonitorPanel;
 class NoteBanner;
 class OwnerBar;
 class CanvasController;
+class DockPanes;
 class PaneHeader;
 class PortsPanel;
 class SendPanel;
@@ -108,6 +115,16 @@ public:
     /// True while a document is being applied to the engine on a worker
     /// thread (opening a setup, a template, or starting the ports again).
     bool applying() const noexcept { return apply_work_.busy(); }
+
+    /// The movable bottom panes (Monitor, Links, Log, Topology JSON).
+    DockPanes* dock_panes() const noexcept { return dock_panes_; }
+    /// The layout as saved: sizes, tabs, floating and open panes.
+    QByteArray layout_state() const;
+    /// Restores a saved layout. A state that does not fit this version, or
+    /// is damaged, changes nothing and the default layout stays.
+    bool apply_layout_state(const QByteArray& state);
+    /// Puts the panes back as they start.
+    void reset_layout();
 
     /// Shows the window again and puts it in front: the notification-area
     /// icon, and a second Studio that was started while this one runs.
@@ -183,10 +200,22 @@ private:
     void open_connect_ports();
     void open_share_wizard();
     void open_network_endpoint();
+    /// The network dialog for a port, as a server or a client.
+    void open_network_endpoint_for(vss::endpoint_id port, bool server);
+    /// The Connect dialog on Shared bus with a port ticked.
+    void open_bus_with(vss::endpoint_id port);
     void open_templates();
     void show_monitor();
     /// Shows the Send dock and puts the cursor in its input.
     void show_send();
+    /// "Inspect": selects the port and shows its Inspector, in any state.
+    void inspect_port(vss::endpoint_id id);
+    /// Shows the Monitor with only this port's traffic.
+    void open_in_monitor(vss::endpoint_id id);
+    /// "Decode as..." for a port: chooses a decoder and starts it.
+    void show_decode(vss::endpoint_id id);
+    /// "Decoded traffic": what every running decoder has found.
+    void show_decoded();
     port_menu_state port_menu_state_for(vss::endpoint_id id) const;
     void run_port_action(vss::endpoint_id id, port_menu_action action);
     void run_job(const QString& job);
@@ -209,6 +238,9 @@ private:
     void add_program_port();
     vss::link_id share_link_of_selection() const;
     void show_rename(vss::endpoint_id id);
+    /// Stops or starts a port that was made from an address.
+    void set_port_running(vss::endpoint_id id, bool run);
+    void set_port_paused(vss::endpoint_id id, bool pause);
     void show_com_number(vss::endpoint_id id);
     void show_release_port(vss::endpoint_id id);
     void show_links_dock(bool shown);
@@ -242,8 +274,8 @@ private:
     void open_licence();
     /// Opens Plugins, on the plugin with this id (and folder) when given, and
     /// asks for the decision about it when `decide` is set.
-    void open_plugins(const QString& plugin_id = {},
-                      const QString& folder = {}, bool decide = false);
+    void open_plugins(const QString& plugin_id = {}, const QString& folder = {},
+                      bool decide = false);
     /// Shows what the plugin host reports in the toolbox, on the canvas and
     /// in the Inspector.
     void update_plugin_surfaces();
@@ -298,10 +330,14 @@ private:
 
     void save_layout();
     void restore_layout();
-    void reset_layout();
     void apply_dock_sizes();
+    void hide_all_docks();
+    QAction* pane_action(const QDockWidget* dock) const;
+    void show_pane(QDockWidget* dock);
+    bool raise_if_behind(QDockWidget* dock);
     void apply_theme_setting();
     void apply_density_setting();
+    void sync_density_actions();
     void apply_menu_palette();
 
     // Running in the background.
@@ -336,6 +372,7 @@ private:
     QDockWidget* links_dock_ = nullptr;
     QDockWidget* log_dock_ = nullptr;
     QDockWidget* json_dock_ = nullptr;
+    DockPanes* dock_panes_ = nullptr;
     QToolBar* toolbar_ = nullptr;
     PaneHeader* ports_header_ = nullptr;
     PaneHeader* inspector_header_ = nullptr;
@@ -352,6 +389,10 @@ private:
     NoteBanner* lost_banner_ = nullptr;
     LicenceNotice* licence_notice_ = nullptr;
     PluginNotice* plugin_notice_ = nullptr;
+    support::PluginPromptQueue* plugin_prompts_ = nullptr;
+    /// The Decoded traffic window, made when first asked for and deleted when
+    /// closed.
+    QPointer<support::DecodedDialog> decoded_dialog_;
     UpdateNotice* update_notice_ = nullptr;
     updates::UpdateService* update_service_ = nullptr;
     QThread* recreate_thread_ = nullptr;
@@ -362,6 +403,12 @@ private:
     QAction* links_action_ = nullptr;
     QAction* log_action_ = nullptr;
     QAction* json_action_ = nullptr;
+    QAction* ports_action_ = nullptr;
+    QAction* inspector_action_ = nullptr;
+    QAction* send_action_ = nullptr;
+    /// True once the user has moved a pane; the compact window then leaves
+    /// the arrangement alone.
+    bool layout_customised_ = false;
 
     QString document_path_;
     QString last_signature_;
@@ -380,6 +427,7 @@ private:
     bool compact_ = false;
     bool layout_sized_ = false;
     bool restored_state_ = false;
+    bool shell_hiding_docks_ = false;
     bool restarting_ = false;
 
     bool background_ = false;

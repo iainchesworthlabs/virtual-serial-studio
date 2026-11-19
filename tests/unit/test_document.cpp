@@ -938,6 +938,42 @@ TEST_CASE("document: a virtual port can ask for its COM number")
     REQUIRE(*parsed == value);
 }
 
+TEST_CASE("document: a port can be paused, and a file without it means running")
+{
+    document value;
+    value.name = "paused";
+    port_entry remote;
+    remote.name = "remote";
+    remote.kind = "tcp";
+    remote.uri = "tcp://127.0.0.1:4000";
+    remote.paused = true;
+    value.ports.push_back(remote);
+    port_entry running;
+    running.name = "running";
+    running.kind = "tcp";
+    running.uri = "tcp://127.0.0.1:4001";
+    value.ports.push_back(running);
+
+    REQUIRE(!validate(value));
+    const auto text = to_json(value, false);
+    REQUIRE(text.has_value());
+    // Only a paused port writes the field.
+    const auto first = text->find("\"paused\":true");
+    REQUIRE(first != std::string::npos);
+    REQUIRE_EQ(text->find("\"paused\"", first + 1), std::string::npos);
+    const auto parsed = from_json(*text);
+    REQUIRE(parsed.has_value());
+    REQUIRE(parsed->ports[0].paused);
+    REQUIRE(!parsed->ports[1].paused);
+    REQUIRE(*parsed == value);
+
+    // A fixture and a virtual port have no address to close.
+    value.ports[1].paused = true;
+    value.ports[1].kind = "virtual";
+    value.ports[1].uri.clear();
+    REQUIRE(validate(value));
+}
+
 TEST_CASE("document: a COM number must be a number a COM port can have, on a port that has one")
 {
     const auto parse = [](const char* port_fields)
@@ -1124,7 +1160,7 @@ TEST_CASE("document: a half-duplex bus in a hand written file")
 
     const auto full =
         parse(R"({"mode":"bus","members":["a","b"],"half_duplex":)"
-              R"({"bit_rate":4000000,"turnaround_ms":60000,)"
+              R"({"bit_rate":12000000,"turnaround_ms":60000,)"
               R"("collisions":"report","rts_gating":false}})");
     REQUIRE(full);
     REQUIRE_EQ(full->links[0].half_duplex.bit_rate, max_bus_bit_rate);
@@ -1140,7 +1176,7 @@ TEST_CASE("document: a half-duplex bus in a hand written file")
     expect_invalid("true");
     expect_invalid("[]");
     expect_invalid(R"({"bit_rate":49})");
-    expect_invalid(R"({"bit_rate":4000001})");
+    expect_invalid(R"({"bit_rate":12000001})");
     expect_invalid(R"({"bit_rate":-9600})");
     expect_invalid(R"({"bit_rate":"fast"})");
     expect_invalid(R"({"bit_rate":9600.5})");
@@ -1640,4 +1676,176 @@ TEST_CASE("document: long numbers in plugin params write the same text twice")
     const auto rewritten = to_json(*again, false);
     REQUIRE(rewritten);
     REQUIRE_EQ(*rewritten, *written);
+}
+
+TEST_CASE("document: a monitor's direction round trips and stays out when both")
+{
+    const auto base =
+        std::string(R"({"version":1,"ports":[{"name":"a","kind":"virtual"},)"
+                    R"({"name":"b","kind":"virtual"}],"links":[)");
+    const auto monitor = [&](const std::string& extra)
+    {
+        return from_json(base +
+                         R"({"mode":"monitor","sources":["a"],)"
+                         R"("targets":["b"],"emulate_modem_lines":false)" +
+                         extra + "}]}");
+    };
+
+    // A file without the field means both, as every older file does.
+    const auto absent = monitor("");
+    REQUIRE(absent);
+    REQUIRE(absent->links[0].direction == monitor_direction::both);
+    const auto plain = to_json(*absent);
+    REQUIRE(plain);
+    REQUIRE(plain->find("direction") == std::string::npos);
+
+    const auto both = monitor(R"(,"direction":"both")");
+    REQUIRE(both);
+    REQUIRE(both->links[0].direction == monitor_direction::both);
+
+    for (const auto& [text, value] :
+         {std::pair{std::string("transmit"), monitor_direction::transmit},
+          std::pair{std::string("receive"), monitor_direction::receive}})
+    {
+        const auto parsed = monitor(R"(,"direction":")" + text + R"(")");
+        REQUIRE(parsed);
+        REQUIRE(parsed->links[0].direction == value);
+        const auto written = to_json(*parsed, false);
+        REQUIRE(written);
+        REQUIRE(written->find(R"("direction":")" + text + R"(")") !=
+                std::string::npos);
+        // The version is still 1.
+        REQUIRE(written->find("\"version\":1") != std::string::npos);
+        const auto again = from_json(*written);
+        REQUIRE(again);
+        REQUIRE(*again == *parsed);
+    }
+}
+
+TEST_CASE("document: a direction that is not a monitor's is refused")
+{
+    const auto base =
+        std::string(R"({"version":1,"ports":[{"name":"a","kind":"virtual"},)"
+                    R"({"name":"b","kind":"virtual"}],"links":[)");
+    std::string problem;
+
+    // An unknown value says what the values are.
+    const auto unknown = from_json(
+        base + R"({"mode":"monitor","sources":["a"],"targets":["b"],)"
+               R"("emulate_modem_lines":false,"direction":"sideways"}]})",
+        problem);
+    REQUIRE(!unknown);
+    REQUIRE(problem.find("direction") != std::string::npos);
+    REQUIRE(problem.find("transmit") != std::string::npos);
+
+    // A value of the wrong type is refused too.
+    REQUIRE(!from_json(
+        base + R"({"mode":"monitor","sources":["a"],"targets":["b"],)"
+               R"("emulate_modem_lines":false,"direction":3}]})"));
+
+    // Only a monitor takes a direction but both.
+    for (const char* mode : {"duplex", "redirect"})
+    {
+        const auto other = from_json(
+            base + std::string(R"({"mode":")") + mode +
+            R"(","sources":["a"],"targets":["b"],"direction":"transmit"}]})");
+        REQUIRE(!other);
+        const auto harmless = from_json(
+            base + std::string(R"({"mode":")") + mode +
+            R"(","sources":["a"],"targets":["b"],"direction":"both"}]})");
+        REQUIRE(harmless);
+    }
+}
+
+TEST_CASE("document: wire timing round trips and stays out when off")
+{
+    document value = bus_document();
+    // The join beside the bus carries it.
+    value.links[1].wire_timing.enabled = true;
+    value.links[1].wire_timing.bit_rate = 250000;
+    value.links[1].wire_timing.framing =
+        wire_framing{8, parity_mode::none, stop_bits_mode::two};
+    REQUIRE(!validate(value));
+
+    const auto text = to_json(value, false);
+    REQUIRE(text);
+    REQUIRE(text->find(R"("wire_timing":{"bit_rate":250000,"framing":"8N2"})") !=
+            std::string::npos);
+    // The version is still 1.
+    REQUIRE(text->find("\"version\":1") != std::string::npos);
+    const auto parsed = from_json(*text);
+    REQUIRE(parsed);
+    REQUIRE(*parsed == value);
+    REQUIRE(parsed->links[1].wire_timing == value.links[1].wire_timing);
+    REQUIRE(!parsed->links[0].wire_timing.enabled);
+
+    // A file written without the option does not mention it, and reads
+    // back with it off.
+    const auto plain = to_json(bus_document());
+    REQUIRE(plain);
+    REQUIRE(plain->find("wire_timing") == std::string::npos);
+    const auto again = from_json(*plain);
+    REQUIRE(again);
+    REQUIRE(!again->links[0].wire_timing.enabled);
+    REQUIRE(!again->links[1].wire_timing.enabled);
+
+    // Values of an option that is off are not written either.
+    document off = bus_document();
+    off.links[1].wire_timing.bit_rate = 300;
+    const auto silent = to_json(off);
+    REQUIRE(silent);
+    REQUIRE(silent->find("wire_timing") == std::string::npos);
+}
+
+TEST_CASE("document: wire timing in a hand written file")
+{
+    const auto parse = [](const std::string& link)
+    {
+        return from_json(
+            R"({"version":1,"ports":[{"name":"a","kind":"virtual"},)"
+            R"({"name":"b","kind":"virtual"}],"links":[)" +
+            link + "]}");
+    };
+    const std::string base = R"({"mode":"duplex","sources":["a"],"targets":["b"])";
+
+    // The object alone turns the option on, with nothing given.
+    const auto bare = parse(base + R"(,"wire_timing":{}})");
+    REQUIRE(bare);
+    REQUIRE(bare->links[0].wire_timing.enabled);
+    REQUIRE_EQ(bare->links[0].wire_timing.bit_rate, std::uint32_t{0});
+    REQUIRE(!bare->links[0].wire_timing.framing.has_value());
+
+    const auto full =
+        parse(base + R"(,"wire_timing":{"bit_rate":9600,"framing":"7E1"}})");
+    REQUIRE(full);
+    REQUIRE_EQ(full->links[0].wire_timing.bit_rate, std::uint32_t{9600});
+    REQUIRE(full->links[0].wire_timing.framing ==
+            (wire_framing{7, parity_mode::even, stop_bits_mode::one}));
+
+    // Absent is off.
+    const auto absent = parse(base + "}");
+    REQUIRE(absent);
+    REQUIRE(!absent->links[0].wire_timing.enabled);
+
+    const auto expect_invalid = [&](const std::string& member)
+    {
+        const auto parsed = parse(base + R"(,"wire_timing":)" + member + "}");
+        REQUIRE(!parsed);
+        REQUIRE(parsed.error() == make_error_code(errc::config_error));
+    };
+    expect_invalid("true");
+    expect_invalid(R"({"bit_rate":"fast"})");
+    expect_invalid(R"({"bit_rate":-1})");
+    expect_invalid(R"({"bit_rate":12000001})");
+    // Valid JSON, but under the limit of a rate and so not valid.
+    expect_invalid(R"({"bit_rate":10})");
+    expect_invalid(R"({"framing":"9N1"})");
+    expect_invalid(R"({"framing":8})");
+    expect_invalid(R"({"bitrate":9600})");
+
+    // A bus has a wire of its own.
+    const auto bus = parse(
+        R"({"mode":"bus","members":["a","b"],"wire_timing":{"bit_rate":9600}})");
+    REQUIRE(!bus);
+    REQUIRE(bus.error() == make_error_code(errc::config_error));
 }

@@ -11,6 +11,8 @@
 #include "widgets/common.hpp"
 #include "widgets/controls.hpp"
 #include "widgets/half_duplex_fields.hpp"
+#include "widgets/monitor_direction.hpp"
+#include "widgets/wire_timing_fields.hpp"
 
 #include <vss/core/profile.hpp>
 
@@ -63,12 +65,45 @@ LinkSettingsDialog::LinkSettingsDialog(const link_view& link,
     delay_->setValue(static_cast<int>(link.options.delay_ms));
     jitter_ = make_ms(tr("Jitter"), static_cast<int>(vss::max_link_delay_ms));
     jitter_->setValue(static_cast<int>(link.options.jitter_ms));
-    layout->addWidget(new FormRow(
-        tr("Delay"), delay_, tr("Every byte arrives this much later."), this));
-    layout->addWidget(new FormRow(
+    auto* delay_row = new FormRow(
+        tr("Delay"), delay_, tr("Every byte arrives this much later."), this);
+    auto* jitter_row = new FormRow(
         tr("Jitter"), jitter_,
         tr("Each delay varies by up to this much. No more than the delay."),
-        this));
+        this);
+    // A monitor is a passive copy: it has a direction and no delay.
+    const bool monitor = link.shape == link_shape::monitor;
+    delay_row->setVisible(!monitor);
+    jitter_row->setVisible(!monitor);
+    layout->addWidget(delay_row);
+    layout->addWidget(jitter_row);
+
+    wire_timing_ = new WireTimingFields(this);
+    wire_timing_->set_options(link.options.wire_timing);
+    wire_timing_->setVisible(link.shape != link_shape::bus);
+    layout->addWidget(wire_timing_);
+
+    direction_ = new QComboBox(this);
+    direction_->setObjectName(QStringLiteral("linkDirection"));
+    direction_->setAccessibleName(tr("Direction"));
+    fill_monitor_direction(direction_, link.options.direction);
+    auto* direction_row =
+        new FormRow(tr("Direction"), direction_, {}, this);
+    direction_row->setVisible(monitor);
+    direction_->setAccessibleDescription(
+        monitor_direction_description(link.options.direction));
+    connect(direction_, &QComboBox::currentIndexChanged, this,
+            [this, direction_row]
+            {
+                const auto now = static_cast<vss::monitor_direction>(
+                    direction_->currentData().toInt());
+                direction_row->set_hint(monitor_direction_description(now));
+                direction_->setAccessibleDescription(
+                    monitor_direction_description(now));
+            });
+    direction_row->set_hint(
+        monitor_direction_description(link.options.direction));
+    layout->addWidget(direction_row);
 
     const bool bus = link.shape == link_shape::bus;
     const bool many_senders = !bus && link.sources.size() > 1;
@@ -121,8 +156,12 @@ LinkSettingsDialog::LinkSettingsDialog(const link_view& link,
     connect(jitter_, &QSpinBox::valueChanged, this, [this] { update_state(); });
     connect(half_duplex_, &HalfDuplexFields::changed, this,
             [this] { update_state(); });
+    connect(wire_timing_, &WireTimingFields::changed, this,
+            [this] { update_state(); });
     update_state();
-    delay_->setFocus(Qt::OtherFocusReason);
+    (direction_shown() ? static_cast<QWidget*>(direction_)
+                       : static_cast<QWidget*>(delay_))
+        ->setFocus(Qt::OtherFocusReason);
 }
 
 vss::link_options LinkSettingsDialog::options() const
@@ -130,6 +169,9 @@ vss::link_options LinkSettingsDialog::options() const
     vss::link_options out = link_.options;
     out.delay_ms = static_cast<std::uint32_t>(delay_->value());
     out.jitter_ms = static_cast<std::uint32_t>(jitter_->value());
+    if (direction_shown())
+        out.direction = static_cast<vss::monitor_direction>(
+            direction_->currentData().toInt());
     if (policy_shown())
         out.policy =
             static_cast<vss::merge_policy>(policy_->currentData().toInt());
@@ -137,6 +179,8 @@ vss::link_options LinkSettingsDialog::options() const
         out.emulate_modem_lines = modem_lines_->isChecked();
     if (half_duplex_shown())
         out.half_duplex = half_duplex_->options();
+    if (wire_timing_shown())
+        out.wire_timing = wire_timing_->options();
     return out;
 }
 
@@ -160,6 +204,16 @@ bool LinkSettingsDialog::modem_lines_shown() const
     return link_.shape == link_shape::two_way;
 }
 
+bool LinkSettingsDialog::direction_shown() const
+{
+    return link_.shape == link_shape::monitor;
+}
+
+bool LinkSettingsDialog::wire_timing_shown() const
+{
+    return link_.shape != link_shape::bus;
+}
+
 bool LinkSettingsDialog::half_duplex_shown() const
 {
     return link_.shape == link_shape::bus;
@@ -169,8 +223,9 @@ void LinkSettingsDialog::update_state()
 {
     VSS_PROFILE_ZONE("gui.advanced.link_settings.update_state");
     const vss::link_options now = options();
-    const bool valid =
-        vss::valid_latency(now) && vss::valid_half_duplex(now.half_duplex);
+    const bool valid = vss::valid_latency(now) &&
+                       vss::valid_half_duplex(now.half_duplex) &&
+                       vss::valid_wire_timing(now.wire_timing);
     error_->setText(valid ? QString()
                           : tr("The jitter can be no more than the delay."));
     apply_->setEnabled(valid);

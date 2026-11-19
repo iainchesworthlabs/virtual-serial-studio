@@ -14,6 +14,7 @@
 #include "test_framework.hpp"
 
 #include "backend/fake_plugin_backend.hpp"
+#include "support/decoded_dialog.hpp"
 #include "support/licence_text.hpp"
 #include "support/plugin_dialogs.hpp"
 #include "support/plugin_text.hpp"
@@ -21,11 +22,13 @@
 #include "theme/theme.hpp"
 #include "widgets/controls.hpp"
 #include "widgets/dialogs.hpp"
+#include "widgets/notes.hpp"
 
 #include <QAccessible>
 #include <QApplication>
 #include <QCheckBox>
 #include <QClipboard>
+#include <QComboBox>
 #include <QDir>
 #include <QFrame>
 #include <QGuiApplication>
@@ -34,10 +37,12 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QLocale>
+#include <QMenu>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QTableWidget>
 #include <QTimer>
 
 #include <functional>
@@ -798,6 +803,14 @@ TEST_CASE("install dialog: it shows the verdict, a plugin that cannot be used "
     plugin_inspection_view admin = inspection_of("org.example.noise", folder);
     admin.failure = plugin_inspection_view::problem::cannot_write;
     admin.can_install = false;
+    plugin_inspection_view everyone =
+        inspection_of("org.example.noise", folder);
+    everyone.failure = plugin_inspection_view::problem::installed_for_everyone;
+    everyone.can_install = false;
+    plugin_inspection_view bundled =
+        inspection_of("org.example.noise", folder);
+    bundled.failure = plugin_inspection_view::problem::came_with_studio;
+    bundled.can_install = false;
     const std::pair<plugin_inspection_view, QString> refused[] = {
         {broken, QStringLiteral("Studio cannot add this plugin.\nIts signature "
                                 "does not match its files. They may have been "
@@ -810,6 +823,14 @@ TEST_CASE("install dialog: it shows the verdict, a plugin that cannot be used "
                                  "folder holds a file named plugin.json.")},
         {admin, QStringLiteral("Your administrator installs the plugins on "
                                "this computer.")},
+        {everyone,
+         QStringLiteral("Line noise is already installed for everyone on this "
+                        "computer, and that copy runs. A copy added for you "
+                        "only would not run. Ask your administrator to change "
+                        "it.")},
+        {bundled, QStringLiteral("Line noise came with Studio, and that copy "
+                                 "runs. A copy added for you only would not "
+                                 "run.")},
     };
     for (const auto& [found, text] : refused)
     {
@@ -871,6 +892,148 @@ TEST_CASE("plugins page: a plugin that failed to be added says why")
     REQUIRE_EQ(dialog.message_banner()->text(),
                QStringLiteral("Modbus fixture is already installed for you. "
                               "Remove it first to add a different copy."));
+}
+
+TEST_CASE("plugins page: adding a plugin that is installed elsewhere names the "
+          "plugin and the place")
+{
+    fixture env;
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    const std::pair<plugin_request_error, QString> cases[] = {
+        {plugin_request_error::installed_for_everyone,
+         QStringLiteral("Modbus fixture is already installed for everyone on "
+                        "this computer, and that copy runs. A copy added for "
+                        "you only would not run. Ask your administrator to "
+                        "change it.")},
+        {plugin_request_error::came_with_studio,
+         QStringLiteral("Modbus fixture came with Studio, and that copy runs. "
+                        "A copy added for you only would not run.")},
+        {plugin_request_error::already_installed,
+         QStringLiteral("Modbus fixture is already installed for you. Remove "
+                        "it first to add a different copy.")},
+    };
+    for (const auto& [error, text] : cases)
+    {
+        env.backend.fail_next_add(error, QStringLiteral("Modbus fixture"));
+        env.backend.add_plugin(QStringLiteral("C:/x"));
+        env.backend.flush();
+        settle();
+        REQUIRE_EQ(dialog.message_banner()->text(), text);
+    }
+}
+
+namespace
+{
+
+/// A copy of one plugin installed in `place`. Every copy has the same hash,
+/// so that two of them are identical.
+plugin_view copy_in(plugin_installed_for place, const QString& folder,
+                    plugin_state state)
+{
+    plugin_view view = sample_of("org.example.noise");
+    view.installed_for = place;
+    view.folder = folder;
+    view.hash = QString(128, QLatin1Char('a'));
+    view.fingerprint = view.hash.left(16);
+    view.state = state;
+    view.note = state == plugin_state::not_used ? plugin_note::not_used_same
+                                                 : plugin_note::none;
+    return view;
+}
+
+} // namespace
+
+TEST_CASE("plugins page: a plugin in two places shows both copies, which one "
+          "runs and where, and removing the user's copy leaves the other")
+{
+    struct row
+    {
+        plugin_installed_for used;
+        plugin_installed_for own;
+        QString note;
+        bool can_remove;
+    };
+    const row rows[] = {
+        {plugin_installed_for::everyone, plugin_installed_for::you_only,
+         QStringLiteral("Another copy of this plugin, installed for everyone "
+                        "on this computer, runs instead. This copy, installed "
+                        "for you only, is not used. Remove this copy if you "
+                        "do not need it."),
+         true},
+        {plugin_installed_for::with_studio, plugin_installed_for::you_only,
+         QStringLiteral("The copy that came with Studio runs instead. This "
+                        "copy, installed for you only, is not used. Remove "
+                        "this copy if you do not need it."),
+         true},
+        {plugin_installed_for::with_studio, plugin_installed_for::everyone,
+         QStringLiteral("The copy that came with Studio runs instead. This "
+                        "copy, installed for everyone on this computer, is "
+                        "not used. Ask your administrator to remove it."),
+         false},
+    };
+    for (const theme_mode mode : {theme_mode::light, theme_mode::dark})
+    {
+        Theme::instance().set_mode(mode);
+        for (const row& each : rows)
+        {
+            const QString used_folder = QStringLiteral("C:/used");
+            const QString own_folder = QStringLiteral("C:/own");
+            plugin_view used =
+                copy_in(each.used, used_folder, plugin_state::available);
+            plugin_view own =
+                copy_in(each.own, own_folder, plugin_state::not_used);
+            own.has_used_copy = true;
+            own.used_copy_installed_for = each.used;
+            own.used_copy_id = used.id;
+            own.used_copy_folder = used_folder;
+            fixture env({used, own});
+            PluginsDialog dialog(env.backend);
+            dialog.show();
+            settle();
+            // Both copies are rows.
+            REQUIRE_EQ(dialog.row_keys().size(), qsizetype{2});
+            REQUIRE(dialog.select(used.id, own_folder));
+            settle();
+            REQUIRE_EQ(detail_note(dialog)->text(), each.note);
+            REQUIRE_EQ(detail_chip(dialog)->text(), QStringLiteral("Not used"));
+            REQUIRE_EQ(dialog.remove_button()->isEnabled(), each.can_remove);
+            REQUIRE(!dialog.grab().isNull());
+            // The copy that runs says where it is installed.
+            REQUIRE(dialog.select(used.id, used_folder));
+            settle();
+            const QLabel* where = dialog.detail()->findChild<QLabel*>(
+                QStringLiteral("pluginDetailInstalledFor"));
+            REQUIRE(where != nullptr);
+            REQUIRE_EQ(where->text(), installed_for_text(each.used));
+        }
+    }
+    Theme::instance().set_mode(theme_mode::system);
+
+    // Remove acts on the user's copy even when the other copy is identical,
+    // and the other copy stays listed.
+    plugin_view used = copy_in(plugin_installed_for::everyone,
+                               QStringLiteral("C:/used"),
+                               plugin_state::available);
+    plugin_view own = copy_in(plugin_installed_for::you_only,
+                              QStringLiteral("C:/own"), plugin_state::not_used);
+    fixture env({used, own});
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    REQUIRE(dialog.select(used.id, QStringLiteral("C:/own")));
+    settle();
+    when_shown<PluginRemoveDialog>([](PluginRemoveDialog& each)
+                                   { each.remove_button()->click(); });
+    dialog.remove_button()->click();
+    settle();
+    REQUIRE_EQ(env.backend.requests().size(), std::size_t{1});
+    env.backend.flush();
+    settle();
+    REQUIRE_EQ(dialog.row_keys().size(), qsizetype{1});
+    REQUIRE(env.backend.snapshot()->plugins[0].installed_for ==
+            plugin_installed_for::everyone);
 }
 
 // -- the decision dialog ------------------------------------------------------
@@ -1032,8 +1195,9 @@ TEST_CASE("decision dialog: the permissions, the isolation line and what a "
     settle();
     REQUIRE(dialog.changed_banner()->isVisibleTo(&dialog));
     REQUIRE_EQ(dialog.changed_banner()->text(),
-               QStringLiteral("This is a different version from the one you "
-                              "approved."));
+               QStringLiteral("You allowed an earlier version of this plugin. "
+                              "Look at what changed before you allow this "
+                              "one."));
     REQUIRE(dialog.more_banner()->isVisibleTo(&dialog));
     REQUIRE_EQ(dialog.more_banner()->text(),
                QStringLiteral("It asks for more than before:\nConnect to "
@@ -1662,7 +1826,10 @@ TEST_CASE("plugins page: every control has an accessible name and the right "
             QAccessibleInterface* interface =
                 QAccessible::queryAccessibleInterface(button);
             REQUIRE(interface != nullptr);
-            REQUIRE(interface->role() == QAccessible::Button);
+            // A button that opens a menu is a menu button.
+            REQUIRE(interface->role() == (button->menu() != nullptr
+                                              ? QAccessible::ButtonMenu
+                                              : QAccessible::Button));
         }
         for (QCheckBox* box : root.findChildren<QCheckBox*>())
         {
@@ -1920,4 +2087,447 @@ TEST_CASE("plugins page: until the first scan has finished it says it is "
     settle();
     REQUIRE(title->isVisibleTo(&dialog));
     REQUIRE_EQ(title->text(), QStringLiteral("No plugins are installed"));
+}
+
+// -- what a plugin runs, and what it said of its licence
+// ------------------------
+
+namespace
+{
+
+plugin_view plugin_with_points()
+{
+    plugin_view view = fake_plugin_samples().front();
+    view.id = QStringLiteral("org.example.points");
+    view.name = QStringLiteral("Points");
+    view.folder = QStringLiteral("C:/plugins/points");
+    view.state = plugin_state::available;
+    view.note = plugin_note::none;
+    view.adds.clear();
+    plugin_addition one;
+    one.kind = plugin_addition_kind::generator;
+    one.type_id = QStringLiteral("pulse");
+    one.type_name = QStringLiteral("Pulse");
+    one.max_instances = 2;
+    plugin_addition two;
+    two.kind = plugin_addition_kind::fixture;
+    two.type_id = QStringLiteral("meter");
+    two.type_name = QStringLiteral("Meter");
+    two.max_instances = 1;
+    plugin_addition three;
+    three.kind = plugin_addition_kind::generator;
+    three.type_id = QStringLiteral("tuned");
+    three.type_name = QStringLiteral("Tuned");
+    three.max_instances = 1;
+    three.needs_settings = true;
+    view.adds = {one, two, three};
+    view.instances.clear();
+    view.log.clear();
+    return view;
+}
+
+} // namespace
+
+TEST_CASE("plugins page: what it runs lists the instances and adds and removes")
+{
+    plugin_view plugin = plugin_with_points();
+    plugin_instance_view running;
+    running.number = 1;
+    running.point_id = QStringLiteral("pulse");
+    running.point_name = QStringLiteral("Pulse");
+    running.state = plugin_instance_state::running;
+    plugin_instance_view refused;
+    refused.number = 2;
+    refused.point_id = QStringLiteral("meter");
+    refused.point_name = QStringLiteral("Meter");
+    refused.state = plugin_instance_state::refused;
+    refused.refusal = QStringLiteral("The plugin turned it down.");
+    refused.reason = QStringLiteral("No such port.");
+    plugin.instances = {running, refused};
+    fixture env({plugin});
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    dialog.select(plugin.id);
+    settle();
+    QWidget* detail = dialog.detail();
+    const auto states =
+        detail->findChildren<QLabel*>(QStringLiteral("pluginInstanceState"));
+    REQUIRE_EQ(states.size(), 2);
+    REQUIRE_EQ(states[0]->text(), QStringLiteral("Running"));
+    REQUIRE_EQ(states[1]->text(), QStringLiteral("Refused"));
+    const auto says =
+        detail->findChild<QLabel*>(QStringLiteral("pluginInstanceSays"));
+    REQUIRE(says != nullptr);
+    REQUIRE(says->text().contains(QStringLiteral("No such port.")));
+    REQUIRE(says->textFormat() == Qt::PlainText);
+
+    // Remove asks for the instance by its number.
+    const auto buttons = detail->findChildren<QPushButton*>(
+        QStringLiteral("pluginInstanceRemove"));
+    REQUIRE_EQ(buttons.size(), 2);
+    REQUIRE_EQ(buttons[0]->accessibleName(), QStringLiteral("Remove Pulse"));
+    env.backend.clear_requests();
+    buttons[0]->click();
+    REQUIRE_EQ(env.backend.requests().size(), std::size_t{1});
+    REQUIRE(env.backend.requests()[0].kind ==
+            plugin_request_kind::remove_instance);
+    REQUIRE_EQ(env.backend.requests()[0].number, quint64{1});
+    env.backend.flush();
+    settle();
+
+    // Add offers what has room and needs no setting Studio cannot ask for.
+    auto* add = dialog.detail()->findChild<QPushButton*>(
+        QStringLiteral("pluginInstanceAdd"));
+    REQUIRE(add != nullptr);
+    REQUIRE(add->isEnabled());
+    QMenu* menu = add->menu();
+    REQUIRE(menu != nullptr);
+    REQUIRE_EQ(menu->actions().size(), 3);
+    REQUIRE_EQ(menu->actions()[0]->text(), QStringLiteral("Pulse"));
+    REQUIRE(menu->actions()[0]->isEnabled());
+    // Meter is the refused instance's point, with one allowed.
+    REQUIRE(!menu->actions()[1]->isEnabled());
+    // Tuned has a setting with no default.
+    REQUIRE(!menu->actions()[2]->isEnabled());
+    env.backend.clear_requests();
+    menu->actions()[0]->trigger();
+    REQUIRE_EQ(env.backend.requests().size(), std::size_t{1});
+    REQUIRE(env.backend.requests()[0].kind ==
+            plugin_request_kind::add_instance);
+    REQUIRE_EQ(env.backend.requests()[0].path, QStringLiteral("pulse"));
+    REQUIRE(env.backend.requests()[0].values.isEmpty());
+}
+
+TEST_CASE("plugins page: a point with settings to ask for asks first")
+{
+    plugin_view plugin = plugin_with_points();
+    plugin_addition& point = plugin.adds.front();
+    plugin_parameter_ask port;
+    port.id = QStringLiteral("port");
+    port.label = QStringLiteral("Port to write to");
+    port.help = QStringLiteral("A port in your setup.");
+    port.place_name = true;
+    plugin_parameter_ask note;
+    note.id = QStringLiteral("note");
+    note.label = QStringLiteral("A note");
+    point.asks = {port, note};
+    fixture env({plugin});
+    env.backend.set_place_names(
+        {QStringLiteral("Alpha"), QStringLiteral("Beta")});
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    dialog.select(plugin.id);
+    settle();
+    auto* add = dialog.detail()->findChild<QPushButton*>(
+        QStringLiteral("pluginInstanceAdd"));
+    REQUIRE(add != nullptr);
+    env.backend.clear_requests();
+    add->menu()->actions()[0]->trigger();
+    settle();
+    // Nothing is made yet: the dialog asks first.
+    REQUIRE(env.backend.requests().empty());
+    PluginInstanceDialog* ask = nullptr;
+    for (QWidget* each : QApplication::topLevelWidgets())
+    {
+        if (auto* found = qobject_cast<PluginInstanceDialog*>(each);
+            found != nullptr && found->isVisible())
+            ask = found;
+    }
+    REQUIRE(ask != nullptr);
+    REQUIRE_EQ(ask->windowTitle(), QStringLiteral("Add Pulse"));
+    REQUIRE(!ask->add_button()->isEnabled());
+    auto* ports = qobject_cast<QComboBox*>(ask->field(QStringLiteral("port")));
+    auto* text = qobject_cast<QLineEdit*>(ask->field(QStringLiteral("note")));
+    REQUIRE(ports != nullptr);
+    REQUIRE(text != nullptr);
+    REQUIRE_EQ(ports->count(), 2);
+    REQUIRE_EQ(ports->accessibleName(), QStringLiteral("Port to write to"));
+    REQUIRE_EQ(ports->accessibleDescription(),
+               QStringLiteral("A port in your setup."));
+    ports->setCurrentText(QStringLiteral("Alpha"));
+    REQUIRE(!ask->add_button()->isEnabled());
+    text->setText(QStringLiteral("  hello  "));
+    REQUIRE(ask->add_button()->isEnabled());
+    ask->add_button()->click();
+    settle();
+    REQUIRE_EQ(env.backend.requests().size(), std::size_t{1});
+    REQUIRE(env.backend.requests()[0].kind ==
+            plugin_request_kind::add_instance);
+    REQUIRE_EQ(env.backend.requests()[0].values.value(QStringLiteral("port")),
+               QStringLiteral("Alpha"));
+    REQUIRE_EQ(env.backend.requests()[0].values.value(QStringLiteral("note")),
+               QStringLiteral("hello"));
+
+    // Cancel makes nothing. The page was rebuilt when the instance was made.
+    env.backend.clear_requests();
+    settle();
+    add = dialog.detail()->findChild<QPushButton*>(
+        QStringLiteral("pluginInstanceAdd"));
+    REQUIRE(add != nullptr);
+    add->menu()->actions()[0]->trigger();
+    settle();
+    PluginInstanceDialog* again = nullptr;
+    for (QWidget* each : QApplication::topLevelWidgets())
+    {
+        if (auto* found = qobject_cast<PluginInstanceDialog*>(each);
+            found != nullptr && found->isVisible())
+            again = found;
+    }
+    REQUIRE(again != nullptr);
+    again->cancel_button()->click();
+    settle();
+    REQUIRE(env.backend.requests().empty());
+}
+
+TEST_CASE("plugins page: a plugin that is not running keeps its instances")
+{
+    plugin_view plugin = plugin_with_points();
+    plugin.state = plugin_state::off;
+    plugin_instance_view kept;
+    kept.number = 1;
+    kept.point_id = QStringLiteral("pulse");
+    kept.point_name = QStringLiteral("Pulse");
+    kept.state = plugin_instance_state::not_running;
+    plugin.instances = {kept};
+    fixture env({plugin});
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    dialog.select(plugin.id);
+    settle();
+    const auto states = dialog.detail()->findChildren<QLabel*>(
+        QStringLiteral("pluginInstanceState"));
+    REQUIRE_EQ(states.size(), 1);
+    REQUIRE_EQ(states[0]->text(), QStringLiteral("Not running"));
+    // A plugin that cannot be used cannot be given more to do.
+    plugin_view broken = plugin_with_points();
+    broken.state = plugin_state::cannot_be_used;
+    broken.note = plugin_note::invalid_signature;
+    env.backend.set_plugins({broken});
+    env.backend.flush();
+    settle();
+    dialog.select(broken.id);
+    settle();
+    auto* add = dialog.detail()->findChild<QPushButton*>(
+        QStringLiteral("pluginInstanceAdd"));
+    REQUIRE(add != nullptr);
+    REQUIRE(!add->isEnabled());
+}
+
+TEST_CASE("plugins page: what the plugin said of its licence, and licence.read")
+{
+    plugin_view plugin = plugin_with_points();
+    plugin.trust = plugin_trust::official;
+    plugin.has_licence_report = true;
+    plugin.licence_report_reason = vss::license::reason::expired;
+    plugin.licence_status = vss::license::no_licence();
+    fixture env({plugin});
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    dialog.select(plugin.id);
+    settle();
+    auto* report = dialog.detail()->findChild<NoteBanner*>(
+        QStringLiteral("pluginDetailLicenceReport"));
+    REQUIRE(report != nullptr);
+    const QString sentence =
+        reason_sentence(vss::license::reason::expired, plugin.licence_status);
+    REQUIRE(!sentence.isEmpty());
+    // Studio's own check found nothing wrong, so the two disagree.
+    REQUIRE_EQ(report->text(),
+               QStringLiteral("This plugin did not accept the licence: ") +
+                   sentence +
+                   QStringLiteral(" Studio and the plugin disagree. Check that "
+                                  "Studio and the plugin are both up to "
+                                  "date."));
+    // Studio's check agrees: no second sentence.
+    plugin.licence_reason = vss::license::reason::expired;
+    env.backend.set_plugins({plugin});
+    env.backend.flush();
+    settle();
+    dialog.select(plugin.id);
+    settle();
+    report = dialog.detail()->findChild<NoteBanner*>(
+        QStringLiteral("pluginDetailLicenceReport"));
+    REQUIRE(report != nullptr);
+    REQUIRE_EQ(report->text(),
+               QStringLiteral("This plugin did not accept the licence: ") +
+                   sentence);
+    // `ok` shows nothing.
+    plugin.licence_report_reason = vss::license::reason::ok;
+    env.backend.set_plugins({plugin});
+    env.backend.flush();
+    settle();
+    dialog.select(plugin.id);
+    settle();
+    REQUIRE(dialog.detail()->findChild<NoteBanner*>(
+                QStringLiteral("pluginDetailLicenceReport")) == nullptr);
+
+    // The permission sentence says what the file holds.
+    plugin_permission_view licence_read;
+    licence_read.id = QStringLiteral("licence.read");
+    REQUIRE_EQ(permission_sentence(licence_read),
+               QStringLiteral("Read your licence file. The file holds your "
+                              "name."));
+    REQUIRE(!is_amber_permission(QStringLiteral("licence.read")));
+}
+
+TEST_CASE(
+    "plugins page: what a decoder found is a plain table that follows the "
+    "store")
+{
+    plugin_view plugin = plugin_with_points();
+    plugin_instance_view decoder;
+    decoder.number = 3;
+    decoder.point_id = QStringLiteral("pulse");
+    decoder.point_name = QStringLiteral("Pulse");
+    decoder.state = plugin_instance_state::running;
+    decoder.decoder = true;
+    plugin.instances = {decoder};
+    fixture env({plugin});
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    dialog.select(plugin.id);
+    settle();
+    QWidget* detail = dialog.detail();
+    // Nothing yet.
+    auto* empty =
+        detail->findChild<QLabel*>(QStringLiteral("pluginFoundEmpty"));
+    REQUIRE(empty != nullptr);
+    REQUIRE_EQ(empty->text(), QStringLiteral("Nothing found yet."));
+
+    auto what = std::make_shared<plugin_found>();
+    plugin_found_row frame;
+    frame.time_ns = 12'345'000'000;
+    frame.place = QStringLiteral("Alpha");
+    frame.received = true;
+    frame.what = QStringLiteral("<b>hello</b>") + QChar(0x202e);
+    frame.kind = QStringLiteral("greeting");
+    plugin_found_row trigger;
+    trigger.time_ns = 13'000'000'000;
+    trigger.place = QStringLiteral("Alpha");
+    trigger.received = false;
+    trigger.trigger = true;
+    trigger.what = QStringLiteral("no end byte");
+    trigger.kind = QStringLiteral("Framing");
+    what->rows = {trigger, frame};
+    what->held = 5;
+    what->dropped = 2;
+    what->refused = 1;
+    what->revision = 7;
+    env.backend.set_found(plugin.id, 3, what);
+    // The table follows on the timer.
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            auto* table = detail->findChild<QTableWidget*>(
+                QStringLiteral("pluginFoundTable"));
+            return table != nullptr && table->rowCount() == 2;
+        },
+        5000));
+    auto* table =
+        detail->findChild<QTableWidget*>(QStringLiteral("pluginFoundTable"));
+    REQUIRE_EQ(table->accessibleName(), QStringLiteral("What Pulse found"));
+    REQUIRE_EQ(table->columnCount(), 5);
+    REQUIRE_EQ(table->item(0, 0)->text(), QStringLiteral("13.000 s"));
+    REQUIRE_EQ(table->item(0, 2)->text(), QStringLiteral("Sent"));
+    REQUIRE_EQ(table->item(0, 3)->text(), QStringLiteral("no end byte"));
+    REQUIRE_EQ(table->item(1, 0)->text(), QStringLiteral("12.345 s"));
+    REQUIRE_EQ(table->item(1, 2)->text(), QStringLiteral("Received"));
+    // The plugin's words are text, with the direction mark gone.
+    REQUIRE_EQ(table->item(1, 3)->text(), QStringLiteral("<b>hello</b>"));
+    REQUIRE(table->editTriggers() == QAbstractItemView::NoEditTriggers);
+    auto* counts =
+        detail->findChild<QLabel*>(QStringLiteral("pluginFoundCounts"));
+    REQUIRE(counts != nullptr);
+    REQUIRE(counts->isVisibleTo(detail));
+    REQUIRE(counts->text().contains(QStringLiteral("2 dropped")));
+    REQUIRE(counts->text().contains(QStringLiteral("1 refused")));
+    REQUIRE(
+        counts->text().contains(QStringLiteral("Showing the newest 2 of 5.")));
+}
+
+TEST_CASE("plugins page: an invalid description file says what is wrong")
+{
+    plugin_view plugin;
+    plugin.id = QStringLiteral("org.example.invalid");
+    plugin.state = plugin_state::cannot_be_used;
+    plugin.note = plugin_note::invalid_manifest;
+
+    // Without a line from the host, only the general sentence.
+    REQUIRE_EQ(note_for(plugin).text,
+               QStringLiteral("Its description file is not valid, so Studio "
+                              "cannot tell what it is."));
+
+    plugin.detail = QStringLiteral("an official plugin must have not_after");
+    REQUIRE_EQ(note_for(plugin).text,
+               QStringLiteral("Its description file is not valid, so Studio "
+                              "cannot tell what it is. What is wrong: an "
+                              "official plugin must have not_after"));
+}
+
+TEST_CASE("decoded traffic: frames and triggers of every decoder, newest "
+          "first, as plain text, with a filter for triggers")
+{
+    plugin_view plugin = plugin_with_points();
+    plugin_instance_view decoder;
+    decoder.number = 3;
+    decoder.point_id = QStringLiteral("pulse");
+    decoder.point_name = QStringLiteral("Pulse");
+    decoder.state = plugin_instance_state::running;
+    decoder.decoder = true;
+    plugin.instances = {decoder};
+    fixture env({plugin});
+
+    DecodedDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    // Nothing found yet: the window says so and how to start.
+    REQUIRE_EQ(dialog.row_count(), 0);
+    REQUIRE_EQ(dialog.empty_label()->text(),
+               QStringLiteral("Nothing found yet."));
+
+    auto what = std::make_shared<plugin_found>();
+    plugin_found_row frame;
+    frame.time_ns = 12'345'000'000;
+    frame.place = QStringLiteral("Alpha");
+    frame.received = true;
+    frame.what = QStringLiteral("<b>hello</b>");
+    frame.kind = QStringLiteral("greeting");
+    plugin_found_row trigger;
+    trigger.time_ns = 13'000'000'000;
+    trigger.place = QStringLiteral("Alpha");
+    trigger.received = false;
+    trigger.trigger = true;
+    trigger.what = QStringLiteral("no end byte");
+    trigger.kind = QStringLiteral("Framing");
+    what->rows = {frame, trigger};
+    what->revision = 1;
+    env.backend.set_found(plugin.id, 3, what);
+    dialog.refresh();
+
+    // Newest first, with the type, and the plugin's words as they are.
+    REQUIRE_EQ(dialog.row_count(), 2);
+    REQUIRE_EQ(dialog.cell(0, 3), QStringLiteral("Trigger"));
+    REQUIRE_EQ(dialog.cell(0, 2), QStringLiteral("Sent"));
+    REQUIRE_EQ(dialog.cell(0, 5), QStringLiteral("no end byte"));
+    REQUIRE_EQ(dialog.cell(1, 3), QStringLiteral("Frame"));
+    REQUIRE_EQ(dialog.cell(1, 5), QStringLiteral("<b>hello</b>"));
+
+    dialog.triggers_only_check()->setChecked(true);
+    REQUIRE_EQ(dialog.row_count(), 1);
+    REQUIRE_EQ(dialog.cell(0, 3), QStringLiteral("Trigger"));
+
+    // With no decoder at all, it says how to start one.
+    plugin.instances.clear();
+    env.backend.set_plugins({plugin});
+    env.backend.flush();
+    dialog.triggers_only_check()->setChecked(false);
+    dialog.refresh();
+    REQUIRE_EQ(dialog.row_count(), 0);
+    REQUIRE(dialog.empty_label()->text().contains(
+        QStringLiteral("Decode as...")));
 }

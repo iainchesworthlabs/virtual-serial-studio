@@ -1,0 +1,1 @@
+**A network client can be made when the other computer refuses at that moment.** The error offers "Create anyway and keep trying": the port is made now, waits, and connects when the other computer answers. The dialog also says why a network port needs a port to link to, and offers "A new port in Studio".

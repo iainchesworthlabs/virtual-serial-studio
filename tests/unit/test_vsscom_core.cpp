@@ -20,6 +20,7 @@ extern "C"
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include <vector>
 
 // The core defines its own types so the kernel build needs no C library; they
 // must still be the sizes the rest of the code assumes.
@@ -446,13 +447,14 @@ TEST_CASE("vsscom flow: enable drives the line high and disable drives it low")
     REQUIRE(!down.rts);
 
     // One line each way.
-    auto mixed = update(flow(VSSCOM_DTR_CONTROL, 0), lines(false, true), 0,
-                        false, true);
+    auto mixed =
+        update(flow(VSSCOM_DTR_CONTROL, 0), lines(false, true), 0, false, true);
     REQUIRE(mixed.dtr);
     REQUIRE(!mixed.rts);
 }
 
-TEST_CASE("vsscom flow: enable and disable leave the line to the application afterwards")
+TEST_CASE("vsscom flow: enable and disable leave the line to the application "
+          "afterwards")
 {
     // Not a new setting: a change in the buffers must not undo SET_DTR.
     auto same = update(flow(0, 0), lines(true, true), 100, true, false);
@@ -465,7 +467,8 @@ TEST_CASE("vsscom flow: enable and disable leave the line to the application aft
     REQUIRE(!kept.rts);
 }
 
-TEST_CASE("vsscom flow: a handshake line drops when the buffer fills and rises when it empties")
+TEST_CASE("vsscom flow: a handshake line drops when the buffer fills and rises "
+          "when it empties")
 {
     // Low at 4 KB or less free, high again at 16 KB or less in use.
     const vsscom_flow f =
@@ -502,8 +505,8 @@ TEST_CASE("vsscom flow: a handshake line drops when the buffer fills and rises w
 
 TEST_CASE("vsscom flow: a handshake given while the buffer is full starts low")
 {
-    auto l = update(flow(0, VSSCOM_RTS_HANDSHAKE, 100, 100),
-                    lines(false, true), rx_size, false, true);
+    auto l = update(flow(0, VSSCOM_RTS_HANDSHAKE, 100, 100), lines(false, true),
+                    rx_size, false, true);
     REQUIRE(!l.rts);
 }
 
@@ -919,4 +922,346 @@ TEST_CASE("vsscom errors: a purge empties the buffer and keeps the error")
     REQUIRE_EQ(fired, VSSCOM_EV_ERR);
     REQUIRE_EQ(vsscom_errors_take(&p.pending), err_framing);
     REQUIRE(!p.blocked());
+}
+
+// -- Break and write marks
+// -----------------------------------------------------
+
+namespace
+{
+
+struct taken_marks
+{
+    std::vector<vsscom_break_record> breaks;
+    std::vector<vsscom_write_record> writes;
+    std::uint32_t breaks_dropped{};
+    std::uint32_t writes_merged{};
+};
+
+taken_marks take(vsscom_marks& marks)
+{
+    std::array<vsscom_break_record, VSSCOM_MARKS_MAX_BREAKS> b{};
+    std::array<vsscom_write_record, VSSCOM_MARKS_MAX_WRITES> w{};
+    std::uint32_t bc = 0;
+    std::uint32_t wc = 0;
+    taken_marks out;
+    vsscom_marks_take(&marks, b.data(), &bc, w.data(), &wc, &out.breaks_dropped,
+                      &out.writes_merged);
+    out.breaks.assign(b.begin(), b.begin() + bc);
+    out.writes.assign(w.begin(), w.begin() + wc);
+    return out;
+}
+
+// An application write that stores `count` bytes in one go.
+void app_write(vsscom_marks& m, std::uint32_t count, std::uint64_t now)
+{
+    vsscom_marks_stored(&m, count, now, 1);
+}
+
+void hub_read(vsscom_marks& m, std::uint32_t count)
+{
+    vsscom_marks_read(&m, count);
+}
+
+constexpr std::uint32_t open_flag = VSSCOM_BREAK_OPEN;
+
+} // namespace
+
+TEST_CASE("vsscom marks: a break records the bytes written before each call")
+{
+    vsscom_marks m;
+    vsscom_marks_init(&m);
+
+    app_write(m, 2, 100); // "AB"
+    REQUIRE(vsscom_marks_break_on(&m, 200));
+    REQUIRE(vsscom_marks_break_held(&m));
+    REQUIRE(vsscom_marks_break_off(&m, 5200));
+    REQUIRE(!vsscom_marks_break_held(&m));
+    app_write(m, 2, 5300); // "CD"
+    hub_read(m, 4);
+
+    const auto t = take(m);
+    REQUIRE_EQ(t.breaks.size(), 1u);
+    REQUIRE_EQ(t.breaks[0].on_time, 200u);
+    REQUIRE_EQ(t.breaks[0].off_time, 5200u);
+    REQUIRE_EQ(t.breaks[0].on_offset, 2u);
+    REQUIRE_EQ(t.breaks[0].off_offset, 2u);
+    REQUIRE_EQ(t.breaks[0].flags & open_flag, 0u);
+    REQUIRE_EQ(t.writes.size(), 2u);
+    REQUIRE_EQ(t.writes[0].time, 100u);
+    REQUIRE_EQ(t.writes[0].offset, 0u);
+    REQUIRE_EQ(t.writes[1].time, 5300u);
+    REQUIRE_EQ(t.writes[1].offset, 2u);
+}
+
+TEST_CASE("vsscom marks: bytes written during a break lie between its offsets")
+{
+    vsscom_marks m;
+    vsscom_marks_init(&m);
+
+    app_write(m, 1, 10);
+    vsscom_marks_break_on(&m, 20);
+    app_write(m, 3, 30);
+    vsscom_marks_break_off(&m, 40);
+    hub_read(m, 4);
+
+    const auto t = take(m);
+    REQUIRE_EQ(t.breaks.size(), 1u);
+    REQUIRE_EQ(t.breaks[0].on_offset, 1u);
+    REQUIRE_EQ(t.breaks[0].off_offset, 4u);
+}
+
+TEST_CASE("vsscom marks: a second on and an off with none held change nothing")
+{
+    vsscom_marks m;
+    vsscom_marks_init(&m);
+
+    REQUIRE(!vsscom_marks_break_off(&m, 5));
+    REQUIRE(vsscom_marks_break_on(&m, 10));
+    REQUIRE(!vsscom_marks_break_on(&m, 20));
+    REQUIRE(vsscom_marks_break_off(&m, 30));
+    REQUIRE(!vsscom_marks_break_off(&m, 40));
+
+    const auto t = take(m);
+    REQUIRE_EQ(t.breaks.size(), 1u);
+    REQUIRE_EQ(t.breaks[0].on_time, 10u);
+    REQUIRE_EQ(t.breaks[0].off_time, 30u);
+    REQUIRE_EQ(m.break_total, 1u);
+}
+
+TEST_CASE("vsscom marks: a break that is held is given and kept")
+{
+    vsscom_marks m;
+    vsscom_marks_init(&m);
+
+    vsscom_marks_break_on(&m, 10);
+    auto t = take(m);
+    REQUIRE_EQ(t.breaks.size(), 1u);
+    REQUIRE_EQ(t.breaks[0].flags & open_flag, open_flag);
+
+    // Still held, and still reported with the same start.
+    t = take(m);
+    REQUIRE_EQ(t.breaks.size(), 1u);
+    REQUIRE_EQ(t.breaks[0].on_time, 10u);
+
+    vsscom_marks_break_off(&m, 99);
+    t = take(m);
+    REQUIRE_EQ(t.breaks.size(), 1u);
+    REQUIRE_EQ(t.breaks[0].on_time, 10u);
+    REQUIRE_EQ(t.breaks[0].off_time, 99u);
+    REQUIRE_EQ(t.breaks[0].flags & open_flag, 0u);
+
+    // Given once as ended, then gone.
+    REQUIRE_EQ(take(m).breaks.size(), 0u);
+}
+
+TEST_CASE("vsscom marks: a full set of breaks drops the oldest and counts it")
+{
+    vsscom_marks m;
+    vsscom_marks_init(&m);
+
+    const std::uint32_t total = VSSCOM_MARKS_MAX_BREAKS + 10;
+    for (std::uint32_t i = 0; i < total; ++i)
+    {
+        vsscom_marks_break_on(&m, 1000 + i);
+        vsscom_marks_break_off(&m, 1000 + i + 1);
+    }
+    const auto t = take(m);
+    REQUIRE_EQ(t.breaks.size(), std::size_t{VSSCOM_MARKS_MAX_BREAKS});
+    REQUIRE_EQ(t.breaks_dropped, 10u);
+    REQUIRE_EQ(m.break_total, total);
+    // The newest survive, in order.
+    REQUIRE_EQ(t.breaks.front().on_time, 1000u + 10u);
+    REQUIRE_EQ(t.breaks.back().on_time, 1000u + total - 1u);
+
+    // The count starts again.
+    REQUIRE_EQ(take(m).breaks_dropped, 0u);
+}
+
+TEST_CASE("vsscom marks: a full set of breaks never drops the one held")
+{
+    vsscom_marks m;
+    vsscom_marks_init(&m);
+
+    for (std::uint32_t i = 0; i < VSSCOM_MARKS_MAX_BREAKS + 3; ++i)
+    {
+        vsscom_marks_break_on(&m, 10 + i);
+        if (i != VSSCOM_MARKS_MAX_BREAKS + 2)
+            vsscom_marks_break_off(&m, 11 + i);
+    }
+    REQUIRE(vsscom_marks_break_held(&m));
+    const auto t = take(m);
+    REQUIRE_EQ(t.breaks.back().flags & open_flag, open_flag);
+    REQUIRE_EQ(t.breaks.back().on_time, 10u + VSSCOM_MARKS_MAX_BREAKS + 2u);
+}
+
+TEST_CASE(
+    "vsscom marks: writes are given only once the hub has read their bytes")
+{
+    vsscom_marks m;
+    vsscom_marks_init(&m);
+
+    app_write(m, 4, 100);
+    app_write(m, 4, 200);
+    hub_read(m, 4);
+
+    // The second write starts at byte 4, which the hub has not read.
+    auto t = take(m);
+    REQUIRE_EQ(t.writes.size(), 1u);
+    REQUIRE_EQ(t.writes[0].time, 100u);
+
+    hub_read(m, 1);
+    t = take(m);
+    REQUIRE_EQ(t.writes.size(), 1u);
+    REQUIRE_EQ(t.writes[0].time, 200u);
+    REQUIRE_EQ(t.writes[0].offset, 4u);
+}
+
+TEST_CASE("vsscom marks: a write that went in over several stores has one mark")
+{
+    vsscom_marks m;
+    vsscom_marks_init(&m);
+
+    vsscom_marks_stored(&m, 3, 500, 1);
+    vsscom_marks_stored(&m, 3, 500, 0); // the rest, after room was made
+    hub_read(m, 6);
+
+    const auto t = take(m);
+    REQUIRE_EQ(t.writes.size(), 1u);
+    REQUIRE_EQ(t.writes[0].offset, 0u);
+    REQUIRE_EQ(m.written, 6u);
+}
+
+TEST_CASE(
+    "vsscom marks: a burst past the limit merges the oldest and counts it")
+{
+    vsscom_marks m;
+    vsscom_marks_init(&m);
+
+    const std::uint32_t total = VSSCOM_MARKS_MAX_WRITES + 44;
+    for (std::uint32_t i = 0; i < total; ++i)
+        app_write(m, 1, 1000 + i);
+    hub_read(m, total);
+
+    const auto t = take(m);
+    REQUIRE_EQ(t.writes.size(), std::size_t{VSSCOM_MARKS_MAX_WRITES});
+    REQUIRE_EQ(t.writes_merged, 44u);
+    REQUIRE_EQ(t.writes.front().offset, 44u);
+    REQUIRE_EQ(t.writes.back().offset, total - 1u);
+    REQUIRE_EQ(take(m).writes_merged, 0u);
+}
+
+TEST_CASE(
+    "vsscom marks: taking bytes back removes the marks that pointed at them")
+{
+    vsscom_marks m;
+    vsscom_marks_init(&m);
+
+    app_write(m, 4, 100);
+    app_write(m, 4, 200); // aborted: its 4 bytes are taken back
+    vsscom_marks_break_on(&m, 250);
+    vsscom_marks_taken_back(&m, 4);
+
+    REQUIRE_EQ(m.written, 4u);
+    hub_read(m, 4);
+    const auto t = take(m);
+    REQUIRE_EQ(t.writes.size(), 1u);
+    REQUIRE_EQ(t.writes[0].time, 100u);
+    // The break was called after the aborted bytes; it now follows the last
+    // byte.
+    REQUIRE_EQ(t.breaks[0].on_offset, 4u);
+}
+
+TEST_CASE("vsscom marks: taking back never goes below what the hub has read")
+{
+    vsscom_marks m;
+    vsscom_marks_init(&m);
+
+    app_write(m, 5, 100);
+    hub_read(m, 3);
+    vsscom_marks_taken_back(&m, 100);
+    REQUIRE_EQ(m.written, 3u);
+    REQUIRE_EQ(m.read, 3u);
+}
+
+TEST_CASE(
+    "vsscom marks: a purge of Tx leaves the offsets of later writes right")
+{
+    vsscom_marks m;
+    vsscom_marks_init(&m);
+
+    app_write(m, 6, 100);
+    hub_read(m, 2);
+    vsscom_marks_cleared(&m); // 4 bytes were discarded
+    app_write(m, 2, 300);
+    hub_read(m, 2);
+
+    const auto t = take(m);
+    REQUIRE_EQ(t.writes.size(), 2u);
+    REQUIRE_EQ(t.writes[0].offset, 0u);
+    REQUIRE_EQ(t.writes[1].offset, 2u);
+    REQUIRE_EQ(t.writes[1].time, 300u);
+}
+
+TEST_CASE(
+    "vsscom marks: a reset forgets what no one read and keeps a break held")
+{
+    vsscom_marks m;
+    vsscom_marks_init(&m);
+
+    app_write(m, 8, 100);
+    vsscom_marks_break_on(&m, 150);
+    vsscom_marks_break_off(&m, 160);
+    vsscom_marks_break_on(&m, 170); // held across the reset
+    hub_read(m, 3);
+
+    vsscom_marks_reset(&m);
+    REQUIRE_EQ(m.written, 0u);
+    REQUIRE_EQ(m.read, 0u);
+
+    auto t = take(m);
+    REQUIRE_EQ(t.writes.size(), 0u);
+    REQUIRE_EQ(t.breaks.size(), 1u);
+    REQUIRE_EQ(t.breaks[0].on_time, 170u);
+    REQUIRE_EQ(t.breaks[0].on_offset, 0u);
+    REQUIRE_EQ(t.breaks[0].flags & open_flag, open_flag);
+
+    // It ends later, at the offset the new handle has reached.
+    app_write(m, 2, 200);
+    vsscom_marks_break_off(&m, 210);
+    hub_read(m, 2);
+    t = take(m);
+    REQUIRE_EQ(t.breaks[0].off_offset, 2u);
+}
+
+TEST_CASE("vsscom marks: every break of a loop is seen or counted as dropped")
+{
+    vsscom_marks m;
+    vsscom_marks_init(&m);
+
+    // A reader that keeps up loses none.
+    std::uint32_t seen = 0;
+    std::uint32_t dropped = 0;
+    for (std::uint32_t round = 0; round < 1000 / 50; ++round)
+    {
+        for (std::uint32_t i = 0; i < 50; ++i)
+        {
+            vsscom_marks_break_on(&m, round * 100 + i);
+            vsscom_marks_break_off(&m, round * 100 + i);
+        }
+        const auto t = take(m);
+        seen += static_cast<std::uint32_t>(t.breaks.size());
+        dropped += t.breaks_dropped;
+    }
+    REQUIRE_EQ(seen, 1000u);
+    REQUIRE_EQ(dropped, 0u);
+
+    // One that does not keep up loses some, and the loss is counted.
+    for (std::uint32_t i = 0; i < 1000; ++i)
+    {
+        vsscom_marks_break_on(&m, i);
+        vsscom_marks_break_off(&m, i);
+    }
+    const auto t = take(m);
+    REQUIRE_EQ(t.breaks.size() + t.breaks_dropped, 1000u);
 }

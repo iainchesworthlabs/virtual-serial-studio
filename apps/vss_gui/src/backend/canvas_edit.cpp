@@ -117,7 +117,10 @@ make_slot_port(StudioBackend& backend, const bundle_slot& slot,
             slot.name, vss::virtual_port_kind::loopback, true);
         break;
     case slot_kind::new_port:
-        made = backend.create_auto_port(slot.name, true);
+        made = slot.com_number != 0 && backend.caps().com_numbers
+                   ? backend.create_driver_port(slot.name, true,
+                                                slot.com_number)
+                   : backend.create_auto_port(slot.name, true);
         // A refused driver port is said in words, with the set-up to run.
         if (!made)
             return driver_aware_error(backend, made.error());
@@ -315,6 +318,70 @@ bundle_request default_request(canvas_item item,
     return request;
 }
 
+bool has_line_format(const port_view& port)
+{
+    return port.kind == vss::endpoint_kind::virtual_port ||
+           port.kind == vss::endpoint_kind::physical ||
+           port.kind == vss::endpoint_kind::rfc2217 ||
+           port.kind == vss::endpoint_kind::mock;
+}
+
+QVector<vss::endpoint_id> connected_set(const StudioBackend& backend,
+                                        vss::endpoint_id port)
+{
+    VSS_PROFILE_ZONE("gui.backend.canvas.connected_set");
+    const auto links = backend.links();
+    QVector<vss::endpoint_id> seen{port};
+    for (qsizetype next = 0; next < seen.size(); ++next)
+    {
+        for (const link_view& link : links)
+        {
+            if (link.shape == link_shape::monitor)
+                continue;
+            const bool here = link.sources.contains(seen[next]) ||
+                              link.targets.contains(seen[next]);
+            if (!here)
+                continue;
+            for (const auto& group : {link.sources, link.targets})
+            {
+                for (const vss::endpoint_id id : group)
+                {
+                    if (!seen.contains(id))
+                        seen.append(id);
+                }
+            }
+        }
+    }
+    QVector<vss::endpoint_id> out;
+    for (const vss::endpoint_id id : seen)
+    {
+        const auto view = backend.port(id);
+        if (id != port && view && has_line_format(*view))
+            out.append(id);
+    }
+    return out;
+}
+
+bool same_line_format(const StudioBackend& backend,
+                      const QVector<vss::endpoint_id>& ports)
+{
+    std::optional<vss::serial_settings> first;
+    for (const vss::endpoint_id id : ports)
+    {
+        const auto view = backend.port(id);
+        if (!view || !has_line_format(*view))
+            continue;
+        if (!first)
+            first = view->serial;
+        else if (first->baud_rate != view->serial.baud_rate ||
+                 first->data_bits != view->serial.data_bits ||
+                 first->parity != view->serial.parity ||
+                 first->stop_bits != view->serial.stop_bits)
+            return false;
+    }
+    return true;
+}
+
 vss::result<bundle_made> build_bundle(StudioBackend& backend,
                                       const bundle_request& request)
 {
@@ -325,6 +392,23 @@ vss::result<bundle_made> build_bundle(StudioBackend& backend,
 
     bundle_made made;
     QVector<vss::endpoint_id> ids;
+    // A new port or fixture that joins one that is there runs at its speed
+    // and framing, unless the request chose its own.  The set is one line.
+    vss::serial_settings settings = request.settings;
+    if (settings == vss::serial_settings{})
+    {
+        for (const bundle_slot& slot : request.slots)
+        {
+            if (slot.kind != slot_kind::existing)
+                continue;
+            if (const auto port = port_named(backend, slot.name);
+                port && has_line_format(*port))
+            {
+                settings = port->serial;
+                break;
+            }
+        }
+    }
     for (const bundle_slot& slot : request.slots)
     {
         if (slot.kind == slot_kind::existing)
@@ -338,7 +422,7 @@ vss::result<bundle_made> build_bundle(StudioBackend& backend,
             ids.append(port->id);
             continue;
         }
-        const auto port = make_slot_port(backend, slot, request.settings);
+        const auto port = make_slot_port(backend, slot, settings);
         if (!port)
         {
             roll_back(backend, made.links, made.created);

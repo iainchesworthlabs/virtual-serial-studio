@@ -402,7 +402,9 @@ TEST_CASE("plugin protocol: each body has its op")
 TEST_CASE("plugin protocol: the limits are the ones the header states")
 {
     REQUIRE_EQ(plugin_api_version.major, 1);
-    REQUIRE_EQ(plugin_api_version.minor, 0);
+    REQUIRE_EQ(plugin_api_version.minor, 1);
+    REQUIRE_EQ(plugin_api_lowest.major, 1);
+    REQUIRE_EQ(plugin_api_lowest.minor, 0);
     REQUIRE_EQ(max_op_length, std::size_t{64});
     REQUIRE_EQ(max_message_text, std::size_t{1024});
     REQUIRE_EQ(max_status_text, std::size_t{200});

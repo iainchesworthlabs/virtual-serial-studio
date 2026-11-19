@@ -6,6 +6,7 @@
 
 #include "qt_wait.hpp"
 #include "test_framework.hpp"
+#include "qt_input.hpp"
 
 #include "advanced/add_fixture_dialog.hpp"
 #include "advanced/benchmark_dialog.hpp"
@@ -19,9 +20,11 @@
 #include "advanced/wiring_dialog.hpp"
 #include "backend/fake_studio_backend.hpp"
 #include "shell/shell_window.hpp"
+#include "theme/theme.hpp"
 #include "widgets/chips.hpp"
 #include "widgets/controls.hpp"
 #include "widgets/half_duplex_fields.hpp"
+#include "widgets/wire_timing_fields.hpp"
 
 #include <QAbstractButton>
 #include <QAction>
@@ -32,6 +35,7 @@
 #include <QDir>
 #include <QDockWidget>
 #include <QLabel>
+#include <QMenu>
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QProgressBar>
@@ -39,6 +43,7 @@
 #include <QRadioButton>
 #include <QSettings>
 #include <QSpinBox>
+#include <QHeaderView>
 #include <QTableWidget>
 #include <QToolButton>
 
@@ -1559,9 +1564,9 @@ TEST_CASE("json: a half-duplex line is checked and each error is placed")
     };
     const json_problem slow = inside(QStringLiteral("\"bit_rate\":10"));
     REQUIRE(slow.summary.contains(
-        QStringLiteral("The line rate must be between 50 and 4000000 bit/s")));
+        QStringLiteral("The line rate must be between 50 and 12000000 bit/s")));
     REQUIRE_EQ(slow.line, 11);
-    REQUIRE_EQ(inside(QStringLiteral("\"bit_rate\":4000001")).line, 11);
+    REQUIRE_EQ(inside(QStringLiteral("\"bit_rate\":12000001")).line, 11);
     REQUIRE_EQ(inside(QStringLiteral("\"bit_rate\":9600.5")).line, 11);
     REQUIRE_EQ(inside(QStringLiteral("\"bit_rate\":\"fast\"")).line, 11);
 
@@ -1605,6 +1610,33 @@ TEST_CASE("event log: a bus fault shows its sentence")
     REQUIRE_EQ(table->item(0, 3)->text(), fault.message);
 }
 
+TEST_CASE("event log: a break is a row of its own with its length")
+{
+    using namespace vss::gui;
+    using namespace std::chrono_literals;
+    EventLogPanel log;
+    gui_event done;
+    done.kind = vss::event_kind::line_break;
+    done.name = QStringLiteral("p1");
+    done.phase = vss::break_phase::complete;
+    done.duration = 88us;
+    done.measured = true;
+    gui_event unmeasured = done;
+    unmeasured.measured = false;
+    gui_event running = done;
+    running.phase = vss::break_phase::begin;
+    running.duration = 0ns;
+    log.append({done, unmeasured, running});
+    REQUIRE_EQ(log.row_count(), 3);
+
+    auto* table = log.findChild<QTableWidget*>();
+    REQUIRE(table != nullptr);
+    REQUIRE_EQ(table->item(0, 2)->text(), QStringLiteral("Break"));
+    REQUIRE(table->item(0, 3)->text().contains(QStringLiteral("88")));
+    REQUIRE(table->item(1, 3)->text().startsWith(QStringLiteral("at least")));
+    REQUIRE_EQ(table->item(2, 3)->text(), QStringLiteral("running"));
+}
+
 TEST_CASE("link settings: a bus shows the half-duplex line and returns it")
 {
     using namespace vss::gui;
@@ -1645,6 +1677,112 @@ TEST_CASE("link settings: a bus shows the half-duplex line and returns it")
     REQUIRE(!fields->rows_enabled());
 }
 
+TEST_CASE("link settings: wire timing is offered on every link but a bus")
+{
+    using namespace vss::gui;
+    link_view pair;
+    pair.shape = link_shape::two_way;
+    pair.sources = {1};
+    pair.targets = {2};
+    LinkSettingsDialog dialog(pair, QStringLiteral("a and b"), true);
+    dialog.show();
+    QApplication::processEvents();
+    REQUIRE(dialog.wire_timing_shown());
+    WireTimingFields* fields = dialog.wire_timing_fields();
+    REQUIRE(fields != nullptr);
+    REQUIRE(fields->isVisibleTo(&dialog));
+
+    // Off by default: nothing is written, whatever the rows hold.
+    REQUIRE(!fields->enable_box()->isChecked());
+    REQUIRE(!fields->rows_enabled());
+    REQUIRE(!dialog.options().wire_timing.enabled);
+    REQUIRE(dialog.options().wire_timing == vss::wire_timing_options{});
+
+    // On, with no rate: the rate comes from the port and the framing is
+    // not editable.
+    fields->enable_box()->setChecked(true);
+    REQUIRE(fields->rows_enabled());
+    REQUIRE(!fields->framing_enabled());
+    REQUIRE(dialog.options().wire_timing.enabled);
+    REQUIRE_EQ(dialog.options().wire_timing.bit_rate, 0u);
+    REQUIRE(!dialog.options().wire_timing.framing.has_value());
+    REQUIRE(dialog.apply_button()->isEnabled());
+
+    // A rate and a framing.
+    fields->bit_rate_spin()->setValue(250000);
+    REQUIRE(fields->framing_enabled());
+    fields->stop_bits_combo()->setCurrentIndex(
+        fields->stop_bits_combo()->findData(
+            static_cast<int>(vss::stop_bits_mode::two)));
+    const auto timing = dialog.options().wire_timing;
+    REQUIRE(timing.enabled);
+    REQUIRE_EQ(timing.bit_rate, 250000u);
+    REQUIRE(timing.framing ==
+            (vss::wire_framing{8, vss::parity_mode::none,
+                               vss::stop_bits_mode::two}));
+    REQUIRE(vss::valid_wire_timing(timing));
+
+    // 8N1 is no framing, so it is not written as one.
+    fields->stop_bits_combo()->setCurrentIndex(0);
+    REQUIRE(!dialog.options().wire_timing.framing.has_value());
+
+    // The dialog shows what the link has.
+    pair.options.wire_timing = timing;
+    LinkSettingsDialog again(pair, QStringLiteral("a and b"), true);
+    again.show();
+    QApplication::processEvents();
+    REQUIRE(again.wire_timing_fields()->enable_box()->isChecked());
+    REQUIRE_EQ(again.wire_timing_fields()->bit_rate_spin()->value(), 250000);
+    REQUIRE(again.options().wire_timing == timing);
+
+    // Unchecking it turns the option off.
+    again.wire_timing_fields()->enable_box()->setChecked(false);
+    REQUIRE(!again.options().wire_timing.enabled);
+
+    link_view bus;
+    bus.shape = link_shape::bus;
+    bus.mode = vss::link_mode::bus;
+    bus.sources = {1, 2};
+    LinkSettingsDialog on_bus(bus, QStringLiteral("a and b"), true);
+    on_bus.show();
+    QApplication::processEvents();
+    REQUIRE(!on_bus.wire_timing_shown());
+    REQUIRE(!on_bus.wire_timing_fields()->isVisibleTo(&on_bus));
+    REQUIRE(!on_bus.options().wire_timing.enabled);
+}
+
+TEST_CASE("link settings: wire timing has accessible names and keyboard order")
+{
+    using namespace vss::gui;
+    link_view pair;
+    pair.shape = link_shape::two_way;
+    pair.sources = {1};
+    pair.targets = {2};
+    LinkSettingsDialog dialog(pair, QStringLiteral("a and b"), true);
+    WireTimingFields* fields = dialog.wire_timing_fields();
+    REQUIRE_EQ(fields->enable_box()->accessibleName(),
+               QStringLiteral("Wire timing"));
+    REQUIRE(!fields->enable_box()->accessibleDescription().isEmpty());
+    REQUIRE_EQ(fields->bit_rate_spin()->findChild<QLineEdit*>()->accessibleName(),
+               QStringLiteral("Bit rate"));
+    REQUIRE_EQ(fields->data_bits_combo()->accessibleName(),
+               QStringLiteral("Data bits"));
+    REQUIRE_EQ(fields->parity_combo()->accessibleName(),
+               QStringLiteral("Parity"));
+    REQUIRE_EQ(fields->stop_bits_combo()->accessibleName(),
+               QStringLiteral("Stop bits"));
+    for (QWidget* control :
+         {static_cast<QWidget*>(fields->enable_box()),
+          static_cast<QWidget*>(fields->bit_rate_spin()),
+          static_cast<QWidget*>(fields->data_bits_combo()),
+          static_cast<QWidget*>(fields->parity_combo()),
+          static_cast<QWidget*>(fields->stop_bits_combo())})
+    {
+        REQUIRE(control->focusPolicy() != Qt::NoFocus);
+        REQUIRE(control->minimumSizeHint().height() >= 0);
+    }
+}
+
 TEST_CASE("link settings: a bus without the capability, and other links")
 {
     using namespace vss::gui;
@@ -1671,4 +1809,199 @@ TEST_CASE("link settings: a bus without the capability, and other links")
     REQUIRE(!plain.half_duplex_shown());
     REQUIRE(!plain.half_duplex_fields()->isVisibleTo(&plain));
     REQUIRE(plain.options().half_duplex == vss::half_duplex_options{});
+}
+
+TEST_CASE("link settings: a monitor chooses its direction and has no delay")
+{
+    using namespace vss::gui;
+    link_view monitor;
+    monitor.shape = link_shape::monitor;
+    monitor.sources = {1};
+    monitor.targets = {2};
+    LinkSettingsDialog dialog(monitor, QStringLiteral("a and b"), true);
+    dialog.show();
+    QApplication::processEvents();
+    REQUIRE(dialog.direction_shown());
+    REQUIRE(!dialog.delay_spin()->isVisibleTo(&dialog));
+    auto* direction = dialog.direction_combo();
+    REQUIRE_EQ(direction->count(), 3);
+    REQUIRE_EQ(direction->itemText(0), QStringLiteral("Both directions"));
+    REQUIRE_EQ(direction->itemText(1), QStringLiteral("Transmit only"));
+    REQUIRE_EQ(direction->itemText(2), QStringLiteral("Receive only"));
+    // Both is the default and is what an old file means.
+    REQUIRE(dialog.options().direction == vss::monitor_direction::both);
+    direction->setCurrentIndex(2);
+    REQUIRE(dialog.options().direction == vss::monitor_direction::receive);
+
+    // A link that is not a monitor has no direction to choose.
+    link_view pair;
+    pair.shape = link_shape::two_way;
+    pair.sources = {1};
+    pair.targets = {2};
+    LinkSettingsDialog plain(pair, QStringLiteral("a and b"), true);
+    REQUIRE(!plain.direction_shown());
+    REQUIRE(plain.options().direction == vss::monitor_direction::both);
+}
+
+TEST_CASE("event log: rows and heading follow the density like the Monitor")
+{
+    using namespace vss::gui;
+    Theme& theme = Theme::instance();
+    EventLogPanel log;
+    log.resize(900, 320);
+    log.show();
+    gui_event framing;
+    framing.kind = vss::event_kind::error;
+    framing.name = QStringLiteral("tcp-client-1");
+    framing.error = QStringLiteral("Framing error from the network client");
+    gui_event started;
+    started.kind = vss::event_kind::started;
+    started.name = QStringLiteral("terminal");
+    log.append({started, framing});
+    log.add_local(QStringLiteral("Applied the topology JSON."));
+    QApplication::processEvents();
+
+    QTableWidget* table = log.table();
+    int comfortable_row = 0;
+    int compact_row = 0;
+    for (const auto density : {density_mode::comfortable, density_mode::compact})
+    {
+        theme.set_density(density);
+        QApplication::processEvents();
+        const int row = table->rowHeight(0);
+        // Live: the rows are the density's, and never under a target.
+        REQUIRE(row >= theme.metric(QStringLiteral("minTarget")));
+        REQUIRE(table->horizontalHeader()->height() >=
+                theme.metric(QStringLiteral("minTarget")));
+        (density == density_mode::compact ? compact_row : comfortable_row) =
+            row;
+        // Every heading fits its column.
+        for (int column = 0; column < 3; ++column)
+        {
+            REQUIRE(table->columnWidth(column) >=
+                    table->horizontalHeader()->sectionSizeHint(column));
+        }
+        REQUIRE(table->property("compact").toBool() ==
+                (density == density_mode::compact));
+    }
+    REQUIRE(compact_row <= comfortable_row);
+
+    // Larger text makes the rows taller, not cut.
+    theme.set_density(density_mode::comfortable);
+    vss_test::scale_text(&log, 2.0);
+    QApplication::processEvents();
+    REQUIRE(table->rowHeight(0) > comfortable_row);
+
+    // Review pictures, never committed: beside the build, in gui-shots.
+    const QString directory =
+        QDir(QCoreApplication::applicationDirPath())
+            .filePath(QStringLiteral("../gui-shots/log-density"));
+    REQUIRE(QDir().mkpath(directory));
+    EventLogPanel shot;
+    shot.resize(900, 220);
+    shot.append({started, framing});
+    shot.add_local(QStringLiteral("Applied the topology JSON."));
+    shot.show();
+    for (const auto density : {density_mode::comfortable, density_mode::compact})
+    {
+        for (const auto mode : {theme_mode::light, theme_mode::dark})
+        {
+            theme.set_density(density);
+            theme.set_mode(mode);
+            QApplication::processEvents();
+            const QString name =
+                QStringLiteral("log-%1-%2.png")
+                    .arg(density == density_mode::compact
+                             ? QStringLiteral("compact")
+                             : QStringLiteral("comfortable"),
+                         mode == theme_mode::dark ? QStringLiteral("dark")
+                                                  : QStringLiteral("light"));
+            REQUIRE(shot.grab().save(QDir(directory).filePath(name)));
+        }
+    }
+    theme.set_mode(theme_mode::light);
+    theme.set_density(density_mode::comfortable);
+}
+
+TEST_CASE("event log: port, kind and search filters keep new rows arriving")
+{
+    using namespace vss::gui;
+    EventLogPanel log;
+    log.resize(900, 320);
+    log.show();
+    gui_event started;
+    started.kind = vss::event_kind::started;
+    started.name = QStringLiteral("terminal");
+    gui_event framing;
+    framing.kind = vss::event_kind::error;
+    framing.name = QStringLiteral("tcp-client-1");
+    framing.error = QStringLiteral("Framing error from the network client");
+    log.append({started, framing});
+    log.add_local(QStringLiteral("Applied the topology JSON."));
+    QTableWidget* table = log.table();
+    const auto shown = [table]
+    {
+        int count = 0;
+        for (int row = 0; row < table->rowCount(); ++row)
+            count += table->isRowHidden(row) ? 0 : 1;
+        return count;
+    };
+    REQUIRE_EQ(shown(), 3);
+
+    auto* port = log.findChild<QComboBox*>();
+    REQUIRE(port != nullptr);
+    REQUIRE_EQ(port->count(), 3);
+    port->setCurrentIndex(port->findText(QStringLiteral("tcp-client-1")));
+    REQUIRE_EQ(shown(), 1);
+    // A new event for another port is kept but not shown.
+    log.append({started});
+    REQUIRE_EQ(log.row_count(), 4);
+    REQUIRE_EQ(shown(), 1);
+    port->setCurrentIndex(0);
+    REQUIRE_EQ(shown(), 4);
+
+    auto* search = log.findChild<QLineEdit*>();
+    REQUIRE(search != nullptr);
+    search->setText(QStringLiteral("FRAMING"));
+    REQUIRE_EQ(shown(), 1);
+    search->setText(QStringLiteral("nothing like this"));
+    REQUIRE_EQ(shown(), 0);
+    REQUIRE(log.empty_label()->isVisibleTo(&log));
+    search->clear();
+
+    auto* kinds = log.findChild<QToolButton*>();
+    REQUIRE(kinds != nullptr);
+    for (QAction* action : kinds->menu()->actions())
+    {
+        if (action->text() == QStringLiteral("Errors"))
+            action->setChecked(false);
+    }
+    REQUIRE_EQ(shown(), 3);
+}
+
+TEST_CASE("event log: in a narrow pane no control is squeezed")
+{
+    using namespace vss::gui;
+    for (const int width : {360, 388, 520, 900})
+    {
+        EventLogPanel log;
+        log.resize(width, 300);
+        log.show();
+        QApplication::processEvents();
+        for (QWidget* widget : log.findChildren<QWidget*>())
+        {
+            if (!widget->isVisible())
+                continue;
+            if (qobject_cast<QPushButton*>(widget) == nullptr &&
+                qobject_cast<QToolButton*>(widget) == nullptr &&
+                qobject_cast<QComboBox*>(widget) == nullptr)
+                continue;
+            REQUIRE(widget->width() >= widget->minimumSizeHint().width());
+            REQUIRE(widget->width() >= 24);
+            if (auto* button = qobject_cast<QAbstractButton*>(widget))
+            {
+                REQUIRE(button->width() >= button->sizeHint().width());
+            }
+        }
+    }
 }

@@ -61,6 +61,28 @@ public:
         });
     }
 
+    /// A break written to one end is a break received by the other, in
+    /// order with the bytes written before it.
+    bool can_deliver_break() const noexcept override { return true; }
+
+    void async_write_break(const vss::line_break& item,
+                           io_handler handler) override
+    {
+        if (auto other = peer_.lock())
+        {
+            // The same order as bytes: the other end's reader sees the bytes
+            // already injected, then the break.
+            other->inbox_->inject_break(item);
+        }
+        boost::asio::post(executor_, [handler = std::move(handler)]
+                          { handler({}, 0); });
+    }
+
+    void set_break_sink(break_sink sink) override
+    {
+        inbox_->set_break_sink(std::move(sink));
+    }
+
     void close() override { inbox_->close(); }
     void cancel() override { inbox_->cancel(); }
 

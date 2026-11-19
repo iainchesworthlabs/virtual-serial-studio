@@ -15,6 +15,7 @@
 #include <QHash>
 
 #include <functional>
+#include <utility>
 #include <vector>
 
 namespace vss::gui
@@ -33,6 +34,10 @@ struct fake_plugin_request
     /// A key file, or a folder.
     QString path;
     QString fingerprint;
+    /// An instance number.
+    quint64 number = 0;
+    /// The settings an instance was asked with.
+    QMap<QString, QString> values;
 };
 
 class FakePluginBackend final : public PluginBackend
@@ -58,6 +63,40 @@ public:
     void add_plugin(const QString& folder) override;
     void remove_plugin(const QString& plugin_id, const QString& hash,
                        bool delete_saved_data) override;
+    void add_instance(const QString& plugin_id, const QString& point_id,
+                      const QMap<QString, QString>& values) override;
+    QStringList place_names() const override { return place_names_; }
+    plugin_found_ptr found(const QString& plugin_id,
+                           quint64 instance) const override
+    {
+        return found_.value(plugin_id + QLatin1Char('#') +
+                            QString::number(instance));
+    }
+    void set_found(const QString& plugin_id, quint64 instance,
+                   plugin_found_ptr what)
+    {
+        found_.insert(plugin_id + QLatin1Char('#') + QString::number(instance),
+                      std::move(what));
+    }
+    void set_place_names(QStringList names) { place_names_ = std::move(names); }
+    void remove_instance(const QString& plugin_id, quint64 number) override;
+    void answer_secret(quint64 id, bool seen) override;
+    void answer_control(quint64 id, bool allowed) override;
+
+    /// A test asks the page's side to show a secret or a control request, as
+    /// the service would.
+    void ask_secret(const plugin_secret_request& request);
+    void ask_control(const plugin_control_request& request);
+    /// The answers given so far, as (request number, answer).
+    const std::vector<std::pair<quint64, bool>>& secret_answers() const noexcept
+    {
+        return secret_answers_;
+    }
+    const std::vector<std::pair<quint64, bool>>&
+    control_answers() const noexcept
+    {
+        return control_answers_;
+    }
 
     // -- what a test sets
 
@@ -94,6 +133,10 @@ private:
 
     std::shared_ptr<plugin_snapshot> snapshot_;
     std::vector<fake_plugin_request> requests_;
+    QStringList place_names_;
+    QHash<QString, plugin_found_ptr> found_;
+    std::vector<std::pair<quint64, bool>> secret_answers_;
+    std::vector<std::pair<quint64, bool>> control_answers_;
     QHash<QString, plugin_key_file_view> key_files_;
     QHash<QString, plugin_inspection_view> inspections_;
     QStringList inspected_;

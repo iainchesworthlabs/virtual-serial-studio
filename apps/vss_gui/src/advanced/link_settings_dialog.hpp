@@ -23,8 +23,9 @@ namespace vss::gui
 {
 
 class HalfDuplexFields;
+class WireTimingFields;
 
-/// "Settings for <link>": delay, jitter, what happens when two write at once,
+/// "Settings for <link>": delay, jitter, wire timing, what happens when two write at once,
 /// and the modem-line crossing.  The caller changes the link in place with
 /// `options()` (`change_link_options` in `backend/canvas_edit`).  A bus offers
 /// delay and jitter and, where the backend has
@@ -46,6 +47,16 @@ public:
     bool policy_shown() const;
     bool modem_lines_shown() const;
     bool half_duplex_shown() const;
+    /// A monitor link chooses which bytes it copies; it has no delay.
+    bool direction_shown() const;
+    /// Every link but a bus can carry its traffic at wire speed.
+    bool wire_timing_shown() const;
+    WireTimingFields* wire_timing_fields() const noexcept
+    {
+        return wire_timing_;
+    }
+    QComboBox* direction_combo() const noexcept { return direction_; }
+    QSpinBox* delay_spin() const noexcept { return delay_; }
     HalfDuplexFields* half_duplex_fields() const noexcept
     {
         return half_duplex_;
@@ -58,8 +69,10 @@ private:
     QSpinBox* delay_ = nullptr;
     QSpinBox* jitter_ = nullptr;
     QComboBox* policy_ = nullptr;
+    QComboBox* direction_ = nullptr;
     QCheckBox* modem_lines_ = nullptr;
     HalfDuplexFields* half_duplex_ = nullptr;
+    WireTimingFields* wire_timing_ = nullptr;
     QLabel* error_ = nullptr;
     QPushButton* apply_ = nullptr;
 };

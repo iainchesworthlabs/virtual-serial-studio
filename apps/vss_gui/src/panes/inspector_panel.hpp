@@ -15,6 +15,7 @@
 #include <array>
 #include <optional>
 
+class QComboBox;
 class QLabel;
 class QPushButton;
 class QScrollArea;
@@ -48,6 +49,13 @@ public:
     /// The "Provided by" block, hidden for a port no plugin provides.
     QWidget* plugin_block() const noexcept { return plugin_block_; }
     NoteBanner* plugin_note() const noexcept { return plugin_note_; }
+    /// The "monitor" block, hidden for a port that is not a monitor.
+    QWidget* monitor_block() const noexcept { return monitor_block_; }
+    QPushButton* monitor_open_button() const noexcept { return monitor_open_; }
+    QComboBox* monitor_direction_combo() const noexcept
+    {
+        return monitor_direction_;
+    }
     QPushButton* plugin_show_button() const noexcept { return plugin_show_; }
     void refresh();
     /// Adds the fixture behaviour section (echo, generator) for a mock
@@ -64,6 +72,12 @@ Q_SIGNALS:
     void advanced_tools_requested();
     void com_number_requested(vss::endpoint_id id);
     void release_port_requested(vss::endpoint_id id);
+    /// The Stop or Start button: `run` is true to start.
+    void run_requested(vss::endpoint_id id, bool run);
+    /// The Pause or Resume button: `pause` is true to pause.
+    void pause_requested(vss::endpoint_id id, bool pause);
+    /// "Open <port> in the Monitor", for a port that is a monitor.
+    void monitor_requested(vss::endpoint_id id);
     void error_message(const QString& message);
     /// "Show in Plugins" or the action of the note: `action` is a
     /// `vss::gui::part_action`.
@@ -72,8 +86,10 @@ Q_SIGNALS:
 private:
     void build();
     void update_content();
+    void update_connection_rows(const port_view& port);
     void update_lines();
     void update_plugin_part();
+    void update_monitor_block();
     void set_line(vss::control_line line, bool state);
     QString serial_description() const;
 
@@ -91,6 +107,26 @@ private:
     QLabel* path_ = nullptr;
     CopyButton* copy_ = nullptr;
     QLabel* traffic_ = nullptr;
+    QLabel* run_caption_ = nullptr;
+    QPushButton* run_button_ = nullptr;
+    QPushButton* pause_button_ = nullptr;
+    QWidget* run_row_ = nullptr;
+    /// The rows of a network client's connection, in the order shown; all
+    /// hidden for any other port.  Each is a caption and its value.
+    struct connection_row
+    {
+        QLabel* caption = nullptr;
+        QLabel* value = nullptr;
+    };
+    connection_row remote_row_;
+    connection_row local_row_;
+    connection_row connected_row_;
+    connection_row error_row_;
+    connection_row next_try_row_;
+    connection_row history_row_;
+    connection_row received_row_;
+    connection_row sent_row_;
+    connection_row reconnects_row_;
     QLabel* com_caption_ = nullptr;
     QWidget* com_row_ = nullptr;
     QLabel* com_value_ = nullptr;
@@ -110,6 +146,13 @@ private:
     QLabel* advanced_link_ = nullptr;
     FixturePanel* fixture_panel_ = nullptr;
     QVBoxLayout* content_layout_ = nullptr;
+    QWidget* monitor_block_ = nullptr;
+    QLabel* monitor_text_ = nullptr;
+    QPushButton* monitor_open_ = nullptr;
+    QComboBox* monitor_direction_ = nullptr;
+    QLabel* monitor_direction_hint_ = nullptr;
+    vss::link_id monitor_link_ = 0;
+    vss::endpoint_id watched_ = 0;
     QHash<vss::endpoint_id, vss::gui::part_description> plugin_parts_;
     QWidget* plugin_block_ = nullptr;
     QLabel* plugin_provided_ = nullptr;

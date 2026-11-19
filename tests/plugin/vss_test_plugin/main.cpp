@@ -89,6 +89,9 @@
 //                         arrives, as --send-op does.  May be given more
 //                         than once.  A manifest writes the text as a JSON
 //                         string, so its quotes are escaped there.
+//   --notify-header=<text>  after those, sends a notification whose header
+//                         is the text, a JSON object that holds an "op" and
+//                         no "id".  May be given more than once.
 //   --echo-op=<op>        answers a request with this op with "ok" and
 //                         prints "got <op>"; may be given more than once
 //   --refuse-op=<op>      answers a request with this op with an "error"

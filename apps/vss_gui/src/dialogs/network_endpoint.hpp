@@ -59,6 +59,19 @@ public:
     QStringList device_paths() const;
     bool set_device_path(const QString& path);
     QString device_path() const;
+    /// The port in Studio the network port will serve, or 0 when the choice is
+    /// a real device or "A new port in Studio".
+    vss::endpoint_id selected_port() const;
+    bool new_port_selected() const;
+    bool select_port(vss::endpoint_id id);
+    bool select_new_port();
+
+    /// Opens the dialog on a network port that is there, to change it: server
+    /// or client, the address, the bind port and the rest of the address.  The
+    /// port keeps its name and its links.  False for a port that is not a
+    /// network port or has no address to show.
+    bool edit_port(vss::endpoint_id id);
+    vss::endpoint_id editing_port() const noexcept { return editing_; }
 
     void set_server_address(const QString& address);
     QString server_address() const;
@@ -83,10 +96,15 @@ public:
     QString last_error() const { return last_error_; }
 
     bool submit();
+    /// Makes the network port although the remote end refused, and keeps
+    /// trying.  Only after `submit` was refused by the remote end.
+    bool submit_anyway();
     std::optional<vss::link_id> result_link() const { return result_link_; }
     int result_port() const { return result_port_; }
 
     QPushButton* primary_button() const { return primary_; }
+    /// "Create anyway and keep trying", shown when a client was refused.
+    QPushButton* anyway_button() const { return anyway_; }
     QPushButton* test_button() const { return test_; }
 
 Q_SIGNALS:
@@ -102,6 +120,8 @@ private:
     void update_warning();
     void show_firewall_dialog();
     void clear_error();
+    bool create(bool keep_trying);
+    bool show_create_error(const vss::error_code& error, int port_number);
     QString build_fields_uri() const;
     QString effective_uri() const;
     bool validate(QString& error) const;
@@ -116,6 +136,7 @@ private:
     std::vector<device_view> devices_;
     QString device_path_;
     vss::endpoint_id preselected_ = 0;
+    vss::endpoint_id editing_ = 0;
     QString last_error_;
 
     QComboBox* device_combo_ = nullptr;
@@ -144,6 +165,8 @@ private:
     QWidget* override_panel_ = nullptr;
     QPushButton* test_ = nullptr;
     QPushButton* primary_ = nullptr;
+    QPushButton* anyway_ = nullptr;
+    QLabel* device_note_ = nullptr;
 
     std::optional<vss::link_id> result_link_;
     int result_port_ = 0;

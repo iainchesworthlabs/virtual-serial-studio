@@ -632,6 +632,44 @@ Here every byte takes between 180 and 200 ms to reach each other member.
   the ports themselves take. It is accurate to a few milliseconds, and a busy
   machine can make a byte late but never early.
 
+## Wire timing on a link
+
+Without it, a link hands on what it reads as soon as it can: ten bytes written
+at once arrive at once, though a real wire would take a few milliseconds for
+them. Some protocols depend on that time. Modbus RTU ends a frame with 3.5
+characters of silence, DMX512 needs a gap after a break, and LIN a space before
+the answer. Turn on **Wire timing** in the link's **Settings...** (right-click
+the link at the Advanced level), or add `wire_timing` to the link in a topology
+file:
+
+```json
+{ "mode": "duplex", "sources": ["master"], "targets": ["device"],
+  "wire_timing": { "bit_rate": 115200, "framing": "8N1" } }
+```
+
+- **Each character takes its real bits**: a start bit, 5 to 8 data bits, a
+  parity bit if there is one, and 1, 1.5 or 2 stop bits. At 9600 bit/s a byte of
+  8N1 takes about 1.04 ms and a byte of 8E2 about 1.35 ms.
+- **A long write is spread over the time it would take**, in short pieces. The
+  next write waits until the one before it has finished. A break holds back what
+  follows it for the length of the break (one character when its length is not
+  known).
+- **Whose rate**: the sending port's. If a program has set a rate on the port
+  (a Windows driver port), that is used, then the port's own setting for a real
+  serial port, then the **Bit rate** and **Framing** on the link. With none of
+  them the link is not paced, and the Log says "no rate for this link" once.
+  Leave **Bit rate** at "From the port" to use the first two.
+- It is off unless you turn it on, it is not saved when off, and a bus does not
+  have it because a half-duplex bus already has a wire of its own.
+- A Studio from before wire timing will not open a file that has it.
+- **Accuracy**: on Windows 10 (version 1803) and later a pace is kept to about
+  half a millisecond; elsewhere it is a little better than that, and for a gap
+  under a millisecond Studio waits on the processor for the last part of it. That
+  uses at most a tenth of one processor core, and past that the release is made
+  from the timer and may be late. The link counts how many releases were late.
+  Over RFC 2217 the gaps a client sees are not reliable, because TCP joins and
+  splits what it sends as it likes.
+
 ## RS-232, RS-422 and RS-485
 
 A Studio port has no electrical mode. A program cannot see the wiring, so a
@@ -682,7 +720,7 @@ Every member of `half_duplex` may be left out; `"half_duplex": {}` is a line at
 9600 bit/s that reports and changes nothing. A bus without `half_duplex` is the
 plain bus, as before, and Studio writes nothing for it.
 
-- **The line rate** (`bit_rate`, 50 to 4000000 bit/s; **Line rate**). A byte
+- **The line rate** (`bit_rate`, 50 to 12000000 bit/s; **Line rate**). A byte
   takes ten bits, as at 8N1. A message of `n` bytes is on the line for
   `10 × n ÷ bit_rate` seconds from the moment its program sent it, and **the
   other stations hear it when its last byte has left the line**, not before: 8
@@ -916,6 +954,22 @@ Inspector is an Advanced pane.
 Some of these depend on what the engine can do; see
 [what this build cannot do](#what-this-build-cannot-do).
 
+## Data passes through a port
+
+When a link writes bytes into a port, Studio sends them on along that port's
+other links. If port 1 has a two-way link to port 4, port 4 has a two-way link to
+a network server and port 4 is on a bus, the bytes from port 1 reach the server
+and the other ports on the bus, and the bytes from the server reach port 1 and
+the bus.
+
+- A port never gets the same bytes twice, and bytes never go back to the port
+  they came from, so a two-way link or a bus does not echo.
+- A one-way link passes bytes on in its own direction only.
+- A monitor on a port shows what the port reads and what is written into it,
+  each once.
+- The listeners of a split still do not hear each other.
+- A delay on a link is added to the delay of the next link.
+
 ## Choosing a COM number (Windows)
 
 Many older programs open one fixed port, `COM3` for example, and keep it in a
@@ -1071,8 +1125,9 @@ back as they are. An entry that is malformed (no `id`, a `name` with a control
 character, `params` that is not an object) is an error, like any other mistake
 in the file.
 
-This build does not run plugins. It checks the list when it reads a setup and
-keeps it with the port or the link, so a setup that is opened and saved again,
+Studio does not yet run a plugin that a setup names for a port or a link. It
+checks the list when it reads a setup and keeps it with the port or the link,
+so a setup that is opened and saved again,
 from the window or from the command line, still has it. The list goes with its
 port or link: remove the link and make it again, and the new link has none. A
 version of Studio from before this change opens such a file, ignores the list,
@@ -1130,6 +1185,31 @@ it as a serial port. Data passes through as it would for TCP. The client's
 DTR and RTS are the endpoint's output lines, so a linked port sees them as
 DSR, CTS and DCD, and the CTS, DSR, DCD and RI that reach the endpoint are
 sent to the client as modem state.
+
+### An RFC 2217 client
+
+`rfc2217://host:port` is Studio's own RFC 2217 client. It makes the connection
+when the port is made, and it reports an address that cannot be reached when
+you add the port. The settings go in the address after the port:
+`rfc2217://lab:7001?baud=115200&data=8&parity=none&stop=1&flow=none`. Studio asks
+the server to use the COM-PORT option, and once it agrees:
+
+- The speed, data bits, parity, stop bits and flow control are sent, and sent
+  again when the port's settings change.
+- DTR and RTS follow the port's. CTS, DSR, DCD and RI that the server reports
+  are the port's inputs.
+- A break that arrives at the port is sent as break on, a wait of the break's
+  length and break off. The length on the wire is only as accurate as the
+  network, so a short break can arrive longer or shorter, and a device that
+  times a break closely should not be driven this way. The log says this the
+  first time.
+- A server that reports a break (the break bit of the line state) gives a break
+  in the stream, in order with the bytes around it. RFC 2217 has no length for
+  it, so it is one character time and is marked as not measured.
+
+A server that does not offer RFC 2217 is used as a plain byte stream, and the
+log says so. If the connection is lost the port stops, and a reconnect policy
+opens the address again, as it does for `tcp://`.
 
 To let other computers connect, allow the port through the host firewall and
 listen on an interface they can reach (`0.0.0.0` for all interfaces). Try
@@ -1432,7 +1512,8 @@ registry on Windows, a configuration file on Linux and macOS).
 
 - **File → Support bundle** saves a ZIP named `vss-support-<date>.zip` with
   the version and environment, the driver state, the setup, the event log, the
-  port counters and the serial ports on this computer, and the licence number,
+  port counters and the serial ports on this computer (and, if you turn it on,
+  the calls Studio made to Windows that failed), and the licence number,
   edition, term and state when a licence is installed. The bytes your ports
   sent and received are never included, and passwords, the path of your home
   folder, your computer and user names, device serial numbers and the licence
@@ -1440,6 +1521,21 @@ registry on Windows, a configuration file on Linux and macOS).
   licensee name and this computer's name. The right side of the dialog shows
   each file exactly as it will be saved. Nothing is sent anywhere; you choose
   where to save the file.
+- **Settings → Performance → Debug access** lets programs on this computer ask
+  a running Studio what its ports, its engine and Windows are doing. Use it to
+  find out why a port will not open, why Windows refuses a COM number, or why a
+  network client does not connect. It is off every time Studio starts. While it
+  is on, the status bar shows **Debug access on**, and pressing that turns it
+  off. A program that wants to use it asks first, and you choose **Don't
+  allow**, **Allow once** or **Allow until Studio quits**. Each use is written to
+  a log in Studio's data folder. It uses a pipe only you can open, and nothing
+  is sent anywhere. A second switch lets a program read the bytes your ports
+  carry, for ten minutes at most. `vss_cli debug` is the command line client:
+  `vss_cli debug snapshot` shows every port with its state, counters and last
+  error, `vss_cli debug trace --follow` shows the calls Studio makes to Windows
+  as they happen, with the code Windows gave for each one that fails, and
+  `vss_cli debug com` shows which COM numbers Windows keeps and why. See
+  [A debug API for a running Studio](debug-api.md).
 - **Help → Support...** says where to get help for your edition, what to write
   before you ask, and has the **Create support bundle** button and a **Copy**
   button for the version, edition, licence number and operating system. It
@@ -2119,7 +2215,7 @@ vss_cli plugin list [--json] [--root <folder>]...
 ```
 
 `plugin list` shows the plugins that are installed on this computer. It only
-reads. It runs no plugin and changes nothing. This build does not run plugins.
+reads. It runs no plugin and changes nothing.
 For each plugin it also makes the checks that come before a run, the same ones
 `plugin verify` makes, and shows what they found.
 
@@ -2196,7 +2292,6 @@ com.example.modbus-fixture  1.2.0  Modbus fixture
   May run:      yes
   Licence:      none needed
   Install:      can be installed
-This build does not run plugins.
 ```
 
 - **Signature** says whether the signature holds and who made it. "Official"

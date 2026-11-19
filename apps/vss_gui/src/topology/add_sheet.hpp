@@ -7,6 +7,7 @@
 #pragma once
 
 #include "backend/canvas_edit.hpp"
+#include "backend/com_number_uses.hpp"
 
 #include <QDialog>
 #include <QString>
@@ -14,6 +15,7 @@
 #include <QVector>
 
 #include <functional>
+#include <map>
 #include <utility>
 #include <vector>
 
@@ -28,6 +30,7 @@ class QWidget;
 
 namespace vss::gui
 {
+class FormRow;
 class NoteBanner;
 }
 
@@ -67,6 +70,15 @@ public:
         setup_offered_ = std::move(offered);
     }
 
+    /// Offers a "COM number" row (Automatic, then the free numbers) on the
+    /// Port tile, where Windows can give a port a number.  `uses` are the
+    /// numbers that are taken and by what.
+    void set_com_numbers(std::map<unsigned, com_use> uses);
+    QComboBox* com_number_combo() const noexcept { return com_; }
+    FormRow* com_number_row() const noexcept { return com_row_; }
+    /// The COM number typed or chosen; 0 for Automatic or text that is not one.
+    unsigned com_number() const;
+
     bundle_request request() const;
     int count() const;
     void set_count(int count);
@@ -75,6 +87,12 @@ public:
     void set_slot_name(int index, const QString& name);
     int slot_rows() const;
     QString slot_row_label(int index) const;
+    /// For the tests: the settings fields, whether they can be edited and the
+    /// line that says where they come from (empty when it is hidden).
+    bool settings_editable() const;
+    QString settings_note() const;
+    QComboBox* baud_combo() const noexcept { return baud_; }
+    QComboBox* framing_combo() const noexcept { return framing_; }
     QPushButton* add_button() const noexcept { return add_; }
     /// Shows the reason the last Add failed, under the sheet.
     void show_error(const QString& text);
@@ -99,6 +117,10 @@ private:
     void update_state();
     void sync_name_visibility(int index);
     void rename_default(int index);
+    /// A monitor runs at the speed of the port it watches: with an existing
+    /// port as the watched end, the fields show that port's settings and
+    /// cannot be changed. Without one they are the user's to set.
+    void update_source_settings();
 
     canvas_item item_;
     std::vector<port_view> ports_;
@@ -109,7 +131,12 @@ private:
     QToolButton* more_ = nullptr;
     QWidget* settings_ = nullptr;
     QComboBox* baud_ = nullptr;
+    QComboBox* com_ = nullptr;
+    FormRow* com_row_ = nullptr;
+    std::map<unsigned, com_use> com_uses_;
     QComboBox* framing_ = nullptr;
+    QLabel* settings_note_ = nullptr;
+    QString source_name_;
     NoteBanner* error_ = nullptr;
     attempt_function attempt_;
     std::function<bool()> setup_offered_;

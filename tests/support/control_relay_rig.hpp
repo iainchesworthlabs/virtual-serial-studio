@@ -29,9 +29,12 @@
 #include <cstdint>
 #include <functional>
 #include <future>
+#include <iomanip>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <random>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <utility>
@@ -42,6 +45,17 @@ namespace vss_test_relay
 
 /// The longest any wait lasts.
 inline constexpr std::chrono::milliseconds long_limit{20000};
+
+/// A gateway instance name that nothing listens on: up to 32 letters, digits,
+/// `_` and `-`.
+inline std::string unused_instance()
+{
+    std::random_device device;
+    std::ostringstream text;
+    text << "nogate" << std::hex << std::setw(8) << std::setfill('0')
+         << device();
+    return text.str();
+}
 
 /// One frame the relay offered to the plugin.
 struct offered_frame

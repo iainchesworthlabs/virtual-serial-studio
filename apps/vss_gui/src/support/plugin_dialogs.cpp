@@ -7,6 +7,7 @@
 #include "support/plugin_dialogs.hpp"
 
 #include "support/plugin_widgets.hpp"
+#include "theme/scaled_font.hpp"
 #include "theme/theme.hpp"
 #include "widgets/common.hpp"
 #include "widgets/controls.hpp"
@@ -14,15 +15,23 @@
 #include "widgets/notes.hpp"
 
 #include <QCheckBox>
+#include <QClipboard>
+#include <QComboBox>
 #include <QCoreApplication>
+#include <QFontMetrics>
 #include <QFormLayout>
 #include <QFrame>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QTimer>
 #include <QVBoxLayout>
+
+#include <algorithm>
 
 namespace vss::gui::support
 {
@@ -185,7 +194,8 @@ void PluginDecisionDialog::build()
     changed_note_->set_kind(NoteBanner::kind::warn);
     changed_note_->set_text(QCoreApplication::translate(
         "PluginDecisionDialog",
-        "This is a different version from the one you approved."));
+        "You allowed an earlier version of this plugin. Look at what changed "
+        "before you allow this one."));
     changed_note_->setVisible(plugin_.differs_from_approved);
     body->addWidget(changed_note_);
 
@@ -631,6 +641,14 @@ PluginInstallDialog::PluginInstallDialog(PluginBackend& backend,
                       "a different copy.")
                       .arg(plain_text(plugin.name));
         break;
+    case problem::installed_for_everyone:
+        refusal = installed_elsewhere_text(plugin_installed_for::everyone,
+                                           plugin.name);
+        break;
+    case problem::came_with_studio:
+        refusal = installed_elsewhere_text(plugin_installed_for::with_studio,
+                                           plugin.name);
+        break;
     case problem::cannot_write:
         refusal = QCoreApplication::translate(
             "PluginsDialog",
@@ -797,6 +815,517 @@ void PluginRemoveDialog::remove()
 {
     backend_.remove_plugin(plugin_.id, plugin_.hash, delete_data_->isChecked());
     accept();
+}
+
+// -- Settings for a new instance ---------------------------------------------
+
+PluginInstanceDialog::PluginInstanceDialog(const plugin_view& plugin,
+                                           const plugin_addition& point,
+                                           const QStringList& place_names,
+                                           QWidget* parent)
+    : QDialog(parent)
+{
+    setObjectName(QStringLiteral("pluginInstanceDialog"));
+    frame parts = build_frame(
+        this,
+        QCoreApplication::translate("PluginInstanceDialog", "Add %1")
+            .arg(plain_text(point.type_name)),
+        QCoreApplication::translate("PluginInstanceDialog",
+                                    "%1 needs these settings first.")
+            .arg(plain_text(plugin.name)),
+        520);
+    QVBoxLayout* body = parts.body;
+    QFormLayout* form = make_form(this);
+    for (const plugin_parameter_ask& ask : point.asks)
+    {
+        QWidget* field = nullptr;
+        if (ask.place_name)
+        {
+            auto* box = new QComboBox(this);
+            box->setEditable(true);
+            box->addItems(place_names);
+            box->setCurrentIndex(-1);
+            box->setInsertPolicy(QComboBox::NoInsert);
+            connect(box, &QComboBox::currentTextChanged, this,
+                    [this] { update_add(); });
+            field = box;
+        }
+        else
+        {
+            auto* edit = new QLineEdit(this);
+            connect(edit, &QLineEdit::textChanged, this,
+                    [this] { update_add(); });
+            field = edit;
+        }
+        field->setObjectName(QStringLiteral("instanceField"));
+        field->setProperty("settingId", ask.id);
+        field->setAccessibleName(plain_text(ask.label));
+        if (!ask.help.isEmpty())
+            field->setAccessibleDescription(plain_text(ask.help));
+        fields_.append({ask.id, field});
+        auto* name = make_plain_label(ask.label, this, text_style::body, true);
+        form->addRow(name, field);
+        if (!ask.help.isEmpty())
+            form->addRow(
+                QString(),
+                make_muted_label(ask.help, this, text_style::caption, true));
+    }
+    body->addLayout(form);
+    body->addWidget(make_muted_label(
+        QCoreApplication::translate("PluginInstanceDialog",
+                                    "These words come from the plugin."),
+        this));
+    body->addStretch(1);
+
+    cancel_ = footer_button(
+        parts.footer,
+        QCoreApplication::translate("PluginInstanceDialog", "Cancel"), nullptr,
+        QStringLiteral("instanceCancel"));
+    add_ = footer_button(
+        parts.footer,
+        QCoreApplication::translate("PluginInstanceDialog", "Add"), "primary",
+        QStringLiteral("instanceAdd"));
+    connect(cancel_, &QPushButton::clicked, this, &QDialog::reject);
+    connect(add_, &QPushButton::clicked, this, &QDialog::accept);
+    add_->setEnabled(false);
+    if (!fields_.isEmpty())
+        setTabOrder(fields_.last().second, cancel_);
+    setTabOrder(cancel_, add_);
+    if (!fields_.isEmpty())
+        fields_.first().second->setFocus(Qt::OtherFocusReason);
+}
+
+QMap<QString, QString> PluginInstanceDialog::values() const
+{
+    QMap<QString, QString> out;
+    for (const auto& each : fields_)
+    {
+        QString text;
+        if (const auto* box = qobject_cast<QComboBox*>(each.second))
+            text = box->currentText();
+        else if (const auto* line = qobject_cast<QLineEdit*>(each.second))
+            text = line->text();
+        out.insert(each.first, text.trimmed());
+    }
+    return out;
+}
+
+QWidget* PluginInstanceDialog::field(const QString& id) const
+{
+    for (const auto& each : fields_)
+    {
+        if (each.first == id)
+            return each.second;
+    }
+    return nullptr;
+}
+
+void PluginInstanceDialog::update_add()
+{
+    // The fields are made before the button is.
+    if (add_ == nullptr)
+        return;
+    bool all = true;
+    const QMap<QString, QString> given = values();
+    for (auto it = given.begin(); it != given.end(); ++it)
+        all = all && !it.value().isEmpty();
+    add_->setEnabled(all);
+}
+
+// -- A plugin shows a code ----------------------------------------------------
+
+namespace
+{
+
+/// "4 min 30 s", "5 min", "45 s".
+QString time_text(int seconds)
+{
+    const int clamped = std::max(0, seconds);
+    const int minutes = clamped / 60;
+    const int rest = clamped % 60;
+    if (minutes > 0 && rest > 0)
+        return QCoreApplication::translate("PluginSecretDialog", "%1 min %2 s")
+            .arg(minutes)
+            .arg(rest);
+    if (minutes > 0)
+        return QCoreApplication::translate("PluginSecretDialog", "%1 min")
+            .arg(minutes);
+    return QCoreApplication::translate("PluginSecretDialog", "%1 s")
+        .arg(clamped);
+}
+
+/// A box with a border and a heading that sets what a plugin said apart from
+/// Studio's own text.
+QFrame* make_plugin_says_box(QWidget* parent, const QString& heading,
+                             QVBoxLayout*& inside)
+{
+    auto* box = new QFrame(parent);
+    box->setProperty("note", QStringLiteral("info"));
+    polish(box);
+    inside = new QVBoxLayout(box);
+    inside->setContentsMargins(12, 10, 12, 10);
+    inside->setSpacing(6);
+    inside->addWidget(make_muted_label(heading, box, text_style::caption));
+    return box;
+}
+
+/// The characters of `text` with a space between each, for a screen reader.
+QString spaced(const QString& text)
+{
+    QString out;
+    out.reserve(text.size() * 2);
+    for (const QChar each : text)
+    {
+        if (!out.isEmpty())
+            out += QLatin1Char(' ');
+        out += each;
+    }
+    return out;
+}
+
+} // namespace
+
+PluginSecretDialog::PluginSecretDialog(const plugin_secret_request& request,
+                                       int remaining_seconds, QWidget* parent)
+    : QDialog(parent), remaining_(remaining_seconds)
+{
+    setObjectName(QStringLiteral("pluginSecretDialog"));
+    frame parts = build_frame(
+        this,
+        QCoreApplication::translate("PluginSecretDialog", "Code from a plugin"),
+        QCoreApplication::translate("PluginSecretDialog",
+                                    "%1 asks you to read this.")
+            .arg(plain_text(request.plugin_name)),
+        480);
+    QVBoxLayout* body = parts.body;
+
+    auto* id =
+        make_muted_label(request.plugin_id, this, text_style::caption, true);
+    id->setObjectName(QStringLiteral("secretPluginId"));
+    body->addWidget(id);
+
+    QVBoxLayout* inside = nullptr;
+    QFrame* box = make_plugin_says_box(
+        this,
+        QCoreApplication::translate("PluginSecretDialog", "The plugin says"),
+        inside);
+    box->setObjectName(QStringLiteral("secretBox"));
+    label_ = make_plain_label(request.label, box, text_style::body, true);
+    label_->setObjectName(QStringLiteral("secretLabel"));
+    inside->addWidget(label_);
+
+    code_ = new QPlainTextEdit(box);
+    code_->setObjectName(QStringLiteral("secretCode"));
+    code_->setReadOnly(true);
+    code_->setUndoRedoEnabled(false);
+    code_->setLineWrapMode(QPlainTextEdit::WidgetWidth);
+    code_->setWordWrapMode(QTextOption::WrapAnywhere);
+    code_->setFont(scaled_font(Theme::instance().font(text_style::data), 1.5));
+    code_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    code_->setPlainText(request.text);
+    // Room for the whole code at the large size, up to a few lines.
+    const int line = QFontMetrics(code_->font()).lineSpacing();
+    const int advance = std::max(
+        1, QFontMetrics(code_->font()).horizontalAdvance(QLatin1Char('0')));
+    const int per_line = std::max(8, 380 / advance);
+    const int lines =
+        std::clamp(static_cast<int>(request.text.size()) / per_line + 1, 1, 8);
+    code_->setFixedHeight(line * lines + 16);
+    code_->setAccessibleName(plain_text(request.label));
+    code_->setAccessibleDescription(spaced(request.text));
+    inside->addWidget(code_);
+    body->addWidget(box);
+
+    time_ = make_plain_label({}, this);
+    time_->setObjectName(QStringLiteral("secretTime"));
+    body->addWidget(time_);
+    body->addWidget(make_muted_label(
+        QCoreApplication::translate(
+            "PluginSecretDialog",
+            "Studio does not keep this code. Only give it to someone you "
+            "mean to."),
+        this));
+    body->addStretch(1);
+
+    copy_ = footer_button(
+        parts.footer, QCoreApplication::translate("PluginSecretDialog", "Copy"),
+        "quiet", QStringLiteral("secretCopy"));
+    close_ = footer_button(
+        parts.footer,
+        QCoreApplication::translate("PluginSecretDialog", "Close"), "primary",
+        QStringLiteral("secretClose"));
+    close_->setDefault(true);
+    close_->setAutoDefault(true);
+    connect(close_, &QPushButton::clicked, this, &QDialog::accept);
+    // The text to copy is held for the button only, and is dropped with the
+    // code.
+    copy_text_ = request.text;
+    copied_clock_ = new QTimer(this);
+    copied_clock_->setSingleShot(true);
+    copied_clock_->setInterval(2000);
+    connect(copied_clock_, &QTimer::timeout, this,
+            [this]
+            {
+                copy_->setText(
+                    QCoreApplication::translate("PluginSecretDialog", "Copy"));
+            });
+    connect(copy_, &QPushButton::clicked, this,
+            [this]
+            {
+                if (copy_text_.isEmpty())
+                    return;
+                QGuiApplication::clipboard()->setText(copy_text_);
+                seen_ = true;
+                copy_->setText(QCoreApplication::translate("PluginSecretDialog",
+                                                           "Copied"));
+                copied_clock_->start();
+            });
+    setTabOrder(code_, copy_);
+    setTabOrder(copy_, close_);
+    close_->setFocus(Qt::OtherFocusReason);
+    QTimer::singleShot(0, this,
+                       [this] { close_->setFocus(Qt::OtherFocusReason); });
+
+    update_time_line();
+    clock_ = new QTimer(this);
+    clock_->setInterval(1000);
+    connect(clock_, &QTimer::timeout, this, &PluginSecretDialog::tick);
+    if (remaining_ > 0)
+        clock_->start();
+    else
+        remove_code();
+}
+
+PluginSecretDialog::~PluginSecretDialog()
+{
+    remove_code();
+}
+
+void PluginSecretDialog::showEvent(QShowEvent* event)
+{
+    QDialog::showEvent(event);
+    shown_ = true;
+}
+
+void PluginSecretDialog::done(int result)
+{
+    // Closing it, by Close, Escape or the window's own button, while the code
+    // is still there, is having seen it.
+    if (!abandoned_ && shown_ && remaining_ > 0)
+        seen_ = true;
+    remove_code();
+    QDialog::done(result);
+}
+
+void PluginSecretDialog::tick()
+{
+    if (remaining_ <= 0)
+        return;
+    --remaining_;
+    update_time_line();
+    // Announced at a minute, half a minute, ten seconds and the end, not
+    // every second.
+    if (remaining_ == 60 || remaining_ == 30 || remaining_ == 10 ||
+        remaining_ == 0)
+        announce_polite(time_, time_->text());
+    if (remaining_ <= 0)
+    {
+        clock_->stop();
+        remove_code();
+        Q_EMIT timed_out_now();
+    }
+}
+
+void PluginSecretDialog::update_time_line()
+{
+    if (remaining_ > 0)
+    {
+        time_->setText(
+            QCoreApplication::translate("PluginSecretDialog", "Good for %1.")
+                .arg(time_text(remaining_)));
+    }
+    else
+    {
+        time_->setText(QCoreApplication::translate(
+            "PluginSecretDialog",
+            "This code is no longer good. Ask the plugin for a new one."));
+    }
+}
+
+void PluginSecretDialog::remove_code()
+{
+    if (code_ != nullptr)
+    {
+        code_->clear();
+        code_->setVisible(false);
+        code_->setAccessibleDescription({});
+    }
+    copy_text_.clear();
+    if (copy_ != nullptr)
+        copy_->setEnabled(false);
+    if (time_ != nullptr && remaining_ <= 0)
+        update_time_line();
+}
+
+// -- A plugin asks for a control session --------------------------------------
+
+QString control_scope_sentence(const QString& scope, bool* amber)
+{
+    const auto mark = [amber](bool value)
+    {
+        if (amber != nullptr)
+            *amber = value;
+    };
+    mark(false);
+    if (scope == QLatin1String("monitor"))
+        return QCoreApplication::translate("PluginControlDialog",
+                                           "See the ports, links and their "
+                                           "state");
+    if (scope == QLatin1String("monitor.data"))
+    {
+        mark(true);
+        return QCoreApplication::translate(
+            "PluginControlDialog", "See the bytes that pass through the ports");
+    }
+    if (scope == QLatin1String("control.ports"))
+        return QCoreApplication::translate("PluginControlDialog",
+                                           "Add, change and remove ports and "
+                                           "links");
+    if (scope == QLatin1String("control.data"))
+    {
+        mark(true);
+        return QCoreApplication::translate("PluginControlDialog",
+                                           "Send bytes into the ports");
+    }
+    if (scope == QLatin1String("control.faults"))
+        return QCoreApplication::translate("PluginControlDialog",
+                                           "Cause faults on ports and links");
+    if (scope == QLatin1String("control.apply"))
+        return QCoreApplication::translate("PluginControlDialog",
+                                           "Apply a whole setup");
+    if (scope == QLatin1String("record"))
+    {
+        mark(true);
+        return QCoreApplication::translate("PluginControlDialog",
+                                           "Start and stop recordings");
+    }
+    mark(true);
+    return QCoreApplication::translate("PluginControlDialog",
+                                       "%1. Studio does not describe this one.")
+        .arg(plain_text(scope));
+}
+
+PluginControlDialog::PluginControlDialog(const plugin_control_request& request,
+                                         QWidget* parent)
+    : QDialog(parent)
+{
+    setObjectName(QStringLiteral("pluginControlDialog"));
+    frame parts = build_frame(
+        this,
+        QCoreApplication::translate("PluginControlDialog",
+                                    "Allow remote control?"),
+        QCoreApplication::translate(
+            "PluginControlDialog",
+            "%1 asks to use this computer's ports for another computer.")
+            .arg(plain_text(request.plugin_name)),
+        560);
+    QVBoxLayout* body = parts.body;
+
+    const QString peer = plain_text(request.peer).trimmed();
+    auto* who = make_plain_label(
+        peer.isEmpty()
+            ? QCoreApplication::translate("PluginControlDialog",
+                                          "It did not say which computer.")
+            : QCoreApplication::translate("PluginControlDialog",
+                                          "It says the other computer is: %1")
+                  .arg(peer),
+        this, text_style::body, true);
+    who->setObjectName(QStringLiteral("controlWho"));
+    body->addWidget(who);
+
+    const QString reason = plain_text(request.reason).trimmed();
+    if (!reason.isEmpty())
+    {
+        QVBoxLayout* inside = nullptr;
+        QFrame* box = make_plugin_says_box(
+            this,
+            QCoreApplication::translate("PluginControlDialog",
+                                        "The plugin's own words"),
+            inside);
+        box->setObjectName(QStringLiteral("controlBox"));
+        auto* why =
+            make_plain_label(quoted(reason), box, text_style::body, true);
+        why->setObjectName(QStringLiteral("controlWhy"));
+        inside->addWidget(why);
+        body->addWidget(box);
+    }
+
+    body->addWidget(make_plain_label(
+        QCoreApplication::translate("PluginControlDialog",
+                                    "It asks to be allowed to:"),
+        this, text_style::heading));
+    QStringList seen;
+    bool any_data = false;
+    for (const QString& scope : request.scopes)
+    {
+        if (seen.contains(scope))
+            continue;
+        seen << scope;
+        bool amber = false;
+        const QString sentence = control_scope_sentence(scope, &amber);
+        any_data = any_data || amber;
+        sentences_ << sentence;
+        QFrame* row = make_permission_row(sentence, amber, true, {}, {}, this);
+        row->setObjectName(QStringLiteral("controlScope"));
+        row->setProperty("scope", scope);
+        if (amber)
+            row->setAccessibleDescription(QCoreApplication::translate(
+                "PluginControlDialog",
+                "This lets the other side see or send data."));
+        body->addWidget(row);
+    }
+    if (any_data)
+    {
+        data_note_ = make_plain_note(this);
+        data_note_->setObjectName(QStringLiteral("controlDataNote"));
+        data_note_->set_kind(NoteBanner::kind::warn);
+        data_note_->set_text(QCoreApplication::translate(
+            "PluginControlDialog",
+            "The other computer can read or write what your ports carry."));
+        body->addWidget(data_note_);
+    }
+
+    const int life = std::max(0, request.life_seconds);
+    const QString length =
+        (life % 3600 == 0 && life >= 3600)
+            ? QCoreApplication::translate("PluginControlDialog", "%n hour(s)",
+                                          nullptr, life / 3600)
+            : QCoreApplication::translate("PluginControlDialog", "%n minute(s)",
+                                          nullptr,
+                                          std::max(1, (life + 59) / 60));
+    life_ = make_plain_label(
+        QCoreApplication::translate(
+            "PluginControlDialog",
+            "This lasts %1, or until the plugin stops. You are asked again "
+            "each time.")
+            .arg(length),
+        this);
+    life_->setObjectName(QStringLiteral("controlLife"));
+    body->addWidget(life_);
+    body->addStretch(1);
+
+    refuse_ = footer_button(
+        parts.footer,
+        QCoreApplication::translate("PluginControlDialog", "Refuse"), nullptr,
+        QStringLiteral("controlRefuse"));
+    allow_ = footer_button(
+        parts.footer,
+        QCoreApplication::translate("PluginControlDialog", "Allow"), "primary",
+        QStringLiteral("controlAllow"));
+    connect(refuse_, &QPushButton::clicked, this, &QDialog::reject);
+    connect(allow_, &QPushButton::clicked, this, &QDialog::accept);
+    setTabOrder(refuse_, allow_);
+    focus_cancel(this, refuse_);
 }
 
 } // namespace vss::gui::support

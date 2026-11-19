@@ -40,6 +40,12 @@ of every selected case.
   sleeps or depends on how fast the machine is; the two cases that use the steady
   clock check only that nothing arrives early. One case sends from several
   threads while a member is removed, for the sanitizer legs.
+* **Wire timing** - `test_wire_timing.cpp` tests the wire time function and
+  the pacer (`wire_pacer`) with every time written in the case, the spin budget
+  with the time passed in, and the link in a hub on the steady clock, where it
+  checks only lower bounds (a release is never early). `test_document.cpp` has
+  the file round trip with the option absent, on, and refused on a bus. The
+  lateness measurement is a bench case, `vss_timing_bench --filter="wire timing"`.
 * **Polled bus** - one system case runs the whole bus scenario on every
   operating system, with no hardware: a master replayed from a recording, two
   devices answering from scripts (one labelled as a real serial device), and a

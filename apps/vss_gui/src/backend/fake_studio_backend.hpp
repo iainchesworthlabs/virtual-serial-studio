@@ -46,6 +46,14 @@ public:
     PluginBackend* plugin_backend() const override;
     FakePluginBackend& fake_plugins();
     void set_peer_state(vss::endpoint_id id, peer_state state);
+    /// Lets a port be stopped and started, as a port made from an address
+    /// can be.
+    void set_stoppable(vss::endpoint_id id, bool stoppable);
+    vss::result<void> set_port_running(vss::endpoint_id id, bool run) override;
+    vss::result<void> set_port_paused(vss::endpoint_id id,
+                                      bool paused) override;
+    /// Makes a port a network client in this state.
+    void set_connection(vss::endpoint_id id, const connection_view& connection);
     /// COM numbers that another device has, so a driver port cannot take them.
     void set_taken_com_numbers(QSet<unsigned> numbers)
     {
@@ -63,6 +71,12 @@ public:
     void set_reservations_unknown(bool unknown)
     {
         reservations_unknown_ = unknown;
+    }
+    /// What holds each COM number, as `vss::com_number_holders` would say.
+    /// Without it the backend cannot say, and `reserved_com_numbers` is used.
+    void set_com_number_holders(std::vector<vss::com_number_holder> holders)
+    {
+        com_number_holders_ = std::move(holders);
     }
     /// The program that has a driver port open, as the driver would name it.
     void set_holder(vss::endpoint_id id, std::optional<holder_view> holder);
@@ -197,6 +211,11 @@ public:
         return links_;
     }
     std::vector<device_view> devices() const override { return devices_; }
+    std::optional<std::vector<vss::com_number_holder>>
+    com_number_holders() const override
+    {
+        return com_number_holders_;
+    }
     std::optional<std::vector<unsigned>> reserved_com_numbers() const override
     {
         if (reservations_unknown_)
@@ -279,6 +298,16 @@ public:
                                          int listeners) override;
     vss::result<vss::link_id> bridge(const QString& from_uri,
                                      const QString& to_uri) override;
+    vss::result<network_attach_view> attach_network(vss::endpoint_id existing,
+                                                    const QString& name,
+                                                    const QString& uri,
+                                                    bool keep_trying) override;
+    vss::result<void> set_network_address(vss::endpoint_id id,
+                                          const QString& uri,
+                                          bool keep_trying) override;
+    vss::result<void> check_listen_free(const QString& uri,
+                                        vss::endpoint_id ignore,
+                                        bool probe) const override;
     vss::result<void> create_com0com_pair() override;
 
     // -- licence ------------------------------------------------------------
@@ -354,6 +383,7 @@ private:
     QSet<unsigned> taken_com_numbers_;
     QSet<unsigned> hidden_com_numbers_;
     bool reservations_unknown_ = false;
+    std::optional<std::vector<vss::com_number_holder>> com_number_holders_;
     QHash<vss::endpoint_id, holder_view> holders_;
     std::vector<std::pair<vss::endpoint_id, release_method>> releases_;
     std::optional<std::pair<int, vss::error_code>> share_failure_;

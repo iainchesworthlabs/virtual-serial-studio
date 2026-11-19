@@ -658,6 +658,17 @@ TEST_CASE("plugin api: timeline.load is written and read")
                            R"("recording":"traffic/1.jsonl","place":"COM7",)"
                            R"("time_scale":5E-1,"seed":7})"));
 
+    body.include_sent = true;
+    (void)round_trip(body, 3);
+    const auto both = encode_as(body, 3);
+    REQUIRE(both.has_value());
+    REQUIRE_EQ(header_of(both.value()),
+               std::string(R"({"op":"timeline.load","id":3,"instance":2,)"
+                           R"("recording":"traffic/1.jsonl","place":"COM7",)"
+                           R"("time_scale":5E-1,"seed":7,)"
+                           R"("include_sent":true})"));
+    body.include_sent = false;
+
     body.seed.reset();
     body.time_scale = 2.5;
     (void)round_trip(body, 3);

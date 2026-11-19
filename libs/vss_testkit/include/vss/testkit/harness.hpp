@@ -43,6 +43,21 @@ bool wait_until(const std::function<bool()>& predicate,
 bool wait_for_rx(const endpoint& endpoint, std::size_t bytes,
                  std::chrono::milliseconds timeout);
 
+/// Makes a break of `length` at `endpoint`, as if its device had made it
+/// beginning at `start` (the hub's clock, which is the steady clock unless the
+/// hub was given another).  It is a `complete` item, in order with the bytes
+/// the endpoint read before, so a test can put a break of a known length
+/// between two chunks.  The existing fault injection `break` is the same item
+/// with one character time and `measured` false.
+void make_break(endpoint& endpoint, std::chrono::nanoseconds length,
+                time_point start = clock_type::now(), bool measured = true);
+
+/// Makes the two halves of a break at `endpoint` as a program that holds it
+/// would: a `begin` at `start` and, after `length`, an `end` with the length.
+/// Both are queued now, so the call does not wait for `length`.
+void make_break_pair(endpoint& endpoint, std::chrono::nanoseconds length,
+                     time_point start = clock_type::now());
+
 /// Generates a payload with a repeating pattern, so truncation and
 /// reordering are visible.
 byte_buffer make_pattern(std::size_t size, unsigned seed = 1);

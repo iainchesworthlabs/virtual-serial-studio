@@ -57,6 +57,7 @@ CheckRowWidget::CheckRowWidget(const spec& row, QWidget* parent)
 {
     setFrameShape(QFrame::NoFrame);
     auto* layout = new QGridLayout(this);
+    layout_ = layout;
     const Theme& theme = Theme::instance();
     const int tile = theme.metric(QStringLiteral("tile"));
     layout->setContentsMargins(theme.space(3), theme.space(2), theme.space(3),
@@ -65,6 +66,7 @@ CheckRowWidget::CheckRowWidget(const spec& row, QWidget* parent)
     layout->setVerticalSpacing(2);
     layout->setColumnMinimumWidth(0, tile);
     layout->setColumnStretch(1, 1);
+    layout->setColumnStretch(2, 0);
 
     icon_holder_ = new QLabel(this);
     icon_holder_->setFixedSize(tile, tile);
@@ -74,28 +76,28 @@ CheckRowWidget::CheckRowWidget(const spec& row, QWidget* parent)
     glyph_ = new QLabel(icon_holder_);
     glyph_->setAlignment(Qt::AlignCenter);
     icon_layout->addWidget(glyph_, 0, Qt::AlignCenter);
-    layout->addWidget(icon_holder_, 0, 0, 2, 1, Qt::AlignTop);
+    layout->addWidget(icon_holder_, 0, 0, 3, 1, Qt::AlignTop);
 
-    auto* heading = new QHBoxLayout();
-    heading->setContentsMargins(0, 0, 0, 0);
-    heading->setSpacing(8);
+    // Icon | title and sentence | status column.  The status column is its
+    // own grid column so every chip shares one right edge and the text never
+    // runs under it; the action sits under the sentence, left-aligned.
     title_ = new QLabel(row_.title, this);
     title_->setFont(Theme::instance().font(text_style::body));
     title_->setWordWrap(true);
     QFont bold = title_->font();
     bold.setWeight(QFont::DemiBold);
     title_->setFont(bold);
-    // Without a stretch a word-wrapped title takes its narrow size hint and
-    // breaks after a word or two, even with room to spare.
-    heading->addWidget(title_, 1, Qt::AlignVCenter);
+    layout->addWidget(title_, 0, 1, Qt::AlignVCenter);
+
     if (!row_.chip.isEmpty())
     {
         auto* chip =
             new StatusChip(row_.chip, colours_for(row_.tone).chip, this);
-        chip->setAccessibleName(row_.chip);
-        heading->addWidget(chip, 0, Qt::AlignVCenter);
+        chip->set_small(true);
+        chip_ = chip;
+        chip_->setAccessibleName(row_.chip);
+        layout->addWidget(chip_, 0, 2, Qt::AlignRight | Qt::AlignVCenter);
     }
-    layout->addLayout(heading, 0, 1);
 
     auto* sentence = new QLabel(row_.sentence, this);
     sentence->setFont(Theme::instance().font(text_style::body));
@@ -113,12 +115,22 @@ CheckRowWidget::CheckRowWidget(const spec& row, QWidget* parent)
         action_->setAccessibleName(row_.action_text);
         connect(action_, &QPushButton::clicked, this,
                 &CheckRowWidget::action_triggered);
-        layout->addWidget(action_, 0, 2, 2, 1, Qt::AlignVCenter);
+        layout->addWidget(action_, 2, 1, Qt::AlignLeft | Qt::AlignVCenter);
     }
 
     apply_style();
     connect(&Theme::instance(), &Theme::theme_changed, this,
             [this] { apply_style(); });
+}
+
+int CheckRowWidget::chip_width() const
+{
+    return chip_ != nullptr ? chip_->sizeHint().width() : 0;
+}
+
+void CheckRowWidget::set_status_column_width(int width)
+{
+    layout_->setColumnMinimumWidth(2, width);
 }
 
 QString CheckRowWidget::title_text() const

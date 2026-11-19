@@ -285,6 +285,8 @@ private:
         std::uint64_t ready_start = 0;
         plugin_hash hash;
         std::vector<permission> granted;
+        /// What the plugin last reported of the licence in this run.
+        std::optional<plugin_licence_report> licence_report;
     };
 
     /// On the worker thread: everything that reads a disk.
@@ -464,10 +466,17 @@ private:
                         runner->request(std::move(message), std::move(handler));
                     });
                 entry.instances->on_change(
-                    [weak = weak_from_this()]()
+                    [weak = weak_from_this(), id]()
                     {
-                        if (const auto self = weak.lock())
-                            self->publish_soon();
+                        const auto self = weak.lock();
+                        if (!self)
+                            return;
+                        self->publish_soon();
+                        // Later, and not from here: a handler may ask the
+                        // instances what they hold, and they are in the
+                        // middle of changing.
+                        self->post([id](impl& me)
+                                   { me.instances_changed(id); });
                     });
                 if (const auto wanted = wanted_.find(id);
                     wanted != wanted_.end())
@@ -481,6 +490,21 @@ private:
                     context.plugin_name = scanned.shown.name;
                     context.plugin_version = scanned.shown.version;
                     context.granted = scanned.shown.granted;
+                    context.official =
+                        scanned.shown.level == trust_level::official;
+                    context.licence_reported = [weak = weak_from_this(),
+                                                id](plugin_licence_report said)
+                    {
+                        const auto self = weak.lock();
+                        if (!self)
+                            return;
+                        const auto reporting = self->running_.find(id);
+                        if (reporting == self->running_.end() ||
+                            reporting->second.licence_report == said)
+                            return;
+                        reporting->second.licence_report = std::move(said);
+                        self->publish_soon();
+                    };
                     context.data_directory = data_directory;
                     context.instances = entry.instances;
                     context.executor = boost::asio::any_io_executor(strand_);
@@ -581,6 +605,18 @@ private:
         found->second.runner->unknown(message);
     }
 
+    /// The instances of a plugin changed: its extension points are told,
+    /// while the plugin is ready.
+    void instances_changed(const std::string& id)
+    {
+        const auto found = running_.find(id);
+        if (found == running_.end() || found->second.ready_start == 0)
+            return;
+        const auto handlers = found->second.handlers;
+        for (const auto& handler : *handlers)
+            handler->instances_changed();
+    }
+
     /// A runner's snapshot changed: its instances are told when the
     /// plugin became ready and when it went.
     void runner_changed(const std::string& id)
@@ -602,6 +638,9 @@ private:
             if (ready && entry.ready_start == 0)
             {
                 entry.ready_start = now->starts;
+                // What an earlier run said of the licence is not this
+                // run's word.
+                entry.licence_report.reset();
                 for (const auto& handler : *entry.handlers)
                     handler->plugin_ready();
                 entry.instances->plugin_ready();
@@ -683,6 +722,7 @@ private:
             {
                 plugin.run = found->second.runner->snapshot();
                 plugin.instances = found->second.instances->views();
+                plugin.licence_report = found->second.licence_report;
             }
         }
         next->notes = notes_;

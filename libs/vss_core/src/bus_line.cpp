@@ -5,6 +5,7 @@
 //
 
 #include <vss/core/bus_line.hpp>
+#include <vss/core/wire_time.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -19,21 +20,33 @@ bus_line::bus_line(const half_duplex_options& options)
 }
 
 clock_type::duration bus_line::wire_time(std::uint32_t bit_rate,
-                                         std::size_t bytes) noexcept
+                                         std::size_t bytes,
+                                         const wire_framing& framing) noexcept
 {
-    if (bit_rate == 0)
-        return {};
-    // In nanoseconds.  A chunk is at most a read buffer, so the product
-    // stays far inside 64 bits.
-    const std::uint64_t bits =
-        static_cast<std::uint64_t>(bytes) * bus_bits_per_byte;
-    const std::uint64_t nanoseconds = bits * 1'000'000'000ULL / bit_rate;
-    return std::chrono::duration_cast<clock_type::duration>(
-        std::chrono::nanoseconds(static_cast<std::int64_t>(nanoseconds)));
+    return vss::wire_time(bit_rate, framing, bytes);
 }
 
 bus_verdict bus_line::transmit(endpoint_id member, std::size_t bytes,
-                               time_point now)
+                               time_point now, const wire_framing& framing)
+{
+    return occupy(member, wire_time(options_.bit_rate, bytes, framing), now);
+}
+
+bus_verdict bus_line::transmit_break(endpoint_id member,
+                                     std::chrono::nanoseconds duration,
+                                     bool measured, time_point now,
+                                     const wire_framing& framing)
+{
+    // A length that is not a measurement is one character at the rate of the
+    // bus, as a real device's break is at least that long.
+    const clock_type::duration held =
+        measured ? std::chrono::duration_cast<clock_type::duration>(duration)
+                 : wire_time(options_.bit_rate, 1, framing);
+    return occupy(member, held, now);
+}
+
+bus_verdict bus_line::occupy(endpoint_id member, clock_type::duration length,
+                             time_point now)
 {
     std::lock_guard lock(mutex_);
 
@@ -69,7 +82,7 @@ bus_verdict bus_line::transmit(endpoint_id member, std::size_t bytes,
         verdict.carried = false;
         return verdict;
     }
-    const time_point end = start + wire_time(options_.bit_rate, bytes);
+    const time_point end = start + length;
 
     const bool garble = options_.on_collision == collision_action::garble;
     for (const span& entry : active_)

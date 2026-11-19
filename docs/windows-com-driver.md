@@ -444,16 +444,65 @@ once and applying the error later: the hub could not tell when it had happened,
 and a closing hub would leave an error behind. A fallback for a version 3
 driver: the project has no installed base to protect.
 
+### Break and write marks
+
+The hub reads what the program wrote as one stream of bytes. Two things the program
+did are lost in it: where it called `SetCommBreak` and `ClearCommBreak`, and where
+each `WriteFile` began. A break read from the state (`VSSCOM_HUB_STATE.Break`) is a
+level, so a break that begins and ends between two reads leaves it as it was.
+Version 5 keeps both as marks, in `vsscom_marks` (`core/vsscom_core.c`, tested in
+`tests/unit/test_vsscom_core.cpp`), which is in the device context beside `Tx` and
+guarded by the same lock.
+
+* A mark is a time and an offset. The time is the raw count of the performance
+  counter (`KeQueryPerformanceCounter`; `QueryPerformanceCounter` in the user-mode
+  driver), the same counter as `QueryPerformanceCounter` in a program and as
+  `std::chrono::steady_clock` on MSVC, so the helper converts it to the hub clock by
+  the frequency alone. The offset is the number of bytes the program had put into `Tx`
+  before the call, counted from the start of the hub handle, as a 64-bit value; the
+  hub counts the bytes it reads from 0 the same way. A mark at offset N falls between
+  byte N-1 and byte N.
+* A break mark is made by `IOCTL_SERIAL_SET_BREAK_ON` (it opens a record) and ended by
+  `IOCTL_SERIAL_SET_BREAK_OFF`. A second on while a break is held, and an off with none
+  held, change nothing. A break that is held when the program closes the port, or the
+  handle is revoked, ends then. The ring holds 64; a full ring drops the oldest ended
+  record and counts it in `BreaksDropped`, and never drops the one that is held.
+* A write mark is made for the first bytes of each `WriteFile` that went into `Tx`,
+  and for `IOCTL_SERIAL_IMMEDIATE_CHAR`. Its time is when the program called, not when
+  `Tx` had room; its offset is the first byte that went in. The ring holds 256; a full
+  ring drops the oldest, whose bytes then belong to the chunk before them, and counts
+  it in `WritesMerged`. A purge or an abort that takes bytes out of `Tx` takes back the
+  marks that pointed at them.
+* `IOCTL_VSSCOM_HUB_READ_BREAKS` gives and removes what has not been given: every break
+  that has ended, once, the break that is held every time with `VSSCOM_BREAK_MARK_OPEN`
+  set, and the write marks whose first byte the hub has read. It also gives the counter's
+  frequency and the two drop counts (which start again from 0). `BreakCount` in the
+  state rises with each break begun, and the generation rises with each change of
+  `Break`, so the helper reads the marks when the state announces a change and after
+  each read of `Tx`. A mark is stored before any byte after it, so a read made after the
+  bytes cannot miss the marks of those bytes.
+* A new hub handle (and the close of one) empties `Tx`, so the offsets start again at 0
+  and the write marks and ended breaks are forgotten. A break that is held stays, with
+  its time, at offset 0: the helper that restarts, or swaps the COM number, reads it as
+  held and then ended.
+* The helper (`vcom_driver_windows.cpp`, `tx_order.hpp`) splits what it read at the
+  offsets, so a write is one chunk with the program's time, and emits the bytes, the
+  break and the bytes after it in that order. Bytes the program wrote while a break was
+  held come after its end, as a UART holds its output. The test is D42 to D47 in
+  `drivers/windows/test/test-driver.ps1`, which runs in a guest.
+
 ### Versions
 
 * Every request is a `CTL_CODE(FILE_DEVICE_VSSCOM, ...)` with `METHOD_BUFFERED`.
   The structures are in `drivers/windows/vsscom/public.h`, which the driver, the
   helper service and `vss_ports` all include.
-* `IOCTL_VSSCOM_GET_VERSION` answers with `VSSCOM_VERSION`, now 4: version 2
+* `IOCTL_VSSCOM_GET_VERSION` answers with `VSSCOM_VERSION`, now 5: version 2
   added the hub end, version 3 added `AppProcessId`, the revoke request and
-  the effect of the DTR and RTS settings of `SET_HANDFLOW`, and version 4 added
+  the effect of the DTR and RTS settings of `SET_HANDFLOW`, version 4 added
   the line error request with the error bits, events and abort on error that go
-  with it. The studio opens a port only when the version is exactly the one it
+  with it, and version 5 added `BreakCount` to the hub state and
+  `IOCTL_VSSCOM_HUB_READ_BREAKS` (see Break and write marks). There is no
+  code for an older helper or an older driver: nothing has shipped. The studio opens a port only when the version is exactly the one it
   was built for, so a studio and a driver from different sides of this change do
   not work together: install the driver that came with the studio.
 * The control interface has a version of its own, `VSSCOM_CTL_VERSION`, now 1.
@@ -461,6 +510,69 @@ driver: the project has no installed base to protect.
   driver answers `STATUS_INVALID_DEVICE_REQUEST`.
 * The helper's pipe has its own protocol in `vsscom_helper/protocol.h`. A helper
   from before COM numbers answers `ERROR_NOT_SUPPORTED`, which the setup check reports as a helper older than Studio.
+
+### The version of the driver package
+
+Two numbers say which driver is on a PC, and they are different things.
+`VSSCOM_VERSION` is the **interface** version: it changes when the requests change, and the
+studio refuses a port that speaks another one. `DriverVer` in the `.inf` files is the
+**package** version: Windows compares it, the date first and the four-part version second, to
+decide which of two packages of the driver is newer, and `pnputil /add-driver` answers
+"Already exists in the system" for a package that is not newer than the one it has. A driver
+that changed under an old `DriverVer` therefore never reaches a PC that has the old one.
+
+`drivers/windows/driver-version.json` is the one source of truth: a revision number that only
+goes up, its date, and the SHA-256 of everything the driver is made of (the sources, the
+`.inf` files without their `DriverVer` line, `public.h` and the helper's `protocol.h`, under
+`vsscom`, `vsscom_um` and `vsscom_helper`). The package version is
+`DriverVer=<date>,1.<interface>.<revision>.0`.
+
+* After you change the driver, run `python3 tools/ci/check_driver_version.py --bump`. It raises
+  the revision, sets the date to today (never earlier than the date before: a package with an
+  earlier date loses to the old one whatever its version), rewrites the three `DriverVer`
+  lines and records the new hash.
+* `python3 tools/ci/check_driver_version.py` is the check. It fails when the inputs differ from
+  the recorded hash (the driver changed and nobody bumped), when an `.inf` has another
+  `DriverVer`, and, with `--base <ref>`, when the inputs differ from the base's but the revision
+  did not rise or the date went back. The pull request gate runs it on every pull request, a
+  draft included, and `tools/ci/precheck.py` runs it against `origin/develop`.
+* A change under `drivers/windows/**` makes the planner run the driver legs in the merge queue
+  (`.github/ci/plan.json`, key `driver`), so a driver that cannot be built or signed is found
+  before it is merged.
+* `setup-driver.ps1` checks the driver store after `pnputil`: the store must hold a
+  `vsscom_um.inf` package with the version the `.inf` it installed declares. If Windows kept an
+  older package the script ends with exit code 7 and says so, and the installer shows its
+  "could not be installed" message, where before everything looked fine and every port was
+  refused.
+
+Studio reads three versions and shows them in the Setup check, in the dialog that updates the
+driver and on the About page (Windows only):
+
+1. the newest `vsscom_um.inf` package in the driver store
+   (`HKLM\SYSTEM\DriverDatabase\DriverPackages\vsscom_um.inf_*`, value `Version`, readable
+   by every user), as `1.5.1.0 (2026-11-18)`;
+2. the package this copy of Studio carries (`bin\driver\driver\vsscom_um.inf`);
+3. the interface version the running ports speak (`IOCTL_VSSCOM_GET_VERSION`).
+
+When the installed package is older than the bundled one by the Windows rule, the Setup check
+and the start page say "The Virtual Serial Studio driver on this PC needs updating" and offer **Update the
+driver**: the same elevated `setup-driver.ps1` as "Set up Virtual Serial Studio". Nothing is shown
+when the installed package is the same or newer, or when it cannot be read. Nothing is sent
+anywhere; the versions are read from the registry and from a file beside Studio.
+
+The Windows installer decides in the same way: its driver page reads the store, offers to update an
+older driver (ticked), leaves a driver of the same or a newer version alone (with an unticked repair
+box for the same version), and a silent install updates only when its own driver is newer
+(docs/releasing.md, "The Windows installer").
+
+What the update does: `pnputil /add-driver vsscom_um.inf /install` adds the newer package as a
+new `oem<N>.inf` and updates the devices that match it. The older package stays in the driver
+store. It is harmless, since a new port gets the newest package, and `remove-driver.ps1` deletes every
+`vsscom_um.inf` package when Studio is uninstalled. The helper is restarted, which closes the
+ports that are open. Tried in a Windows 11 guest (`tools/vm/driver-update-cell.ps1`): the port device
+that the helper had made was bound to the newer package as soon as `pnputil` had run, with no restart,
+and ports made afterwards (the reused device and a new one) used it too. Should Windows ever need a
+restart, `pnputil` reports it with code 3010 and the script ends with exit code 10, as before.
 
 ### Signing and distribution
 

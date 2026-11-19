@@ -115,6 +115,7 @@ jobs:
       - name: Validate the changelog
         run: |
           python3 tools/changelog.py --check
+          python3 tools/ci/check_driver_version.py
           python3 -m unittest discover -s tools -p "test_*.py" -v
           python3 -m unittest discover -s tools/ci -p "test_*.py" -v
 
@@ -134,6 +135,11 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.x"
+      # The installer tests compile the installer's driver page with makensis, so it has to be here.
+      - uses: ./.github/actions/setup-toolchain
+        with:
+          compiler: none
+          nsis: "true"
       - name: Run the tests of tools/, none of the installer script tests skipped
         run: python tools/ci/run_tool_tests.py
 

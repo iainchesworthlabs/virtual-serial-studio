@@ -13,6 +13,7 @@
 #include <vss/core/error.hpp>
 #include <vss/core/event.hpp>
 #include <vss/core/link.hpp>
+#include <vss/core/pacing.hpp>
 #include <vss/core/profile.hpp>
 #include <vss/core/traffic_log.hpp>
 
@@ -39,6 +40,7 @@ namespace vss {
 class bus_line;
 class bus_wire;
 class delay_line;
+struct visited_chunk;
 
 struct hub_options
 {
@@ -107,6 +109,14 @@ public:
     std::shared_ptr<endpoint> find_endpoint(std::string_view name) const;
     std::vector<std::shared_ptr<endpoint>> endpoints() const;
 
+    /// How many events have been published and not yet handed to the
+    /// subscribers.  Read-only and cheap; for the debug API and for a test
+    /// that wants to know the dispatcher has caught up.
+    std::size_t dispatch_queue_depth() const noexcept
+    {
+        return dispatch_depth_.load(std::memory_order_relaxed);
+    }
+
     // -- topology ----------------------------------------------------------
     //
     // Every call that takes `link_options` refuses a delay over
@@ -130,8 +140,10 @@ public:
     result<link_id> redirect(endpoint_id from, endpoint_id to,
                              link_options options = {});
 
-    /// Passive one-way copy, for a monitor port.
-    result<link_id> monitor(endpoint_id from, endpoint_id to);
+    /// Passive one-way copy, for a monitor port.  `options.direction` says
+    /// which bytes of `from` it copies; the modem lines are always off.
+    result<link_id> monitor(endpoint_id from, endpoint_id to,
+                            link_options options = {});
 
     /// A shared multi-drop bus: every byte a member publishes goes to every
     /// other member and never back to its sender, as on an RS-485 pair.
@@ -413,7 +425,15 @@ public:
     void route_data(endpoint_id from, bytes_view data, time_point when);
     /// The same, for a chunk read now.
     void route_data(endpoint_id from, bytes_view data);
+    /// Routes a break that `from` received, in order with the bytes it
+    /// routed before it, over the same links and buses and by the same rules
+    /// as bytes (see #route_data).  The time of the break is its own
+    /// (#line_break::when).
+    void route_break(endpoint_id from, const line_break& item);
     void route_lines(endpoint_id from, control_lines lines);
+    /// Passes the format the program at `from` has set (#endpoint::peer_format)
+    /// on to the endpoints it has a route to.
+    void route_format(endpoint_id from);
     void publish(endpoint_event event);
 
 private:
@@ -438,6 +458,10 @@ private:
         std::atomic<std::uint64_t> bytes{0};
         std::atomic<std::uint64_t> messages{0};
         std::atomic<std::uint64_t> dropped{0};
+        std::atomic<std::uint64_t> breaks{0};
+        /// What the delay lines of a paced link count.
+        std::shared_ptr<pacing_counters> pacing =
+            std::make_shared<pacing_counters>();
         /// Above zero while #set_link_options closes the delay lines it has
         /// replaced.  A chunk routed in that time is discarded, so none can
         /// take the new route and pass one that is still in an old line.
@@ -466,12 +490,29 @@ private:
     endpoint_id cycle_node(endpoint_id id) const;
     bool reaches(endpoint_id start,
                  const std::unordered_set<endpoint_id>& goals) const;
+    /// Routes an item (bytes or a break) that `from` read, or that a link
+    /// wrote into `from`.  `visited` is null for an item read from `from`;
+    /// for an item that is carried on it holds every endpoint the item has
+    /// been read from or written to and every link it has crossed, and no
+    /// route into one of those endpoints or over one of those links is
+    /// taken.  Bytes and breaks take this one path, so the loop checks, the
+    /// monitor direction test, the owner arbitration and the bus line apply
+    /// to both.
+    void route_chunk(endpoint_id from, const stream_item& item,
+                     time_point when, const visited_chunk* visited);
+    /// What the delay lines and the bus wires call after they have written a
+    /// chunk into an endpoint, to carry it on.
+    std::function<void(endpoint_id, const stream_item&,
+                       const std::shared_ptr<const visited_chunk>&, time_point)>
+    make_forwarder();
     route_entry make_route(const link_record& link, endpoint_id from,
                            endpoint_id to);
-    /// The delay line for a route to `to` under `options`; null when they
-    /// have no delay.  The caller holds the lock.
-    std::shared_ptr<delay_line> make_delay(endpoint_id to,
-                                           const link_options& options);
+    /// The delay line for a route from `from` to `to` under `options`; null
+    /// when they have no delay and no wire timing.  The caller holds the
+    /// lock.
+    std::shared_ptr<delay_line> make_delay(
+        const std::shared_ptr<pacing_counters>& pacing, endpoint_id from,
+        endpoint_id to, const link_options& options);
     void add_route(const link_record& link, endpoint_id from, endpoint_id to);
     /// Removes the routes of `link` that leave `from` for `to` (for any
     /// endpoint when `to` is 0) and hands their delay lines to `held`, to be
@@ -491,6 +532,8 @@ private:
     /// The request for fine timers (`hub_options::fine_timers`), held from
     /// start() to join().  Its type is the platform layer's.
     std::shared_ptr<void> timer_period_;
+    /// The spinning allowance of every paced route (see #spin_budget).
+    std::shared_ptr<spin_budget> spin_budget_ = std::make_shared<spin_budget>();
     std::atomic<bool> running_{false};
     // Shutdowns in flight, from remove_endpoint() and stop(). The io_context is
     // stopped only once stop() has been called and this reaches zero.
@@ -498,6 +541,7 @@ private:
     /// Events posted to the dispatcher strand and not yet delivered; feeds the
     /// `hub.dispatch_queue` plot and costs nothing without instrumentation.
     profiling::depth_counter pending_events_;
+    std::atomic<std::size_t> dispatch_depth_{0};
     std::atomic<bool> stopping_{false};
 
     mutable std::shared_mutex mutex_;

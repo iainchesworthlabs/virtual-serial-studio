@@ -7,6 +7,9 @@
 #include "backend/engine_studio_backend.hpp"
 
 #include "backend/com_numbers.hpp"
+#include "backend/connection_text.hpp"
+#include "backend/driver_versions.hpp"
+#include "backend/driver_versions.hpp"
 #include "backend/event_bridge.hpp"
 #include "backend/platform/com0com_platform.hpp"
 
@@ -178,6 +181,9 @@ bool same_port_shape(const port_view& left, const port_view& right)
            left.studio_only == right.studio_only && left.peer == right.peer &&
            left.peer_format == right.peer_format &&
            left.clients == right.clients &&
+           left.connection == right.connection &&
+           left.can_stop == right.can_stop && left.stopped == right.stopped &&
+           left.paused == right.paused &&
            left.format_conflicts == right.format_conflicts &&
            left.driver_port == right.driver_port &&
            left.com_number == right.com_number;
@@ -205,6 +211,7 @@ bool same_link_shape(const link_view& left, const link_view& right)
            left.options.delay_ms == right.options.delay_ms &&
            left.options.jitter_ms == right.options.jitter_ms &&
            left.options.half_duplex == right.options.half_duplex &&
+           left.options.wire_timing == right.options.wire_timing &&
            left.sources == right.sources && left.targets == right.targets &&
            left.owner == right.owner;
 }
@@ -244,6 +251,7 @@ EngineStudioBackend::EngineStudioBackend(vss::studio& studio, QObject* parent)
                 {
                     if (event.kind == vss::event_kind::lines)
                         Q_EMIT lines_changed(event.endpoint);
+                    note_failure(event);
                 }
                 {
                     VSS_PROFILE_ZONE("gui.backend.emit_batch_ready");
@@ -280,6 +288,16 @@ capabilities EngineStudioBackend::caps() const
     // `udp-listen://` and `rfc2217-listen://`), which
     // `vss::studio::attach_serial` opens.
     caps.network_server = true;
+    // `vss::studio::set_address` and `attach_waiting`.
+    caps.network_edit = true;
+    caps.network_waiting = true;
+    // `vss::studio::connection` has the address, the retry state and the
+    // reason of the last failed try.
+    caps.network_status = true;
+    // `vss::studio::stop_port` and `start_port`.
+    caps.port_stop = true;
+    // `vss::studio::pause_port` and `resume_port`; the setup file keeps it.
+    caps.port_pause = true;
     // `vss::run_benchmark` is the core `vss_cli bench` uses, shared with the
     // GUI.
     caps.benchmark = true;
@@ -445,7 +463,7 @@ EngineStudioBackend::create_port_with_com_number(
     // The names Windows keeps for ports that are not listed come first, so the
     // refusals below are the exception rather than the rule.
     std::vector<unsigned> kept;
-    if (const auto reserved = studio_.reserved_com_numbers())
+    if (const auto reserved = studio_.kept_com_numbers())
         kept = *reserved;
     in_use.insert(in_use.end(), kept.begin(), kept.end());
 
@@ -453,9 +471,9 @@ EngineStudioBackend::create_port_with_com_number(
     // a number it has never had takes Windows about 30 seconds to install.  So
     // a port gets a number it had before: first one this window freed a moment
     // ago, waiting for Windows to finish removing it (about 45 seconds), so
-    // deleting COM17 and making a port again gives COM17; then the lowest kept number the driver
-    // accepts.  Another device's number is refused in about a tenth of a
-    // second.  This runs off the GUI thread.
+    // deleting COM17 and making a port again gives COM17; then the lowest kept
+    // number the driver accepts.  Another device's number is refused in about a
+    // tenth of a second.  This runs off the GUI thread.
     using clock = std::chrono::steady_clock;
     constexpr auto kRemovalWait = vss::com_number_removal_wait;
     std::map<unsigned, clock::time_point> recent;
@@ -653,6 +671,33 @@ vss::result<void> EngineStudioBackend::release_port(vss::endpoint_id id,
     return {};
 }
 
+vss::result<void> EngineStudioBackend::set_port_running(vss::endpoint_id id,
+                                                        bool run)
+{
+    const auto done = run ? studio_.start_port(id) : studio_.stop_port(id);
+    if (!done)
+        return done.error();
+    if (histories_.contains(id))
+        note_connection_event(id, run ? connection_text::event_started()
+                                      : connection_text::event_stopped());
+    rebuild();
+    return {};
+}
+
+vss::result<void> EngineStudioBackend::set_port_paused(vss::endpoint_id id,
+                                                       bool paused)
+{
+    const auto done =
+        paused ? studio_.pause_port(id) : studio_.resume_port(id);
+    if (!done)
+        return done.error();
+    if (histories_.contains(id))
+        note_connection_event(id, paused ? connection_text::event_paused()
+                                         : connection_text::event_resumed());
+    rebuild();
+    return {};
+}
+
 vss::result<void> EngineStudioBackend::rename_port(vss::endpoint_id id,
                                                    const QString& name)
 {
@@ -762,7 +807,29 @@ driver_check EngineStudioBackend::check_driver() const
     case vss::driver_setup_state::ready:
         break;
     }
+    const vss::driver_failure last = vss::last_driver_failure();
+    const bool ports_differ = last.step == vss::driver_version_step;
+    const auto bundled = bundled_driver_version();
+    check.versions = assess_driver_versions(
+        report.seen.installed_package, bundled,
+        ports_differ ? QString::number(last.code) : QString());
     check.details = QString::fromStdString(report.detail);
+    if (bundled)
+        check.details += QStringLiteral("; bundled package: version %1")
+                             .arg(check.versions.bundled);
+    // The set-up looks right, yet the driver in Windows' store is older than
+    // the package this program carries, or a port that was made spoke another
+    // version: an older driver was kept when this one was installed. Only a
+    // driver that is actually behind is called out.
+    if (check.problem == driver_problem::none &&
+        (ports_differ || driver_is_behind(check.versions)))
+    {
+        check.problem = driver_problem::driver_old;
+        if (ports_differ)
+            check.details +=
+                QStringLiteral("\nthe driver's ports speak version %1")
+                    .arg(last.code);
+    }
     return check;
 }
 
@@ -1102,6 +1169,40 @@ vss::result<vss::link_id> EngineStudioBackend::bridge(const QString& from_uri,
     return *linked;
 }
 
+vss::result<network_attach_view>
+EngineStudioBackend::attach_network(vss::endpoint_id existing,
+                                    const QString& name, const QString& uri,
+                                    bool keep_trying)
+{
+    const auto made = studio_.attach_network(existing, name.toStdString(),
+                                             uri.toStdString(), keep_trying);
+    if (!made)
+        return made.error();
+    rebuild();
+    network_attach_view view;
+    view.port = made->port;
+    view.link = made->link;
+    view.waiting = made->waiting;
+    view.created = made->created;
+    return view;
+}
+
+vss::result<void> EngineStudioBackend::set_network_address(vss::endpoint_id id,
+                                                           const QString& uri,
+                                                           bool keep_trying)
+{
+    const auto changed =
+        studio_.set_address(id, uri.toStdString(), keep_trying);
+    rebuild();
+    return changed;
+}
+
+vss::result<void> EngineStudioBackend::check_listen_free(
+    const QString& uri, vss::endpoint_id ignore, bool probe) const
+{
+    return studio_.check_listen_free(uri.toStdString(), ignore, probe);
+}
+
 vss::result<void> EngineStudioBackend::create_com0com_pair()
 {
     return detail::platform_create_com0com_pair(studio_);
@@ -1135,6 +1236,207 @@ void EngineStudioBackend::schedule_rebuild()
                        });
 }
 
+void EngineStudioBackend::note_connection_event(vss::endpoint_id id,
+                                                const QString& text)
+{
+    auto& events = histories_[id].events;
+    events.append({QDateTime::currentDateTime(), text});
+    constexpr qsizetype kKept = 10;
+    if (events.size() > kKept)
+        events.remove(0, events.size() - kKept);
+}
+
+void EngineStudioBackend::note_failure(const gui_event& event)
+{
+    // Only a network client has a history; the first look at it makes one.
+    if (!histories_.contains(event.endpoint))
+        return;
+    connection_history& history = histories_[event.endpoint];
+    switch (event.kind)
+    {
+    case vss::event_kind::started:
+        if (!history.connected)
+        {
+            history.connected = true;
+            ++history.opens;
+            history.since = QDateTime::currentDateTime();
+            history.base_pending = true;
+            note_connection_event(event.endpoint,
+                                  connection_text::event_connected());
+        }
+        break;
+    case vss::event_kind::stopped:
+        if (history.connected)
+        {
+            history.connected = false;
+            note_connection_event(event.endpoint,
+                                  connection_text::event_lost());
+        }
+        break;
+    case vss::event_kind::error:
+    {
+        const QString text =
+            event.error.isEmpty() ? event.message : event.error;
+        if (text.isEmpty())
+            break;
+        last_errors_[event.endpoint] = text;
+        history.error_code = event.error_code;
+        note_connection_event(
+            event.endpoint,
+            connection_text::event_error(text, event.error_code));
+        break;
+    }
+    case vss::event_kind::log_message:
+        // The reconnector says when it will try again and when it gives up.
+        if (!event.message.isEmpty())
+            note_connection_event(event.endpoint, event.message);
+        break;
+    default:
+        break;
+    }
+}
+
+std::optional<connection_view>
+EngineStudioBackend::connection_of(const port_view& port)
+{
+    const bool network = port.kind == vss::endpoint_kind::tcp ||
+                         port.kind == vss::endpoint_kind::udp ||
+                         port.kind == vss::endpoint_kind::rfc2217;
+    if (!network)
+        return std::nullopt;
+    const auto status = studio_.connection(port.id);
+    // A listener has a bind address, not a remote one to reach.
+    if (!status || status->uri.find("-listen://") != std::string::npos)
+        return std::nullopt;
+
+    connection_history& history = histories_[port.id];
+    connection_view view;
+    view.target = QString::fromStdString(status->uri);
+    view.attempts = status->attempts;
+    view.reason = QString::fromStdString(status->last_error);
+    view.error_code = QString::fromStdString(status->last_error_code);
+    if (view.reason.isEmpty())
+    {
+        if (const auto found = last_errors_.constFind(port.id);
+            found != last_errors_.constEnd())
+            view.reason = found.value();
+    }
+    if (view.error_code.isEmpty())
+        view.error_code = history.error_code;
+
+    connect_phase raw = connect_phase::failed;
+    if (port.stopped)
+        raw = connect_phase::stopped;
+    else if (port.paused)
+        raw = connect_phase::paused;
+    else if (status->retrying)
+        raw = connect_phase::retrying;
+    else if (port.state == vss::endpoint_state::opening ||
+             port.state == vss::endpoint_state::created)
+        raw = connect_phase::connecting;
+    else if (port.state == vss::endpoint_state::open && port.open)
+        raw = connect_phase::connected;
+
+    // The last error is kept after the connection comes up.
+    if (!view.reason.isEmpty())
+        last_errors_[port.id] = view.reason;
+    if (!view.error_code.isEmpty())
+        history.error_code = view.error_code;
+
+    // When an event was missed, the state still says what happened.
+    if (raw == connect_phase::connected && !history.connected)
+    {
+        history.connected = true;
+        ++history.opens;
+        history.since = QDateTime::currentDateTime();
+        history.base_pending = true;
+        note_connection_event(port.id, connection_text::event_connected());
+    }
+    else if (raw != connect_phase::connected && history.connected)
+    {
+        history.connected = false;
+        note_connection_event(port.id, connection_text::event_lost());
+    }
+    // The engine's counters run from when the port was made, so Studio
+    // notes them when the connection comes up.
+    if (history.connected && history.base_pending)
+    {
+        history.base = port.stats;
+        history.base_pending = false;
+    }
+
+    // A port that drops and comes back several times a second would flicker
+    // on the canvas, so a state is shown for at least a moment.  The history
+    // keeps every change.
+    using clock = std::chrono::steady_clock;
+    constexpr auto kHold = std::chrono::milliseconds(1500);
+    const auto now = clock::now();
+    if (!history.shown)
+    {
+        history.shown = raw;
+        history.shown_at = now;
+    }
+    else if (raw != *history.shown)
+    {
+        const auto shown_for = now - history.shown_at;
+        // What the user chose shows at once; only the changes the network
+        // makes are held.
+        const auto chosen = [](connect_phase phase)
+        { return phase == connect_phase::stopped ||
+                 phase == connect_phase::paused; };
+        if (shown_for >= kHold || chosen(raw) || chosen(*history.shown))
+        {
+            history.shown = raw;
+            history.shown_at = now;
+        }
+        else if (!hold_refresh_pending_)
+        {
+            hold_refresh_pending_ = true;
+            const auto left =
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    kHold - shown_for);
+            QTimer::singleShot(static_cast<int>(left.count()) + 10, this,
+                               [this]
+                               {
+                                   hold_refresh_pending_ = false;
+                                   rebuild();
+                               });
+        }
+    }
+    view.phase = *history.shown;
+
+    // The time of the next try is worked out once for each try, so it does
+    // not change on every look.
+    if (status->retrying)
+    {
+        if (!history.retry_active ||
+            history.retry_attempts != status->attempts)
+        {
+            history.retry_active = true;
+            history.retry_attempts = status->attempts;
+            history.next_try_at = QDateTime::currentDateTime().addMSecs(
+                static_cast<qint64>(status->next_try_in.count()));
+        }
+        view.next_try_at = history.next_try_at;
+    }
+    else
+    {
+        history.retry_active = false;
+    }
+
+    if (view.phase == connect_phase::connected && history.connected)
+    {
+        view.connected_at = history.since;
+        view.base_bytes_rx = history.base.bytes_rx;
+        view.base_bytes_tx = history.base.bytes_tx;
+        view.base_reads = history.base.read_ops;
+        view.base_writes = history.base.write_ops;
+    }
+    view.reconnects = history.opens > 1 ? history.opens - 1 : 0;
+    view.history = history.events;
+    return view;
+}
+
 void EngineStudioBackend::rebuild()
 {
     VSS_PROFILE_ZONE("gui.backend.rebuild");
@@ -1151,6 +1453,19 @@ void EngineStudioBackend::rebuild()
     for (const auto& info : infos)
     {
         next_ports.push_back(make_port(info, peers, drivers));
+        if (const auto stopped = studio_.port_stopped(info.id))
+        {
+            next_ports.back().can_stop = true;
+            next_ports.back().stopped = *stopped;
+            next_ports.back().paused =
+                studio_.port_paused(info.id).value_or(false);
+        }
+        next_ports.back().connection = connection_of(next_ports.back());
+        // A client has no path of its own; the address it connects to stands
+        // in, the way a listener shows the address it waits on.
+        const auto& made = next_ports.back();
+        if (made.connection && made.path.isEmpty())
+            next_ports.back().path = made.connection->target;
         // The endpoint keeps the settings it was made with; the studio keeps
         // the ones the user gave it since.
         if (const auto settings = studio_.port_settings(info.id))

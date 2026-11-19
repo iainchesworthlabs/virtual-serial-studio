@@ -7,6 +7,7 @@ One 48 high header row (the menus, then the action search and the Simple and Adv
 - Right column 320 wide, minimum 260: Inspector above Send (Send is 162 high). At the 960 by 640 minimum window the right column becomes one tabbed dock (Inspector, Send) 260 wide, the tool row becomes icon only with a More overflow, and the Monitor is 156 high.
 - Monitor pane bottom: 196 high, minimum 160.
 - Default window 1280 by 800, minimum 960 by 640. Dock sizes persist through `saveState`.
+- Every pane except the topology canvas (Ports, Inspector, Send, Monitor, Links list, Log, Topology JSON) is movable. The default is the grid above, with the last three tabbed together at the bottom; they can be split side by side or stacked, docked at a window edge or floated, and closed and opened again from View, Panes. Once a pane has been moved the small-window rule that tabs Inspector and Send no longer applies. The arrangement and which panes are open persist (`ui/windowState` with a layout version, `ui/panesOpen`); a saved state that does not restore leaves the default layout. View, Reset layout restores the default.
 
 ## Simple mode body
 In Simple mode the body is not the dock grid. It is the setups list and a page for the chosen job or setup, specified in `screens/08-simple-mode.md`; the job grid there replaces the launcher. View, Show launcher opens the job grid. The dock grid and the canvas are Advanced mode. Menu bar, toolbar and status bar are always visible.

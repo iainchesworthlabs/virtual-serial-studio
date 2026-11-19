@@ -6,6 +6,7 @@
 
 #include "support/about_dialog.hpp"
 
+#include "backend/driver_versions.hpp"
 #include "support/build_info.hpp"
 #include "support/licence_text.hpp"
 #include "support/third_party.hpp"
@@ -141,6 +142,15 @@ AboutDialog::AboutDialog(StudioBackend& backend,
     : QDialog(parent), info_(current_build_info()),
       edition_(edition_label(backend.licence().status)), updates_(updates)
 {
+    // Which driver Windows holds and which this copy carries. Empty on a
+    // system that needs no driver, so the page shows nothing there.
+    const driver_check driver = backend.check_driver();
+    driver_text_ = driver_versions_sentence(driver.versions);
+    if (driver_is_behind(driver.versions))
+        driver_text_ += QLatin1Char(' ') +
+                        QCoreApplication::translate(
+                            "About",
+                            "Open Tools, Setup check to update it.");
     build();
 }
 
@@ -212,6 +222,7 @@ void AboutDialog::build()
     // second.
     // page() makes each tab's content page and its vertical layout.
     tabs_ = new QTabWidget(this);
+    tabs_->setObjectName(QStringLiteral("aboutTabs"));
     tabs_->setAccessibleName(
         QCoreApplication::translate("About", "About details"));
     tabs_->setDocumentMode(true);
@@ -256,6 +267,14 @@ void AboutDialog::build()
     connect(source, &QLabel::linkActivated, this,
             [](const QString& url) { QDesktopServices::openUrl(QUrl(url)); });
     about_layout->addWidget(source);
+    if (!driver_text_.isEmpty())
+    {
+        auto* driver = body_label(driver_text_, about_page);
+        driver->setObjectName(QStringLiteral("aboutDriver"));
+        driver->setAccessibleName(
+            QCoreApplication::translate("About", "Driver version"));
+        about_layout->addWidget(driver);
+    }
     about_layout->addStretch(1);
     tabs_->addTab(about_page, QCoreApplication::translate("About", "About"));
 

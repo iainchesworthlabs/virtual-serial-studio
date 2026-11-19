@@ -7,6 +7,7 @@
 #pragma once
 
 #include "delay_line.hpp"
+#include "forwarding.hpp"
 
 #include <vss/core/bus_line.hpp>
 #include <vss/core/bytes.hpp>
@@ -51,15 +52,16 @@ public:
     /// `clock` is the hub's clock, empty for the steady clock.  `garbled`
     /// counts the bytes delivered inverted, once for each receiver.
     bus_wire(const boost::asio::any_io_executor& executor, clock_function clock,
-             std::shared_ptr<std::atomic<std::uint64_t>> garbled);
+             std::shared_ptr<std::atomic<std::uint64_t>> garbled,
+             forward_function forward = {});
 
     bus_wire(const bus_wire&) = delete;
     bus_wire& operator=(const bus_wire&) = delete;
 
-    /// Copies `data` and delivers it at `due`.  Safe to call from any thread.
-    void push(endpoint_id sender, time_point due, bytes_view data,
+    /// Copies `item` and delivers it at `due`.  Safe to call from any thread.
+    void push(endpoint_id sender, time_point due, const stream_item& item,
               std::shared_ptr<bus_transmission> transmission,
-              std::vector<delivery> receivers);
+              std::vector<delivery> receivers, visited_set visited = {});
 
     /// Drops what `member` still has on the wire and stops delivering to it.
     void forget(endpoint_id member);
@@ -71,26 +73,28 @@ public:
     void close();
 
 private:
-    struct item
+    struct slot
     {
         endpoint_id sender = 0;
-        byte_buffer data;
+        owned_item data;
         std::shared_ptr<bus_transmission> transmission;
         std::vector<delivery> receivers;
+        visited_set visited;
     };
 
     time_point now() const;
     void arm();
     void fire();
     /// Takes the chunks that have left the wire off the queue, in order.
-    std::vector<item> take_due();
+    std::vector<slot> take_due();
     /// Hands each chunk to its receivers.  Called with `deliver_mutex_` held.
-    void deliver(std::vector<item>& ready);
+    void deliver(std::vector<slot>& ready);
 
     const boost::asio::strand<boost::asio::any_io_executor> strand_;
     boost::asio::steady_timer timer_;
     const clock_function clock_;
     const std::shared_ptr<std::atomic<std::uint64_t>> garbled_;
+    const forward_function forward_;
 
     /// Held while chunks are handed to their receivers, and by #close, so
     /// that a close waits for a delivery under way.  Always taken before
@@ -100,7 +104,7 @@ private:
     bool closed_ = false;
     /// By the time each leaves the wire; chunks due together keep the order
     /// they were pushed in.
-    std::multimap<time_point, item> queue_;
+    std::multimap<time_point, slot> queue_;
 };
 
 } // namespace vss

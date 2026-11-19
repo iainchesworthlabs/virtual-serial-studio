@@ -19,11 +19,13 @@
 #include <QHash>
 #include <QLineF>
 #include <QPainterPath>
+#include <QPair>
 #include <QPointF>
 #include <QRectF>
 #include <QSet>
 #include <QSizeF>
 #include <QString>
+#include <QTimer>
 #include <QStringList>
 #include <QVector>
 
@@ -114,6 +116,9 @@ public:
                     wire_kind kind = wire_kind::two_way) const;
     /// Ends the wire on a port with the chosen kind of link.
     void finish_wire(vss::endpoint_id to, wire_kind kind);
+    /// Asks for the link and remembers the connector the wire came from.
+    void request_wire(vss::endpoint_id from, vss::endpoint_id to,
+                      wire_kind kind, std::optional<link_side> side);
     /// Ends the wire on empty canvas: a new port there, linked as chosen.
     void finish_wire_new(slot_kind kind, wire_kind wire,
                          const QPointF& scene_point);
@@ -169,6 +174,9 @@ public:
     bool node_is_unlinked(vss::endpoint_id id) const;
     bool node_is_device(vss::endpoint_id id) const;
     QStringList node_badges(vss::endpoint_id id) const;
+    /// A network client that is connecting turns its icon.
+    bool node_spins(vss::endpoint_id id) const;
+    bool node_spin_timer_running() const;
     /// What a port that a plugin provides says about its plugin: the badge
     /// and the accessible name. Setting it redraws the nodes that changed.
     void set_plugin_parts(
@@ -232,6 +240,11 @@ Q_SIGNALS:
     void copy_name_requested(vss::endpoint_id id);
     void connect_requested(vss::endpoint_id id);
     void remove_port_requested(vss::endpoint_id id);
+    /// Stop (`run` false) or start a port that was made from an address,
+    /// chosen from its menu.
+    void run_requested(vss::endpoint_id id, bool run);
+    /// Pause (`pause` true) or resume a port, chosen from its menu.
+    void pause_requested(vss::endpoint_id id, bool pause);
     void remove_link_requested(vss::link_id id);
     /// Emitted only when the build can rename (Capabilities::rename_port).
     void rename_requested(vss::endpoint_id id);
@@ -262,6 +275,15 @@ Q_SIGNALS:
                                  vss::endpoint_id hub,
                                  vss::gui::canvas_item shape);
     void selection_changed(int count);
+    /// A port is put on a bus that is there already, from a line drawn to one
+    /// of its members or the menu of a port.
+    void bus_extend_requested(vss::endpoint_id port, vss::link_id bus);
+    /// "Make a bus with...": the Connect dialog on Shared bus, this port
+    /// ticked.
+    void bus_with_requested(vss::endpoint_id port);
+    /// A network port beside this port: a server that other computers connect
+    /// to, or a client that connects to a server.
+    void network_requested(vss::endpoint_id port, bool server);
 
 protected:
     bool event(QEvent* event) override;
@@ -291,6 +313,15 @@ private:
     void disable_gpu();
     void apply_gpu_style();
     void rebuild_items();
+    /// Starts or stops the timer that turns the icon of a network client
+    /// that is connecting.  It runs only while there is one, and never with
+    /// reduced motion.
+    void update_spin_timer();
+    /// "Pause" and "Stop", "Resume" and "Stop", or "Start", for a port that
+    /// can be stopped, or none.
+    QStringList run_action_labels(vss::endpoint_id id) const;
+    void add_run_action(QMenu* menu, vss::endpoint_id id);
+    void tick_spin();
     void apply_positions(bool refresh_scene_rect = true);
     void update_scene_rect();
     void update_overlays();
@@ -319,6 +350,11 @@ private:
     bool is_selected_link(vss::link_id id) const;
     void clear_multi();
     void emit_selection_count();
+    /// Double-click on a node: Settings while editing, else Inspect.
+    void open_item(vss::endpoint_id id);
+    /// Double-click on a link: its settings, or for a monitor link the
+    /// watched port in the Monitor.
+    void open_link(vss::link_id id);
     void populate_node_menu(QMenu* menu, vss::endpoint_id id);
     void populate_selection_menu(QMenu* menu, vss::endpoint_id id);
     void populate_link_menu(QMenu* menu, vss::link_id id);
@@ -362,6 +398,7 @@ private:
 
     std::function<port_menu_state(vss::endpoint_id)> menu_state_;
     QLabel* empty_ = nullptr;
+    QTimer* spin_timer_ = nullptr;
     QLabel* hint_ = nullptr;
     NoteBanner* loop_note_ = nullptr;
     QWidget* zoom_bar_ = nullptr;
@@ -385,7 +422,8 @@ private:
     bool dragging_ = false;
     bool fitting_ = false;
     bool internal_scroll_ = false;
-    bool resizing_ = false;    /// The scene point at the centre of the view, as the user last left it.
+    bool resizing_ = false; /// The scene point at the centre of the view, as
+                            /// the user last left it.
     QPointF view_centre_;
 
     QVector<vss::link_id> loop_links_;
@@ -397,6 +435,12 @@ private:
     QSet<vss::link_id> multi_links_;
     std::optional<QPointF> pending_drop_;
     vss::endpoint_id wire_from_ = 0;
+    /// The connector the wire was dragged from; empty when it was started from
+    /// the keyboard or a menu.
+    std::optional<link_side> wire_from_side_;
+    /// The connector each wire drawn in this session was dragged from, by the
+    /// ports it joins, so its link keeps to the side the user used.
+    QHash<QPair<vss::endpoint_id, vss::endpoint_id>, link_side> drawn_sides_;
     QPointF wire_start_;
     QGraphicsPathItem* wire_item_ = nullptr;
     QGraphicsRectItem* ghost_ = nullptr;

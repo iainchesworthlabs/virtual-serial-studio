@@ -54,6 +54,25 @@ struct node_data
     };
     QString icon;
     tint tile = tint::accent;
+    /// A network client's connection, drawn on the kind tile.  `busy` is a
+    /// try under way or waiting to be made again: the icon turns, or with
+    /// reduced motion shows a still one.  `failed` turns the tile to the
+    /// failure colour and adds a "Failed" chip, so colour is not alone.
+    /// `open` turns it to the good colour and adds a "Connected" chip.
+    enum class connect
+    {
+        none,
+        busy,
+        failed,
+        open
+    };
+    connect connection = connect::none;
+    /// Closed on purpose, any kind of port: a neutral tile with the pause
+    /// icon and a "Stopped" chip, which is not a fault.
+    bool stopped = false;
+    /// Paused by the user, any kind of port: an accent tile with the pause
+    /// icon and a "Paused" chip.
+    bool paused = false;
 };
 
 /// The node size the design specifies, grown when the text needs more room.
@@ -96,6 +115,14 @@ public:
     /// Part of a loop the user asked to see.
     void set_in_loop(bool value);
     bool in_loop() const noexcept { return in_loop_; }
+
+    /// Turns the icon of a node that is connecting to this angle, in degrees.
+    /// A node that is not connecting is left alone.
+    void set_spin(int degrees);
+    bool spins() const noexcept
+    {
+        return data_.connection == node_data::connect::busy;
+    }
 
     /// What a wire being dragged over the node would do.
     enum class drop_state
@@ -140,6 +167,7 @@ private:
 
     node_data data_;
     quint64 revision_ = 1;
+    int spin_ = 0;
     QSizeF size_;
     node_item_callbacks callbacks_;
     bool selected_ = false;

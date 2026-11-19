@@ -27,6 +27,8 @@ struct chip_palette
     bool hollow = false;
     bool cross = false;
     bool mark_visible = true;
+    /// Two bars, the mark of a pause, in place of a dot.
+    bool bars = false;
 };
 
 chip_palette palette_for(StatusChip::kind kind)
@@ -80,6 +82,15 @@ chip_palette palette_for(StatusChip::kind kind)
                 false,
                 false,
                 true};
+    case StatusChip::kind::paused:
+        return {theme.colour(colour_role::accentSoft),
+                none,
+                theme.colour(colour_role::accentText),
+                theme.colour(colour_role::accent),
+                false,
+                false,
+                true,
+                true};
     case StatusChip::kind::failed:
         return {theme.colour(colour_role::badSoft),
                 none,
@@ -93,9 +104,9 @@ chip_palette palette_for(StatusChip::kind kind)
                 none,
                 theme.colour(colour_role::violet),
                 theme.colour(colour_role::violet),
+                true,
                 false,
-                false,
-                false};
+                true};
     }
     return {};
 }
@@ -109,7 +120,7 @@ int text_width(const QFont& font, const QString& text)
 
 StatusChip::StatusChip(QWidget* parent) : QLabel(parent)
 {
-    setFont(Theme::instance().font(text_style::caption));
+    setFont(chip_font());
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     setAttribute(Qt::WA_TransparentForMouseEvents);
     repaint_on_theme_change(this);
@@ -145,15 +156,83 @@ void StatusChip::set_small(bool small)
     update();
 }
 
+QFont StatusChip::chip_font()
+{
+    QFont font = Theme::instance().font(text_style::caption);
+    font.setWeight(QFont::DemiBold);
+    return font;
+}
+
+int StatusChip::chip_height(bool small)
+{
+    return Theme::instance().metric(small ? QStringLiteral("chipSmall")
+                                          : QStringLiteral("chip"));
+}
+
+int StatusChip::chip_width(const QString& text, kind value)
+{
+    // 12 px, the mark and its gap, the text, 12 px.
+    int width = 24 + text_width(chip_font(), text);
+    if (palette_for(value).mark_visible)
+        width += 14;
+    return width;
+}
+
+void StatusChip::paint(QPainter* painter, const QRect& rect,
+                       const QString& text, kind value)
+{
+    const chip_palette palette = palette_for(value);
+    const qreal radius = rect.height() / 2.0;
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing);
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(palette.fill);
+    painter->drawRoundedRect(QRectF(rect), radius, radius);
+
+    int x = rect.left() + 12;
+    const qreal centre_y = rect.top() + rect.height() / 2.0;
+    if (palette.mark_visible)
+    {
+        const QRectF mark(x, centre_y - 4, 8, 8);
+        painter->setPen(QPen(palette.mark, 1.5));
+        painter->setBrush(Qt::NoBrush);
+        if (palette.bars)
+        {
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(palette.mark);
+            painter->drawRect(
+                QRectF(mark.left() + 0.5, mark.top(), 2.5, mark.height()));
+            painter->drawRect(
+                QRectF(mark.right() - 3.0, mark.top(), 2.5, mark.height()));
+        }
+        else if (palette.cross)
+        {
+            painter->drawLine(mark.topLeft(), mark.bottomRight());
+            painter->drawLine(mark.topRight(), mark.bottomLeft());
+        }
+        else if (palette.hollow)
+        {
+            painter->drawEllipse(mark.adjusted(0.75, 0.75, -0.75, -0.75));
+        }
+        else
+        {
+            painter->setBrush(palette.mark);
+            painter->drawEllipse(mark);
+        }
+        x += 14;
+    }
+
+    painter->setPen(palette.text);
+    painter->setFont(chip_font());
+    painter->drawText(QRect(x, rect.top(), rect.right() + 1 - x - 12,
+                            rect.height()),
+                      Qt::AlignLeft | Qt::AlignVCenter, text);
+    painter->restore();
+}
+
 QSize StatusChip::sizeHint() const
 {
-    const int height = Theme::instance().metric(
-        small_ ? QStringLiteral("chipSmall") : QStringLiteral("chip"));
-    const chip_palette palette = palette_for(kind_);
-    int width = 24 + text_width(font(), text());
-    if (palette.mark_visible)
-        width += 14;
-    return QSize(width, height);
+    return QSize(chip_width(text(), kind_), chip_height(small_));
 }
 
 QSize StatusChip::minimumSizeHint() const
@@ -164,45 +243,8 @@ QSize StatusChip::minimumSizeHint() const
 void StatusChip::paintEvent(QPaintEvent* event)
 {
     Q_UNUSED(event);
-    const chip_palette palette = palette_for(kind_);
-    const int height = Theme::instance().metric(
-        small_ ? QStringLiteral("chipSmall") : QStringLiteral("chip"));
-
     QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing);
-    const QRectF frame = QRectF(rect());
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(palette.fill);
-    painter.drawRoundedRect(frame, height / 2.0, height / 2.0);
-
-    int x = 12;
-    const int centre_y = height / 2;
-    if (palette.mark_visible)
-    {
-        const QRectF mark(x, centre_y - 4, 8, 8);
-        painter.setPen(QPen(palette.mark, 1.5));
-        painter.setBrush(Qt::NoBrush);
-        if (palette.cross)
-        {
-            painter.drawLine(mark.topLeft(), mark.bottomRight());
-            painter.drawLine(mark.topRight(), mark.bottomLeft());
-        }
-        else if (palette.hollow)
-        {
-            painter.drawEllipse(mark.adjusted(0.75, 0.75, -0.75, -0.75));
-        }
-        else
-        {
-            painter.setBrush(palette.mark);
-            painter.drawEllipse(mark);
-        }
-        x += 14;
-    }
-
-    painter.setPen(palette.text);
-    painter.setFont(font());
-    painter.drawText(QRect(x, 0, width() - x - 12, height),
-                     Qt::AlignLeft | Qt::AlignVCenter, text());
+    paint(&painter, rect(), text(), kind_);
 }
 
 DirectionBadge::DirectionBadge(QWidget* parent) : QLabel(parent)

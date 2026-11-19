@@ -16,6 +16,7 @@ add_library(vss_plugin
   src/api_fixture.cpp
   src/api_generator.cpp
   src/api_instance.cpp
+  src/api_licence.cpp
   src/api_modifier.cpp
   src/api_ops.cpp
   src/discover.cpp

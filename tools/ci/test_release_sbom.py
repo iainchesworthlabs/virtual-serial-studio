@@ -135,6 +135,11 @@ class Shape(unittest.TestCase):
         self.assertEqual(json.loads(out.read_text(encoding="utf-8"))["spdxVersion"], "SPDX-2.3")
 
 
+def pinned_tag(text):
+    """The library tag the real cmake file pins, so a release bump does not break these tests."""
+    return re.search(r'set\(VSS_VIRTUAL_SERIAL_GIT_TAG "(v[^"]+)"', text).group(1)
+
+
 class Pins(unittest.TestCase):
     def test_a_new_shipped_component_stops_the_script_until_its_version_is_found(self):
         root = copy_pins()
@@ -165,7 +170,7 @@ class Pins(unittest.TestCase):
         text = path.read_text(encoding="utf-8")
         commit = "0123456789abcdef0123456789abcdef01234567"
         text = text.replace(
-            'set(VSS_VIRTUAL_SERIAL_GIT_TAG "v0.1.0-beta.2"',
+            f'set(VSS_VIRTUAL_SERIAL_GIT_TAG "{pinned_tag(text)}"',
             f'# v0.0.9 was the one before\n# the pin moves with each release\nset(VSS_VIRTUAL_SERIAL_GIT_TAG "{commit}"',
         )
         path.write_text(text, encoding="utf-8")
@@ -177,23 +182,29 @@ class Pins(unittest.TestCase):
         root = copy_pins()
         path = root / "cmake/VssVirtualSerial.cmake"
         commit = "0123456789abcdef0123456789abcdef01234567"
-        text = path.read_text(encoding="utf-8").replace(
-            'set(VSS_VIRTUAL_SERIAL_GIT_TAG "v0.1.0-beta.2" CACHE STRING',
-            f'set(VSS_VIRTUAL_SERIAL_GIT_TAG "{commit}" # v0.1.0-beta.2',
+        original = path.read_text(encoding="utf-8")
+        tag = pinned_tag(original)
+        text = original.replace(
+            f'set(VSS_VIRTUAL_SERIAL_GIT_TAG "{tag}" CACHE STRING',
+            f'set(VSS_VIRTUAL_SERIAL_GIT_TAG "{commit}" # {tag}',
         )
         path.write_text(text, encoding="utf-8")
         library = next(p for p in document(root)["packages"] if p["name"] == "Boost.VirtualSerial")
-        self.assertEqual(library["versionInfo"], "0.1.0-beta.2")
+        self.assertEqual(library["versionInfo"], tag.lstrip("v"))
 
     def test_a_library_pinned_by_commit_takes_its_version_from_the_tag_beside_it(self):
         root = copy_pins()
         path = root / "cmake/VssVirtualSerial.cmake"
         text = path.read_text(encoding="utf-8")
         commit = "0123456789abcdef0123456789abcdef01234567"
-        text = text.replace('set(VSS_VIRTUAL_SERIAL_GIT_TAG "v0.1.0-beta.2"', f'# v0.1.0-beta.2\nset(VSS_VIRTUAL_SERIAL_GIT_TAG "{commit}"')
+        tag = pinned_tag(text)
+        text = text.replace(
+            f'set(VSS_VIRTUAL_SERIAL_GIT_TAG "{tag}"',
+            f'# {tag}\nset(VSS_VIRTUAL_SERIAL_GIT_TAG "{commit}"',
+        )
         path.write_text(text, encoding="utf-8")
         library = next(p for p in document(root)["packages"] if p["name"] == "Boost.VirtualSerial")
-        self.assertEqual(library["versionInfo"], "0.1.0-beta.2")
+        self.assertEqual(library["versionInfo"], tag.lstrip("v"))
         self.assertTrue(library["downloadLocation"].endswith("@" + commit))
 
 

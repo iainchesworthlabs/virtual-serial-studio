@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<!-- Translation origin: Plugin notice strings -->
+<!-- Translation origin: Studio network, bus and line format strings -->
 <TS version="2.1" language="he">
     <context>
         <name>About</name>
@@ -120,11 +120,6 @@
             <location filename="../src/support/about_dialog.cpp" line="266" />
             <source>com0com</source>
             <translation>com0com</translation>
-        </message>
-        <message>
-            <location filename="../src/support/about_dialog.cpp" line="267" />
-            <source>GNU General Public License, version 3.</source>
-            <translation>הרישיון הציבורי הכללי של GNU, גרסה 3.</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="269" />
@@ -451,6 +446,16 @@
             <location filename="../src/support/update_text.cpp" line="107" />
             <source>Never</source>
             <translation>אף פעם</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="151" />
+            <source>Open Tools, Setup check to update it.</source>
+            <translation>פתחו כלים, בדיקת הגדרות כדי לעדכן אותו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="275" />
+            <source>Driver version</source>
+            <translation>גרסת מנהל ההתקן</translation>
         </message>
     </context>
     <context>
@@ -854,6 +859,12 @@
             <source>Set up Virtual Serial Studio</source>
             <translation>הגדרת Virtual Serial Studio</translation>
         </message>
+        <message>
+            <location filename="../src/flows/add_port_dialog.cpp" line="716" />
+            <location filename="../src/flows/add_port_dialog.cpp" line="756" />
+            <source>Creating</source>
+            <translation>יוצר</translation>
+        </message>
     </context>
     <context>
         <name>Advanced</name>
@@ -1162,6 +1173,11 @@
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>בחירת אחר</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/attach_dialog.cpp" line="902" />
+            <source>Attaching</source>
+            <translation>מחבר</translation>
         </message>
     </context>
     <context>
@@ -1661,6 +1677,30 @@
             <location filename="../src/flows/com_number_dialog.cpp" line="153" />
             <source>Could not change the COM number</source>
             <translation>לא ניתן היה לשנות את מספר ה־COM</translation>
+        </message>
+        <message>
+            <source>Windows restarts the port to change its number, so no program may have it open. The list holds free numbers. You can type another.</source>
+            <translation>Windows מפעיל מחדש את היציאה כדי לשנות את מספרה, ולכן אסור שתוכנית כלשהי תחזיק אותה פתוחה. הרשימה כוללת מספרים פנויים. אפשר גם להקליד מספר אחר.</translation>
+        </message>
+        <message>
+            <source>Numbers in use</source>
+            <translation>מספרים בשימוש</translation>
+        </message>
+        <message>
+            <source>%1: %2</source>
+            <translation>%1: %2</translation>
+        </message>
+        <message>
+            <source>%1: this port now</source>
+            <translation>%1: היציאה הזו כעת</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255.</source>
+            <translation>בחרו מספר בין 1 ל־255.</translation>
+        </message>
+        <message>
+            <source>%1 is used by %2. Choose a free number.</source>
+            <translation>%1 בשימוש של %2. בחרו מספר פנוי.</translation>
         </message>
     </context>
     <context>
@@ -2244,6 +2284,11 @@
             <source>Bus</source>
             <translation>אפיק</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="105" />
+            <source>Break</source>
+            <translation>Break</translation>
+        </message>
     </context>
     <context>
         <name>EventLogPanel</name>
@@ -2302,6 +2347,96 @@
             <location filename="../src/advanced/event_log.cpp" line="130" />
             <source>Studio</source>
             <translation>Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="155" />
+            <source>All ports</source>
+            <translation>כל היציאות</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="154" />
+            <source>Filter by port</source>
+            <translation>סינון לפי יציאה</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="157" />
+            <source>Started</source>
+            <translation>התחיל</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="158" />
+            <source>Stopped</source>
+            <translation>נעצר</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="156" />
+            <source>Errors</source>
+            <translation>שגיאות</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="168" />
+            <source>Search events</source>
+            <translation>חיפוש באירועים</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="498" />
+            <source>No events match the filters.</source>
+            <translation>אין אירועים שמתאימים למסננים.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="159" />
+            <source>Other</source>
+            <translation>אחר</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="165" />
+            <source>Events</source>
+            <translation>אירועים</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="166" />
+            <source>Event kinds</source>
+            <translation>סוגי אירועים</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="167" />
+            <source>Choose which kinds of event are shown.</source>
+            <translation>בחרו אילו סוגי אירועים יוצגו.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="412" />
+            <source>Control lines</source>
+            <translation>קווי בקרה</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="412" />
+            <source>Error</source>
+            <translation>שגיאה</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="413" />
+            <source>Counters</source>
+            <translation>מונים</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="413" />
+            <source>Message</source>
+            <translation>הודעה</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="413" />
+            <source>Traffic</source>
+            <translation>תעבורה</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="413" />
+            <source>Bus</source>
+            <translation>אפיק</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="416" />
+            <source>Break</source>
+            <translation>Break</translation>
         </message>
     </context>
     <context>
@@ -2644,6 +2779,16 @@ Networks: %5</source>
             <source>Scroll</source>
             <translation>גלילה</translation>
         </message>
+        <message>
+            <location filename="../src/flows/flow_dialog.cpp" line="169" />
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד דקה.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/flow_dialog.cpp" line="201" />
+            <source>Progress</source>
+            <translation>התקדמות</translation>
+        </message>
     </context>
     <context>
         <name>Help</name>
@@ -2906,6 +3051,150 @@ Networks: %5</source>
             <location filename="../src/panes/inspector_panel.cpp" line="1" />
             <source>These settings are kept. They apply again when the plugin is available.</source>
             <translation>ההגדרות האלה נשמרות. הן יחולו שוב כשהתוסף יהיה זמין.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="292" />
+            <source>Total traffic</source>
+            <translation>סך התעבורה</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="553" />
+            <source>Bytes received and sent in total. The status bar shows the current rate.</source>
+            <translation>סך הבייטים שהתקבלו ונשלחו. שורת המצב מציגה את הקצב הנוכחי.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="263" />
+            <source>Direction</source>
+            <translation>כיוון</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="281" />
+            <source>The monitor's direction could not be changed.</source>
+            <translation>לא ניתן היה לשנות את כיוון המוניטור.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="628" />
+            <source>This port is a monitor. It receives a copy of the traffic on %1, and what is written to it does not reach %1.</source>
+            <translation>יציאה זו היא מוניטור. היא מקבלת עותק של התעבורה ב-%1, ומה שנכתב אליה אינו מגיע ל-%1.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="639" />
+            <source>Open %1 in the Monitor</source>
+            <translation>פתח את %1 במוניטור</translation>
+        </message>
+        <message>
+            <source>%1  %2</source>
+            <translation>%1  %2</translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n read(s)</source>
+            <translation>
+                <numerusform>%1, קריאות: %n</numerusform>
+                <numerusform>%1, קריאות: %n</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>%1 in %n write(s)</source>
+            <translation>
+                <numerusform>%1, כתיבות: %n</numerusform>
+                <numerusform>%1, כתיבות: %n</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>%1, port %2</source>
+            <translation>%1, יציאה %2</translation>
+        </message>
+        <message>
+            <source>Connected at</source>
+            <translation>מחובר מאז</translation>
+        </message>
+        <message>
+            <source>Connection</source>
+            <translation>חיבור</translation>
+        </message>
+        <message>
+            <source>Last error</source>
+            <translation>שגיאה אחרונה</translation>
+        </message>
+        <message>
+            <source>Local</source>
+            <translation>מקומי</translation>
+        </message>
+        <message>
+            <source>Next try</source>
+            <translation>ניסיון הבא</translation>
+        </message>
+        <message>
+            <source>None</source>
+            <translation>אין</translation>
+        </message>
+        <message>
+            <source>None planned</source>
+            <translation>אין מתוכנן</translation>
+        </message>
+        <message>
+            <source>None yet</source>
+            <translation>עדיין אין</translation>
+        </message>
+        <message>
+            <source>Not connected</source>
+            <translation>לא מחובר</translation>
+        </message>
+        <message>
+            <source>Not reported</source>
+            <translation>לא דווח</translation>
+        </message>
+        <message>
+            <source>Received</source>
+            <translation>התקבל</translation>
+        </message>
+        <message>
+            <source>Recent events</source>
+            <translation>אירועים אחרונים</translation>
+        </message>
+        <message>
+            <source>Reconnects</source>
+            <translation>חיבורים מחדש</translation>
+        </message>
+        <message>
+            <source>Remote</source>
+            <translation>מרוחק</translation>
+        </message>
+        <message>
+            <source>Sent</source>
+            <translation>נשלח</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>הפעל</translation>
+        </message>
+        <message>
+            <source>Start %1</source>
+            <translation>הפעל את %1</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>עצור</translation>
+        </message>
+        <message>
+            <source>Stop %1</source>
+            <translation>עצור את %1</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>השהה</translation>
+        </message>
+        <message>
+            <source>Pause %1</source>
+            <translation>השהה את %1</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>המשך</translation>
+        </message>
+        <message>
+            <source>Resume %1</source>
+            <translation>המשך את %1</translation>
         </message>
     </context>
     <context>
@@ -3452,6 +3741,36 @@ Networks: %5</source>
             <source>Copy details</source>
             <translation>העתקת פרטים</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="565" />
+            <source>Setting up progress</source>
+            <translation>התקדמות ההגדרה</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="926" />
+            <source>Automatic</source>
+            <translation>אוטומטי</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1541" />
+            <source>Applying</source>
+            <translation>מחיל</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1541" />
+            <source>Creating</source>
+            <translation>יוצר</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1552" />
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>מחיל את השינוי. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד דקה.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1554" />
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד דקה.</translation>
+        </message>
     </context>
     <context>
         <name>JobGrid</name>
@@ -3546,6 +3865,11 @@ Networks: %5</source>
             <location filename="../src/simple/job_grid.cpp" line="365" />
             <source>Set up Virtual Serial Studio</source>
             <translation>הגדרת Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_grid.cpp" line="379" />
+            <source>Update the driver</source>
+            <translation>עדכון מנהל ההתקן</translation>
         </message>
     </context>
     <context>
@@ -3711,6 +4035,11 @@ Networks: %5</source>
             <location filename="../src/shell/launcher.cpp" line="344" />
             <source>Set up Virtual Serial Studio</source>
             <translation>הגדרת Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/launcher.cpp" line="357" />
+            <source>Update the driver</source>
+            <translation>עדכון מנהל ההתקן</translation>
         </message>
     </context>
     <context>
@@ -4106,6 +4435,11 @@ Networks: %5</source>
             <source>The jitter can be no more than the delay.</source>
             <translation>הריצוד לא יכול להיות גדול מההשהיה.</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="82" />
+            <source>Direction</source>
+            <translation>כיוון</translation>
+        </message>
     </context>
     <context>
         <name>MonitorModel</name>
@@ -4188,6 +4522,16 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_model.cpp" line="354" />
             <source>not carried by the bus</source>
             <translation>לא הועבר באפיק</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="352" />
+            <source>%1, %2, %3, %4</source>
+            <translation>%1, %2, %3, %4</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="412" />
+            <source>Break, %1</source>
+            <translation>Break, %1</translation>
         </message>
     </context>
     <context>
@@ -4376,6 +4720,11 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_panel.cpp" line="800" />
             <source>%1 column is %2 px wide.</source>
             <translation>רוחב העמודה %1 הוא %2 px.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="1127" />
+            <source>No traffic on %1 yet. %2.</source>
+            <translation>עדיין אין תעבורה ב-%1. %2.</translation>
         </message>
     </context>
     <context>
@@ -4613,6 +4962,81 @@ Networks: %5</source>
             <source>The address may be in use, or the other computer refused the connection. Check the address and try again.</source>
             <translation>ייתכן שהכתובת בשימוש, או שהמחשב האחר סירב לחיבור. בדקו את הכתובת ונסו שוב.</translation>
         </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="172" />
+            <source>Port to share</source>
+            <translation>יציאה לשיתוף</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="173" />
+            <source>A network port is one end of a link. The other end is a port that programs open, so choose a port that is in Studio, a real device, or let Studio make a new port.</source>
+            <translation>יציאת רשת היא קצה אחד של קישור. הקצה השני הוא יציאה שתוכנות פותחות, לכן בחרו יציאה שנמצאת ב-Studio, התקן אמיתי, או תנו ל-Studio ליצור יציאה חדשה.</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="406" />
+            <source>Create anyway and keep trying</source>
+            <translation>ליצור בכל זאת ולהמשיך לנסות</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="411" />
+            <source>Makes the port now. It waits, and connects when the other computer answers.</source>
+            <translation>יוצר את היציאה עכשיו. היא ממתינה ומתחברת כשהמחשב השני עונה.</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="557" />
+            <source>%1, %2 (in Studio)</source>
+            <translation>%1, %2 (ב-Studio)</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="566" />
+            <source>A new port in Studio</source>
+            <translation>יציאה חדשה ב-Studio</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="724" />
+            <source>the port</source>
+            <translation>היציאה</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="728" />
+            <source>a new port in Studio</source>
+            <translation>יציאה חדשה ב-Studio</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="821" />
+            <source>Network port settings</source>
+            <translation>הגדרות יציאת רשת</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="823" />
+            <source>Apply anyway and keep trying</source>
+            <translation>להחיל בכל זאת ולהמשיך לנסות</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="825" />
+            <source>Apply</source>
+            <translation>החלה</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="991" />
+            <source>Port %1 is in use by another program. Choose another port, or stop that program.</source>
+            <translation>יציאה %1 בשימוש של תוכנה אחרת. בחרו יציאה אחרת, או עצרו את התוכנה.</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="1000" />
+            <source>Port %1 is already used by another port in this setup. Choose another port.</source>
+            <translation>יציאה %1 כבר בשימוש של יציאה אחרת בהגדרה הזאת. בחרו יציאה אחרת.</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="1074" />
+            <source>Could not connect</source>
+            <translation>לא ניתן להתחבר</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="1075" />
+            <source>The other computer did not answer or refused the connection. You can create the port anyway. It waits, and connects when the other computer answers.</source>
+            <translation>המחשב השני לא ענה או סירב לחיבור. אפשר ליצור את היציאה בכל זאת. היא ממתינה ומתחברת כשהמחשב השני עונה.</translation>
+        </message>
     </context>
     <context>
         <name>NoteBanner</name>
@@ -4780,6 +5204,11 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="63" />
             <source>Set up Virtual Serial Studio</source>
             <translation>הגדרת Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/pair_dialog.cpp" line="88" />
+            <source>Creating</source>
+            <translation>יוצר</translation>
         </message>
     </context>
     <context>
@@ -5385,6 +5814,111 @@ Networks: %5</source>
             <source>Virtual port</source>
             <translation>יציאה וירטואלית</translation>
         </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="306" />
+            <source>Kind</source>
+            <translation>סוג</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="308" />
+            <source>Address</source>
+            <translation>כתובת</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="310" />
+            <source>Settings</source>
+            <translation>הגדרות</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="312" />
+            <source>Baud rate</source>
+            <translation>קצב באוד</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="314" />
+            <source>Data bits</source>
+            <translation>סיביות נתונים</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="316" />
+            <source>Parity</source>
+            <translation>זוגיות</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="318" />
+            <source>Stop bits</source>
+            <translation>סיביות עצירה</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="320" />
+            <source>Flow control</source>
+            <translation>בקרת זרימה</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="322" />
+            <source>Errors</source>
+            <translation>שגיאות</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="462" />
+            <source>Serial port</source>
+            <translation>יציאה טורית</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="465" />
+            <source>Network server (TCP)</source>
+            <translation>שרת רשת (TCP)</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="466" />
+            <source>Network client (TCP)</source>
+            <translation>לקוח רשת (TCP)</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="468" />
+            <source>Network client (UDP)</source>
+            <translation>לקוח רשת (UDP)</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="470" />
+            <source>Network client (RFC 2217)</source>
+            <translation>לקוח רשת (RFC 2217)</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="510" />
+            <source>None</source>
+            <translation>ללא</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="512" />
+            <source>Odd</source>
+            <translation>אי-זוגית</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="514" />
+            <source>Even</source>
+            <translation>זוגית</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="516" />
+            <source>Mark</source>
+            <translation>סימן</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="518" />
+            <source>Space</source>
+            <translation>רווח</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="543" />
+            <source>XON/XOFF</source>
+            <translation>XON/XOFF</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/port_model.cpp" line="545" />
+            <source>RTS/CTS</source>
+            <translation>RTS/CTS</translation>
+        </message>
     </context>
     <context>
         <name>PortReadyDialog</name>
@@ -5661,6 +6195,21 @@ Networks: %5</source>
             <translation>%1 הועתק.</translation>
         </message>
         <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Ports are not sorted.</source>
+            <translation>הפורטים אינם ממוינים.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Sorted by %1, first to last.</source>
+            <translation>ממוין לפי %1, מהראשון לאחרון.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="400" />
+            <source>Sorted by %1, last to first.</source>
+            <translation>ממוין לפי %1, מהאחרון לראשון.</translation>
+        </message>
+        <message>
             <location filename="../src/panes/ports_panel.cpp" line="136" />
             <source>Ports table columns</source>
             <translation>עמודות טבלת היציאות</translation>
@@ -5669,6 +6218,21 @@ Networks: %5</source>
             <location filename="../src/panes/ports_panel.cpp" line="235" />
             <source>%1 column is %2 px wide.</source>
             <translation>רוחב העמודה %1 הוא %2 px.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="382" />
+            <source>%1 column moved.</source>
+            <translation>העמודה %1 הוזזה.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="390" />
+            <source>Columns</source>
+            <translation>עמודות</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="407" />
+            <source>Reset columns</source>
+            <translation>איפוס עמודות</translation>
         </message>
     </context>
     <context>
@@ -6111,6 +6675,56 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_panel.cpp" line="68" />
             <source>bus</source>
             <translation>אפיק</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="62" />
+            <source>%1 µs</source>
+            <translation>%1 µs</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="66" />
+            <source>%1 ms</source>
+            <translation>%1 ms</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="68" />
+            <source>%1 s</source>
+            <translation>%1 שנ'</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="78" />
+            <source>running</source>
+            <translation>רץ</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/studio_backend.cpp" line="80" />
+            <source>at least %1</source>
+            <translation>לפחות %1</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="154" />
+            <source>break</source>
+            <translation>Break</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="1" />
+            <source>The driver on this PC is an older version than the one that comes with this program, so ports may not work until it is updated. Nothing was changed. Update the driver to install the newer one.</source>
+            <translation>מנהל ההתקן במחשב הזה הוא בגרסה ישנה יותר מזה שמגיע עם התוכנית הזו, ולכן ייתכן שהיציאות לא יפעלו עד שיעודכן. דבר לא שונה. עדכנו את מנהל ההתקן כדי להתקין את החדש יותר.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="1" />
+            <source>The Virtual Serial Studio driver on this PC needs updating</source>
+            <translation>מנהל ההתקן של Virtual Serial Studio במחשב הזה צריך עדכון</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="162" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Choose Set up Virtual Serial Studio to update it.</source>
+            <translation>מנהל ההתקן במחשב הזה ישן יותר מהתוכנית הזאת, ולכן אי אפשר להשתמש ביציאות שהוא יוצר. דבר לא שונה. בחרו ב״הגדרת Virtual Serial Studio״ כדי לעדכן אותו.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="162" />
+            <source>The driver on this PC is older than this program, so the ports it makes cannot be used. Nothing was changed. Update the driver to install the newer one that comes with this program.</source>
+            <translation>מנהל ההתקן במחשב הזה ישן מהתוכנית הזו, ולכן אי אפשר להשתמש ביציאות שהוא יוצר. דבר לא שונה. עדכנו את מנהל ההתקן כדי להתקין את החדש יותר שמגיע עם התוכנית הזו.</translation>
         </message>
     </context>
     <context>
@@ -6773,6 +7387,30 @@ Networks: %5</source>
             <location filename="../src/support/settings_dialog.cpp" line="885" />
             <source>This build cannot check for updates.</source>
             <translation>הבנייה הזו אינה יכולה לבדוק עדכונים.</translation>
+        </message>
+        <message>
+            <source>Debug access</source>
+            <translation>גישת ניפוי שגיאות</translation>
+        </message>
+        <message>
+            <source>Let programs on this computer read what Studio is doing</source>
+            <translation>לאפשר לתוכנות במחשב זה לקרוא מה Studio עושה</translation>
+        </message>
+        <message>
+            <source>Let them read the bytes of traffic for ten minutes</source>
+            <translation>לאפשר להם לקרוא את בתי התעבורה למשך עשר דקות</translation>
+        </message>
+        <message>
+            <source>Disconnect all programs</source>
+            <translation>לנתק את כל התוכנות</translation>
+        </message>
+        <message>
+            <source>For finding out why a port will not open. A program that uses this asks you first, and a pipe that only you can open exists only while this is on. It can read the state of the ports and the calls Studio made to Windows. It cannot read the bytes your ports carry unless you turn on the second switch. Nothing is sent anywhere, and this is off every time Studio starts. Each use is written to a log in Studio's data folder.</source>
+            <translation>כדי לברר מדוע יציאה אינה נפתחת. תוכנה שמשתמשת בזה שואלת אתכם קודם, וצינור שרק אתם יכולים לפתוח קיים רק כל עוד האפשרות מופעלת. היא יכולה לקרוא את מצב היציאות ואת הקריאות ש-Studio ביצע אל Windows. היא אינה יכולה לקרוא את הבתים שהיציאות שלכם נושאות אלא אם תפעילו את המתג השני. שום דבר אינו נשלח לשום מקום, והאפשרות כבויה בכל הפעלה של Studio. כל שימוש נרשם ביומן בתיקיית הנתונים של Studio.</translation>
+        </message>
+        <message>
+            <source>%1 (process %2): %3</source>
+            <translation>%1 (תהליך %2): %3</translation>
         </message>
     </context>
     <context>
@@ -7441,6 +8079,11 @@ Networks: %5</source>
             <location filename="../src/support/setup_facts.cpp" line="198" />
             <source>Set up Virtual Serial Studio</source>
             <translation>הגדרת Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/setup_facts.cpp" line="223" />
+            <source>Update the driver</source>
+            <translation>עדכון מנהל ההתקן</translation>
         </message>
     </context>
     <context>
@@ -9652,6 +10295,101 @@ Networks: %5</source>
             <source>Started again.</source>
             <translation>הופעל מחדש.</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2156" />
+            <source>Progress</source>
+            <translation>התקדמות</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2161" />
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד דקה.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2487" />
+            <source>The Monitor shows only %1. Choose All ports in its port filter to see every port.</source>
+            <translation>המוניטור מציג רק את %1. בחרו ״כל היציאות״ במסנן היציאות כדי לראות את כולן.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2490" />
+            <source>The Monitor shows %1.</source>
+            <translation>המוניטור מציג את %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="511" />
+            <source>Decoded traffic...</source>
+            <translation>תעבורה מפוענחת…</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="512" />
+            <source>decode decoder frames triggers protocol plugin</source>
+            <translation>פענוח מפענח מסגרות טריגרים פרוטוקול תוסף</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2518" />
+            <source>Decoding %1 as %2. What it finds is in Decoded traffic, under Tools.</source>
+            <translation>מפענח את %1 כ-%2. מה שנמצא מופיע בכלים, תחת ״תעבורה מפוענחת״.</translation>
+        </message>
+        <message>
+            <source>Panes</source>
+            <translation>חלוניות</translation>
+        </message>
+        <message>
+            <source>Next pane</source>
+            <translation>החלונית הבאה</translation>
+        </message>
+        <message>
+            <source>Previous pane</source>
+            <translation>החלונית הקודמת</translation>
+        </message>
+        <message>
+            <source>ports list</source>
+            <translation>פורטים רשימה</translation>
+        </message>
+        <message>
+            <source>port settings</source>
+            <translation>פורט הגדרות</translation>
+        </message>
+        <message>
+            <source>send bytes</source>
+            <translation>שלח בתים</translation>
+        </message>
+        <message>
+            <source>panes switch cycle monitor log</source>
+            <translation>חלוניות החלפה מעבר מוניטור יומן</translation>
+        </message>
+        <message>
+            <source>Could not start %1.</source>
+            <translation>לא ניתן להפעיל את %1.</translation>
+        </message>
+        <message>
+            <source>Could not stop %1.</source>
+            <translation>לא ניתן לעצור את %1.</translation>
+        </message>
+        <message>
+            <source>Started %1.</source>
+            <translation>%1 הופעל.</translation>
+        </message>
+        <message>
+            <source>Stopped %1.</source>
+            <translation>%1 נעצר.</translation>
+        </message>
+        <message>
+            <source>Could not pause %1.</source>
+            <translation>לא ניתן להשהות את %1.</translation>
+        </message>
+        <message>
+            <source>Could not resume %1.</source>
+            <translation>לא ניתן להמשיך את %1.</translation>
+        </message>
+        <message>
+            <source>Paused %1.</source>
+            <translation>%1 הושהה.</translation>
+        </message>
+        <message>
+            <source>Resumed %1.</source>
+            <translation>%1 חודש.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -9890,6 +10628,10 @@ Networks: %5</source>
             <location filename="../src/shell/status_bar.cpp" line="171" />
             <source>Open Tools, Setup check for the details.</source>
             <translation>לפרטים, פתחו כלים, בדיקת הגדרות.</translation>
+        </message>
+        <message>
+            <source>Press to turn it off.</source>
+            <translation>לחצו כדי לכבות.</translation>
         </message>
     </context>
     <context>
@@ -10399,6 +11141,22 @@ Networks: %5</source>
             <location filename="../src/topology/topology_text.cpp" line="389" />
             <source>Selected %1.</source>
             <translation>נבחר: %1.</translation>
+        </message>
+        <message>
+            <source>Start</source>
+            <translation>הפעל</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>עצור</translation>
+        </message>
+        <message>
+            <source>Pause</source>
+            <translation>השהה</translation>
+        </message>
+        <message>
+            <source>Resume</source>
+            <translation>המשך</translation>
         </message>
     </context>
     <context>
@@ -10962,6 +11720,17 @@ Networks: %5</source>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>%1 נשמר.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_editor.cpp" line="499" />
+            <location filename="../src/advanced/json_editor.cpp" line="500" />
+            <source>Applying</source>
+            <translation>מחיל</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_editor.cpp" line="503" />
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד דקה.</translation>
         </message>
     </context>
     <context>
@@ -19253,6 +20022,16 @@ Networks: %5</source>
             <source>Setup finished, but this PC still cannot make ports: %1. Copy the details if you ask for help.</source>
             <translation>ההגדרה הסתיימה, אבל המחשב הזה עדיין לא יכול ליצור יציאות: %1. העתיקו את הפרטים אם אתם מבקשים עזרה.</translation>
         </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="147" />
+            <source>Updating replaces the driver and restarts the helper, so ports that are open now are closed, and a program that has one open loses it. Studio offers to make the ports again. Windows may ask for a restart before the new driver is used.</source>
+            <translation>העדכון מחליף את מנהל ההתקן ומפעיל מחדש את שירות העזר, ולכן יציאות שפתוחות עכשיו ייסגרו, ותוכנית שפתחה אחת מהן תאבד אותה. Studio מציע ליצור את היציאות מחדש. ייתכן ש-Windows יבקש הפעלה מחדש לפני שמנהל ההתקן החדש ישמש.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="217" />
+            <source>Update the driver</source>
+            <translation>עדכון מנהל ההתקן</translation>
+        </message>
     </context>
     <context>
         <name>AddSheet</name>
@@ -19406,6 +20185,40 @@ Networks: %5</source>
             <source>%1 name</source>
             <translation>שם %1</translation>
         </message>
+        <message>
+            <source>COM number</source>
+            <translation>מספר COM</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>אוטומטי</translation>
+        </message>
+        <message>
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one. COM1 and COM2 are kept for real ports.</source>
+            <translation>תוכנית שפותחת שם קבוע כמו COM3 צריכה את אותו המספר בכל פעם. אוטומטי בוחר מספר פנוי. COM1 ו-COM2 שמורים ליציאות אמיתיות.</translation>
+        </message>
+        <message>
+            <source>Choose a number from 1 to 255, or Automatic.</source>
+            <translation>בחרו מספר מ-1 עד 255, או אוטומטי.</translation>
+        </message>
+        <message>
+            <source>COM%1 is used by %2. Choose a free number.</source>
+            <translation>COM%1 בשימוש של %2. בחרו מספר פנוי.</translation>
+        </message>
+        <message>
+            <source>COM1 and COM2 are kept for real ports. Choose COM3 or higher.</source>
+            <translation>COM1 ו-COM2 שמורים ליציאות אמיתיות. בחרו COM3 ומעלה.</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="532" />
+            <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
+            <translation>נלקח מ-%1. מוניטור פועל במהירות של היציאה שהוא עוקב אחריה.</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="388" />
+            <source>A program that opens a fixed name such as COM3 needs the same number every time. Automatic picks a free one.</source>
+            <translation>תוכנית שפותחת שם קבוע כמו COM3 צריכה את אותו המספר בכל פעם. אוטומטי בוחר מספר פנוי.</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -19431,8 +20244,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="74" />
-            <source>A byte takes ten bits. The others hear a message when its last byte has left the line.</source>
-            <translation>בייט אחד אורך עשרה ביטים. האחרים שומעים הודעה כשהבייט האחרון שלה עזב את הקו.</translation>
+            <source>A byte takes as many bits as the sender's framing gives it, ten for 8N1. The others hear a message when its last byte has left the line.</source>
+            <translation>בית אחד אורך כמספר הסיביות שמסגור השולח קובע, עשר ב-8N1. האחרים שומעים הודעה כשהבית האחרון שלה עזב את הקו.</translation>
         </message>
         <message>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="81" />
@@ -19671,6 +20484,31 @@ Networks: %5</source>
             <source>Link settings changed.</source>
             <translation>הגדרות הקישור שונו.</translation>
         </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/shell/canvas_controller.cpp" line="260" />
+            <source>Could not add %1 to the bus: %2</source>
+            <translation>לא ניתן להוסיף את %1 לאפיק: %2</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/shell/canvas_controller.cpp" line="293" />
+            <source>Add to bus</source>
+            <translation>הוספה לאפיק</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/shell/canvas_controller.cpp" line="315" />
+            <source>Put %1 on the bus with %2.</source>
+            <translation>להניח את %1 על האפיק עם %2.</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/shell/canvas_controller.cpp" line="721" />
+            <source>Network port changed.</source>
+            <translation>יציאת הרשת שונתה.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="729" />
+            <source>The address of %1 is not known, so its settings cannot be shown.</source>
+            <translation>הכתובת של %1 אינה ידועה, ולכן אי אפשר להציג את ההגדרות שלו.</translation>
+        </message>
     </context>
     <context>
         <name>PaneHeader</name>
@@ -19862,6 +20700,23 @@ Networks: %5</source>
             <location filename="../src/advanced/port_settings_dialog.cpp" line="479" />
             <source>The port could not take these settings: %1</source>
             <translation>היציאה לא הצליחה לקבל את ההגדרות האלה: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="479" />
+            <source>Another program may have the port open. Close that program, then try again.</source>
+            <translation>ייתכן שתוכנית אחרת פתחה את היציאה. סגרו את התוכנית ונסו שוב.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../../../../../../../apps/vss_gui/src/advanced/port_settings_dialog.cpp" line="296" />
+            <source>Use these settings for the %n port(s) linked to this one</source>
+            <translation>
+                <numerusform>להשתמש בהגדרות האלה עבור %n יציאות המקושרות ליציאה הזאת</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="434" />
+            <source>Taken from %1. A monitor runs at the speed of the port it watches.</source>
+            <translation>נלקח מ-%1. מוניטור פועל במהירות של היציאה שהוא עוקב אחריה.</translation>
         </message>
     </context>
     <context>
@@ -20237,6 +21092,66 @@ Networks: %5</source>
             <location filename="../src/topology/topology_view.cpp" line="2959" />
             <source>Select all</source>
             <translation>בחירת הכול</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="186" />
+            <source>Zoom controls</source>
+            <translation>פקדי זום</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="204" />
+            <source>Zoom out</source>
+            <translation>הקטנה</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="206" />
+            <source>Reset zoom to 100%</source>
+            <translation>איפוס הזום ל-100%</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="209" />
+            <source>Zoom in</source>
+            <translation>הגדלה</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/topology/topology_view.cpp" line="2823" />
+            <source>Add %1 to the bus with %2</source>
+            <translation>הוספת %1 לאפיק עם %2</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/topology/topology_view.cpp" line="2837" />
+            <source>Shared bus for %1 and %2</source>
+            <translation>אפיק משותף עבור %1 ו-%2</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/topology/topology_view.cpp" line="2883" />
+            <source>Share %1 over the network...</source>
+            <translation>שיתוף %1 ברשת...</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/topology/topology_view.cpp" line="2887" />
+            <source>Not available in this build</source>
+            <translation>לא זמין בגרסה זו</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/topology/topology_view.cpp" line="2888" />
+            <source>Connect %1 to a server...</source>
+            <translation>חיבור %1 לשרת...</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/topology/topology_view.cpp" line="2957" />
+            <source>Share over the network...</source>
+            <translation>שיתוף ברשת...</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/topology/topology_view.cpp" line="2962" />
+            <source>Connect to a server...</source>
+            <translation>חיבור לשרת...</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/topology/topology_view.cpp" line="2966" />
+            <source>Make a bus with...</source>
+            <translation>יצירת אפיק עם...</translation>
         </message>
     </context>
     <context>
@@ -21038,6 +21953,14 @@ Networks: %5</source>
                 <numerusform>%n קבצים</numerusform>
             </translation>
         </message>
+        <message>
+            <source>Calls to Windows</source>
+            <translation>קריאות אל Windows</translation>
+        </message>
+        <message>
+            <source>The calls Studio made to Windows and its libraries that failed, with the code Windows gave and the calls around each. Not the bytes your ports carry. Off unless you turn it on.</source>
+            <translation>הקריאות ש-Studio ביצע אל Windows ואל הספריות שלו ושנכשלו, עם הקוד ש-Windows החזיר והקריאות סביב כל אחת. לא הבתים שהיציאות שלכם נושאות. כבוי אלא אם תפעילו.</translation>
+        </message>
     </context>
     <context>
         <name>SupportDialog</name>
@@ -21567,11 +22490,6 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_dialogs.cpp" line="1" />
-            <source>This is a different version from the one you approved.</source>
-            <translation>זו גרסה שונה מזו שאישרת.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
             <source>It asks for more than before:</source>
             <translation>הוא מבקש יותר מקודם:</translation>
         </message>
@@ -21609,6 +22527,11 @@ Networks: %5</source>
             <location filename="../src/support/plugin_dialogs.cpp" line="1" />
             <source>Decide anyway</source>
             <translation>להחליט בכל זאת</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="193" />
+            <source>You allowed an earlier version of this plugin. Look at what changed before you allow this one.</source>
+            <translation>אישרת גרסה קודמת של התוסף הזה. בדוק מה השתנה לפני שאתה מאשר את הגרסה הזו.</translation>
         </message>
     </context>
     <context>
@@ -22278,8 +23201,33 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
-            <source>The copy installed for everyone is used. This copy, installed for you only, is not.</source>
-            <translation>ההעתק המותקן לכולם הוא שבשימוש. ההעתק הזה, המותקן רק עבורך, אינו בשימוש.</translation>
+            <source>The copy that came with Studio runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>במקומו משמש ההעתק שהגיע עם Studio. ההעתק הזה, המותקן רק עבורך, אינו בשימוש. הסירו את ההעתק הזה אם אינכם זקוקים לו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin, installed for everyone on this computer, runs instead. This copy, installed for you only, is not used. Remove this copy if you do not need it.</source>
+            <translation>במקומו משמש העתק אחר של התוסף הזה, המותקן לכל מי שמשתמש במחשב הזה. ההעתק הזה, המותקן רק עבורך, אינו בשימוש. הסירו את ההעתק הזה אם אינכם זקוקים לו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>The copy that came with Studio runs instead. This copy, installed for everyone on this computer, is not used. Ask your administrator to remove it.</source>
+            <translation>במקומו משמש ההעתק שהגיע עם Studio. ההעתק הזה, המותקן לכל מי שמשתמש במחשב הזה, אינו בשימוש. בקשו ממנהל המערכת להסיר אותו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another copy of this plugin runs instead. This copy is not used.</source>
+            <translation>במקומו משמש העתק אחר של התוסף הזה. ההעתק הזה אינו בשימוש.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 came with Studio, and that copy runs. A copy added for you only would not run.</source>
+            <translation>%1 הגיע עם Studio, וההעתק הזה הוא שבשימוש. העתק שנוסף רק עבורכם לא יהיה בשימוש.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 is already installed for everyone on this computer, and that copy runs. A copy added for you only would not run. Ask your administrator to change it.</source>
+            <translation>%1 כבר מותקן לכל מי שמשתמש במחשב הזה, וההעתק הזה הוא שבשימוש. העתק שנוסף רק עבורכם לא יהיה בשימוש. בקשו ממנהל המערכת לשנות זאת.</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
@@ -22333,6 +23281,11 @@ Networks: %5</source>
             <location filename="../src/support/plugin_text.cpp" line="1" />
             <source>Its description file is not valid, so Studio cannot tell what it is.</source>
             <translation>קובץ התיאור שלו אינו תקין, ולכן Studio אינו יכול לדעת מה הוא.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>What is wrong: %1</source>
+            <translation>מה לא תקין: %1</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_text.cpp" line="1" />
@@ -22803,6 +23756,222 @@ Networks: %5</source>
             <source>Looking for plugins...</source>
             <translation>מחפש תוספים...</translation>
         </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="143" />
+            <source>The plugin does not offer this.</source>
+            <translation>התוסף אינו מציע זאת.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="146" />
+            <location filename="../src/support/plugins_dialog.cpp" line="1451" />
+            <source>The plugin allows no more of these.</source>
+            <translation>התוסף אינו מאפשר עוד מאלה.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="149" />
+            <source>The plugin did not answer.</source>
+            <translation>התוסף לא ענה.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="151" />
+            <source>The plugin turned it down.</source>
+            <translation>התוסף דחה זאת.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="269" />
+            <source>Read your licence file. The file holds your name.</source>
+            <translation>קריאת קובץ הרישיון שלך. הקובץ מכיל את שמך.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="61" />
+            <source>Not running</source>
+            <translation>לא פועל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="63" />
+            <source>Waiting</source>
+            <translation>ממתין</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="67" />
+            <source>Running</source>
+            <translation>רץ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="69" />
+            <source>Stopping</source>
+            <translation>עוצר</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="71" />
+            <source>Refused</source>
+            <translation>סורב</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1339" />
+            <source>This plugin did not accept the licence: %1</source>
+            <translation>התוסף הזה לא קיבל את הרישיון: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1349" />
+            <source>Studio and the plugin disagree. Check that Studio and the plugin are both up to date.</source>
+            <translation>Studio והתוסף אינם מתאימים זה לזה. ודא ש-Studio והתוסף מעודכנים שניהם.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1365" />
+            <source>What it runs</source>
+            <translation>מה הוא מריץ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1371" />
+            <source>Nothing is set up yet.</source>
+            <translation>עדיין לא הוגדר דבר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1392" />
+            <source>Remove</source>
+            <translation>הסרה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1395" />
+            <source>Remove %1</source>
+            <translation>הסרת %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1422" />
+            <source>Sending the new settings</source>
+            <translation>שולח את ההגדרות החדשות</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1431" />
+            <source>Add...</source>
+            <translation>הוספה...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1447" />
+            <source>This needs settings that Studio cannot ask for yet.</source>
+            <translation>זה דורש הגדרות ש-Studio עדיין לא יכול לבקש.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="730" />
+            <source>Framing</source>
+            <translation>מסגור</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="734" />
+            <source>Unknown type</source>
+            <translation>סוג לא ידוע</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="738" />
+            <source>Unknown value</source>
+            <translation>ערך לא ידוע</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="741" />
+            <source>Check</source>
+            <translation>בדיקה</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="744" />
+            <source>Length</source>
+            <translation>אורך</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="747" />
+            <source>Timeout</source>
+            <translation>תם הזמן</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="751" />
+            <source>Sequence</source>
+            <translation>רצף</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="755" />
+            <source>Contention</source>
+            <translation>התנגשות</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="759" />
+            <source>Line error</source>
+            <translation>שגיאת קו</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="763" />
+            <source>Decoder lost</source>
+            <translation>המפענח איבד מקום</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="912" />
+            <source>%1 s</source>
+            <translation>%1 שנ'</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="916" />
+            <source>Received</source>
+            <translation>התקבל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="918" />
+            <source>Sent</source>
+            <translation>נשלח</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="929" />
+            <source>Left out: %1 dropped to stay within the limits, %2 refused, %3 over the rate limit.</source>
+            <translation>הושמטו: %1 נשמטו כדי להישאר במגבלות, %2 נדחו, %3 מעל מגבלת הקצב.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="939" />
+            <source>Showing the newest %1 of %2.</source>
+            <translation>מוצגים %1 החדשים מתוך %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1525" />
+            <source>What it found</source>
+            <translation>מה נמצא</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1530" />
+            <source>These words come from the plugin.</source>
+            <translation>המילים האלה מגיעות מהתוסף.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1537" />
+            <source>Nothing found yet.</source>
+            <translation>עדיין לא נמצא דבר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1549" />
+            <source>Time</source>
+            <translation>שעה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1550" />
+            <source>Place</source>
+            <translation>מקום</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1551" />
+            <source>Direction</source>
+            <translation>כיוון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1552" />
+            <source>What</source>
+            <translation>מה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1553" />
+            <source>Kind</source>
+            <translation>סוג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1562" />
+            <source>What %1 found</source>
+            <translation>מה ש-%1 מצא</translation>
+        </message>
     </context>
     <context>
         <name>PluginToolbox</name>
@@ -22834,6 +24003,16 @@ From the plugin %2
             <translation>%1
 מהתוסף %2
 %3</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="357" />
+            <source>%1 cannot be placed yet. Standing in for a device needs the engine timeline, which this version of Studio does not have.</source>
+            <translation>עדיין אי אפשר למקם את %1. כדי לשמש תחליף להתקן נדרש ציר הזמן של המנוע, ובגרסה זו של Studio הוא אינו קיים.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="466" />
+            <source>%1 needs settings that are set in Plugins.</source>
+            <translation>%1 דורש הגדרות שמגדירים בתוספים.</translation>
         </message>
     </context>
     <context>
@@ -22964,6 +24143,783 @@ From the plugin %2
             <location filename="../src/support/plugin_parts.cpp" line="540" />
             <source>%1 was withdrawn by Virtual Serial Studio and has been stopped.</source>
             <translation>%1 נמשך על ידי Virtual Serial Studio והופסק.</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginControlDialog</name>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1058" />
+            <source>See the ports, links and their state</source>
+            <translation>הצגת היציאות, הקישורים והמצב שלהם</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1064" />
+            <source>See the bytes that pass through the ports</source>
+            <translation>הצגת הבייטים שעוברים דרך היציאות</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1068" />
+            <source>Add, change and remove ports and links</source>
+            <translation>הוספה, שינוי והסרה של יציאות וקישורים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1074" />
+            <source>Send bytes into the ports</source>
+            <translation>שליחת בייטים אל היציאות</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1078" />
+            <source>Cause faults on ports and links</source>
+            <translation>גרימת תקלות ביציאות ובקישורים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1081" />
+            <source>Apply a whole setup</source>
+            <translation>החלת הגדרה שלמה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1086" />
+            <source>Start and stop recordings</source>
+            <translation>התחלה ועצירה של הקלטות</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1090" />
+            <source>%1. Studio does not describe this one.</source>
+            <translation>%1. Studio אינו מתאר את זה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1102" />
+            <source>Allow remote control?</source>
+            <translation>לאפשר שליטה מרחוק?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1104" />
+            <source>%1 asks to use this computer's ports for another computer.</source>
+            <translation>%1 מבקש להשתמש ביציאות של המחשב הזה עבור מחשב אחר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1114" />
+            <source>It did not say which computer.</source>
+            <translation>הוא לא אמר איזה מחשב.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1116" />
+            <source>It says the other computer is: %1</source>
+            <translation>הוא אומר שהמחשב האחר הוא: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1129" />
+            <source>The plugin's own words</source>
+            <translation>המילים של התוסף עצמו</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1140" />
+            <source>It asks to be allowed to:</source>
+            <translation>הוא מבקש רשות ל:</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1158" />
+            <source>This lets the other side see or send data.</source>
+            <translation>זה מאפשר לצד השני לראות או לשלוח נתונים.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1168" />
+            <source>The other computer can read or write what your ports carry.</source>
+            <translation>המחשב האחר יכול לקרוא או לכתוב את מה שהיציאות שלך מעבירות.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_dialogs.cpp" line="1177" />
+            <source>%n hour(s)</source>
+            <translation>
+                <numerusform>%n שעה</numerusform>
+                <numerusform>%n שעות</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_dialogs.cpp" line="1179" />
+            <source>%n minute(s)</source>
+            <translation>
+                <numerusform>%n דקה</numerusform>
+                <numerusform>%n דקות</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1183" />
+            <source>This lasts %1, or until the plugin stops. You are asked again each time.</source>
+            <translation>זה נמשך %1, או עד שהתוסף נעצר. תתבקש לאשר שוב בכל פעם.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1195" />
+            <source>Refuse</source>
+            <translation>סירוב</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1199" />
+            <source>Allow</source>
+            <translation>אישור</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginSecretDialog</name>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="822" />
+            <source>%1 min %2 s</source>
+            <translation>%1 דק' %2 שנ'</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="827" />
+            <source>%1 min</source>
+            <translation>%1 דק'</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="829" />
+            <source>%1 s</source>
+            <translation>%1 שנ'</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="870" />
+            <source>Code from a plugin</source>
+            <translation>קוד מתוסף</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="872" />
+            <source>%1 asks you to read this.</source>
+            <translation>%1 מבקש ממך לקרוא את זה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="885" />
+            <source>The plugin says</source>
+            <translation>התוסף אומר</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="919" />
+            <source>Studio does not keep this code. Only give it to someone you mean to.</source>
+            <translation>Studio לא שומר את הקוד הזה. תן אותו רק למי שאתה מתכוון לתת לו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="928" />
+            <location filename="../src/support/plugin_dialogs.cpp" line="947" />
+            <source>Copy</source>
+            <translation>העתקה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="932" />
+            <source>Close</source>
+            <translation>סגירה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="957" />
+            <source>Copied</source>
+            <translation>הועתק</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1021" />
+            <source>Good for %1.</source>
+            <translation>תקף למשך %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1026" />
+            <source>This code is no longer good. Ask the plugin for a new one.</source>
+            <translation>הקוד הזה כבר אינו תקף. בקש מהתוסף קוד חדש.</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginInstanceDialog</name>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="823" />
+            <source>Add %1</source>
+            <translation>הוספת %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="825" />
+            <source>%1 needs these settings first.</source>
+            <translation>‏%1 צריך קודם את ההגדרות האלה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="867" />
+            <source>These words come from the plugin.</source>
+            <translation>המילים האלה מגיעות מהתוסף.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="875" />
+            <source>Cancel</source>
+            <translation>ביטול</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="878" />
+            <source>Add</source>
+            <translation>הוספה</translation>
+        </message>
+    </context>
+    <context>
+        <name>com_use</name>
+        <message>
+            <source>Studio port %1</source>
+            <translation>יציאת Studio‏ %1</translation>
+        </message>
+        <message>
+            <source>Windows device %1</source>
+            <translation>התקן Windows‏ %1</translation>
+        </message>
+        <message>
+            <source>Reserved by Windows</source>
+            <translation>שמור על ידי Windows</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="101" />
+            <source>Unplugged Windows device %1</source>
+            <translation>התקן Windows‏ %1 מנותק</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/com_number_uses.cpp" line="105" />
+            <source>Unplugged Windows device</source>
+            <translation>התקן Windows מנותק</translation>
+        </message>
+    </context>
+    <context>
+        <name>DecodeDialog</name>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="26" />
+            <source>Decode %1</source>
+            <translation>פענוח %1</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="27" />
+            <source>Shows the data on %1 as messages of a protocol, and reports what does not fit. Decoding only reads. It never changes or delays the data.</source>
+            <translation>מציג את הנתונים ב-%1 כהודעות של פרוטוקול ומדווח על מה שאינו מתאים. הפענוח רק קורא. הוא אף פעם לא משנה או מעכב את הנתונים.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="41" />
+            <source>Protocol</source>
+            <translation>פרוטוקול</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="81" />
+            <source>Cancel</source>
+            <translation>ביטול</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="84" />
+            <source>Start decoding</source>
+            <translation>התחל פענוח</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="108" />
+            <source>From the plugin %1.</source>
+            <translation>מהתוסף %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="110" />
+            <source>%1 will read the data that passes through %2.</source>
+            <translation>%1 יקרא את הנתונים שעוברים דרך %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/decode_dialog.cpp" line="122" />
+            <source>Not available in this build</source>
+            <translation>לא זמין בגרסה זו</translation>
+        </message>
+    </context>
+    <context>
+        <name>MonitorDirection</name>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="21" />
+            <source>Both directions</source>
+            <translation>שני הכיוונים</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="24" />
+            <source>Transmit only</source>
+            <translation>שידור בלבד</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="26" />
+            <source>Receive only</source>
+            <translation>קליטה בלבד</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="36" />
+            <source>Copies what the program on the port writes and what is written into the port.</source>
+            <translation>מעתיק גם את מה שהתוכנית ביציאה כותבת וגם את מה שנכתב אל היציאה.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="41" />
+            <source>Copies only what the program on the port writes.</source>
+            <translation>מעתיק רק את מה שהתוכנית ביציאה כותבת.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/monitor_direction.cpp" line="45" />
+            <source>Copies only what is written into the port.</source>
+            <translation>מעתיק רק את מה שנכתב אל היציאה.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DecodedDialog</name>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="41" />
+            <source>Decoded traffic</source>
+            <translation>תעבורה מפוענחת</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="53" />
+            <source>What the decoders found on your ports. Decoding only reads. The words in the table come from the plugin.</source>
+            <translation>מה שהמפענחים מצאו ביציאות שלכם. הפענוח רק קורא. המילים בטבלה מגיעות מהתוסף.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="61" />
+            <source>Triggers only</source>
+            <translation>טריגרים בלבד</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Time</source>
+            <translation>שעה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Place</source>
+            <translation>מקום</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="73" />
+            <source>Direction</source>
+            <translation>כיוון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>Type</source>
+            <translation>סוג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>Message</source>
+            <translation>הודעה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="74" />
+            <source>What</source>
+            <translation>מה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="92" />
+            <source>Close</source>
+            <translation>סגירה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="167" />
+            <source>%1 s</source>
+            <translation>%1 שנ'</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="169" />
+            <source>Received</source>
+            <translation>התקבל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="169" />
+            <source>Sent</source>
+            <translation>נשלח</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="170" />
+            <source>Trigger</source>
+            <translation>טריגר</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="170" />
+            <source>Frame</source>
+            <translation>מסגרת</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="181" />
+            <source>Nothing is being decoded. Choose Decode as... in the menu of a port to start.</source>
+            <translation>שום דבר אינו מפוענח. בחרו ״פענח כ…״ בתפריט של יציאה כדי להתחיל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="185" />
+            <source>No triggers. Everything decoded so far has fitted the protocol.</source>
+            <translation>אין טריגרים. כל מה שפוענח עד כה התאים לפרוטוקול.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="188" />
+            <source>Nothing found yet.</source>
+            <translation>עדיין לא נמצא דבר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="192" />
+            <source>Showing the newest %1 of %2.</source>
+            <translation>מוצגים %1 החדשים מתוך %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/decoded_dialog.cpp" line="194" />
+            <source>%1 left out to stay within the limits.</source>
+            <translation>%1 הושמטו כדי להישאר בגבולות.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockDropOverlay</name>
+        <message>
+            <source>Drop guides</source>
+            <translation>מדריכי שחרור</translation>
+        </message>
+        <message>
+            <source>Shows where the pane will go. Use the pane menu to move a pane without the mouse.</source>
+            <translation>מראה לאן החלונית תעבור. אפשר להשתמש בתפריט החלונית כדי להזיז אותה בלי עכבר.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockPanes</name>
+        <message>
+            <source>Dock</source>
+            <translation>עגן</translation>
+        </message>
+        <message>
+            <source>Float</source>
+            <translation>הצף</translation>
+        </message>
+        <message>
+            <source>Move to the window edge</source>
+            <translation>העבר לקצה החלון</translation>
+        </message>
+        <message>
+            <source>Left</source>
+            <translation>שמאל</translation>
+        </message>
+        <message>
+            <source>Right</source>
+            <translation>ימין</translation>
+        </message>
+        <message>
+            <source>Top</source>
+            <translation>למעלה</translation>
+        </message>
+        <message>
+            <source>Bottom</source>
+            <translation>למטה</translation>
+        </message>
+        <message>
+            <source>Beside %1</source>
+            <translation>לצד %1</translation>
+        </message>
+        <message>
+            <source>Tab with %1</source>
+            <translation>לשונית עם %1</translation>
+        </message>
+        <message>
+            <source>Left of %1</source>
+            <translation>משמאל ל-%1</translation>
+        </message>
+        <message>
+            <source>Right of %1</source>
+            <translation>מימין ל-%1</translation>
+        </message>
+        <message>
+            <source>Above %1</source>
+            <translation>מעל %1</translation>
+        </message>
+        <message>
+            <source>Below %1</source>
+            <translation>מתחת ל-%1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>סגור</translation>
+        </message>
+    </context>
+    <context>
+        <name>DockTitleBar</name>
+        <message>
+            <source>%1 title bar</source>
+            <translation>שורת הכותרת של %1</translation>
+        </message>
+        <message>
+            <source>Drag to move the pane. The menu has every move command.</source>
+            <translation>גררו כדי להזיז את החלונית. בתפריט יש את כל פקודות ההזזה.</translation>
+        </message>
+        <message>
+            <source>Pane menu</source>
+            <translation>תפריט חלונית</translation>
+        </message>
+        <message>
+            <source>%1 pane menu</source>
+            <translation>תפריט החלונית %1</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>סגור</translation>
+        </message>
+        <message>
+            <source>Close %1</source>
+            <translation>סגור את %1</translation>
+        </message>
+    </context>
+    <context>
+        <name>Connection</name>
+        <message>
+            <source>%1 (%2)</source>
+            <translation>%1 (%2)</translation>
+        </message>
+        <message>
+            <source>Connected</source>
+            <translation>מחובר</translation>
+        </message>
+        <message>
+            <source>Connected to %1.</source>
+            <translation>מחובר אל %1.</translation>
+        </message>
+        <message>
+            <source>Connecting</source>
+            <translation>מתחבר</translation>
+        </message>
+        <message>
+            <source>Connecting to %1.</source>
+            <translation>מתחבר אל %1.</translation>
+        </message>
+        <message>
+            <source>Connection lost</source>
+            <translation>החיבור אבד</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2.</source>
+            <translation>לא ניתן להתחבר אל %1: %2.</translation>
+        </message>
+        <message>
+            <source>Could not connect to %1: %2. Trying again.</source>
+            <translation>לא ניתן להתחבר אל %1: %2. ינסה שוב.</translation>
+        </message>
+        <message>
+            <source>Failed</source>
+            <translation>נכשל</translation>
+        </message>
+        <message>
+            <source>Not connected to %1.</source>
+            <translation>לא מחובר אל %1.</translation>
+        </message>
+        <message>
+            <source>Retrying</source>
+            <translation>מנסה שוב</translation>
+        </message>
+        <message>
+            <source>Started</source>
+            <translation>הופעל</translation>
+        </message>
+        <message>
+            <source>Stopped</source>
+            <translation>נעצר</translation>
+        </message>
+        <message>
+            <source>Stopped. Not connecting to %1.</source>
+            <translation>נעצר. לא מתחבר אל %1.</translation>
+        </message>
+        <message>
+            <source>Trying to connect to %1.</source>
+            <translation>מנסה להתחבר אל %1.</translation>
+        </message>
+        <message>
+            <source>Paused</source>
+            <translation>מושהה</translation>
+        </message>
+        <message>
+            <source>Paused. Not connecting to %1.</source>
+            <translation>מושהה. לא מתחבר אל %1.</translation>
+        </message>
+        <message>
+            <source>Resumed</source>
+            <translation>חודש</translation>
+        </message>
+    </context>
+    <context>
+        <name>PortMenu</name>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="3247" />
+            <source>Open in monitor</source>
+            <translation>פתיחה במוניטור</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="3259" />
+            <source>Decode as...</source>
+            <translation>פענוח כ…</translation>
+        </message>
+    </context>
+    <context>
+        <name>WireTimingFields</name>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="54" />
+            <source>Wire timing</source>
+            <translation>תזמון קו</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="50" />
+            <source>Bytes and breaks arrive as slowly as a serial line would carry them. A long write takes as long as it would on a wire, and a break holds back what follows it. Gaps under a millisecond use a little more of the processor.</source>
+            <translation>בתים והפסקות מגיעים לאט כמו שקו טורי היה מעביר אותם. כתיבה ארוכה אורכת כמו על חוט אמיתי, והפסקה מעכבת את מה שאחריה. מרווחים קצרים ממילי-שנייה משתמשים במעט יותר מהמעבד.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="75" />
+            <source>Bit rate</source>
+            <translation>קצב סיביות</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="71" />
+            <source> bit/s</source>
+            <translation> ביט/שנ׳</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="72" />
+            <source>From the port</source>
+            <translation>מהיציאה</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="78" />
+            <source>Used when the sending port has no rate of its own. The rate the program set on the port is used first. With neither, the link is not paced.</source>
+            <translation>משמש כשליציאה השולחת אין קצב משלה. קודם נעשה שימוש בקצב שהתוכנית קבעה ביציאה. בלי אף אחד מהם, הקישור לא מתוזמן.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="84" />
+            <source>Framing</source>
+            <translation>מסגור</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="120" />
+            <source>Data bits, parity and stop bits, used with the bit rate.</source>
+            <translation>סיביות נתונים, זוגיות וסיביות עצירה, בשימוש עם קצב הסיביות.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="91" />
+            <source>Data bits</source>
+            <translation>סיביות נתונים</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="97" />
+            <source>Parity</source>
+            <translation>זוגיות</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="99" />
+            <source>None</source>
+            <translation>ללא</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="100" />
+            <source>Odd</source>
+            <translation>אי-זוגית</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="101" />
+            <source>Even</source>
+            <translation>זוגית</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="102" />
+            <source>Mark</source>
+            <translation>סימן</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="103" />
+            <source>Space</source>
+            <translation>רווח</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/wire_timing_fields.cpp" line="107" />
+            <source>Stop bits</source>
+            <translation>סיביות עצירה</translation>
+        </message>
+    </context>
+    <context>
+        <name>DriverVersions</name>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="99" />
+            <source>Studio could not read which version of the driver Windows holds.</source>
+            <translation>Studio לא הצליח לקרוא איזו גרסה של מנהל ההתקן נמצאת ב-Windows.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="106" />
+            <source>The driver in Windows is version %1. This copy of Studio has no driver files to compare it with.</source>
+            <translation>מנהל ההתקן ב-Windows הוא בגרסה %1. בעותק הזה של Studio אין קובצי מנהל התקן להשוואה.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="115" />
+            <source>The driver in Windows is version %1. This copy of Studio carries the newer version %2.</source>
+            <translation>מנהל ההתקן ב-Windows הוא בגרסה %1. העותק הזה של Studio כולל את הגרסה החדשה יותר, %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="121" />
+            <source>The driver in Windows is version %1, newer than the version this copy of Studio carries (%2). Nothing needs updating.</source>
+            <translation>מנהל ההתקן ב-Windows הוא בגרסה %1, חדשה יותר מהגרסה שבעותק הזה של Studio (%2). אין צורך לעדכן.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_versions.cpp" line="131" />
+            <source>The driver in Windows is version %1, the same as this copy of Studio carries.</source>
+            <translation>מנהל ההתקן ב-Windows הוא בגרסה %1, זהה לזו שבעותק הזה של Studio.</translation>
+        </message>
+    </context>
+    <context>
+        <name>DebugAccess</name>
+        <message>
+            <source>Debug access is off.</source>
+            <translation>גישת ניפוי השגיאות כבויה.</translation>
+        </message>
+        <message>
+            <source>Debug access is on. Programs on this computer that you allow can read what Studio is doing.</source>
+            <translation>גישת ניפוי השגיאות פועלת. תוכנות במחשב זה שתאשרו יכולות לקרוא מה Studio עושה.</translation>
+        </message>
+        <message>
+            <source>Programs connected: %1.</source>
+            <translation>תוכנות מחוברות: %1.</translation>
+        </message>
+        <message>
+            <source>The bytes of traffic can be read.</source>
+            <translation>ניתן לקרוא את בתי התעבורה.</translation>
+        </message>
+        <message>
+            <source>Debug access on</source>
+            <translation>גישת ניפוי שגיאות פועלת</translation>
+        </message>
+        <message>
+            <source>Debug access on (%1 connected)</source>
+            <translation>גישת ניפוי שגיאות פועלת (%1 מחוברות)</translation>
+        </message>
+        <message>
+            <source>read the state of Studio's ports, its engine and Windows</source>
+            <translation>לקרוא את מצב היציאות של Studio, המנוע שלו ו-Windows</translation>
+        </message>
+        <message>
+            <source>try operations on ports, which can change them</source>
+            <translation>לנסות פעולות על יציאות, דבר שעשוי לשנות אותן</translation>
+        </message>
+        <message>
+            <source>read what the window shows and take a picture of it, which can show names and paths</source>
+            <translation>לקרוא מה שהחלון מציג ולצלם אותו, מה שעשוי להציג שמות ונתיבים</translation>
+        </message>
+        <message>
+            <source>read the bytes your ports carry, when the traffic switch is on</source>
+            <translation>לקרוא את הבתים שהיציאות שלכם נושאות, כשמתג התעבורה פועל</translation>
+        </message>
+        <message>
+            <source>%1 (process %2) wants to:%3
+
+Program: %4</source>
+            <translation>%1 (תהליך %2) רוצה:%3
+
+תוכנה: %4</translation>
+        </message>
+        <message>
+            <source>not known</source>
+            <translation>לא ידוע</translation>
+        </message>
+        <message>
+            <source>Don't allow</source>
+            <translation>לא לאפשר</translation>
+        </message>
+        <message>
+            <source>Allow once</source>
+            <translation>לאפשר פעם אחת</translation>
+        </message>
+        <message>
+            <source>Allow until Studio quits</source>
+            <translation>לאפשר עד ש-Studio ייסגר</translation>
+        </message>
+        <message>
+            <source>Allow this program to use debug access?</source>
+            <translation>לאפשר לתוכנה זו להשתמש בגישת ניפוי השגיאות?</translation>
         </message>
     </context>
 </TS>

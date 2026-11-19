@@ -7,13 +7,16 @@
 #include "advanced/port_settings_dialog.hpp"
 
 #include "advanced/chrome.hpp"
+#include "backend/canvas_edit.hpp"
 #include "theme/theme.hpp"
 #include "widgets/common.hpp"
 #include "widgets/controls.hpp"
 #include "widgets/notes.hpp"
 
+#include <vss/core/error.hpp>
 #include <vss/core/profile.hpp>
 
+#include <QCheckBox>
 #include <QColor>
 #include <QComboBox>
 #include <QGridLayout>
@@ -35,7 +38,7 @@ namespace
 {
 
 constexpr int kMinBaud = 50;
-constexpr int kMaxBaud = 4'000'000;
+constexpr int kMaxBaud = 12'000'000;
 constexpr int kMaxTimeout = 60'000;
 
 QComboBox* make_combo(const QString& name, QWidget* parent)
@@ -127,6 +130,13 @@ PortSettingsDialog::~PortSettingsDialog()
         worker_.join();
 }
 
+QVector<vss::endpoint_id> PortSettingsDialog::set_members() const
+{
+    if (ports_.size() != 1)
+        return {};
+    return connected_set(backend_, ports_.first());
+}
+
 void PortSettingsDialog::build()
 {
     VSS_PROFILE_ZONE("gui.advanced.port_settings.build");
@@ -203,7 +213,8 @@ void PortSettingsDialog::build()
     baud_ = make_combo(tr("Baud rate"), this);
     baud_->setEditable(true);
     for (const int value : {300, 1200, 2400, 4800, 9600, 19200, 38400, 57600,
-                            115200, 230400, 460800, 921600})
+                            115200, 230400, 460800, 921600, 1000000, 2000000,
+                            3000000, 4000000, 12000000})
         baud_->addItem(QString::number(value), value);
     baud_->setValidator(new QIntValidator(kMinBaud, kMaxBaud, baud_));
     baud_->lineEdit()->setAccessibleName(tr("Baud rate"));
@@ -273,6 +284,28 @@ void PortSettingsDialog::build()
     summary_->setFont(Theme::instance().font(text_style::data));
     set_ink2(summary_);
     layout->addWidget(summary_);
+
+    // The ports linked to this one run at the same speed, so the settings can
+    // go to all of them at once.  It starts on when they agree now, so the set
+    // stays one line, and off when they differ, so nothing is changed that
+    // was not asked for.
+    if (ports_.size() == 1 && kind_ != settings_kind::network)
+    {
+        const QVector<vss::endpoint_id> others = set_members();
+        if (!others.isEmpty())
+        {
+            whole_set_ = new QCheckBox(
+                tr("Use these settings for the %n port(s) linked to this one",
+                   nullptr, static_cast<int>(others.size())),
+                this);
+            whole_set_->setObjectName(QStringLiteral("portSettingsWholeSet"));
+            whole_set_->setAccessibleName(whole_set_->text());
+            QVector<vss::endpoint_id> all = others;
+            all.append(ports_.first());
+            whole_set_->setChecked(same_line_format(backend_, all));
+            layout->addWidget(whole_set_);
+        }
+    }
 
     // Only kinds of port that must be restarted to take new settings carry
     // the warning about bytes in flight.
@@ -389,6 +422,22 @@ void PortSettingsDialog::set_settings(const vss::serial_settings& settings)
     update_summary();
 }
 
+void PortSettingsDialog::follow_port(const QString& source_name,
+                                     const vss::serial_settings& settings)
+{
+    vss::serial_settings now = this->settings();
+    now.baud_rate = settings.baud_rate;
+    now.data_bits = settings.data_bits;
+    now.parity = settings.parity;
+    now.stop_bits = settings.stop_bits;
+    set_settings(now);
+    for (QComboBox* combo : {baud_, data_bits_, parity_, stop_bits_})
+        combo->setEnabled(false);
+    note_->set_text(tr("Taken from %1. A monitor runs at the speed of the "
+                       "port it watches.")
+                        .arg(source_name));
+}
+
 void PortSettingsDialog::update_summary()
 {
     if (summary_ == nullptr)
@@ -446,10 +495,22 @@ void PortSettingsDialog::apply()
     apply_->setEnabled(false);
     error_->hide();
 
+    // The linked ports are listed in the undo step too.
+    QVector<vss::endpoint_id> targets = ports_;
+    if (whole_set_ != nullptr && whole_set_->isChecked())
+    {
+        for (const vss::endpoint_id id : set_members())
+        {
+            targets.append(id);
+            if (const auto view = backend_.port(id))
+                before_.append({view->name, view->serial});
+        }
+    }
+
     // The worker calls the backend only and posts the outcome back; the
     // destructor joins it before the dialog goes.
     worker_ = std::thread(
-        [this, value, ports = ports_]
+        [this, value, ports = targets]
         {
             vss::error_code error;
             for (const vss::endpoint_id id : ports)
@@ -476,8 +537,15 @@ void PortSettingsDialog::on_finished(const vss::error_code& error)
     backend_.refresh();
     if (error)
     {
-        const QString text = tr("The port could not take these settings: %1")
-                                 .arg(vss::gui::error_text(error));
+        QString text = tr("The port could not take these settings: %1")
+                           .arg(vss::gui::error_text(error));
+        // Windows answers "Access is denied" when another program has the
+        // device open, so the sheet says what to do about it.
+        if (error == boost::system::errc::permission_denied ||
+            error == vss::make_error_code(vss::errc::permission_denied))
+            text += QLatin1Char(' ') +
+                    tr("Another program may have the port open. Close that "
+                       "program, then try again.");
         error_->setText(text);
         error_->show();
         update_summary();

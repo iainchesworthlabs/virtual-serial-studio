@@ -465,8 +465,21 @@ NSIS comes from Chocolatey through the `setup-toolchain` action, at the version 
   it). `tools/test_edit_path.py` tests the script against a scratch registry key; it needs
   Windows PowerShell and skips without it, so the `Tool tests (Windows)` job of `ci.yml`
   runs it on a Windows runner and fails when it was skipped.
-- Has a page with a ticked box, **Install the virtual COM port driver and its helper
-  service**. A silent install does the same unless it is given `/DRIVER=0`.
+- Has a page for the driver. What it offers depends on the driver package already in the
+  driver store, which the page reads with `setup-driver.ps1 -Query` (the installer carries
+  the script, and the version of its own driver from `drivers/windows/vsscom_um/vsscom_um.inf`):
+  nothing installed gives the ticked box **Install the virtual COM port driver and its helper
+  service**; an older driver gives a ticked **Update the virtual COM port driver and its helper
+  service** and says that open ports are closed; the same version says so, leaves the driver as
+  it is and has an unticked **Install the driver again (repair)**; a newer one says so and leaves
+  it alone, with no box. The helper service is brought up to date in every case, as it is a
+  program of this Studio. A silent install installs when there is no driver, updates when this
+  installer's is newer, and otherwise leaves the driver as it is; `/DRIVER=0` leaves the driver
+  and the helper service alone and `/REPAIRDRIVER=1` installs the driver again. Windows decides
+  which of two packages is newer by the date first and the four-part version second, and
+  `setup-driver.ps1` makes the same decision, so Studio's own set-up never puts an older driver
+  over a newer one. The uninstaller deletes every `vsscom_um` package, the older ones that updates
+  left behind included, and the removal log names them.
 
 **Which driver, and why the user-mode one.** The installer ships `vsscom_um`, the user-mode
 driver, with `vsscom_helper`. The kernel-mode driver needs a Microsoft signature to load
@@ -594,6 +607,35 @@ with a package signed by a throwaway certificate, built by
   ending in `not-trusted`, no service, no package, the log naming the reason, and
   test signing still off.
 - The pages and the message were looked at on the guest's screen.
+- **The driver update was tried on the Windows 11 guest on 2026-11-18** with
+  `tools/vm/driver-update-cell.ps1` (two builds of the user-mode driver, revisions 1.5.1.0 and 1.5.2.0, signed
+  in the guest): `setup-driver.ps1` replaced the older package (a second `oem<N>.inf` appeared, exit 0, no restart),
+  the helper-made port device that existed was rebound to the new package at once (it had been using the old one,
+  and Windows moved it), ports made afterwards used the new package, running the same version again and an
+  older one installed nothing, `-ReinstallDriver` added the package again, and `remove-driver.ps1` deleted every
+  package. The question of the installer's driver page, run elevated from a throwaway installer built from
+  `driver.nsh` (`tools/vm/driver-query.nsi`), said `none`, `same`, then `newer` at the right steps. **The wizard page
+  itself was not looked at.** To try it, on a guest from its `clean` snapshot with a signed package (see above),
+  install Studio **A**, then run the installer of Studio **B** by double-clicking it, each time
+  from the snapshot with A installed:
+  1. *Install:* no driver on the guest. The driver page offers the ticked install box. Finish; the log
+     says the driver was installed; `Get-WindowsDriver -Online | ? OriginalFileName -like '*vsscom_um.inf'`
+     shows one package.
+  2. *Upgrade to a newer driver* (B carries a higher revision, `tools/ci/check_driver_version.py --bump`
+     before building it): the page says version A is installed and B is newer, with **Update** ticked.
+     Leave it ticked and finish: a second package appears, the log says "updating it to version", ports
+     that were open are closed and Studio offers them again. Run it again with the box cleared: the
+     driver stays at A, and the helper service is still replaced.
+  3. *Same version* (build B with no driver change): the page says the same version is installed and the
+     driver is left as it is; **Install the driver again (repair)** is not ticked. Finish: no new package,
+     open ports stay open. Run it once more with the box ticked: the package is added again and the ports close.
+  4. *Downgrade* (run the installer of an older Studio over a newer one): the page says the installed
+     driver is newer and is left alone, with no box; after the install the newest package is still
+     the installed one and `VssDriver` is `installed`.
+  5. *Silent:* `Installer.exe /S` over each of the above does what the page's defaults do (installs, updates,
+     leaves it, leaves it); add `/REPAIRDRIVER=1` to install again, `/DRIVER=0` to leave the driver and the helper alone.
+  6. *Uninstall:* with two packages in the store (after step 2 without clearing them) the removal
+     log lists both `oem<N>.inf (version ...)` and afterwards `Get-WindowsDriver -Online -All` shows none.
 - Closing a running Studio and the per-user clean-up were added later and have **not** been
   tried on the guest: the script has its own tests and the hosted runner checks one user
   (the runner's own). Two signed-in users, a user who is not signed in, a Studio in the

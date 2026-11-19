@@ -117,6 +117,10 @@ struct service_plugin
     std::vector<instance_view> instances;
     /// Its run, when it has a runner; null otherwise.
     std::shared_ptr<const runner_snapshot> run;
+    /// What the plugin last said its own check of the licence found
+    /// (`licence.report`); empty until it has said so in this run.  The
+    /// plugin's claim, for the screen: nothing here is acted on.
+    std::optional<plugin_licence_report> licence_report;
 };
 
 struct service_snapshot

@@ -113,6 +113,26 @@ public:
         return vss::make_error_code(vss::errc::unsupported);
     }
 
+    /// Stops a port that was made from an address, or starts it again
+    /// (capability `port_stop`).  Its name, id and links are kept and no
+    /// retry runs while it is stopped.  `unsupported` for any other port and
+    /// without the capability.  The stopped state is not saved in the setup.
+    virtual vss::result<void> set_port_running(vss::endpoint_id /*id*/,
+                                               bool /*run*/)
+    {
+        return vss::make_error_code(vss::errc::unsupported);
+    }
+
+    /// Pauses a port that was made from an address, or resumes it
+    /// (capability `port_pause`).  What stopping keeps and closes, and the
+    /// setup records the pause.  `unsupported` for any other port and
+    /// without the capability.  Resuming a stopped port starts it.
+    virtual vss::result<void> set_port_paused(vss::endpoint_id /*id*/,
+                                              bool /*paused*/)
+    {
+        return vss::make_error_code(vss::errc::unsupported);
+    }
+
     /// Renames a port everywhere the studio keeps its name.  The default is
     /// `unsupported`: a build without `Capabilities::rename_port` never
     /// changes only part of the records.
@@ -147,7 +167,27 @@ public:
     /// is on.  `nullopt` when the backend cannot tell: the window then does not
     /// offer numbers to choose from and lets Studio pick (see
     /// `08-engine-gaps.md`).  It reads the computer each time.
+    ///
+    /// These are the numbers a new Studio port cannot take.  A number that
+    /// only a removed Studio port keeps, or that only the COM name database
+    /// marks with no device, is not here: it is free to choose, and the
+    /// helper clears it when a port asks for it.
     virtual std::optional<std::vector<unsigned>> reserved_com_numbers() const
+    {
+        return std::nullopt;
+    }
+    /// Every number Windows keeps for a port that is not listed, a removed
+    /// Studio port's included.  Making a port on one of these takes a fraction
+    /// of a second instead of about half a minute, so the automatic choice
+    /// prefers them.  Defaults to `reserved_com_numbers`.
+    virtual std::optional<std::vector<unsigned>> kept_com_numbers() const
+    {
+        return reserved_com_numbers();
+    }
+    /// What holds each COM number that is in use or kept, for the reasons the
+    /// window gives.  `nullopt` when the backend cannot tell.
+    virtual std::optional<std::vector<vss::com_number_holder>>
+    com_number_holders() const
     {
         return std::nullopt;
     }
@@ -405,6 +445,27 @@ public:
                                                  int listeners) = 0;
     virtual vss::result<vss::link_id> bridge(const QString& from_uri,
                                              const QString& to_uri) = 0;
+    /// Puts a network port (a server, or a client of another computer) beside
+    /// the port `existing` and links the two, two-way, as
+    /// `vss::studio::attach_network` does.  With 0 for `existing` a Studio port
+    /// is made for it first.  Nothing is left behind on a failure.  With
+    /// `keep_trying` (capability `network_waiting`) a client whose remote end
+    /// refuses is made anyway and connects when the remote end answers.
+    virtual vss::result<network_attach_view>
+    attach_network(vss::endpoint_id existing, const QString& name,
+                   const QString& uri, bool keep_trying) = 0;
+    /// Changes the address of a network port, keeping its id, name and links
+    /// (capability `network_edit`).  `unsupported` without the capability.
+    virtual vss::result<void> set_network_address(vss::endpoint_id id,
+                                                  const QString& uri,
+                                                  bool keep_trying) = 0;
+    /// Says whether a listening address is free: `address_in_use` (the
+    /// system's value) when another port of this setup listens on the same
+    /// port number and an overlapping address, or, with `probe`, when another
+    /// program holds it.  `ignore` is the port being edited.
+    virtual vss::result<void> check_listen_free(const QString& uri,
+                                                vss::endpoint_id ignore,
+                                                bool probe) const = 0;
     /// Creates one more com0com null-modem pair, prompting for elevation on
     /// Windows.  Returns `errc::unsupported` where the platform has no driver.
     virtual vss::result<void> create_com0com_pair() = 0;

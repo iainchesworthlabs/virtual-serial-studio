@@ -673,7 +673,9 @@ void JobForm::build()
     baud_ = new QComboBox(device_fields_);
     baud_->setObjectName(QStringLiteral("jobFormBaud"));
     for (const unsigned rate : {1200U, 2400U, 4800U, 9600U, 19200U, 38400U,
-                                57600U, 115200U, 230400U, 460800U, 921600U})
+                                57600U, 115200U, 230400U, 460800U, 921600U,
+                                1000000U, 2000000U, 3000000U, 4000000U,
+                                12000000U})
         baud_->addItem(QString::number(rate), rate);
     baud_->setCurrentIndex(
         std::max(0, baud_->findData(plan_.serial.baud_rate)));

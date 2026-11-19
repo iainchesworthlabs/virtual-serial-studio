@@ -112,6 +112,9 @@ std::string describe_driver_setup(const driver_setup_observation& seen)
     text += text_of(seen.pipe);
     if (seen.code != 0)
         text += " (Win32 error " + std::to_string(seen.code) + ")";
+    if (seen.installed_package)
+        text += "; driver store: version " +
+                describe_driver_package(*seen.installed_package);
     return text;
 }
 

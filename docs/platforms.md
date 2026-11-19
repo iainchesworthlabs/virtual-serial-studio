@@ -76,6 +76,7 @@ What these runs showed:
 - T9 found that the Linux package carries only the `xcb` Qt plugin, and that plugin needs `libxcb-cursor0` and other xcb libraries from the system. On a machine without them `vss_gui` stops at start. `releasing.md` lists the libraries.
 - The macOS GUI is an application bundle (`vss_gui.app`), and the runner now looks inside it.
 - macOS refuses 921600 baud on a pseudo terminal, so T10 asks for 115200.
+- Studio takes line rates up to 12000000 baud, but the system and the device decide what is possible. macOS refuses 921600 on a pseudo terminal, and a USB serial adapter or an RFC 2217 server may stop at a lower rate. A refused rate is reported when it is applied.
 - On macOS, `ls /dev/cu.* /dev/tty.*` finds nothing and `ioreg -c IOSerialBSDClient` is empty while a studio pseudo terminal exists, and pyserial lists no port, so programs that list ports through IOKit do not see it. On Linux pyserial lists the 32 `ttyS` nodes of the runner and not the studio pseudo terminal. A kernel serial port (T11, `ttyACM0`) is in its list.
 - Pseudo terminal throughput on the Intel macOS runners is two to four times lower than on Apple silicon, which is why T10 records the rate and holds it to no floor yet.
 

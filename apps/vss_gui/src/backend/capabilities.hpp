@@ -104,6 +104,35 @@ struct capabilities
     /// (`vss_ports`' listen transport), so only a backend without one leaves
     /// this off.
     bool network_server = false;
+    /// Change a network port after it was made: server or client, the
+    /// address, the bind port and the allow list, with the links kept
+    /// (`vss::studio::set_address`).  A backend without it shows the address
+    /// as text with "Not available in this build".
+    bool network_edit = false;
+    /// Make a network client when the remote end refuses, and keep trying
+    /// (`vss::studio::attach_waiting`).  A backend without it never offers
+    /// "Create anyway and keep trying".
+    bool network_waiting = false;
+    /// A network client can say where it connects to and how the connection
+    /// stands: connecting, connected, failed with a reason, or retrying
+    /// (`vss::studio::connection`).  A backend without it leaves
+    /// `port_view::connection` empty and the window shows no connection
+    /// state, which is not the same as showing a good one.
+    bool network_status = false;
+    /// A network client can say which local address and port its connection
+    /// uses.  The engine's client transport does not report it, so no backend
+    /// sets this yet; the Inspector says "Not reported" instead of leaving
+    /// the row out.
+    bool network_local_address = false;
+    /// A port made from an address can be stopped and started again, with
+    /// its links kept (`vss::studio::stop_port` and `start_port`).  A
+    /// backend without it shows no Stop or Start.
+    bool port_stop = false;
+    /// A port made from an address can be paused and resumed, and the setup
+    /// keeps the pause (`vss::studio::pause_port` and `resume_port`, the
+    /// `paused` field of a port in the setup file).  A backend without it
+    /// shows no Pause or Resume.
+    bool port_pause = false;
     /// A shared multi-drop bus link: every member hears every other and none
     /// hears itself (`vss::hub::bus`).  The engine backend provides it.  A
     /// backend without it keeps the star (a split with a join tap): the
@@ -147,6 +176,11 @@ struct capabilities
     /// in this build". A build that has the host and cannot yet start a
     /// plugin has this on and shows every plugin that may run as Off.
     bool plugins = false;
+    /// A fixture type of a plugin can be placed on the canvas and run. This
+    /// needs the engine timeline (`docs/response-timing.md`), which a plugin
+    /// hands to the engine to stand in for a device. False: the tile of such a
+    /// type in the toolbox is disabled with the reason, and nothing is made.
+    bool plugin_fixtures = false;
     /// Name the driver behind each serial device in the support bundle. No
     /// backend can yet, so the bundle writes "not known" and never guesses.
     bool device_driver_names = false;

@@ -66,6 +66,7 @@ private:
     void apply_density();
     void apply_refresh();
     void sync_profiling();
+    void sync_debug_access();
     void sync_render_status();
     /// Reads the update service again: the check boxes and the line that
     /// says why they are disabled.
@@ -94,6 +95,11 @@ private:
     Switch* profiling_ = nullptr;
     Switch* profiling_remote_ = nullptr;
     QLabel* profiling_status_ = nullptr;
+    Switch* debug_access_ = nullptr;
+    Switch* debug_traffic_ = nullptr;
+    QLabel* debug_status_ = nullptr;
+    QLabel* debug_clients_ = nullptr;
+    QPushButton* debug_disconnect_ = nullptr;
     updates::UpdateService* updates_ = nullptr;
     QCheckBox* update_automatic_ = nullptr;
     QCheckBox* update_prerelease_ = nullptr;

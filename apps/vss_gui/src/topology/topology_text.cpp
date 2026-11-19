@@ -5,6 +5,7 @@
 //
 
 #include "topology/topology_text.hpp"
+#include "backend/connection_text.hpp"
 #include "language/bidi.hpp"
 
 #include <QCoreApplication>
@@ -143,6 +144,26 @@ QString connect_needs_two()
         "Topology", "Connect ports needs at least two ports.");
 }
 
+QString stop_action()
+{
+    return QCoreApplication::translate("Topology", "Stop");
+}
+
+QString start_action()
+{
+    return QCoreApplication::translate("Topology", "Start");
+}
+
+QString pause_action()
+{
+    return QCoreApplication::translate("Topology", "Pause");
+}
+
+QString resume_action()
+{
+    return QCoreApplication::translate("Topology", "Resume");
+}
+
 QString remove_action()
 {
     return QCoreApplication::translate("Topology", "Remove");
@@ -228,6 +249,14 @@ QString node_tooltip(const port_view& port, bool unlinked)
     const QString detail = node_detail(port);
     if (!detail.isEmpty())
         text += QLatin1Char('\n') + detail;
+    if (port.connection)
+        text += QLatin1Char('\n') + connection_text::sentence(*port.connection);
+    else if (port.paused)
+        text += QLatin1Char('\n') +
+                connection_text::state(connect_phase::paused);
+    else if (port.stopped)
+        text += QLatin1Char('\n') +
+                connection_text::state(connect_phase::stopped);
     if (unlinked)
         text += QLatin1Char('\n') +
                 QCoreApplication::translate("Topology",

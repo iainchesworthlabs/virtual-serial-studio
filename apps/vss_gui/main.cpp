@@ -5,8 +5,9 @@
 //
 
 #include "backend/engine_studio_backend.hpp"
-#include "backend/service_plugin_backend.hpp"
 #include "backend/licence_store.hpp"
+#include "backend/plugin_places.hpp"
+#include "backend/service_plugin_backend.hpp"
 #include "language/language_choice.hpp"
 #include "profiling/profiled_application.hpp"
 #include "profiling/profiling_controller.hpp"
@@ -19,6 +20,7 @@
 #include "support/app_identity.hpp"
 #include "support/build_info.hpp"
 #include "support/console.hpp"
+#include "support/debug_access.hpp"
 #include "support/running_setup.hpp"
 #include "support/settings.hpp"
 #include "support/stall_probe.hpp"
@@ -42,6 +44,7 @@
 #include <QMessageBox>
 #include <QPixmap>
 #include <QSettings>
+#include <QTimer>
 
 #include <algorithm>
 #include <chrono>
@@ -352,15 +355,62 @@ try
         // licence in use tells it whether an official plugin is licensed.
         vss::gui::ServicePluginBackend* plugin_host = nullptr;
         {
+            vss::gui::service_plugin_options plugin_options =
+                vss::gui::default_service_plugin_options();
+            // A plugin that was granted it records from Studio's own hub.
+            plugin_options.hub = &studio->engine();
+            const vss::license::store_options licence_folders =
+                vss::license::default_store_options();
+            plugin_options.licence_user_directory =
+                licence_folders.user_directory;
+            plugin_options.licence_machine_directory =
+                licence_folders.machine_directory;
             auto plugins = std::make_unique<vss::gui::ServicePluginBackend>(
-                vss::gui::default_service_plugin_options());
+                std::move(plugin_options));
             vss::gui::ServicePluginBackend* host = plugins.get();
             plugin_host = host;
-            host->set_licence(backend.licence().status);
-            QObject::connect(&backend, &vss::gui::StudioBackend::licence_changed,
-                             host, [&backend, host]
-                             { host->set_licence(backend.licence().status); });
+            // The places a plugin may record are published from here, on the
+            // GUI thread, whenever the setup changes. One short timer joins
+            // a burst of changes into one table.
+            auto* places_timer = new QTimer(host);
+            places_timer->setSingleShot(true);
+            places_timer->setInterval(100);
+            vss::hub* const hub = &studio->engine();
+            const auto publish_places = [&backend, host, hub]
+            {
+                host->set_places(vss::gui::make_plugin_place_table(backend));
+                host->set_writable_ports(
+                    vss::gui::make_plugin_endpoint_table(backend, *hub));
+            };
+            QObject::connect(places_timer, &QTimer::timeout, host,
+                             publish_places);
+            for (auto signal : {&vss::gui::StudioBackend::ports_changed,
+                                &vss::gui::StudioBackend::links_changed})
+            {
+                QObject::connect(&backend, signal, places_timer,
+                                 qOverload<>(&QTimer::start));
+            }
+            QObject::connect(&backend, &vss::gui::StudioBackend::lines_changed,
+                             places_timer, qOverload<>(&QTimer::start));
+            publish_places();
+            const auto tell_plugins_of_licence = [&backend, host]
+            {
+                const vss::gui::licence_view now = backend.licence();
+                host->set_licence(now.status,
+                                  vss::gui::licence_file_in_use(now));
+            };
+            tell_plugins_of_licence();
+            QObject::connect(&backend,
+                             &vss::gui::StudioBackend::licence_changed, host,
+                             tell_plugins_of_licence);
             backend.set_plugin_backend(std::move(plugins));
+        }
+        // Debug access (docs/debug-api.md): off until a person turns it on in
+        // Settings. Not for a run that shows no window to a person.
+        if (!headless)
+        {
+            vss::gui::support::DebugAccess::instance().attach(
+                *studio, backend.plugin_backend());
         }
         if (parser.isSet(screenshot_option))
         {

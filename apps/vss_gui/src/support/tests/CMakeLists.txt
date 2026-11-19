@@ -9,10 +9,12 @@ if(VSS_BUILD_TESTS)
     main.cpp
     test_app_identity.cpp
     test_bundle.cpp
+    test_debug_access.cpp
     test_driver_setup.cpp
     test_licence.cpp
     test_permission_dialog.cpp
     test_permission_rows.cpp
+    test_plugin_prompts.cpp
     test_plugins_page.cpp
     test_profiling.cpp
     test_render_settings.cpp

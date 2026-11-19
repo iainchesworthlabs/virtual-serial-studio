@@ -75,7 +75,7 @@ description: Community is free and complete. Pro is an annual licence per seat w
 <tr><th scope="row">Official plugins, signed by us</th><td><span class="no">No</span></td><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td></tr>
 <tr><th scope="row">The control endpoint on the same computer, its Python client and JUnit reports of a run, from the repository</th><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td></tr>
 <tr><th scope="row">Test harness plugins, and remote control and monitoring from another computer</th><td><span class="no">No</span></td><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td></tr>
-<tr><th scope="row">Third-party plugins</th><td>In development, with a warning</td><td>In development, with a warning</td><td>In development, with a warning</td></tr>
+<tr><th scope="row">Third-party plugins</th><td>After you decide about each one</td><td>After you decide about each one</td><td>After you decide about each one</td></tr>
 <tr><th scope="row">Support</th><td>Community</td><td>Included</td><td>Support agreement</td></tr>
 <tr><th scope="row">Licence</th><td>GPL, version 3 or later</td><td>Commercial terms for the Pro parts</td><td>Commercial terms and a support agreement</td></tr>
 </tbody>
@@ -86,11 +86,13 @@ description: Community is free and complete. Pro is an annual licence per seat w
 <section class="band plain" aria-labelledby="how-title">
 <div class="head">
 <h2 id="how-title">How a licence works</h2>
-<p class="lead">A licence is a file. Studio checks it on your own computer with a key that is built into the program. There is no activation server, so it works on a machine with no network.</p>
+<p class="lead">A licence is a file that ends <code>.vsslic</code>. Studio checks it on your own computer with a key that is built into the program. There is no activation server, so it works on a machine with no network. No licence is on sale yet.</p>
 </div>
 <dl class="rows">
 <div><dt>Trial</dt><dd>14 days, with every Pro feature. A trial licence is issued when you ask for one. You give a name and an email address, and both are written into the licence file.</dd></div>
-<div><dt>Annual</dt><dd>One year. You renew by loading a new file.</dd></div>
+<div><dt>Annual</dt><dd>One year. You renew by importing a new file.</dd></div>
+<div><dt>Importing a licence</dt><dd>Help, Licence shows the edition, who the licence was issued to, its number, its term and its seats. Import licence takes the file, and <code>vss_cli licence import</code> does the same from a shell. A file whose signature is not good is refused and nothing changes.</dd></div>
+<div><dt>Both computers of a seat</dt><dd>Each of the two computers holds the same licence file, because an official plugin runs only on a computer where a licence covers it.</dd></div>
 <div><dt>Enterprise</dt><dd>Negotiated with you: what the licence covers, how long it runs and the price.</dd></div>
 <div><dt>When a licence ends</dt><dd>Studio shows that the licence has ended and how to renew. The official plugins carry on for a further 28 days, and then they switch off and Studio goes back to being the Community edition. A trial has no further days. Studio keeps every port, setup and file.</dd></div>
 <div><dt>The signed driver</dt><dd>The Community driver is test-signed: Windows trusts it only on a machine where our certificate authority has been installed. The Pro driver is signed through Microsoft and installs on an ordinary Windows machine. The source of both is the same and is published.</dd></div>
@@ -103,9 +105,9 @@ description: Community is free and complete. Pro is an annual licence per seat w
 </div>
 <dl class="rows">
 <div><dt>Can I use Community at work?</dt><dd>Yes. The GPL allows commercial use. If you change the program and pass it on, the GPL asks you to pass on your source as well. <a href="licence.html">Licence</a>.</dd></div>
-<div><dt>Can I buy Pro today?</dt><dd>Not yet. The plugins, the licence files and the signed driver are being built. This page describes the plan.</dd></div>
+<div><dt>Can I buy Pro today?</dt><dd>Not yet. Studio can read a licence file and run plugins, but the official plugins and the signed driver are being built and no licence is on sale. This page describes the plan.</dd></div>
 <div><dt>What will Pro cost?</dt><dd>The price has not been set. It will be published here before Pro goes on sale.</dd></div>
-<div><dt>Can I write my own plugin without Pro?</dt><dd>Yes, once plugins arrive. The plugin API is documented and free to use, and Community will load third-party plugins after it has warned you. Studio does not run any plugin yet. The official plugins that we build on it, such as remote control from another computer, are the Pro edition. <a href="plugins.html">Plugins</a>.</dd></div>
+<div><dt>Can I write my own plugin without Pro?</dt><dd>Yes. The plugin API is documented and free to use, and every edition runs a third-party plugin after you have decided about it. The official plugins that we build on it, such as remote control from another computer, are the Pro edition. <a href="plugins.html#trust-title">Plugin isolation and trust</a>.</dd></div>
 <div><dt>Can I drive Studio from Python without Pro?</dt><dd>Yes. The control endpoint on the same computer, its Python client and the JUnit reports of a run are in the Community edition. They are in the repository, not in the installers. <a href="plugins.html#python-title">The control endpoint and the Python client</a>.</dd></div>
 <div><dt>Does Studio contact a server to count seats?</dt><dd>No. A seat is kept by the licence file and the licence terms.</dd></div>
 </dl>

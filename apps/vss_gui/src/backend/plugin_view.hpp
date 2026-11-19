@@ -118,6 +118,18 @@ enum class plugin_addition_kind
     connection
 };
 
+/// A setting Studio asks for when it makes an instance: it has no default,
+/// and it is text, so one field takes it.
+struct plugin_parameter_ask
+{
+    QString id;
+    /// The plugin's label and help. Untrusted.
+    QString label;
+    QString help;
+    /// It names a port or a link of the setup (`port`, `place`, `places`).
+    bool place_name = false;
+};
+
 struct plugin_addition
 {
     plugin_addition_kind kind = plugin_addition_kind::fixture;
@@ -126,7 +138,78 @@ struct plugin_addition
     QString type_id;
     /// The type's own description, for a toolbox tile.
     QString description;
+    /// How many instances of it the plugin allows.
+    int max_instances = 1;
+    /// Settings with no default that Studio asks for in a small dialog.
+    std::vector<plugin_parameter_ask> asks{};
+    /// It has another setting with no default, which Studio cannot ask for
+    /// yet, so Studio cannot make an instance of it.
+    bool needs_settings = false;
+    /// The point is a decoder: it reads the data of a port or a link and
+    /// reports what it found. It is a link behaviour in `kind`, as the
+    /// plugin's manifest has no separate word for it in the page.
+    bool decoder = false;
 };
+
+/// What the plugin's instances are doing, in the words of the page.
+enum class plugin_instance_state
+{
+    /// The plugin is not running: the instance is kept for when it does.
+    not_running,
+    waiting,
+    starting,
+    running,
+    stopping,
+    refused
+};
+
+/// One instance Studio asked the plugin for.
+struct plugin_instance_view
+{
+    /// Studio's number for it.
+    quint64 number = 0;
+    QString point_id;
+    /// The name of its extension point in the plugin's description.
+    QString point_name;
+    plugin_instance_state state = plugin_instance_state::not_running;
+    /// Studio's sentence for why it was refused.
+    QString refusal;
+    /// The plugin's own words about a refusal. Untrusted.
+    QString reason;
+    /// The plugin has older settings than the ones set.
+    bool settings_pending = false;
+    /// An instance of a decoder: what it found can be shown.
+    bool decoder = false;
+};
+
+/// What a decoder found, as one row of the page's table.
+struct plugin_found_row
+{
+    /// Seconds on the hub's clock, in nanoseconds.
+    quint64 time_ns = 0;
+    QString place;
+    bool received = true;
+    /// A frame's summary, or a trigger's text. The plugin's words.
+    QString what;
+    /// A frame's message name, or a trigger's kind; the plugin's own code for
+    /// a custom trigger. Studio's name for the kinds it knows.
+    QString kind;
+    bool trigger = false;
+};
+
+/// What the store of one decoder instance holds, newest row first. Immutable.
+struct plugin_found
+{
+    std::vector<plugin_found_row> rows;
+    /// How many rows the store holds in all, when more than `rows`.
+    quint64 held = 0;
+    quint64 dropped = 0;
+    quint64 refused = 0;
+    quint64 over_budget = 0;
+    /// Changes whenever the store does, so that a page can tell.
+    quint64 revision = 0;
+};
+using plugin_found_ptr = std::shared_ptr<const plugin_found>;
 
 /// One permission a plugin declares, by its name in the manifest
 /// (`ports.read`, `net.listen`, ...).
@@ -213,6 +296,8 @@ struct plugin_view
     std::vector<plugin_addition> adds;
     std::vector<plugin_permission_view> permissions;
     std::vector<plugin_use> used_in;
+    /// What Studio runs of this plugin.
+    std::vector<plugin_instance_view> instances;
     std::vector<plugin_log_line> log;
 
     // -- enumerators and numbers
@@ -222,7 +307,16 @@ struct plugin_view
     plugin_note note = plugin_note::none;
     /// For Needs a licence.
     vss::license::reason licence_reason = vss::license::reason::ok;
+    /// The plugin told Studio what its own licence check found
+    /// (`licence.report`). Only a reason other than `ok` is shown.
+    bool has_licence_report = false;
+    vss::license::reason licence_report_reason = vss::license::reason::ok;
     plugin_trust used_copy_trust = plugin_trust::unsigned_plugin;
+    /// Where the copy that runs instead of this one is installed.
+    plugin_installed_for used_copy_installed_for =
+        plugin_installed_for::everyone;
+    /// The copy that runs instead of this one is known.
+    bool has_used_copy = false;
     plugin_isolation isolation = plugin_isolation::none;
     plugin_timing timing = plugin_timing::by_studio;
     int back_off_seconds = 0;
@@ -318,6 +412,12 @@ struct plugin_inspection_view
         not_a_plugin,
         /// A plugin with this id is installed for the user already.
         already_installed,
+        /// A plugin with this id is installed for everyone on the computer,
+        /// and that copy is the one that runs.
+        installed_for_everyone,
+        /// A plugin with this id came with Studio, and that copy is the one
+        /// that runs.
+        came_with_studio,
         /// The user's own plugin folder is off, or cannot be written.
         cannot_write
     };
@@ -339,7 +439,9 @@ enum class plugin_request_kind
     rescan,
     add_plugin,
     remove_plugin,
-    start_again
+    start_again,
+    add_instance,
+    remove_instance
 };
 
 enum class plugin_request_error
@@ -349,6 +451,10 @@ enum class plugin_request_error
     not_a_plugin,
     /// "<plugin name> is already installed for you..."
     already_installed,
+    /// "<plugin name> is already installed for everyone..."
+    installed_for_everyone,
+    /// "<plugin name> came with Studio..."
+    came_with_studio,
     /// The per-user folders are off, or the copy failed.
     cannot_write,
     /// The key file's fingerprint is not the one the user confirmed.
@@ -380,8 +486,39 @@ struct plugin_decision_request
     bool switch_on = false;
 };
 
+/// A secret a running plugin asked Studio to show once (`secret.show`). The
+/// text is the plugin's own; it is held only while the dialog is open and is
+/// never written anywhere.
+struct plugin_secret_request
+{
+    /// Names the request in `answer_secret`.
+    quint64 id = 0;
+    QString plugin_id;
+    QString plugin_name;
+    QString label;
+    QString text;
+    /// How long the secret is good for, from the moment it was asked.
+    int seconds = 0;
+};
+
+/// A control session a running plugin asked for. Every text is the plugin's.
+struct plugin_control_request
+{
+    quint64 id = 0;
+    QString plugin_id;
+    QString plugin_name;
+    QString peer;
+    QString reason;
+    /// Scope names of the remote control, such as `monitor`.
+    QStringList scopes;
+    /// How long the session's token would live.
+    int life_seconds = 0;
+};
+
 } // namespace vss::gui
 
+Q_DECLARE_METATYPE(vss::gui::plugin_secret_request)
+Q_DECLARE_METATYPE(vss::gui::plugin_control_request)
 Q_DECLARE_METATYPE(vss::gui::plugin_request_result)
 Q_DECLARE_METATYPE(vss::gui::plugin_key_file_view)
 Q_DECLARE_METATYPE(vss::gui::plugin_inspection_view)

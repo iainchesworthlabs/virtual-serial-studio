@@ -12,6 +12,7 @@
 #include <boost/asio/post.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <future>
 #include <mutex>
 #include <utility>
@@ -113,9 +114,165 @@ void endpoint::start()
                 self->emit({}, std::move(text), event_kind::log_message);
         });
 
+    attach_break_sink(current);
+
     // Arm the first read on the strand, like every later one.
     auto self = shared_from_this();
     boost::asio::post(strand_, [self] { self->do_read(); });
+}
+
+void endpoint::attach_break_sink(const std::shared_ptr<transport>& current)
+{
+    // A break reaches the strand in the order the transport reports it, which
+    // is the order of its read completions.  The sink holds the endpoint
+    // weakly, as the notice sink does, and the generation of the transport it
+    // was given to, so a break of a transport since replaced is dropped.
+    const std::uint64_t generation = generation_.load();
+    current->set_break_sink(
+        [weak = weak_from_this(), generation](const line_break& item)
+        {
+            const auto self = weak.lock();
+            if (!self)
+                return;
+            boost::asio::post(self->strand_,
+                              [self, generation, item]
+                              {
+                                  if (generation == self->generation_.load())
+                                      self->on_break_read(generation, item);
+                              });
+        });
+}
+
+void endpoint::receive_break(const line_break& item)
+{
+    auto self = shared_from_this();
+    boost::asio::post(strand_,
+                      [self, item]
+                      { self->on_break_read(self->generation_.load(), item); });
+}
+
+void endpoint::on_break_read(std::uint64_t /*generation*/,
+                             const line_break& item)
+{
+    VSS_PROFILE_ZONE("endpoint.break_read");
+    if (!running_.load())
+        return;
+
+    {
+        std::lock_guard lock(stats_mutex_);
+        if (item.ends_break())
+            stats_.breaks_rx += 1;
+        stats_.last_activity = clock_type::now();
+    }
+
+    // The same path as bytes: routed before the event is published, on the
+    // I/O thread, in order with the chunks this endpoint read before it.
+    owner_.route_break(id_, item);
+    if (options_.capture_traffic)
+        emit_break(data_direction::rx, item);
+}
+
+void endpoint::write_break(const line_break& item, write_handler handler)
+{
+    VSS_PROFILE_ZONE("endpoint.enqueue_break");
+    {
+        std::lock_guard lock(write_mutex_);
+        auto pending = std::make_shared<pending_write>();
+        pending->data = std::make_shared<byte_buffer>();
+        pending->handler = std::move(handler);
+        pending->item = item;
+        write_queue_.push_back(std::move(pending));
+    }
+    request_write();
+}
+
+void endpoint::start_break_write(const std::shared_ptr<pending_write>& write,
+                                 std::uint64_t generation)
+{
+    const std::optional<line_break>& item = write->item;
+    if (!item)
+        return;
+    const auto current = active_transport();
+    auto self = shared_from_this();
+    if (!current->can_deliver_break())
+    {
+        // Said once for the port, counted every time, and the queue goes on.
+        boost::asio::post(self->strand_,
+                          [self, write, generation]
+                          {
+                              if (generation != self->generation_.load())
+                                  return;
+                              self->on_break_written(
+                                  write, generation,
+                                  make_error_code(errc::unsupported));
+                          });
+        return;
+    }
+    current->async_write_break(
+        *item,
+        [self, write, generation](boost::system::error_code ec, std::size_t)
+        {
+            boost::asio::post(self->strand_,
+                              [self, write, generation, ec]
+                              {
+                                  if (generation == self->generation_.load())
+                                      self->on_break_written(write, generation,
+                                                             ec);
+                              });
+        });
+}
+
+void endpoint::on_break_written(const std::shared_ptr<pending_write>& write,
+                                std::uint64_t generation,
+                                boost::system::error_code ec)
+{
+    if (!write->item)
+        return;
+    const line_break item = *write->item;
+    const bool undelivered = ec == make_error_code(errc::unsupported);
+    if (undelivered)
+    {
+        {
+            std::lock_guard lock(stats_mutex_);
+            if (item.ends_break())
+                stats_.dropped += 1;
+        }
+        if (!break_drop_logged_)
+        {
+            break_drop_logged_ = true;
+            emit({}, "break not delivered: this port cannot show one to the "
+                     "program",
+                 event_kind::log_message);
+        }
+    }
+    else if (ec)
+    {
+        std::lock_guard lock(stats_mutex_);
+        stats_.errors += 1;
+    }
+    else
+    {
+        std::lock_guard lock(stats_mutex_);
+        if (item.ends_break())
+            stats_.breaks_tx += 1;
+        stats_.last_activity = clock_type::now();
+    }
+
+    write_handler finished;
+    {
+        std::lock_guard lock(write_mutex_);
+        if (generation != generation_.load())
+            return;
+        finished = std::exchange(write->handler, nullptr);
+        if (!write_queue_.empty() && write_queue_.front() == write)
+            write_queue_.pop_front();
+    }
+    if (!ec && options_.capture_traffic)
+        emit_break(data_direction::tx, item);
+    if (finished)
+        boost::asio::post(strand_, [finished, ec] { finished(ec, 0); });
+
+    start_next_write(generation);
 }
 
 result<void> endpoint::reopen(std::shared_ptr<transport> fresh)
@@ -274,6 +431,16 @@ void endpoint::on_read(std::uint64_t generation, boost::system::error_code ec,
 
     if (ec)
     {
+        const auto current = active_transport();
+        if (current && current->is_line_error(ec))
+        {
+            // The device saw a fault on the line.  The channel is still
+            // there, so count it, say so and read on; closing it would
+            // drop every frame in flight for a fault of one byte.
+            on_line_error(ec);
+            do_read();
+            return;
+        }
         handle_read_failure(generation, ec, "read");
         return;
     }
@@ -284,14 +451,22 @@ void endpoint::on_read(std::uint64_t generation, boost::system::error_code ec,
         // when only its lines changed (an RFC 2217 client set DTR).
         if (const auto current = active_transport();
             current && current->supports_control_lines())
+        {
             refresh_lines();
+            forward_format();
+        }
         do_read();
         return;
     }
 
     // The chunk's one time: for a stage, for a half-duplex bus and for the
     // data event.  Read before routing, so it does not include it.
-    const time_point read_at = owner_.now();
+    time_point read_at = owner_.now();
+    // A transport that knows when the sender made these bytes says so (the
+    // Windows driver stamps each WriteFile).  Never later than the read.
+    if (const auto current = active_transport())
+        if (const auto stamp = current->read_stamp())
+            read_at = std::min(*stamp, read_at);
 
     {
         std::lock_guard lock(stats_mutex_);
@@ -313,6 +488,32 @@ void endpoint::on_read(std::uint64_t generation, boost::system::error_code ec,
         emit_data(data_direction::rx, std::move(chunk), read_at);
 
     do_read();
+}
+
+void endpoint::on_line_error(const boost::system::error_code& ec)
+{
+    {
+        std::lock_guard lock(stats_mutex_);
+        stats_.errors += 1;
+        stats_.last_activity = clock_type::now();
+    }
+
+    using namespace std::chrono_literals;
+    const time_point now = owner_.now();
+    if (line_error_logged_ != time_point{} && now - line_error_logged_ < 1s)
+    {
+        ++line_errors_unlogged_;
+        return;
+    }
+    std::string text = "line error: " + ec.message();
+    if (line_errors_unlogged_ != 0)
+    {
+        text += " (and " + std::to_string(line_errors_unlogged_) +
+                " more in the last second)";
+    }
+    line_error_logged_ = now;
+    line_errors_unlogged_ = 0;
+    emit(ec, std::move(text));
 }
 
 void endpoint::handle_read_failure(std::uint64_t generation,
@@ -467,6 +668,14 @@ void endpoint::start_next_write(std::uint64_t generation)
     // read, so they belong together, and the completion is judged by it too.
     if (generation != generation_.load())
         return;
+
+    // A break waits its turn in the queue, between the bytes written before
+    // and after it.
+    if (next->item)
+    {
+        start_break_write(next, generation);
+        return;
+    }
 
     auto self = shared_from_this();
     // As in do_read: the std::function loses an executor binding, so the
@@ -693,6 +902,27 @@ error_code endpoint::set_line(control_line line, bool state)
     return {};
 }
 
+std::optional<line_format> endpoint::peer_format() const
+{
+    const auto current = active_transport();
+    return current ? current->peer_format() : std::nullopt;
+}
+
+void endpoint::set_peer_format(const line_format& format)
+{
+    if (const auto current = active_transport())
+        current->apply_peer_format(format);
+}
+
+void endpoint::forward_format()
+{
+    const auto format = peer_format();
+    if (!format || format == forwarded_format_)
+        return;
+    forwarded_format_ = format;
+    owner_.route_format(id_);
+}
+
 void endpoint::set_peer_inputs(control_lines inputs)
 {
     control_lines updated;
@@ -719,6 +949,16 @@ endpoint_stats endpoint::stats() const
 {
     std::lock_guard lock(stats_mutex_);
     return stats_;
+}
+
+endpoint::write_queue_state endpoint::write_queue() const
+{
+    const std::lock_guard<std::mutex> lock(write_mutex_);
+    write_queue_state out;
+    out.pending = write_queue_.size();
+    out.bytes = write_queue_bytes_;
+    out.writing = writing_;
+    return out;
 }
 
 void endpoint::reset_stats()
@@ -822,6 +1062,21 @@ void endpoint::emit_data(data_direction direction,
     event.direction = direction;
     event.data = std::move(data);
     event.when = when;
+    owner_.publish(std::move(event));
+}
+
+void endpoint::emit_break(data_direction direction, const line_break& item)
+{
+    endpoint_event event;
+    event.kind = event_kind::line_break;
+    event.endpoint = id_;
+    event.name = name();
+    event.direction = direction;
+    event.when = item.when();
+    event.phase = item.phase;
+    event.start = item.start;
+    event.duration = item.duration;
+    event.measured = item.measured;
     owner_.publish(std::move(event));
 }
 

@@ -8,6 +8,8 @@
 #define VSS_CORE_TRANSPORT_HPP
 
 #include <vss/core/control_lines.hpp>
+#include <vss/core/error.hpp>
+#include <vss/core/line_break.hpp>
 #include <vss/core/serial_settings.hpp>
 
 #include <boost/asio/any_io_executor.hpp>
@@ -57,6 +59,15 @@ public:
     virtual void close() = 0;
     virtual void cancel() {}
 
+    /// True when a read that completed with `ec` reports a fault of the line
+    /// (framing, parity, overrun, break) and not the end of the channel.  The
+    /// transport is still open and the next read carries on, so the endpoint
+    /// logs and counts the fault and reads again.
+    virtual bool is_line_error(boost::system::error_code /*ec*/) const noexcept
+    {
+        return false;
+    }
+
     virtual bool supports_control_lines() const noexcept { return false; }
     virtual void set_control_line(control_line, bool) {}
     virtual control_lines lines() const { return {}; }
@@ -79,6 +90,14 @@ public:
     /// yet.  May be called from any thread.
     virtual std::optional<line_format> peer_format() const { return std::nullopt; }
 
+    /// Tells the transport the baud rate and framing that the program on the
+    /// far side of a link has set, for a transport that can pass them on: an
+    /// RFC 2217 client sends them to its server, so the device there runs as
+    /// the program expects.  Called when the source of a link reports a
+    /// format (#peer_format) and when a link to it is made, from any thread.
+    /// Most transports have no use for it and ignore it.
+    virtual void apply_peer_format(const line_format& /*format*/) {}
+
     /// How many remote clients are connected, for a transport that waits for
     /// them (a listener).  Empty for every other kind, so "none connected" and
     /// "not a listener" stay different answers.  May be called from any thread.
@@ -96,6 +115,51 @@ public:
     // The overrides take the sink by value and keep it, so the base does too.
     // NOLINTNEXTLINE(performance-unnecessary-value-param)
     virtual void set_notice_sink(notice_sink) {}
+
+    /// Where a transport reports a break it received from its device or its
+    /// program, with the time the break began and how long it lasted.
+    using break_sink = std::function<void(const line_break&)>;
+
+    /// Gives the transport the function to report breaks to.  The sink only
+    /// posts to the endpoint's strand, and the transport keeps the order of
+    /// the stream with it: it calls the sink in the same task, and straight
+    /// after, the read completion that carried the bytes before the break,
+    /// and the break is never reported before that completion nor after the
+    /// one that carries the bytes behind it.  With no bytes to ride, it
+    /// completes the read it holds with zero bytes (the endpoint takes that
+    /// for a change of lines and reads on) and calls the sink after it.  A
+    /// transport that cannot see a break ignores the sink.
+    // The overrides take the sink by value and keep it, so the base does too.
+    // NOLINTNEXTLINE(performance-unnecessary-value-param)
+    virtual void set_break_sink(break_sink) {}
+
+    /// The time, on the hub clock, at which the sender made the bytes of the
+    /// read that just completed, when the transport knows it (the driver port
+    /// stamps each WriteFile).  The endpoint asks once, in the task that
+    /// carries the completion, and uses it as the chunk's time in place of the
+    /// time of the read, never later than that.  Empty means the read time.
+    virtual std::optional<time_point> read_stamp() const noexcept
+    {
+        return std::nullopt;
+    }
+
+    /// True when the transport can show a break to the program or device on
+    /// its far side.  False means a break written to it is not delivered:
+    /// the endpoint says so once in the log and counts it as dropped.  A
+    /// transport that can raise a break overrides this and
+    /// #async_write_break together.
+    virtual bool can_deliver_break() const noexcept { return false; }
+
+    /// Shows `item` to the far side, in order with the bytes written before
+    /// and after it.  Called only when #can_deliver_break is true, one at a
+    /// time and in step with #async_write_some.  `handler` is called once
+    /// with the result and zero bytes.  A `begin` raises the break, an `end`
+    /// ends it, and a `complete` is both, lasting `item.duration`.
+    virtual void async_write_break(const line_break& /*item*/, io_handler handler)
+    {
+        io_handler done = std::move(handler);
+        done(make_error_code(errc::unsupported), 0);
+    }
 };
 
 } // namespace vss

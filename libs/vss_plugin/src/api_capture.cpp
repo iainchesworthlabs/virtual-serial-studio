@@ -204,6 +204,7 @@ void read_capture_result(reading& state, const json::object& object,
                                      max_recording_path, true);
     out.size = number_of(state, object, where, "size", 0, max_api_number, true)
                    .value_or(0);
+    out.failed = bool_of(state, object, where, "failed", false).value_or(false);
 }
 
 bool write_capture_result(json::object& header,
@@ -216,6 +217,8 @@ bool write_capture_result(json::object& header,
     header.emplace("ring", body.ring);
     header.emplace("recording", text_value(body.recording));
     header.emplace("size", body.size);
+    if (body.failed)
+        header.emplace("failed", true);
     return true;
 }
 
@@ -267,6 +270,8 @@ void read_timeline(reading& state, const json::object& object,
                    "is a number that does not read back the same");
     out.seed =
         number_of(state, object, where, "seed", 0, max_api_number, false);
+    out.include_sent =
+        bool_of(state, object, where, "include_sent", false).value_or(false);
 }
 
 bool write_timeline(json::object& header, const timeline_load_message& body)
@@ -279,6 +284,8 @@ bool write_timeline(json::object& header, const timeline_load_message& body)
     header.emplace("time_scale", body.time_scale);
     if (body.seed)
         header.emplace("seed", *body.seed);
+    if (body.include_sent)
+        header.emplace("include_sent", true);
     return true;
 }
 

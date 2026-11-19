@@ -20,16 +20,22 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_control_proto.cpp
   unit/test_control_token.cpp
   unit/test_control_token_file.cpp
+  unit/test_debug_redact.cpp
+  unit/test_debug_server.cpp
+  unit/test_debug_trace_text.cpp
   unit/test_document.cpp
+  unit/test_driver_package.cpp
   unit/test_driver_setup.cpp
   unit/test_endpoint.cpp
   unit/test_endpoint_reopen.cpp
   unit/test_endpoint_status.cpp
   unit/test_error_and_log.cpp
+  unit/test_hub_break.cpp
   unit/test_hub_bus.cpp
   unit/test_hub_events.cpp
   unit/test_hub_half_duplex.cpp
   unit/test_hub_latency.cpp
+  unit/test_wire_timing.cpp
   unit/test_hub_members.cpp
   unit/test_hub_options.cpp
   unit/test_hub_options_stress.cpp
@@ -46,10 +52,13 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_license_signature.cpp
   unit/test_license_store.cpp
   unit/test_license_words.cpp
+  unit/test_licence_reader.cpp
+  support/licence_vectors.cpp
   unit/test_listen_transport.cpp
   unit/test_loopback_transport.cpp
   unit/test_machine.cpp
   unit/test_rfc2217.cpp
+  unit/test_rfc2217_client.cpp
   unit/test_native_and_com0com.cpp
   unit/test_permissions.cpp
   unit/test_permissions_linux.cpp
@@ -61,6 +70,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_plugin_api_fixture.cpp
   unit/test_plugin_api_generator.cpp
   unit/test_plugin_api_instance.cpp
+  unit/test_plugin_api_licence.cpp
   unit/test_plugin_api_modifier.cpp
   unit/test_plugin_api_ops.cpp
   unit/test_plugin_api_trigger.cpp
@@ -98,11 +108,14 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_studio.cpp
   unit/test_studio_reopen.cpp
   unit/test_studio_links.cpp
+  unit/test_studio_monitor_add.cpp
   unit/test_studio_options.cpp
   unit/test_studio_rules.cpp
   unit/test_studio_sources.cpp
   unit/test_studio_targets.cpp
   unit/test_tool_paths.cpp
+  unit/test_trace_recorder.cpp
+  unit/test_tx_order.cpp
   unit/test_update_feed.cpp
   unit/test_update_select.cpp
   unit/test_update_version.cpp
@@ -166,6 +179,12 @@ if(TARGET vss_cli_licence)
   list(APPEND VSS_UNIT_TEST_SOURCES unit/test_cli_licence.cpp)
 endif()
 
+# `vss_cli debug ...` run in the test's own process, against a debug server of
+# the test's own.
+if(TARGET vss_cli_debug)
+  list(APPEND VSS_UNIT_TEST_SOURCES unit/test_debug_cli.cpp)
+endif()
+
 # `vss_cli control ...` run in the test's own process, against a gateway of the
 # test's own, and what it leaves on disk read back as another program would.
 if(TARGET vss_cli_control)
@@ -192,15 +211,20 @@ target_include_directories(vss_unit_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/support
   # The private headers of the control library, for the tests of its files.
   ${PROJECT_SOURCE_DIR}/libs/vss_control/src
+  # tx_order.hpp of the ports library, for the test of the break and write marks.
+  ${PROJECT_SOURCE_DIR}/libs/vss_ports/src
   # replay_inputs.hpp and perf_common.hpp, which test_tool_paths.cpp exercises.
   ${CMAKE_CURRENT_SOURCE_DIR}/fuzz
   ${PROJECT_SOURCE_DIR}/perf)
 target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core
   vss_agent_proto vss_agent_core vss_plugin vss_plugin_host vss_machine vss_rules
-  vss_control_proto vss_control_core vss_license_test_keys vss_update Vss::BoostJson
-  Vss::Monocypher)
+  vss_control_proto vss_control_core vss_debug vss_trace vss_license_test_keys
+  vss_update Vss::BoostJson Vss::Monocypher vss_licence_reader)
 if(TARGET vss_cli_control)
   target_link_libraries(vss_unit_tests PRIVATE vss_cli_control)
+endif()
+if(TARGET vss_cli_debug)
+  target_link_libraries(vss_unit_tests PRIVATE vss_cli_debug)
 endif()
 if(WIN32)
   # public.h of the driver and the helper protocol, for the protocol tests.
@@ -208,9 +232,22 @@ if(WIN32)
     ${PROJECT_SOURCE_DIR}/drivers/windows)
 endif()
 target_compile_definitions(vss_unit_tests PRIVATE
-  VSS_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
+  VSS_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
+  # The licence test vectors a plugin author is given, which the tests read
+  # where they are.
+  VSS_LICENCE_VECTORS_DIR="${PROJECT_SOURCE_DIR}/sdk/licence-reader/vectors")
 vss_set_warnings(vss_unit_tests)
 vss_enable_coverage(vss_unit_tests)
+
+# Writes the licence test vectors of sdk/licence-reader/vectors. A test tool:
+# it signs with the published test key only and is in no package.
+add_executable(vss_licence_vectors support/licence_vectors.cpp
+  support/licence_vectors_main.cpp)
+target_include_directories(vss_licence_vectors PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/support)
+target_link_libraries(vss_licence_vectors PRIVATE vss_license_test_keys
+  Vss::Monocypher)
+vss_set_warnings(vss_licence_vectors)
 
 add_test(NAME unit COMMAND vss_unit_tests
   --verbose --junit=${CMAKE_BINARY_DIR}/unit-tests.xml)
@@ -220,6 +257,8 @@ set(VSS_SYSTEM_TEST_SOURCES
   framework/main.cpp
   system/test_system_bus.cpp
   system/test_system_listen.cpp
+  system/test_system_rfc2217_client.cpp
+  system/test_system_proxy_latency.cpp
   system/test_system_serial.cpp
   system/test_system_tcp.cpp
   system/test_system_udp.cpp)
@@ -250,6 +289,7 @@ endif()
 # The control tests start vss_gate beside them.
 if(TARGET vss_agent AND TARGET vss_cli AND TARGET vss_gate)
   list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_control.cpp
+    system/test_system_plugin_control_point.cpp
     system/test_system_plugin_control_relay_gateway.cpp)
 endif()
 
@@ -277,12 +317,17 @@ if(MSVC AND ICL_SANITIZERS MATCHES "address")
     VERBATIM)
 endif()
 list(APPEND VSS_SYSTEM_TEST_SOURCES
+  system/test_system_plugin_bundle.cpp
   system/test_system_plugin_capture.cpp
   system/test_system_plugin_control_relay.cpp
+  system/test_system_plugin_generator.cpp
+  system/test_system_plugin_decoder.cpp
   system/test_system_plugin_instances.cpp
+  system/test_system_plugin_licence_point.cpp
   system/test_system_plugin_process.cpp
   system/test_system_plugin_recording.cpp
   system/test_system_plugin_runner.cpp
+  system/test_system_plugin_timeline.cpp
   system/test_system_plugin_secret.cpp
   system/test_system_plugin_service.cpp
   system/test_system_plugin_start_plan.cpp)

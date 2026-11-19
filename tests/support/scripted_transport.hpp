@@ -47,9 +47,20 @@ public:
     void async_read_some(boost::asio::mutable_buffer buffer,
                          io_handler handler) override
     {
-        std::lock_guard lock(mutex_);
-        ++reads_armed_;
-        pending_reads_.push_back({buffer, std::move(handler)});
+        {
+            std::lock_guard lock(mutex_);
+            ++reads_armed_;
+            if (open_.load())
+            {
+                pending_reads_.push_back({buffer, std::move(handler)});
+                return;
+            }
+        }
+        // A read on a closed transport fails at once, as a real one does, so
+        // the handler, which can hold the endpoint, is not kept for ever.
+        boost::asio::post(executor_,
+                          [handler = std::move(handler)]
+                          { handler(boost::asio::error::operation_aborted, 0); });
     }
 
     void async_write_some(boost::asio::const_buffer buffer,
@@ -70,7 +81,14 @@ public:
                           { handler({}, size); });
     }
 
-    void close() override { open_ = false; }
+    void close() override
+    {
+        open_ = false;
+        // Closing ends what is pending, as it does for a real transport: a
+        // read armed between a cancel and this close would otherwise wait for
+        // ever, and its handler can hold the endpoint.
+        cancel();
+    }
 
     void cancel() override
     {

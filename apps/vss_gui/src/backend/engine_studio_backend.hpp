@@ -11,10 +11,16 @@
 #include "backend/plugin_backend.hpp"
 #include "backend/studio_backend.hpp"
 
+#include <QDateTime>
+#include <QHash>
+#include <QVector>
+#include <QString>
+
 #include <chrono>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <vector>
 
 class QTimer;
@@ -68,6 +74,9 @@ public:
     vss::result<void>
     set_port_settings(vss::endpoint_id id,
                       const vss::serial_settings& settings) override;
+    vss::result<void> set_port_running(vss::endpoint_id id, bool run) override;
+    vss::result<void> set_port_paused(vss::endpoint_id id,
+                                      bool paused) override;
     vss::result<void> rename_port(vss::endpoint_id id,
                                   const QString& name) override;
     std::vector<vss::endpoint_id> lost_ports() const override;
@@ -79,6 +88,15 @@ public:
     std::optional<std::vector<unsigned>> reserved_com_numbers() const override
     {
         return studio_.reserved_com_numbers();
+    }
+    std::optional<std::vector<unsigned>> kept_com_numbers() const override
+    {
+        return studio_.kept_com_numbers();
+    }
+    std::optional<std::vector<vss::com_number_holder>>
+    com_number_holders() const override
+    {
+        return studio_.com_number_holders();
     }
     std::vector<traffic_view> traffic(int limit) const override;
     setup_facts facts() const override;
@@ -167,6 +185,16 @@ public:
                                          int listeners) override;
     vss::result<vss::link_id> bridge(const QString& from_uri,
                                      const QString& to_uri) override;
+    vss::result<network_attach_view> attach_network(vss::endpoint_id existing,
+                                                    const QString& name,
+                                                    const QString& uri,
+                                                    bool keep_trying) override;
+    vss::result<void> set_network_address(vss::endpoint_id id,
+                                          const QString& uri,
+                                          bool keep_trying) override;
+    vss::result<void> check_listen_free(const QString& uri,
+                                        vss::endpoint_id ignore,
+                                        bool probe) const override;
     vss::result<void> create_com0com_pair() override;
 
     bool hub_running() const override;
@@ -182,6 +210,10 @@ private:
                                 const vss::endpoint_options& options);
 
     void rebuild();
+    /// Remembers why a network client failed, from an engine event.
+    void note_failure(const gui_event& event);
+    /// The target and state of a network client, or empty for any other port.
+    std::optional<connection_view> connection_of(const port_view& port);
     /// Looks at the engine soon, once for however many batches arrive until
     /// then.  The slices of a flood would otherwise each pay for a look.
     void schedule_rebuild();
@@ -191,6 +223,33 @@ private:
     /// Looks for a program that opened a pseudo terminal; null where the
     /// platform cannot tell.
     QTimer* peer_timer_ = nullptr;
+    /// Why each network client last failed, from its error events, for a
+    /// connection that the reconnector has no reason for.  GUI thread only.
+    QHash<vss::endpoint_id, QString> last_errors_;
+    /// What Studio has seen of each network client's connections, for the
+    /// time it came up, the counters at that time and how often it came up
+    /// again.  GUI thread only.
+    struct connection_history
+    {
+        bool connected = false;
+        bool base_pending = false;
+        unsigned opens = 0;
+        QDateTime since;
+        vss::endpoint_stats base;
+        QString error_code;
+        /// The last events, oldest first, ten at most.
+        QVector<connection_event> events;
+        /// The state the window shows, and since when, so a state is held
+        /// for a moment.
+        std::optional<connect_phase> shown;
+        std::chrono::steady_clock::time_point shown_at;
+        bool retry_active = false;
+        unsigned retry_attempts = 0;
+        QDateTime next_try_at;
+    };
+    bool hold_refresh_pending_ = false;
+    void note_connection_event(vss::endpoint_id id, const QString& text);
+    QHash<vss::endpoint_id, connection_history> histories_;
     std::unique_ptr<licence_store> licences_;
     std::unique_ptr<PluginBackend> plugins_;
     QTimer* licence_timer_ = nullptr;

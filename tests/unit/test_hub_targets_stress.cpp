@@ -236,7 +236,13 @@ void churn(const link_options& options, int messages)
     REQUIRE(info);
     REQUIRE_EQ(info->targets.size(), std::size_t{3});
     REQUIRE_EQ(info->owner, stay_1.endpoint->id());
-    REQUIRE_EQ(tap.written(), std::string());
+    // The source's bytes written into the short-lived targets are carried on
+    // to the tap they send to: only the source's, once, in order.
+    for (const auto& [sender, numbers] : by_sender(tap.written()))
+    {
+        REQUIRE(sender == 'S');
+        REQUIRE(strictly_rising(numbers));
+    }
 }
 } // namespace
 

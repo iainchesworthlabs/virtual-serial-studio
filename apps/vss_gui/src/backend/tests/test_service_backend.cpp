@@ -19,6 +19,8 @@
 
 #include <QTemporaryDir>
 
+#include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -51,7 +53,9 @@ void write_file(const fs::path& path, const std::string& text)
 /// A plugin folder `root/<id>`: the test plugin program, the runtime library
 /// a build with the address sanitiser of MSVC needs beside it, and a
 /// `plugin.json` that lists them, as the system tests lay one out.
-fs::path make_plugin(const fs::path& root)
+fs::path make_plugin(const fs::path& root, const std::string& more_args = {},
+                     const std::string& more_permissions = {},
+                     const std::string& point_extra = {})
 {
     const fs::path program = fs::absolute(fs::path(VSS_TEST_PLUGIN_PROGRAM));
     const fs::path directory = root / kPluginId;
@@ -73,15 +77,17 @@ fs::path make_plugin(const fs::path& root)
     manifest += "  \"run\": { \"executable\": \"" + name +
                 "\", \"args\": [ "
                 "\"--hello-id=" +
-                std::string(kPluginId) +
-                "\", \"--hello-version=1.2.0\", \"--serve\" ],\n";
+                std::string(kPluginId) + "\", \"--hello-version=1.2.0\"" +
+                more_args + ", \"--serve\" ],\n";
     manifest += "    \"platforms\": [ \"windows-x64\", \"windows-arm64\", "
                 "\"linux-x64\", \"linux-arm64\", \"macos-x64\", "
                 "\"macos-arm64\" ] },\n";
     manifest += "  \"permissions\": [ { \"name\": \"ports.read\", "
-                "\"required\": true, \"reason\": \"To read the ports.\" } ],\n";
+                "\"required\": true, \"reason\": \"To read the ports.\" }" +
+                more_permissions + " ],\n";
     manifest += "  \"extension_points\": [ { \"kind\": \"generator\", "
-                "\"id\": \"pulse\", \"name\": \"Pulse\" } ],\n";
+                "\"id\": \"pulse\", \"name\": \"Pulse\"" +
+                point_extra + " } ],\n";
     manifest += "  \"files\": [";
     for (const fs::path& copy : copies)
     {
@@ -241,5 +247,635 @@ TEST_CASE("service backend: the real service runs an unsigned plugin after a "
     REQUIRE(vss_test::wait_until([&] { return !fs::exists(saved); }, 60000));
 
     // The end of the program: every plugin is stopped, and the call returns.
+    backend.shut_down();
+}
+
+namespace
+{
+
+service_plugin_options options_for(const fs::path& root,
+                                   const fs::path& plugins)
+{
+    service_plugin_options options;
+    plug::plugin_root user;
+    user.directory = plugins;
+    user.scope = plug::plugin_scope::for_user;
+    options.roots.push_back(user);
+    options.program_directory =
+        fs::absolute(fs::path(VSS_TEST_PLUGIN_PROGRAM)).parent_path();
+    options.trust_file = root / "settings" / "trust.json";
+    options.data_root = root / "data";
+    options.user_root = plugins;
+    options.seed = 1;
+    return options;
+}
+
+/// The arguments that make the test plugin ask Studio to show a code as soon
+/// as it is ready.
+std::string ask_for_code()
+{
+    return R"(, "--send-header={\"op\":\"secret.show\",\"label\":\"Pairing code\",)"
+           R"(\"text\":\"123456\",\"expires_s\":60}")";
+}
+
+/// After a decision, a computer that cannot isolate a plugin keeps an
+/// unsigned one waiting until the person lets it run without isolation (Linux
+/// and macOS give none, and so does a Windows without the isolation the
+/// plugin needs). Says that for the test plugin, as the person would.
+void allow_without_isolation(ServicePluginBackend& backend,
+                             const plugin_view& view)
+{
+    const QString id = view.id;
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* now = find_view(backend.snapshot(), id);
+            return now != nullptr &&
+                   (now->state == plugin_state::available ||
+                    now->state == plugin_state::needs_isolation);
+        },
+        60000));
+    const plugin_view* now = find_view(backend.snapshot(), id);
+    if (now->state == plugin_state::needs_isolation)
+        backend.set_no_isolation(view.id, view.hash, true);
+}
+
+/// Decides about the plugin on the page's behalf and waits for it to run.
+void run_the_plugin(ServicePluginBackend& backend, const QString& id)
+{
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* view = find_view(backend.snapshot(), id);
+            return view != nullptr &&
+                   view->state == plugin_state::needs_decision &&
+                   !view->adds.empty();
+        },
+        30000));
+    const plugin_view view = *find_view(backend.snapshot(), id);
+    plugin_decision_request request;
+    request.plugin_id = view.id;
+    request.hash = view.hash;
+    request.key_id = view.key_id;
+    request.granted = {QStringLiteral("ports.read")};
+    request.switch_on = true;
+    backend.decide(request);
+    allow_without_isolation(backend, view);
+}
+
+} // namespace
+
+TEST_CASE("service backend: a code a plugin asks to show reaches the page and "
+          "is answered once")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path plugins = root / "plugins";
+    make_plugin(plugins, ask_for_code());
+    ServicePluginBackend backend(options_for(root, plugins));
+
+    std::vector<plugin_secret_request> asked;
+    QObject::connect(&backend, &PluginBackend::secret_requested, &backend,
+                     [&asked](const plugin_secret_request& request)
+                     { asked.push_back(request); });
+    run_the_plugin(backend, QString::fromLatin1(kPluginId));
+    const bool came =
+        vss_test::wait_until([&] { return !asked.empty(); }, 60000);
+    if (!came)
+    {
+        const plugin_view* now =
+            find_view(backend.snapshot(), QString::fromLatin1(kPluginId));
+        if (now != nullptr)
+        {
+            std::fprintf(stderr, "SECRET state %d reason %s\n",
+                         static_cast<int>(now->state),
+                         now->reason_code.toUtf8().constData());
+            for (const plugin_log_line& line : now->log)
+                std::fprintf(stderr, "SECRET log: %s\n",
+                             line.text.toUtf8().constData());
+        }
+    }
+    REQUIRE(came);
+    REQUIRE_EQ(asked.size(), std::size_t{1});
+    REQUIRE_EQ(asked[0].plugin_id, QString::fromLatin1(kPluginId));
+    REQUIRE_EQ(asked[0].plugin_name, QStringLiteral("Served"));
+    REQUIRE_EQ(asked[0].label, QStringLiteral("Pairing code"));
+    REQUIRE_EQ(asked[0].text, QStringLiteral("123456"));
+    REQUIRE_EQ(asked[0].seconds, 60);
+    REQUIRE(asked[0].id != 0);
+    // The answer goes to the plugin; a second answer for it is ignored.
+    backend.answer_secret(asked[0].id, true);
+    backend.answer_secret(asked[0].id, false);
+    // The code is in no snapshot and no log line the page can read.
+    const plugin_view* view =
+        find_view(backend.snapshot(), QString::fromLatin1(kPluginId));
+    REQUIRE(view != nullptr);
+    for (const plugin_log_line& line : view->log)
+        REQUIRE(!line.text.contains(QStringLiteral("123456")));
+    REQUIRE(!view->status_text.contains(QStringLiteral("123456")));
+    backend.shut_down();
+}
+
+TEST_CASE("service backend: with nobody to show a code to, the plugin is told "
+          "no, and shutting down does not wait on a dialog")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path plugins = root / "plugins";
+    make_plugin(plugins, ask_for_code());
+    ServicePluginBackend backend(options_for(root, plugins));
+    run_the_plugin(backend, QString::fromLatin1(kPluginId));
+    // No dialog is connected: the request is answered no, and the plugin
+    // carries on running.
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* view =
+                find_view(backend.snapshot(), QString::fromLatin1(kPluginId));
+            return view != nullptr && view->state == plugin_state::available;
+        },
+        60000));
+    // Ending the program does not wait on a plugin or on a dialog.
+    const auto started = std::chrono::steady_clock::now();
+    backend.shut_down();
+    REQUIRE(std::chrono::steady_clock::now() - started <
+            std::chrono::seconds(20));
+}
+
+TEST_CASE("service backend: a control session a plugin asks for reaches the "
+          "page with the plugin's words, and nothing is remembered")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path plugins = root / "plugins";
+    make_plugin(
+        plugins,
+        R"(, "--send-header={\"op\":\"control.session.request\",)"
+        R"(\"scopes\":[\"monitor\",\"control.data\"],\"peer\":\"Alex\",)"
+        R"(\"reason\":\"To run a test.\"}")");
+    ServicePluginBackend backend(options_for(root, plugins));
+
+    std::vector<plugin_control_request> asked;
+    QObject::connect(&backend, &PluginBackend::control_requested, &backend,
+                     [&asked](const plugin_control_request& request)
+                     { asked.push_back(request); });
+    run_the_plugin(backend, QString::fromLatin1(kPluginId));
+    const bool arrived =
+        vss_test::wait_until([&] { return !asked.empty(); }, 60000);
+    if (!arrived)
+    {
+        const plugin_view* now =
+            find_view(backend.snapshot(), QString::fromLatin1(kPluginId));
+        if (now != nullptr)
+        {
+            std::fprintf(stderr, "state %d reason %s\n",
+                         static_cast<int>(now->state),
+                         now->reason_code.toUtf8().constData());
+            for (const plugin_log_line& line : now->log)
+                std::fprintf(stderr, "log: %s\n",
+                             line.text.toUtf8().constData());
+        }
+    }
+    REQUIRE(arrived);
+    REQUIRE_EQ(asked[0].plugin_name, QStringLiteral("Served"));
+    REQUIRE_EQ(asked[0].peer, QStringLiteral("Alex"));
+    REQUIRE_EQ(asked[0].reason, QStringLiteral("To run a test."));
+    REQUIRE_EQ(asked[0].scopes.size(), 2);
+    REQUIRE_EQ(asked[0].life_seconds, 24 * 3600);
+    backend.answer_control(asked[0].id, false);
+    backend.shut_down();
+}
+
+TEST_CASE(
+    "service backend: instances are asked for, kept, and come back at the "
+    "next start")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path plugins = root / "plugins";
+    make_plugin(plugins);
+    const QString id = QString::fromLatin1(kPluginId);
+    {
+        service_plugin_options options = options_for(root, plugins);
+        options.instances_file = root / "settings" / "instances.json";
+        ServicePluginBackend backend(std::move(options));
+        run_the_plugin(backend, id);
+        REQUIRE(vss_test::wait_until(
+            [&]
+            {
+                const plugin_view* view = find_view(backend.snapshot(), id);
+                return view != nullptr &&
+                       view->state == plugin_state::available;
+            },
+            60000));
+        backend.add_instance(id, QStringLiteral("pulse"), {});
+        REQUIRE(vss_test::wait_until(
+            [&]
+            {
+                const plugin_view* view = find_view(backend.snapshot(), id);
+                return view != nullptr && view->instances.size() == 1;
+            },
+            60000));
+        const plugin_instance_view made =
+            find_view(backend.snapshot(), id)->instances.front();
+        REQUIRE_EQ(made.number, quint64{1});
+        REQUIRE_EQ(made.point_id, QStringLiteral("pulse"));
+        REQUIRE_EQ(made.point_name, QStringLiteral("Pulse"));
+        // A point the plugin does not declare is not made either.
+        backend.add_instance(id, QStringLiteral("nothing"), {});
+        backend.shut_down();
+    }
+    REQUIRE(fs::exists(root / "settings" / "instances.json"));
+    {
+        // The next start: the instance is there before the plugin runs.
+        service_plugin_options options = options_for(root, plugins);
+        options.instances_file = root / "settings" / "instances.json";
+        ServicePluginBackend backend(std::move(options));
+        const bool back = vss_test::wait_until(
+            [&]
+            {
+                const plugin_view* view = find_view(backend.snapshot(), id);
+                return view != nullptr && view->instances.size() == 1;
+            },
+            60000);
+        if (!back)
+        {
+            const plugin_view* now = find_view(backend.snapshot(), id);
+            if (now != nullptr)
+                std::fprintf(stderr, "state %d instances %d\n",
+                             static_cast<int>(now->state),
+                             static_cast<int>(now->instances.size()));
+        }
+        REQUIRE(back);
+        const plugin_view* view = find_view(backend.snapshot(), id);
+        REQUIRE_EQ(view->instances.size(), std::size_t{1});
+        // The plugin is not running, so the instance is not either.
+        REQUIRE(view->instances.front().state ==
+                plugin_instance_state::not_running);
+        // Taking it away is kept too.
+        backend.remove_instance(id, view->instances.front().number);
+        REQUIRE(vss_test::wait_until(
+            [&]
+            {
+                const plugin_view* now = find_view(backend.snapshot(), id);
+                return now != nullptr && now->instances.empty();
+            },
+            60000));
+        backend.shut_down();
+    }
+}
+
+namespace
+{
+
+/// Whether a log line of the plugin has `text`.
+bool log_has(ServicePluginBackend& backend, const QString& id,
+             const QString& text)
+{
+    const plugin_view* view = find_view(backend.snapshot(), id);
+    if (view == nullptr)
+        return false;
+    for (const plugin_log_line& line : view->log)
+    {
+        if (line.text.contains(text))
+            return true;
+    }
+    return false;
+}
+
+void show_log(ServicePluginBackend& backend, const QString& id)
+{
+    const plugin_view* view = find_view(backend.snapshot(), id);
+    if (view == nullptr)
+        return;
+    for (const plugin_log_line& line : view->log)
+        std::fprintf(stderr, "log: %s\n", line.text.toUtf8().constData());
+}
+
+/// The test plugin asks for the licence file as soon as it is ready, and asks
+/// for `licence.read` as well as the permission every test plugin has.
+void ask_for_licence(const fs::path& plugins)
+{
+    make_plugin(plugins, R"(, "--send-header={\"op\":\"licence.get\"}")",
+                R"(, { "name": "licence.read", "required": false, )"
+                R"("reason": "To check it." })");
+}
+
+void decide_with(ServicePluginBackend& backend, const QString& id,
+                 const QStringList& granted)
+{
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* view = find_view(backend.snapshot(), id);
+            return view != nullptr &&
+                   view->state == plugin_state::needs_decision &&
+                   !view->adds.empty();
+        },
+        30000));
+    const plugin_view view = *find_view(backend.snapshot(), id);
+    plugin_decision_request request;
+    request.plugin_id = view.id;
+    request.hash = view.hash;
+    request.key_id = view.key_id;
+    request.granted = granted;
+    request.switch_on = true;
+    backend.decide(request);
+    allow_without_isolation(backend, view);
+}
+
+vss::license::status a_valid_licence()
+{
+    vss::license::status status;
+    status.state = vss::license::state::valid;
+    status.reason = vss::license::reason::ok;
+    return status;
+}
+
+} // namespace
+
+TEST_CASE("service backend: a plugin allowed to read the licence is handed the "
+          "file Studio uses, and one that is not is refused")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path plugins = root / "plugins";
+    const fs::path licences = root / "licences";
+    std::error_code ignored;
+    fs::create_directories(licences, ignored);
+    write_file(licences / "studio.vsslic", "the bytes of a licence file");
+    ask_for_licence(plugins);
+    const QString id = QString::fromLatin1(kPluginId);
+
+    {
+        service_plugin_options options = options_for(root, plugins);
+        options.licence_user_directory = licences;
+        ServicePluginBackend backend(std::move(options));
+        backend.set_licence(a_valid_licence(),
+                            licence_file_ref{"studio.vsslic", false});
+        decide_with(
+            backend, id,
+            {QStringLiteral("ports.read"), QStringLiteral("licence.read")});
+        const bool answered = vss_test::wait_until(
+            [&] { return log_has(backend, id, QStringLiteral("answer ")); },
+            60000);
+        if (!answered || log_has(backend, id, QStringLiteral("answer error")))
+            show_log(backend, id);
+        REQUIRE(answered);
+        // The answer is the file, not a refusal.
+        REQUIRE(!log_has(backend, id, QStringLiteral("answer error")));
+        backend.shut_down();
+    }
+    {
+        // Not allowed to read it, and not official: refused.
+        fs::remove_all(root / "settings", ignored);
+        service_plugin_options options = options_for(root, plugins);
+        options.licence_user_directory = licences;
+        ServicePluginBackend backend(std::move(options));
+        backend.set_licence(a_valid_licence(),
+                            licence_file_ref{"studio.vsslic", false});
+        decide_with(backend, id, {QStringLiteral("ports.read")});
+        const bool answered = vss_test::wait_until(
+            [&]
+            { return log_has(backend, id, QStringLiteral("answer error")); },
+            60000);
+        if (!answered)
+            show_log(backend, id);
+        REQUIRE(answered);
+        backend.shut_down();
+    }
+}
+
+TEST_CASE("service backend: the licence is the same one until it changes")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path plugins = root / "plugins";
+    make_plugin(plugins);
+    ServicePluginBackend backend(options_for(root, plugins));
+    // Telling the plugins of the same licence again, and of none, does not
+    // stop anything or fail.
+    backend.set_licence(a_valid_licence(), licence_file_ref{"a.vsslic", false});
+    backend.set_licence(a_valid_licence(), licence_file_ref{"a.vsslic", false});
+    backend.set_licence(vss::license::no_licence(), std::nullopt);
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* view =
+                find_view(backend.snapshot(), QString::fromLatin1(kPluginId));
+            return view != nullptr &&
+                   view->state == plugin_state::needs_decision;
+        },
+        30000));
+    backend.shut_down();
+}
+
+TEST_CASE("service backend: what a plugin reports of its licence check reaches "
+          "the page")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path plugins = root / "plugins";
+    make_plugin(plugins, R"(, "--notify-header={\"op\":\"licence.report\",)"
+                         R"(\"reason\":\"expired\"}")");
+    ServicePluginBackend backend(options_for(root, plugins));
+    const QString id = QString::fromLatin1(kPluginId);
+    run_the_plugin(backend, id);
+    const bool reported = vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* view = find_view(backend.snapshot(), id);
+            return view != nullptr && view->has_licence_report;
+        },
+        60000);
+    REQUIRE(reported);
+    const plugin_view* view = find_view(backend.snapshot(), id);
+    REQUIRE(view->licence_report_reason == vss::license::reason::expired);
+    backend.shut_down();
+}
+
+TEST_CASE(
+    "service backend: an instance of a point with a required port is made "
+    "only when the port is given")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path plugins = root / "plugins";
+    make_plugin(plugins, {}, {},
+                R"(, "parameters": [ { "id": "port", "type": "port", )"
+                R"("label": "Port" } ])");
+    const QString id = QString::fromLatin1(kPluginId);
+    service_plugin_options options = options_for(root, plugins);
+    options.instances_file = root / "settings" / "instances.json";
+    ServicePluginBackend backend(std::move(options));
+    run_the_plugin(backend, id);
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* view = find_view(backend.snapshot(), id);
+            return view != nullptr && view->state == plugin_state::available &&
+                   !view->adds.empty();
+        },
+        60000));
+    // The page is told what to ask for.
+    const plugin_view view = *find_view(backend.snapshot(), id);
+    REQUIRE_EQ(view.adds.front().asks.size(), std::size_t{1});
+    REQUIRE_EQ(view.adds.front().asks.front().id, QStringLiteral("port"));
+    REQUIRE(view.adds.front().asks.front().place_name);
+    REQUIRE(!view.adds.front().needs_settings);
+
+    // Without the port nothing is made; with it, one is.
+    backend.add_instance(id, QStringLiteral("pulse"), {});
+    backend.add_instance(id, QStringLiteral("pulse"),
+                         {{QStringLiteral("port"), QStringLiteral("Alpha")}});
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* now = find_view(backend.snapshot(), id);
+            return now != nullptr && now->instances.size() == 1;
+        },
+        60000));
+    backend.shut_down();
+    const std::string kept = read_file(root / "settings" / "instances.json");
+    REQUIRE(kept.find("Alpha") != std::string::npos);
+}
+
+TEST_CASE("service backend: the same plugin installed for everyone and for the "
+          "user shows both copies, names what an add refuses, and removing "
+          "the user's copy leaves the other one")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path everyone = root / "everyone";
+    const fs::path plugins = root / "plugins";
+    const fs::path incoming = root / "incoming";
+    make_plugin(everyone);
+    make_plugin(plugins);
+    const fs::path source = make_plugin(incoming);
+
+    service_plugin_options options = options_for(root, plugins);
+    // Read in the order of the real computer: for everyone, then the user.
+    plug::plugin_root machine;
+    machine.directory = everyone;
+    machine.scope = plug::plugin_scope::for_everyone;
+    options.roots.insert(options.roots.begin(), machine);
+    ServicePluginBackend backend(std::move(options));
+    const QString id = QString::fromLatin1(kPluginId);
+
+    std::vector<plugin_request_result> finished;
+    QObject::connect(&backend, &PluginBackend::request_finished, &backend,
+                     [&finished](const plugin_request_result& result)
+                     { finished.push_back(result); });
+    std::vector<plugin_inspection_view> inspected;
+    QObject::connect(&backend, &PluginBackend::plugin_inspected, &backend,
+                     [&inspected](quint64, const plugin_inspection_view& found)
+                     { inspected.push_back(found); });
+
+    const auto copies_of = [&]
+    {
+        std::vector<plugin_view> found;
+        for (const plugin_view& each : backend.snapshot()->plugins)
+        {
+            if (each.id == id)
+                found.push_back(each);
+        }
+        return found;
+    };
+    REQUIRE(vss_test::wait_until([&] { return copies_of().size() == 2; },
+                                 30000));
+
+    // Both are listed. The copy for everyone is read first, so it is the one
+    // that runs, and the user's copy says so and where the other one is.
+    std::vector<plugin_view> both = copies_of();
+    const plugin_view& used = both[0].installed_for ==
+                                      plugin_installed_for::everyone
+                                  ? both[0]
+                                  : both[1];
+    const plugin_view& unused = both[0].installed_for ==
+                                        plugin_installed_for::everyone
+                                    ? both[1]
+                                    : both[0];
+    REQUIRE(used.state != plugin_state::not_used);
+    REQUIRE(unused.installed_for == plugin_installed_for::you_only);
+    REQUIRE(unused.state == plugin_state::not_used);
+    REQUIRE(unused.has_used_copy);
+    REQUIRE(unused.used_copy_installed_for == plugin_installed_for::everyone);
+    REQUIRE_EQ(unused.used_copy_id, id);
+    // The two are identical, which is the case that Remove must not mix up.
+    REQUIRE_EQ(used.hash, unused.hash);
+
+    // Adding the same plugin: the refusal is about the copy for everyone and
+    // has the plugin's name.
+    backend.inspect_plugin(QString::fromStdWString(source.wstring()));
+    REQUIRE(vss_test::wait_until([&] { return !inspected.empty(); }, 30000));
+    REQUIRE(inspected[0].failure ==
+            plugin_inspection_view::problem::already_installed);
+    backend.add_plugin(QString::fromStdWString(source.wstring()));
+    REQUIRE(vss_test::wait_until([&] { return !finished.empty(); }, 30000));
+    REQUIRE(finished[0].kind == plugin_request_kind::add_plugin);
+    REQUIRE(finished[0].error == plugin_request_error::already_installed);
+    REQUIRE_EQ(finished[0].plugin_name, QStringLiteral("Served"));
+    finished.clear();
+
+    // Remove the user's copy: its folder goes, the copy for everyone stays,
+    // is listed and is not marked unused. Its saved data stays too.
+    const fs::path saved = root / "data" / kPluginId;
+    {
+        std::error_code ignored;
+        fs::create_directories(saved, ignored);
+        write_file(saved / "note.txt", "used by the copy for everyone");
+    }
+    backend.remove_plugin(unused.id, unused.hash, true);
+    REQUIRE(vss_test::wait_until(
+        [&] { return !fs::exists(plugins / kPluginId); }, 60000));
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const std::vector<plugin_view> left = copies_of();
+            return left.size() == 1 &&
+                   left[0].installed_for == plugin_installed_for::everyone &&
+                   left[0].state != plugin_state::not_used;
+        },
+        60000));
+    REQUIRE(fs::exists(everyone / kPluginId));
+    REQUIRE(fs::exists(saved / "note.txt"));
+
+    // With only the copy for everyone left, adding the plugin for the user
+    // is refused, and the refusal says which place has it.
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            return std::any_of(finished.begin(), finished.end(),
+                               [](const plugin_request_result& each)
+                               {
+                                   return each.kind ==
+                                          plugin_request_kind::remove_plugin;
+                               });
+        },
+        30000));
+    const std::size_t finished_before = finished.size();
+    backend.add_plugin(QString::fromStdWString(source.wstring()));
+    plugin_request_result refusal;
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            if (finished.size() <= finished_before)
+                return false;
+            refusal = finished.back();
+            return true;
+        },
+        30000));
+    REQUIRE(refusal.kind == plugin_request_kind::add_plugin);
+    REQUIRE(refusal.error == plugin_request_error::installed_for_everyone);
+    REQUIRE_EQ(refusal.plugin_name, QStringLiteral("Served"));
+    REQUIRE(!fs::exists(plugins / kPluginId));
+    const std::size_t inspected_before = inspected.size();
+    backend.inspect_plugin(QString::fromStdWString(source.wstring()));
+    REQUIRE(vss_test::wait_until(
+        [&] { return inspected.size() > inspected_before; }, 30000));
+    const auto inspection = inspected.back();
+    REQUIRE(inspection.failure ==
+            plugin_inspection_view::problem::installed_for_everyone);
+    REQUIRE(!inspection.can_install);
     backend.shut_down();
 }

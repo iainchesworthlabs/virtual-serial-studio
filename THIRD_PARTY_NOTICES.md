@@ -11,7 +11,7 @@ version 3 (see below).
 
 | Component | Version | Licence | How it is used |
 |---|---|---|---|
-| [Boost.VirtualSerial](https://github.com/iainchesworthlabs/virtual-serial) | v0.1.0-beta.2 | Boost Software License 1.0 | Header-only; the serial transport, backends and mock fixture behind every endpoint |
+| [Boost.VirtualSerial](https://github.com/iainchesworthlabs/virtual-serial) | v0.1.0-beta.3 | Boost Software License 1.0 | Header-only; the serial transport, backends and mock fixture behind every endpoint |
 | [Boost](https://boost.org) | 1.92 headers | Boost Software License 1.0 | Asio, System, JSON |
 | [Qt](https://qt.io) | 6.12.0 | LGPL-3.0-only OR GPL-3.0-only OR commercial | The GUI; linked dynamically. The release packages carry the Qt libraries |
 | [Qt Canvas Painter](https://doc.qt.io/qt-6.12/qtcanvaspainter-index.html) | 6.12.0 | GPL-3.0-only OR commercial | The Qt library that draws the canvas (`Qt6CanvasPainter`); linked dynamically and carried in the release packages with the other Qt libraries |

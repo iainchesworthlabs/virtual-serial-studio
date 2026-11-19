@@ -40,6 +40,10 @@ QString rename_action();
 QString connect_from_here_action();
 QString connect_needs_two();
 QString remove_action();
+QString stop_action();
+QString start_action();
+QString pause_action();
+QString resume_action();
 QString remove_link_action();
 /// The canvas menu: Tidy layout and Fit.
 QString tidy_layout_action();

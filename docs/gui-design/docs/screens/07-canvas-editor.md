@@ -51,7 +51,7 @@ A small non-modal popup (`QFrame`, `panel` fill, 1 px `control` edge, 6 px radiu
 1. Title: "Add pair" (the tile name).
 2. One row per slot: a label ("End A"), a kind picker (New port, New fixture, Loopback, or an existing port by name), and a name field filled with the next free name (`port-1`, `fixture-1`, ...). A slot that holds an existing port has no name field.
 3. For bundles with a count (Split, Join, Bus, Switch, Share, Bench): "How many" spin box, which adds or removes slot rows.
-4. For Port: the kind (Best available and the platform's kinds) and, when `com_numbers` is on, "COM number" (Next free by default).
+4. For Port: the kind (Best available and the platform's kinds) and, when `com_numbers` is on, "COM number" (Automatic by default, an editable list of the free numbers; a number that is in use is refused under the field and Add stays disabled).
 5. "More settings": a disclosure that shows the port Settings fields (below) for the new ports, defaulting to 115200 8N1, no flow control.
 6. Buttons: Cancel, **Add** (default). Enter adds, Esc cancels.
 
@@ -61,7 +61,8 @@ On Add the ghosts become real nodes in a **Creating** state (dashed edge, a smal
 - **Handles.** A node shows two handles, a 10 px circle centred on its left and right edges, when it is hovered, selected or focused, and on every node while a wire is being dragged. The hit area is 24 by 24. The handle is `panel` with a 1.5 px `control` edge, and `accent` when hovered.
 - **Drag a wire** from either handle. A 2 px dashed `accent` line follows the pointer from the handle. Nodes it can link to show a drop highlight (`accentSoft` fill, `accent` edge). A node that would close a loop shows a `bad` edge, and the pointer shows "That link would create a loop" as a tooltip. Esc or a right-click cancels.
 - **Drop on a node** opens the link chooser, a small menu at the drop point: **Two-way**, **One way, from <a> to <b>**, **Monitor <a> on <b>**. Two-way is first and is the default for Enter. If the target already has a split or a join from the same source, **Add to the split** and **Add to the join** are offered (`08-engine-gaps.md`): a split takes the target with `hub::add_target` and a join takes the source with `hub::add_source`, which the chooser does not use yet.
-- **Drop on empty canvas** opens: **New port here**, **New fixture here**, **New loopback here**. The choice adds the port at the drop point and then shows the link chooser.
+- **Drop on a node that is on a bus** adds **Add <a> to the bus with <b>** to the chooser. It puts <a> on that bus in place (`hub::add_member`: the bus keeps its id, options and counters, and the members that were there are not disturbed). When the node dragged from is on a bus and the target is not, the same entry puts the target on the bus. When neither is on a bus and `shared_bus` is on, the chooser offers **Shared bus for <a> and <b>**, which makes a bus of the two. A port can be on one bus only, so a line between two ports that are on buses offers no bus entry. Undo takes the port off the bus again.
+- **Drop on empty canvas** opens: **New port here**, **New fixture here**, **New loopback here**, each with a Two-way, One way or Monitor choice, and below a separator **Share <a> over the network...** and **Connect <a> to a server...** (the first needs `network_server`, the second needs `bridge`). Each opens the network dialog (`04`) with <a> already chosen as the port to serve and the role set, so "COM134 shared over RFC 2217" and "a listener forwarded to COM134" are one line and one dialog. The choice of a new port adds it at the drop point and then shows the link chooser.
 - **Several at once.** With two or more nodes selected, the node menu has **Link selected**: Two-way (exactly two), Split from <focused>, Join into <focused>, Bus (needs `shared_bus`), Switch on <focused>. This is how the bus, split and join shapes are made by hand.
 - Every link made by wiring can also be made from the keyboard (below) and in the Connect ports dialog, so nothing needs a drag (WCAG 2.5.7).
 
@@ -76,11 +77,12 @@ On Add the ghosts become real nodes in a **Creating** state (dashed edge, a smal
 ## The node menu (Advanced)
 In this order, with separators where shown. Items that cannot act are disabled with a tooltip that says why.
 1. Inspect (Enter)
-2. **Settings...** (Alt+Enter)
+2. **Settings...** (Alt+Enter). For a network port (TCP, UDP or RFC 2217, client or server) it opens the network dialog in edit mode (`04`, "Change a network port"); the link settings stay on the link menu.
 3. Rename (F2) (needs `rename_port`)
 4. **Duplicate** (Ctrl+D)
 5. ---
 6. Connect from here (Ctrl+L)
+6a. For a port that is not itself a network port: **Share over the network...** (a server for this port; needs `network_server`), **Connect to a server...** (a client linked to this port) and **Make a bus with...** (the Connect dialog on Shared bus with this port ticked; needs `shared_bus`). Each is disabled with "Not available in this build" when the build lacks its flag.
 7. The port actions from `02-workspace.md`: Send bytes, Start or Stop repeat, Open in monitor, and for a fixture Start or Stop generator, Echo received bytes
 8. ---
 9. Copy name (Ctrl+C)
@@ -93,14 +95,14 @@ A dialog, "Settings for <name>", 440 px wide. Fields:
 
 | Field | Values | Default |
 |---|---|---|
-| Baud rate | Editable list: 300 to 921600, and any whole number from 50 to 4000000 | 115200 |
+| Baud rate | Editable list: 300 to 921600 and 1000000, 2000000, 3000000, 4000000 and 12000000, and any whole number from 50 to 12000000 | 115200 |
 | Data bits | 5, 6, 7, 8 | 8 |
 | Parity | None, Odd, Even, Mark, Space | None |
 | Stop bits | 1, 1.5, 2 | 1 |
 | Flow control | None, Hardware (RTS/CTS), Software (XON/XOFF) | None |
 | Read timeout | 0 to 60000 ms, 0 means wait | 0 |
 | Write timeout | 0 to 60000 ms, 0 means wait | 0 |
-| COM number | Driver ports only, when `com_numbers` is on; the existing Change... flow | |
+| COM number | Driver ports only, when `com_numbers` is on; the Change COM number dialog: an editable list of the free numbers (from COM1), a list of the numbers in use with what holds each ("Studio port rx-sim", "Windows device USB Serial Device", "Unplugged Windows device USB Serial Device", "Reserved by Windows"), and a reason under the field, with Change number disabled, for a number that is in use or not 1 to 255 | |
 
 A one-line summary under the fields updates as they change: "115200 8N1, no flow control". `vss::validate` checks the values; a refusal is shown under the field it names.
 
@@ -177,6 +179,11 @@ Checked against `libs/vss_core`, `libs/vss_studio` and the GUI backend on 2026-1
 | Bus ("several ports on one line") | Provided (`hub::bus`), `Capabilities::shared_bus` | Without the flag the Bus tile is disabled with "Not available in this build". |
 | Switch (one owner at a time) | Provided (`merge_policy::owner`, `set_owner`, `release_owner`) | Use directly; "Make owner" stays in the Inspector and the node menu of a switched port. |
 | Share | Provided (`studio::share_serial` with rollback) | Use directly. |
+| Add a port to a bus that exists | Provided (`hub::add_member`) | Drop on a member of the bus, or the node menu. |
+| **A network port beside a port that is in Studio** | Provided (`studio::attach_network`: makes the network port, links it two-way to the port given or to a new Studio port, and removes what it made when anything fails) | The network dialog uses it for every choice except a real device that Studio does not hold. A port that Studio holds is never opened a second time by its address (the reason a driver port such as COM134 gave "Access is denied" and a stray device). |
+| **Change a network port** (server or client, address, bind port, allow list) | Provided (`studio::set_address`, `Capabilities::network_edit`): the port keeps its id, name and links; a listener lets go of its address first, so a change that keeps the address works, and the old listener is back when the new address cannot be opened | Settings on a network port. Without the flag the item is disabled with "Not available in this build". |
+| **A client that waits for a remote that refuses** | Provided (`studio::attach_waiting`, `Capabilities::network_waiting`): the port stands on a transport that is not connected, stops at once like a lost connection, and the reconnector connects it. Turns the reconnect policy on, with its defaults, when it is off | "Create anyway and keep trying" in the network dialog. Without the flag the button is not offered. |
+| **Two listeners on one address** | `studio::check_listen_free` and `vss::listen_uris_overlap`: the same port number on the same kind of socket (TCP and RFC 2217 are one, UDP the other) and overlapping addresses (equal, or either is every interface). Refused with the system's "address in use" before anything is made, in `attach_serial`, so a setup with two of them is refused as well. With `probe` it also binds the port for an instant, to find another program that holds it | The network dialog says which: "already used by another port in this setup" or "in use by another program". |
 | Loopback | Provided (`virtual_port_kind::loopback`: an in-memory pipe that sends back what it receives, lines modelled) | Use directly. |
 | Fixture, several at once (Bench) | Provided (`create_mock_port`) | Bench is plain repeated calls, rolled back on failure, in the GUI. |
 | Add a target to an existing split or join | Not in the engine (targets are fixed) | Compose with `backend/share_edit`, as `08` already describes. |

@@ -16,6 +16,7 @@
 
 #include <thread>
 
+class QCheckBox;
 class QComboBox;
 class QLabel;
 class QPushButton;
@@ -69,6 +70,10 @@ public:
     /// The settings the fields describe.
     vss::serial_settings settings() const;
     void set_settings(const vss::serial_settings& settings);
+    /// For the end of a monitor link that copies `source`: the speed and
+    /// framing are the watched port's, shown as they are and not editable.
+    void follow_port(const QString& source_name,
+                     const vss::serial_settings& settings);
     /// The settings each port had when the dialog opened, by port name, for
     /// the undo step.
     QVector<QPair<QString, vss::serial_settings>> before() const
@@ -77,6 +82,9 @@ public:
     }
     QPushButton* apply_button() const noexcept { return apply_; }
     QString note_text() const;
+    /// "Use these settings for every port linked to this one", or null when
+    /// the port has none linked.
+    QCheckBox* whole_set_check() const noexcept { return whole_set_; }
     QString summary_text() const;
     QString error_text() const;
     bool fields_enabled() const;
@@ -94,6 +102,7 @@ Q_SIGNALS:
 private:
     void build();
     void update_summary();
+    QVector<vss::endpoint_id> set_members() const;
     void on_finished(const vss::error_code& error);
 
     StudioBackend& backend_;
@@ -101,6 +110,7 @@ private:
     QVector<QPair<QString, vss::serial_settings>> before_;
     settings_kind kind_ = settings_kind::virtual_port;
 
+    QCheckBox* whole_set_ = nullptr;
     QComboBox* baud_ = nullptr;
     QComboBox* data_bits_ = nullptr;
     QComboBox* parity_ = nullptr;

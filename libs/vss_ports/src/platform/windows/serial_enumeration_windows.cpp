@@ -5,11 +5,13 @@
 //
 
 #include <vss/core/profile.hpp>
+#include <vss/trace/recorder.hpp>
 
 #include "../serial_enumeration_platform.hpp"
 
 #include <windows.h>
 
+#include <cfgmgr32.h>
 #include <devguid.h>
 #include <setupapi.h>
 
@@ -76,14 +78,29 @@ std::optional<std::vector<unsigned char>> read_com_db()
     DWORD size = 0;
     constexpr const wchar_t* key =
         L"SYSTEM\\CurrentControlSet\\Control\\COM Name Arbiter";
-    if (::RegGetValueW(HKEY_LOCAL_MACHINE, key, L"ComDB", RRF_RT_REG_BINARY,
-                       nullptr, nullptr, &size) != ERROR_SUCCESS ||
-        size == 0)
+    const LONG sized =
+        ::RegGetValueW(HKEY_LOCAL_MACHINE, key, L"ComDB", RRF_RT_REG_BINARY,
+                       nullptr, nullptr, &size);
+    if (sized != ERROR_SUCCESS || size == 0)
+    {
+        trace::record_failure(
+            "RegGetValueW(ComDB)", 0, "COM Name Arbiter",
+            boost::system::error_code(static_cast<int>(sized),
+                                      boost::system::system_category()));
         return std::nullopt;
+    }
     std::vector<unsigned char> bitmap(size);
-    if (::RegGetValueW(HKEY_LOCAL_MACHINE, key, L"ComDB", RRF_RT_REG_BINARY,
-                       nullptr, bitmap.data(), &size) != ERROR_SUCCESS)
+    const LONG read =
+        ::RegGetValueW(HKEY_LOCAL_MACHINE, key, L"ComDB", RRF_RT_REG_BINARY,
+                       nullptr, bitmap.data(), &size);
+    if (read != ERROR_SUCCESS)
+    {
+        trace::record_failure(
+            "RegGetValueW(ComDB)", 0, "COM Name Arbiter",
+            boost::system::error_code(static_cast<int>(read),
+                                      boost::system::system_category()));
         return std::nullopt;
+    }
     bitmap.resize(size);
     return bitmap;
 }
@@ -108,6 +125,96 @@ std::optional<std::vector<unsigned>> platform_reserved_com_numbers()
             numbers.push_back(number);
     }
     return numbers;
+}
+
+std::optional<com_sources> platform_com_sources()
+{
+    VSS_PROFILE_ZONE("ports.com_sources.windows");
+    const auto bitmap = read_com_db();
+    if (!bitmap)
+        return std::nullopt;
+
+    com_sources sources;
+    sources.database = com_numbers_in_bitmap(*bitmap);
+    for (unsigned number = 1; number <= 255; ++number)
+    {
+        const std::wstring name = L"COM" + std::to_wstring(number);
+        wchar_t target[512];
+        if (::QueryDosDeviceW(name.c_str(), target, 512) != 0)
+            sources.resolving.push_back(number);
+    }
+
+    // Without DIGCF_PRESENT: a port that is gone stays in its class with its
+    // PortName.  A modem and a multi-port card name a COM port the same way,
+    // so their classes count as holders too.
+    for (const GUID* const device_class :
+         {&GUID_DEVCLASS_PORTS, &GUID_DEVCLASS_MODEM,
+          &GUID_DEVCLASS_MULTIPORTSERIAL})
+    {
+        HDEVINFO info =
+            ::SetupDiGetClassDevsW(device_class, nullptr, nullptr, 0);
+        if (info == INVALID_HANDLE_VALUE)
+            continue;
+
+        SP_DEVINFO_DATA data{};
+        data.cbSize = sizeof(data);
+        for (DWORD index = 0; ::SetupDiEnumDeviceInfo(info, index, &data);
+             ++index)
+        {
+            const HKEY key = ::SetupDiOpenDevRegKey(
+                info, &data, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_QUERY_VALUE);
+            if (key == INVALID_HANDLE_VALUE)
+                continue;
+            wchar_t name[64]{};
+            DWORD size = sizeof(name) - sizeof(wchar_t);
+            DWORD type = 0;
+            // A modem names its port AttachedTo.
+            bool read = false;
+            for (const wchar_t* value : {L"PortName", L"AttachedTo"})
+            {
+                size = sizeof(name) - sizeof(wchar_t);
+                read = ::RegQueryValueExW(key, value, nullptr, &type,
+                                          reinterpret_cast<LPBYTE>(name),
+                                          &size) == ERROR_SUCCESS &&
+                       type == REG_SZ;
+                if (read)
+                    break;
+            }
+            ::RegCloseKey(key);
+            if (!read)
+                continue;
+            const std::string port = to_utf8(name);
+            if (port.size() < 4 || port.size() > 6 ||
+                (port.rfind("COM", 0) != 0 && port.rfind("com", 0) != 0))
+                continue;
+            unsigned number = 0;
+            bool digits = true;
+            for (std::size_t i = 3; i < port.size(); ++i)
+            {
+                if (port[i] < '0' || port[i] > '9')
+                    digits = false;
+                else
+                    number = number * 10 + static_cast<unsigned>(port[i] - '0');
+            }
+            if (!digits || number < 1 || number > 255)
+                continue;
+
+            com_port_entry entry;
+            entry.number = number;
+            entry.instance_id = read_instance_id(info, data);
+            entry.description =
+                read_string_property(info, data, SPDRP_FRIENDLYNAME);
+            DEVINST node = 0;
+            std::wstring wide_id(entry.instance_id.begin(),
+                                 entry.instance_id.end());
+            entry.present =
+                ::CM_Locate_DevNodeW(&node, wide_id.data(),
+                                     CM_LOCATE_DEVNODE_NORMAL) == CR_SUCCESS;
+            sources.entries.push_back(std::move(entry));
+        }
+        ::SetupDiDestroyDeviceInfoList(info);
+    }
+    return sources;
 }
 
 std::vector<serial_device_info> platform_enumerate_serial_devices()

@@ -1,0 +1,1 @@
+**A plugin's extension points hear when an instance changes.** The plugin host tells a plugin's extension points when one of its instances starts, stops or gets new settings, so a generator or a decoder starts as soon as its instance runs.

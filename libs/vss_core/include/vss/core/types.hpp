@@ -86,6 +86,18 @@ enum class collision_action
     garble
 };
 
+/// Which bytes of the monitored port a monitor link copies (see
+/// #link_options::direction).  Only a monitor takes a value but `both`.
+enum class monitor_direction
+{
+    /// What the port's program writes, and what links write into the port.
+    both,
+    /// Only what the port's program writes (what the port reads).
+    transmit,
+    /// Only what links write into the port.
+    receive
+};
+
 /// Why a chunk sent on a half-duplex bus was not a clean transmission.
 enum class bus_fault
 {
@@ -111,6 +123,7 @@ const char* to_string(link_mode value) noexcept;
 const char* to_string(merge_policy value) noexcept;
 const char* to_string(data_direction value) noexcept;
 const char* to_string(collision_action value) noexcept;
+const char* to_string(monitor_direction value) noexcept;
 const char* to_string(bus_fault value) noexcept;
 
 } // namespace vss

@@ -195,8 +195,9 @@ TEST_CASE("actions: edit the setup as JSON and apply it")
     const auto a = make(s, "Port", "a");
     const auto b = make(s, "Port", "b");
     ad::wire(s, a, b);
-    s.step(QStringLiteral("View > Topology JSON"));
-    choose_menu(s, QStringLiteral("View"), QStringLiteral("Topology JSON"));
+    s.step(QStringLiteral("View > Panes > Topology JSON"));
+    choose_menu_path(s, {QStringLiteral("View"), QStringLiteral("Panes"),
+                         QStringLiteral("Topology JSON")});
     s.settle();
     QWidget* dock = s.dock("jsonDock");
     auto* editor = dock->findChild<QPlainTextEdit*>();
@@ -205,7 +206,7 @@ TEST_CASE("actions: edit the setup as JSON and apply it")
     // to the front.
     if (editor->visibleRegion().isEmpty())
         throw vss_test::failure(
-            "View > Topology JSON left the editor behind the Monitor tab");
+            "View > Panes > Topology JSON left the editor behind the Monitor tab");
     s.step(QStringLiteral("rename port a in the text and apply"));
     QString text = editor->toPlainText();
     REQUIRE(text.contains(QStringLiteral("\"a\"")));
@@ -250,7 +251,8 @@ TEST_CASE("actions: the JSON editor explains each kind of mistake")
     const auto a = make(s, "Port", "a");
     const auto b = make(s, "Port", "b");
     ad::wire(s, a, b);
-    choose_menu(s, QStringLiteral("View"), QStringLiteral("Topology JSON"));
+    choose_menu_path(s, {QStringLiteral("View"), QStringLiteral("Panes"),
+                         QStringLiteral("Topology JSON")});
     s.settle();
     QWidget* dock = s.dock("jsonDock");
     auto* editor = dock->findChild<QPlainTextEdit*>();

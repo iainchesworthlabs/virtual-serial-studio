@@ -134,7 +134,7 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 <li>DTR, RTS, CTS, DSR, DCD and RI: see them, drive them, and choose how a link wires them.</li>
 <li>Inject a parity error, a framing error, an overrun, a break, a hang-up or a disconnect on a fixture.</li>
 </ul>
-<p>The <a href="plugins.html">Pro plugins</a> will let a test harness set these during a run.</p>
+<p>The <a href="plugins.html">Pro plugins</a> will let a test harness set these during a run. They are being built.</p>
 </div>
 <figure class="shot">
 <picture>
@@ -198,6 +198,9 @@ vss_cli bridge serial://COM3 tcp-listen://0.0.0.0:4001</code></pre>
 <div><dt>Light and dark</dt><dd>Both themes meet WCAG 2.2 AA contrast. Follow the system or choose one. Text size, high contrast and reduced motion follow your system.</dd></div>
 <div><dt>Keyboard and screen readers</dt><dd>Every control is reachable by keyboard and has an accessible name and role. State is never shown by colour alone.</dd></div>
 <div><dt>Nine languages</dt><dd>The window follows the language of the system, including right-to-left languages.</dd></div>
+<div><dt>Plugins</dt><dd>Tools, Plugins lists the plugins on this computer. A plugin runs as a program of its own, only after you have decided about that version, and Studio never downloads one. <code>vss_cli plugin</code> lists, checks, installs, removes and runs plugins from a shell. <a href="plugins.html#trust-title">Plugin isolation and trust</a>.</dd></div>
+<div><dt>Licence page</dt><dd>Help, Licence shows which edition this is and imports a licence file, which Studio checks on this computer. With no licence, Studio is the Community edition. <code>vss_cli licence</code> prints the same from a shell.</dd></div>
+<div><dt>Check for updates</dt><dd>Off until you turn it on, and Studio asks before it downloads anything. The builds do not hold the update keys yet, so for now Studio cannot check and makes no request.</dd></div>
 <div><dt>Known limits</dt><dd>The user guide has a section called &ldquo;What this build cannot do&rdquo;.</dd></div>
 </dl>
 <div class="actions">

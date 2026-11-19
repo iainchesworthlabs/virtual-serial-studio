@@ -849,6 +849,15 @@ TEST_CASE("studio rules: a line error reaches the fixture, as inject_fault "
         REQUIRE_EQ(b.device->state(), endpoint_state::open);
 
         b.clock.advance(1us);
+        if (std::string(error) == "break")
+        {
+            // A break is an item of the stream, not a fault that stops the
+            // fixture.
+            REQUIRE(wait_until([&] { return b.device->stats().breaks_rx == 1; },
+                               5000ms));
+            REQUIRE_EQ(b.device->state(), endpoint_state::open);
+            continue;
+        }
         REQUIRE(wait_until(
             [&] { return b.device->state() != endpoint_state::open; }, 5000ms));
     }

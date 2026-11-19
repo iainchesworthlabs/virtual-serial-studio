@@ -30,6 +30,18 @@ static FORCEINLINE ULONGLONG VssComInterruptTime(VOID)
     return now;
 }
 
+// The performance counter, for the break and write marks. `Frequency` may be NULL.
+static FORCEINLINE ULONGLONG VssComQpc(_Out_opt_ PULONGLONG Frequency)
+{
+    LARGE_INTEGER count;
+    LARGE_INTEGER frequency;
+    (void)QueryPerformanceCounter(&count);
+    (void)QueryPerformanceFrequency(&frequency);
+    if (Frequency != NULL)
+        *Frequency = (ULONGLONG)frequency.QuadPart;
+    return (ULONGLONG)count.QuadPart;
+}
+
 // The lock that guards a port's state. A user-mode driver has no spin locks:
 // everything runs at passive level, so it is a wait lock.
 typedef WDFWAITLOCK VSSCOM_LOCK;

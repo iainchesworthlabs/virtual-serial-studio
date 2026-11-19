@@ -8,6 +8,7 @@
 
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
+#include "backend/com_numbers.hpp"
 #include "topology/toolbox.hpp"
 #include "widgets/common.hpp"
 #include "widgets/controls.hpp"
@@ -24,6 +25,8 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QRegularExpressionValidator>
+#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -168,6 +171,22 @@ AddSheet::AddSheet(canvas_item item, const std::vector<port_view>& ports,
     grid_->setVerticalSpacing(8);
     layout->addWidget(rows_host_);
 
+    // The COM number row stays hidden until set_com_numbers() offers it.
+    com_ = new QComboBox(this);
+    com_->setObjectName(QStringLiteral("addSheetCom"));
+    com_->setEditable(true);
+    com_->setInsertPolicy(QComboBox::NoInsert);
+    com_->setAccessibleName(tr("COM number"));
+    com_->setValidator(new QRegularExpressionValidator(
+        QRegularExpression(
+            QStringLiteral("(?:[Cc][Oo][Mm])?[0-9]{0,3}|Automatic")),
+        com_));
+    com_row_ = new FormRow(tr("COM number"), com_, {}, this);
+    com_row_->setVisible(false);
+    layout->addWidget(com_row_);
+    connect(com_, &QComboBox::currentTextChanged, this,
+            [this] { update_state(); });
+
     // Baud rate and framing are rarely needed, so they sit behind a toggle
     // that is closed at first.
     more_ = new QToolButton(this);
@@ -184,11 +203,12 @@ AddSheet::AddSheet(canvas_item item, const std::vector<port_view>& ports,
     baud_ = new QComboBox(settings_);
     baud_->setAccessibleName(tr("Baud rate"));
     baud_->setEditable(true);
-    for (const int value : {9600, 19200, 38400, 57600, 115200, 230400})
+    for (const int value : {9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600,
+                                1000000, 2000000, 3000000, 4000000, 12000000})
         baud_->addItem(QString::number(value), value);
     baud_->setCurrentText(QStringLiteral("115200"));
     // The baud rate can be typed as well as chosen, within a sane range.
-    baud_->setValidator(new QIntValidator(50, 4'000'000, baud_));
+    baud_->setValidator(new QIntValidator(50, 12'000'000, baud_));
     framing_ = new QComboBox(settings_);
     framing_->setAccessibleName(tr("Framing"));
     for (const auto& value : kFramings)
@@ -197,6 +217,13 @@ AddSheet::AddSheet(canvas_item item, const std::vector<port_view>& ports,
     settings_layout->addWidget(new FormRow(tr("Framing"), framing_, {}, this));
     settings_->setVisible(false);
     layout->addWidget(settings_);
+    settings_note_ = new QLabel(this);
+    settings_note_->setObjectName(QStringLiteral("addSheetSettingsNote"));
+    settings_note_->setWordWrap(true);
+    settings_note_->setFont(Theme::instance().font(text_style::caption));
+    settings_note_->setProperty("muted", true);
+    settings_note_->hide();
+    layout->addWidget(settings_note_);
     connect(more_, &QToolButton::toggled, this,
             [this](bool on)
             {
@@ -345,6 +372,38 @@ void AddSheet::rebuild_rows(int slots)
         rows_.first().name->setFocus(Qt::OtherFocusReason);
 }
 
+void AddSheet::set_com_numbers(std::map<unsigned, com_use> uses)
+{
+    if (item_ != canvas_item::port)
+        return;
+    com_uses_ = std::move(uses);
+    const QSignalBlocker block(com_);
+    com_->clear();
+    com_->addItem(tr("Automatic"));
+    for (const unsigned candidate :
+         free_com_numbers(com_uses_, 1, 48))
+        com_->addItem(QStringLiteral("COM%1").arg(candidate));
+    com_->setCurrentIndex(0);
+    com_row_->set_hint(
+        tr("A program that opens a fixed name such as COM3 needs the same "
+           "number every time. Automatic picks a free one."));
+    com_row_->setVisible(true);
+    update_state();
+    adjustSize();
+}
+
+unsigned AddSheet::com_number() const
+{
+    if (com_row_ == nullptr || com_row_->isHidden())
+        return 0;
+    QString text = com_->currentText().trimmed();
+    if (text.startsWith(QLatin1String("com"), Qt::CaseInsensitive))
+        text.remove(0, 3);
+    bool ok = false;
+    const unsigned value = text.toUInt(&ok);
+    return ok ? value : 0U;
+}
+
 void AddSheet::rename_default(int index)
 {
     if (index < 0 || index >= rows_.size())
@@ -400,8 +459,88 @@ void AddSheet::update_state()
                 ok = false;
         }
     }
+    if (com_row_ != nullptr && !com_row_->isHidden())
+    {
+        com_row_->clear_error();
+        const unsigned number = com_number();
+        const bool automatic =
+            com_->currentText().trimmed().compare(tr("Automatic"),
+                                                  Qt::CaseInsensitive) == 0 ||
+            com_->currentText().trimmed().isEmpty();
+        QString reason;
+        if (!automatic && (number < 1 || number > 255))
+            reason = tr("Choose a number from 1 to 255, or Automatic.");
+        else if (const auto found = com_uses_.find(number);
+                 !automatic && found != com_uses_.end())
+            reason = tr("COM%1 is used by %2. Choose a free number.")
+                         .arg(number)
+                         .arg(com_use_text(found->second));
+        if (!reason.isEmpty())
+        {
+            com_row_->set_error(reason);
+            ok = false;
+        }
+    }
     if (add_ != nullptr)
         add_->setEnabled(ok);
+    update_source_settings();
+}
+
+void AddSheet::update_source_settings()
+{
+    if (item_ != canvas_item::monitor || settings_note_ == nullptr ||
+        rows_.isEmpty())
+        return;
+    const row& watched = rows_.first();
+    const bool existing = watched.kind->currentData().toInt() == kKindExisting;
+    const QString name = existing ? watched.kind->currentText() : QString();
+    if (name == source_name_)
+        return;
+    source_name_ = name;
+    const auto port =
+        std::find_if(ports_.begin(), ports_.end(),
+                     [&name](const port_view& view) { return view.name == name; });
+    const bool follow = existing && port != ports_.end();
+    baud_->setEnabled(!follow);
+    framing_->setEnabled(!follow);
+    settings_note_->setVisible(follow);
+    if (!follow)
+        return;
+    // Show what the port really has, in the open, so it is not a hidden
+    // default that differs from the port.
+    const vss::serial_settings& have = port->serial;
+    baud_->setCurrentText(QString::number(have.baud_rate));
+    int index = -1;
+    for (std::size_t each = 0; each < std::size(kFramings); ++each)
+    {
+        if (kFramings[each].data_bits == have.data_bits &&
+            kFramings[each].parity == have.parity &&
+            kFramings[each].stop_bits == have.stop_bits)
+            index = static_cast<int>(each);
+    }
+    if (index < 0)
+    {
+        // A framing the list does not have is shown as it is.
+        framing_->addItem(QString::fromStdString(vss::to_label(have)));
+        index = framing_->count() - 1;
+    }
+    framing_->setCurrentIndex(index);
+    settings_note_->setText(
+        tr("Taken from %1. A monitor runs at the speed of the port it "
+           "watches.")
+            .arg(name));
+    if (!more_->isChecked())
+        more_->setChecked(true);
+}
+
+bool AddSheet::settings_editable() const
+{
+    return baud_->isEnabled() && framing_->isEnabled();
+}
+
+QString AddSheet::settings_note() const
+{
+    return settings_note_->isHidden() ? QString() : settings_note_->text();
 }
 
 bundle_request AddSheet::request() const
@@ -425,6 +564,8 @@ bundle_request AddSheet::request() const
         slot.name = slot.kind == slot_kind::existing
                         ? line.kind->currentText()
                         : line.name->text().trimmed();
+        if (slot.kind == slot_kind::new_port && single_kind(item_))
+            slot.com_number = com_number();
         value.slots.append(slot);
     }
     bool ok = false;

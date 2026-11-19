@@ -33,7 +33,10 @@ enum class local_endpoint
     /// (docs/remote-control.md, L1).
     control,
     /// The gateway's administration endpoint, for Studio and `vss_cli`.
-    control_admin
+    control_admin,
+    /// The debug server of one running Studio (docs/debug-api.md).  Its
+    /// instance name is the process number, so it never meets another.
+    debug
 };
 
 /// What the operating system says about the process at the other end of a
@@ -104,6 +107,9 @@ public:
     /// The pipe name or the socket path, for a person to read.
     virtual std::string address() const = 0;
 };
+
+/// The operating system's number for this process, for a name or a log.
+std::uint64_t current_process_id() noexcept;
 
 /// True for a name an agent instance may have: up to 32 of the characters
 /// `A-Z a-z 0-9 _ -`.  The empty name is the user's one ordinary agent; a test

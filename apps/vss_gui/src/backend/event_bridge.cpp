@@ -80,8 +80,16 @@ gui_event convert(const vss::endpoint_event& event, const QString& name)
     out.lines = event.lines;
     out.message = QString::fromStdString(event.message);
     if (event.error)
+    {
         out.error = QString::fromStdString(event.error.message());
+        out.error_code =
+            QString::fromLatin1(event.error.category().name()) +
+            QLatin1Char(':') + QString::number(event.error.value());
+    }
     out.when = event.when;
+    out.phase = event.phase;
+    out.duration = event.duration;
+    out.measured = event.measured;
     return out;
 }
 

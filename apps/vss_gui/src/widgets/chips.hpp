@@ -36,7 +36,10 @@ public:
         neutral,
         /// Something to read or open, not a state: the accent tint and a
         /// filled dot.
-        info
+        info,
+        /// Held by the user for a while: the accent tint and a pause mark,
+        /// two bars, so it is not read as a dot.
+        paused
     };
 
     explicit StatusChip(QWidget* parent = nullptr);
@@ -50,6 +53,15 @@ public:
 
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
+
+    /// The one drawing of a state chip, used by this widget and by the Ports
+    /// table, so a chip is the same size and shape everywhere.  `small` is
+    /// the height of the Ports table's chip (token `chipSmall`).
+    static QFont chip_font();
+    static int chip_height(bool small);
+    static int chip_width(const QString& text, kind value);
+    static void paint(QPainter* painter, const QRect& rect,
+                      const QString& text, kind value);
 
 protected:
     void paintEvent(QPaintEvent* event) override;

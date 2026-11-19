@@ -20,6 +20,8 @@
 #include <QSizeF>
 #include <QVector>
 
+#include <optional>
+
 namespace vss::gui::topology
 {
 
@@ -28,6 +30,22 @@ struct topo_node_input
 {
     vss::endpoint_id id = 0;
     QSizeF size{168.0, 56.0};
+};
+
+/// The sides of two nodes a link is attached to.  A node has a connector on its
+/// left and on its right edge only.
+enum class link_side
+{
+    left,
+    right,
+};
+
+struct link_sides
+{
+    link_side from = link_side::right;
+    link_side to = link_side::left;
+
+    bool operator==(const link_sides&) const = default;
 };
 
 /// One link fed to the layout.
@@ -39,6 +57,10 @@ struct topo_link_input
     QVector<vss::endpoint_id> targets;
     /// Draw a filled arrow head at each target end (one-way and monitor).
     bool arrow = false;
+    /// The sides the user attached the link to by dragging from a connector.
+    /// Empty: the sides that face each other are used.  Used for the routed
+    /// line of a pair, not for the bar of a split, a join or a bus.
+    std::optional<link_sides> sides{};
 };
 
 /// Gaps and margins in scene units.  The design fixes the minimum gap at
@@ -119,6 +141,18 @@ QVector<topo_link_placement>
 compute_link_geometry(const QVector<topo_link_input>& links,
                       const QHash<vss::endpoint_id, QRectF>& rects,
                       const topology_metrics& metrics = {});
+
+/// The pair of connectors that face each other: the link leaves `source` on the
+/// side towards `target` and enters `target` on the side towards `source`.
+/// When one node is wholly right of the other these are the two inner edges;
+/// when they overlap in x the pair with the larger gap (the least backtracking)
+/// is taken, and a tie keeps right-to-left, the way a link flows.
+link_sides facing_sides(const QRectF& source, const QRectF& target);
+
+/// The sides of a link the user drew by dragging from the `dragged` connector
+/// of one of its nodes: that connector, and the opposite one on the other node.
+/// `dragged_is_source` says whether the dragged node is the link's source.
+link_sides sides_for_drag(link_side dragged, bool dragged_is_source);
 
 /// True when the segment passes through any obstacle grown by `clearance`.
 bool segment_blocked(const QLineF& line, const QVector<QRectF>& obstacles,

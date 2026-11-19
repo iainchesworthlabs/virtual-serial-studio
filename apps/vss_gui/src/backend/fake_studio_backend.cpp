@@ -10,6 +10,9 @@
 #include <QStringList>
 #include <QThread>
 
+#include <boost/system/errc.hpp>
+#include <vss/studio/studio.hpp>
+
 #include <algorithm>
 #include <cstddef>
 #include <mutex>
@@ -128,6 +131,63 @@ void FakeStudioBackend::set_peer_state(vss::endpoint_id id, peer_state state)
     if (port_view* view = find_port(id))
     {
         view->peer = state;
+        refresh();
+    }
+}
+
+void FakeStudioBackend::set_stoppable(vss::endpoint_id id, bool stoppable)
+{
+    if (port_view* view = find_port(id))
+    {
+        view->can_stop = stoppable;
+        refresh();
+    }
+}
+
+vss::result<void> FakeStudioBackend::set_port_running(vss::endpoint_id id,
+                                                      bool run)
+{
+    if (const auto error = take_error())
+        return *error;
+    port_view* view = find_port(id);
+    if (view == nullptr)
+        return vss::make_error_code(vss::errc::not_found);
+    if (!view->can_stop)
+        return vss::make_error_code(vss::errc::unsupported);
+    view->stopped = !run;
+    view->paused = false;
+    if (view->connection)
+        view->connection->phase = run ? connect_phase::connecting
+                                      : connect_phase::stopped;
+    refresh();
+    return {};
+}
+
+vss::result<void> FakeStudioBackend::set_port_paused(vss::endpoint_id id,
+                                                     bool paused)
+{
+    if (const auto error = take_error())
+        return *error;
+    port_view* view = find_port(id);
+    if (view == nullptr)
+        return vss::make_error_code(vss::errc::not_found);
+    if (!view->can_stop)
+        return vss::make_error_code(vss::errc::unsupported);
+    view->paused = paused;
+    view->stopped = false;
+    if (view->connection)
+        view->connection->phase =
+            paused ? connect_phase::paused : connect_phase::connecting;
+    refresh();
+    return {};
+}
+
+void FakeStudioBackend::set_connection(vss::endpoint_id id,
+                                       const connection_view& connection)
+{
+    if (port_view* view = find_port(id))
+    {
+        view->connection = connection;
         refresh();
     }
 }
@@ -291,6 +351,7 @@ vss::result<QString> FakeStudioBackend::set_com_number(vss::endpoint_id id,
     if (view->com_number == com_number)
         return view->path;
     if (taken_com_numbers_.contains(com_number) ||
+        hidden_com_numbers_.contains(com_number) ||
         std::any_of(ports_.begin(), ports_.end(),
                     [com_number](const port_view& other)
                     { return other.com_number == com_number; }))
@@ -573,8 +634,12 @@ FakeStudioBackend::bus(const std::vector<vss::endpoint_id>& members,
     if (requested.half_duplex.enabled && !caps_.half_duplex_bus)
         return vss::make_error_code(vss::errc::unsupported);
     if (!vss::valid_half_duplex(requested.half_duplex) ||
-        !vss::valid_latency(requested))
+        !vss::valid_latency(requested) ||
+        !vss::valid_wire_timing(requested.wire_timing))
         return vss::make_error_code(vss::errc::invalid_argument);
+    // A bus has a wire of its own.
+    if (requested.wire_timing.enabled)
+        return vss::make_error_code(vss::errc::unsupported);
     if (members.size() < 2 || members.size() > vss::max_bus_members)
         return vss::make_error_code(vss::errc::invalid_argument);
     for (std::size_t index = 0; index < members.size(); ++index)
@@ -789,13 +854,21 @@ FakeStudioBackend::set_link_options(vss::link_id id,
         return *error;
     // The same rules as the engine, in the same order.
     if (!vss::valid_latency(options) ||
-        !vss::valid_half_duplex(options.half_duplex))
+        !vss::valid_half_duplex(options.half_duplex) ||
+        !vss::valid_wire_timing(options.wire_timing))
         return vss::make_error_code(vss::errc::invalid_argument);
     link_view* view = find_link(id);
     if (view == nullptr)
         return vss::make_error_code(vss::errc::not_found);
+    // Only a monitor chooses which bytes it copies, as in the engine.
+    if (view->shape != link_shape::monitor &&
+        options.direction != vss::monitor_direction::both)
+        return vss::make_error_code(vss::errc::unsupported);
     const bool bus = view->mode == vss::link_mode::bus;
     if (bus && options.policy != vss::merge_policy::interleave)
+        return vss::make_error_code(vss::errc::unsupported);
+    // A bus has a wire of its own.
+    if (bus && options.wire_timing.enabled)
         return vss::make_error_code(vss::errc::unsupported);
     // Only a bus has a half-duplex line, and only where the backend has it.
     if (options.half_duplex.enabled && (!bus || !caps_.half_duplex_bus))
@@ -1114,10 +1187,13 @@ vss::config::document FakeStudioBackend::snapshot() const
         }
         entry.emulate_modem_lines = view.options.emulate_modem_lines;
         entry.policy = view.options.policy;
+        entry.direction = view.options.direction;
         entry.delay_ms = view.options.delay_ms;
         entry.jitter_ms = view.options.jitter_ms;
         if (view.shape == link_shape::bus)
             entry.half_duplex = view.options.half_duplex;
+        else
+            entry.wire_timing = view.options.wire_timing;
         document.links.push_back(std::move(entry));
     }
     return document;
@@ -1276,8 +1352,10 @@ FakeStudioBackend::build_document(const vss::config::document& document,
         view.id = next_link++;
         view.options.emulate_modem_lines = entry.emulate_modem_lines;
         view.options.policy = entry.policy;
+        view.options.direction = entry.direction;
         view.options.delay_ms = entry.delay_ms;
         view.options.jitter_ms = entry.jitter_ms;
+        view.options.wire_timing = entry.wire_timing;
         // Map the document's mode name to a shape.  Any other mode is
         // one-way.  A bus needs a backend that supports shared buses.
         if (entry.mode == "duplex")
@@ -1426,6 +1504,104 @@ vss::result<share_view> FakeStudioBackend::share_serial(const QString& uri,
     return view;
 }
 
+vss::result<void> FakeStudioBackend::check_listen_free(const QString& uri,
+                                                       vss::endpoint_id ignore,
+                                                       bool) const
+{
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    for (const port_view& view : ports_)
+    {
+        if (view.id != ignore &&
+            vss::listen_uris_overlap(view.path.toStdString(),
+                                     uri.toStdString()))
+            return boost::system::errc::make_error_code(
+                boost::system::errc::address_in_use);
+    }
+    return {};
+}
+
+vss::result<network_attach_view>
+FakeStudioBackend::attach_network(vss::endpoint_id existing,
+                                  const QString& name, const QString& uri,
+                                  bool keep_trying)
+{
+    network_attach_view view;
+    if (existing == 0)
+    {
+        const auto made =
+            create_virtual_port(name, vss::virtual_port_kind::loopback, true);
+        if (!made)
+            return made.error();
+        existing = *made;
+        view.created = *made;
+    }
+    else if (!port(existing))
+    {
+        return vss::make_error_code(vss::errc::not_found);
+    }
+    const auto undo = [this, &view]
+    {
+        if (view.created != 0)
+            static_cast<void>(remove_port(view.created));
+    };
+
+    if (const auto taken = check_listen_free(uri, 0, false); !taken)
+    {
+        undo();
+        return taken.error();
+    }
+    // A test makes the next client refuse with `fail_next`; with `keep_trying`
+    // it is made anyway and waits.
+    const auto refused = take_error();
+    if (refused && !keep_trying)
+    {
+        undo();
+        return *refused;
+    }
+    auto added = attach_serial(name, uri, vss::serial_settings{}, true);
+    if (!added)
+    {
+        undo();
+        return added.error();
+    }
+    view.port = *added;
+    view.waiting = refused.has_value();
+    const auto link = connect_ports(existing, view.port, vss::link_options{});
+    if (!link)
+    {
+        static_cast<void>(remove_port(view.port));
+        undo();
+        return link.error();
+    }
+    view.link = *link;
+    return view;
+}
+
+vss::result<void> FakeStudioBackend::set_network_address(vss::endpoint_id id,
+                                                         const QString& uri,
+                                                         bool)
+{
+    if (const auto error = take_error())
+        return *error;
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    const auto it =
+        std::find_if(ports_.begin(), ports_.end(),
+                     [id](const port_view& view) { return view.id == id; });
+    if (it == ports_.end())
+        return vss::make_error_code(vss::errc::not_found);
+    if (it->kind != vss::endpoint_kind::tcp &&
+        it->kind != vss::endpoint_kind::udp &&
+        it->kind != vss::endpoint_kind::rfc2217)
+        return vss::make_error_code(vss::errc::unsupported);
+    if (const auto taken = check_listen_free(uri, id, false); !taken)
+        return taken.error();
+    it->path = uri;
+    it->description = uri;
+    it->kind = kind_for_uri(uri);
+    refresh();
+    return {};
+}
+
 vss::result<vss::link_id> FakeStudioBackend::bridge(const QString& from_uri,
                                                     const QString& to_uri)
 {
@@ -1504,8 +1680,8 @@ void FakeStudioBackend::refresh()
     // thread's, like the engine adapter's.
     if (QThread::currentThread() != thread())
     {
-        QMetaObject::invokeMethod(this, [this] { refresh(); },
-                                  Qt::QueuedConnection);
+        QMetaObject::invokeMethod(
+            this, [this] { refresh(); }, Qt::QueuedConnection);
         return;
     }
     Q_EMIT ports_changed();
@@ -1543,8 +1719,9 @@ bool FakeStudioBackend::remove_licence(const QString& file_name)
 {
     removed_licences_ << file_name;
     const auto before = licence_.files.size();
-    std::erase_if(licence_.files, [&](const licence_file_view& file)
-                  { return file.file_name == file_name && !file.machine_wide; });
+    std::erase_if(
+        licence_.files, [&](const licence_file_view& file)
+        { return file.file_name == file_name && !file.machine_wide; });
     if (licence_.files.size() == before)
         return false;
     // The fake keeps no folders: with the file in use gone, what is left is

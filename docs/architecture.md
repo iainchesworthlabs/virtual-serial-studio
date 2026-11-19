@@ -280,7 +280,7 @@ touched. Before it, the GUI made the link again with a new id for any of these.
 
 | Option | What a change does |
 |---|---|
-| `delay_ms`, `jitter_ms` | Every route gets a new delay line (none when both are now zero) and the old lines are closed, so the bytes they still hold are **discarded**, as when a target is removed. If neither changed, the lines are the same objects and keep their bytes. |
+| `delay_ms`, `jitter_ms`, `wire_timing` | Every route gets a new delay line (none when the delay, the jitter and the wire timing are all off) and the old lines are closed, so the bytes they still hold are **discarded**, as when a target is removed. If neither changed, the lines are the same objects and keep their bytes. |
 | `policy` | Each route's `arbitrated` flag is worked out again. Into `owner` the link has no owner until a publisher on an arbitrated route sends first or `set_owner` names one. Out of `owner` the stored owner is cleared. `owner` to `owner` leaves the owner as it is. |
 | `emulate_modem_lines` on, or `wiring` while on | The current outputs of every sender are pushed along the link through the new wiring, as `set_link_wiring` does, so the receivers' inputs follow at once. |
 | `emulate_modem_lines` off | Each endpoint the link drove loses the inputs it drove, as when a cable is pulled, unless another link still drives it, and then it shows that link's sender, as after `remove_target`. |
@@ -291,7 +291,7 @@ The rules for each kind of link:
 | Link | Rule |
 |---|---|
 | `connect`, `split`, `join`, `redirect` | Every option may change. |
-| `monitor` | Every option may change. A `monitor` is a one-way link with `emulate_modem_lines` false, and the saved topology tells it from a `redirect` by that flag, so turning the lines on saves it as a `redirect` and off again as a `monitor`. The file takes a delay and a policy on every link, so no combination is refused for being unsaveable, and the options read back from the saved file are the ones set. The wiring is the one option the file does not store. |
+| `monitor` | Every option may change. A `monitor` is a one-way link with `emulate_modem_lines` false, and the saved topology tells it from a `redirect` by that flag, so turning the lines on saves it as a `redirect` and off again as a `monitor`. The file takes a delay and a policy on every link, so no combination is refused for being unsaveable, and the options read back from the saved file are the ones set. The wiring is the one option the file does not store. `direction` (`both`, `transmit` or `receive`) says which bytes of the monitored port the monitor copies: what its program writes, what links write into it, or both. It may change while the monitor carries traffic. Any value but `both` is `unsupported` on a link that is not a monitor, and so on a monitor whose lines are turned on. |
 | `bus` | Delay, jitter and the half-duplex line may change. `emulate_modem_lines` is stored as false whatever is passed, as on creation. Any policy but `interleave` is `unsupported`. The wiring is ignored and the bus keeps the wiring it has: it has no lines, so it means nothing, and only `set_link_wiring`, which is asked for nothing else, refuses it with `unsupported`. |
 
 The refusals, and nothing is changed by any of them: `invalid_argument` for a
@@ -447,6 +447,45 @@ honouring the request for a program whose windows are all minimised or covered,
 so a delay in Studio's own window can go back to the 15.6 ms tick while the
 window cannot be seen; the agent has no window and is not affected.
 
+### Data passes through a port
+
+A chunk that a link writes into an endpoint is carried on along that
+endpoint's other links, as if the endpoint had read it. With `client <-> p4`,
+`p4 <-> server` and `p4` on a bus, the client's bytes reach the server and the
+other members of the bus, and the server's bytes reach the client and the bus.
+
+* **One delivery for each endpoint.** The hub passes a set of visited endpoints
+  along with the chunk: the endpoint it was read from and every endpoint it has
+  been written to, including every member of a bus it crossed. A route into an
+  endpoint in the set is not taken. A chunk is therefore written to an endpoint
+  once, never goes back to where it came from, and cannot go round a loop.
+  The cycle rules refuse a loop of links when it is made, so the set is what
+  keeps the two-way links and the buses, which are loops of two routes, from
+  sending a chunk back. The set also holds the links the chunk has crossed, and
+  a chunk does not leave over a link it arrived by, so the listeners of a split
+  still do not hear each other.
+* **Directions are kept.** A route is taken only in its own direction, so a
+  one-way link (`redirect`, `monitor`, a split's targets) passes data on from its
+  target but never against it. An owner link still forwards only for its owner,
+  and a half-duplex bus still judges the chunk as sent by the member it came
+  through.
+* **A monitor can pick a direction.** A monitor's `direction` is `both` (the
+  default), `transmit` (only what the port's program writes) or `receive` (only
+  what links write into the port). In the saved file it is `"direction"` on a
+  link with `"mode": "monitor"`, left out when it is `both`, so older files mean
+  `both`.
+* **Each hop is counted once.** Every link the chunk crosses counts its bytes
+  and messages, a monitor on a port copies what that port reads and what is
+  written into it, and the endpoints count their own bytes. A write that an
+  endpoint refuses because its queue is full is counted in that endpoint's
+  `dropped`, as before.
+* **Delays add up.** A link with a delay holds the chunk for its delay and then
+  carries it on, so the second link's delay starts when the first one has
+  delivered.
+* **No cost without a second link.** The set is made only when an endpoint the
+  chunk reaches has routes of its own, so a plain two-way link or a split does
+  what it did before, with no extra allocation.
+
 ### The shared bus
 
 A bus is the one link that is a broadcast domain rather than a set of
@@ -502,6 +541,100 @@ Any endpoint kind may be a member: a driver port, a pseudo terminal, a loopback
 port, a real serial port, and TCP, UDP and RFC 2217 ports, so a port on another
 computer can sit on the same bus.
 
+### Wire timing
+
+`link_options::wire_timing` (off by default, `unsupported` on a bus, which has a
+wire of its own) makes a link carry its traffic at the speed a serial wire would,
+and not as fast as the program wrote it. The plan and the reasons are in
+[`wire-timing-plan.md`](wire-timing-plan.md); this is what is built.
+
+**Wire time.** `wire_time(bit_rate, framing, bytes)` in `vss/core/wire_time.hpp`
+is `bytes * bits_per_character / bit_rate`, where a character is a start bit,
+5 to 8 data bits, an optional parity bit and 1, 1.5 or 2 stop bits. It is counted
+in half bits so that 1.5 stop bits stay whole: 8N1 is 20 half bits, 8E1 and 8N2
+are 22, 5N1.5 is 15. `bus_line::wire_time` is this function, with 8N1 as the
+default framing, so a bus that knows no framing gives the numbers it always did.
+
+**Pacing.** `wire_pacer` (`vss/core/wire_pacer.hpp`) is the model, with no clock:
+every call is given the time the item would be released without pacing. One
+pacer belongs to each route's delay line. An item is released at
+
+    release = max(source_time + delay + jitter, previous_release + previous_wire_time)
+
+so a long chunk holds back the next item for as long as it takes on the wire, and
+a break holds it for its own length (one character at the sender's rate when the
+length was not measured; a `begin` holds nothing, the `end` or `complete` holds).
+Items keep their order, so the line is still a queue. A route with the option off
+has no pacer and pays nothing; a link with the option on but no delay still gets
+a delay line, with a delay of zero.
+
+**Runs.** A chunk whose wire time is within the timer's accuracy is one release.
+A longer one is split at character boundaries into runs of at most the larger of
+the accuracy and one character, each released when its first character would
+begin on the wire, so a 513-slot DMX512 frame (8N2 at 250000 bit/s, 22.5 ms) is
+47 releases at 500 us accuracy and not 513. Each run is copied once into the
+queue; a chunk that is one run is moved.
+
+**The rate.** The sender's, in this order: the format the program set on the
+sender's port (`peer_format`, a driver port), the sender's own setting when it is
+a real line (`physical` and `rfc2217`; a virtual port's setting is a default and
+not a choice for the wire, so it does not count), then `wire_timing.bit_rate` and
+`framing` of the link (framing 8N1 when not given). When none is known the link
+is not paced for that item, and a `log_message` event says "no rate for this
+link" once for the route. The far port's rate is never used. A rate difference
+between the ends stays the warning it was.
+
+**The file.** A link with the option on is saved with the object `wire_timing`
+and, inside it, `bit_rate` and `framing` (`8N1`, `7E2`, `5N1.5`) only when
+given. A link with it off is saved without the member, so every file from before
+reads as off, the schema version is still 1, and `to_json` of a setup that never
+used it is byte for byte what it was. A Studio from before the option refuses a
+file that has it ("is not a member of a setup"), as it does for any member it
+does not know; it does not read the link as unpaced.
+
+**Changing it.** It is one of the options `set_link_options` changes in place. A
+change of `wire_timing` makes every route a new delay line and closes the old,
+so what they still hold is discarded, as for a changed delay.
+
+**Counters.** `link_stats` has `paced_releases` (items released through the
+pacer), `late_releases` (more than 250 us after the time the pacer gave),
+`max_late_us` and `spin_refused` (see below). They are shared by the routes of
+the link, are shown by `hub::find_link` and are zero for a link that is not
+paced. A release is late against the time the wire gave it, not against when the
+program wrote.
+
+#### Timer accuracy, spinning and what each platform gives
+
+A normal timer is no better than about a millisecond (15 ms on Windows without
+the 1 ms timer period), and 3.5 characters at 115200 baud is 330 us. A paced line
+therefore does three things:
+
+1. **The timer.** On Windows a paced route waits on a high resolution waitable
+   timer (`CreateWaitableTimerExW` with `CREATE_WAITABLE_TIMER_HIGH_RESOLUTION`,
+   Windows 10 version 1803 and later) through asio's `object_handle`, about
+   0.5 ms. Where the system refuses to make one the route keeps asio's steady
+   timer, which is as good as the multimedia timer period the hub asks for
+   (`hub_options::fine_timers`), about 1 ms. Linux and macOS use the steady
+   timer, which is already within about 0.2 ms (`platform::timer_accuracy`).
+   The platform code is `src/platform/<windows|posix>/precise_timer_*.cpp`,
+   picked by CMake.
+2. **The spin.** The timer is set for the release time minus the timer's
+   accuracy. When it fires early the line spins on the clock for the rest, never
+   for more than 1 ms for one release. All paced routes of a hub share one
+   allowance of 100 ms of spinning for every second, one tenth of a core
+   (`spin_budget`). A release that wants to spin when the allowance is used up is
+   refused, counted in `spin_refused`, and made from the timer at its own time,
+   so it is late by the timer's accuracy and counted in `late_releases` if that
+   is over 250 us. The line never claims a time it did not keep. A route on a
+   hub clock a test moves does not spin and polls every millisecond, as every
+   delay line does.
+3. **The count.** Every release is compared with its time, so the cost of the
+   platform is a number on the link, not a belief.
+
+Measured lateness on this repository's Windows 11 machine is in
+[`wire-timing-lateness.md`](wire-timing-lateness.md). Linux and macOS have not
+been measured; `tests/bench` has the run that does it.
+
 ### The half-duplex line
 
 A bus made as above gives the hearing of a two-wire RS-485 pair and none of its
@@ -511,9 +644,12 @@ so when two do not. A bus without the option takes none of the paths below, and
 its routing, its counters, its events and its saved file are what they were.
 
 **What "the line is busy" means.** The bus has a line rate, `bit_rate`, in bits
-per second (50 to 4,000,000; a byte is ten bits, as 8N1). A chunk of `n` bytes
-that the hub reads from a member at time `t` occupies the wire from `t` until
-`t + 10n / bit_rate`. A second chunk from the same member waits for the first, as
+per second (50 to 12,000,000). A chunk of `n` bytes that the hub reads from a
+member at time `t` occupies the wire from `t` until `t + n * bits / bit_rate`,
+where `bits` is what one character of the sender takes (see *Wire timing*): ten
+for 8N1, 11 for 8E1 or 8N2, 10.5 for 8N1.5. The framing is the one the program
+set on the sender's port when the transport can tell (`peer_format`), and 8N1
+when it cannot. A second chunk from the same member waits for the first, as
 bytes leave a UART one after another. The other members hear a chunk when its
 last byte has left the wire, and not when the hub read it.
 
@@ -648,6 +784,39 @@ target->set_peer_inputs(peer);   // replaces the whole input set
 The inputs are replaced rather than merged so the result does not depend on
 which line moved last. Transports that can drive the device apply the change;
 the rest keep the model and report it through events.
+
+## Breaks
+
+A serial break is not a control line. It is an item of the stream, a `line_break` with a
+`break_phase` (`begin`, `end` or `complete`), a start time, a length and `measured`
+(whether the length was measured, or is one character time that a real device's break is
+at least). `hub::route_chunk` takes a `stream_item`, which is bytes or a break, so one path
+applies the loop checks, the monitor direction, the owner policy, the delay line, the bus
+wire and the counters to both, and a break never overtakes the bytes before it.
+
+* **Into the engine.** A transport reports a break with `transport::set_break_sink`, in the
+  same task as, and straight after, the read completion that carried the bytes before it,
+  so the endpoint sees them in order. `endpoint::receive_break` does the same for a test or
+  a tool. The endpoint counts it (`breaks_rx`; a begin is not counted, so a break is counted
+  once), routes it and publishes an `rx` `line_break` event.
+* **Out of the engine.** A break written to an endpoint is queued with the bytes
+  (`endpoint::write_break`) and shown to the transport in its turn with
+  `transport::async_write_break`. A transport that cannot show one
+  (`can_deliver_break()` false, the default) is not asked: the endpoint logs "break not
+  delivered" once for the port and counts it in `dropped`. The loopback transport and the
+  scripted fixture take a break and say nothing; the Windows driver, a real serial port,
+  the RFC 2217 listener and a POSIX pseudo terminal do not deliver one yet.
+* **Links.** A delay line holds a break for the link's delay with the bytes. A link counts
+  breaks in `link_stats::breaks`, once for each port that receives one, and they add
+  nothing to `bytes` or `messages`. A `monitor` copies a break by its `direction`, with
+  modem lines on or off.
+* **Half-duplex bus.** A break is a transmission of its length: it holds the line while it
+  lasts (one character at the bus rate when it was not measured), another member's chunk
+  inside it is an `overlap`, and members hear it when it has left the wire. A bus acts on a
+  break when it ends, so the `begin` of a running break is not carried on a bus.
+* **RFC 2217.** A client's SET-CONTROL 5 and 6 are a `begin` and an `end` in order with its
+  bytes, with the time between the two commands as the length (it includes the delay of the
+  network). A client that goes with its break on ends it.
 
 ## Why loopback devices echo
 

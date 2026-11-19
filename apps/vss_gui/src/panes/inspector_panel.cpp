@@ -6,6 +6,7 @@
 
 #include "panes/inspector_panel.hpp"
 
+#include "backend/connection_text.hpp"
 #include "language/bidi.hpp"
 #include "panes/fixture_behaviour.hpp"
 #include "panes/fixture_panel.hpp"
@@ -14,20 +15,25 @@
 #include "theme/theme.hpp"
 #include "widgets/chips.hpp"
 #include "widgets/controls.hpp"
+#include "widgets/monitor_direction.hpp"
 #include "widgets/notes.hpp"
 
 #include <vss/core/serial_settings.hpp>
 
+#include <QComboBox>
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLocale>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSignalBlocker>
 #include <QTimer>
+#include <QUrl>
 #include <QVBoxLayout>
 
+#include <algorithm>
 #include <array>
 
 namespace vss::gui
@@ -91,6 +97,8 @@ StatusChip::kind chip_kind(port_state_kind kind)
         return StatusChip::kind::failed;
     case port_state_kind::fixture:
         return StatusChip::kind::fixture;
+    case port_state_kind::paused:
+        return StatusChip::kind::paused;
     }
     return StatusChip::kind::closed;
 }
@@ -227,6 +235,75 @@ void InspectorPanel::build()
     plugin_block_->hide();
     layout->addWidget(plugin_block_);
 
+    // "Watching", for a port that is the end of a monitor link: it says what
+    // the port is, because "waiting for program" alone does not.
+    monitor_block_ = new QWidget(content_);
+    monitor_block_->setObjectName(QStringLiteral("inspectorMonitor"));
+    auto* monitor_layout = new QVBoxLayout(monitor_block_);
+    monitor_layout->setContentsMargins(0, 0, 0, 0);
+    monitor_layout->setSpacing(6);
+    monitor_text_ = new QLabel(monitor_block_);
+    monitor_text_->setObjectName(QStringLiteral("inspectorMonitorText"));
+    monitor_text_->setTextFormat(Qt::PlainText);
+    monitor_text_->setWordWrap(true);
+    monitor_text_->setFont(Theme::instance().font(text_style::body));
+    monitor_layout->addWidget(monitor_text_);
+    auto* monitor_row = new QHBoxLayout();
+    monitor_row->setSpacing(8);
+    monitor_open_ = new QPushButton(monitor_block_);
+    monitor_open_->setObjectName(QStringLiteral("inspectorMonitorOpen"));
+    set_role(monitor_open_, "quiet");
+    monitor_open_->setProperty("size", QStringLiteral("small"));
+    monitor_open_->setCursor(Qt::PointingHandCursor);
+    polish(monitor_open_);
+    connect(monitor_open_, &QPushButton::clicked, this,
+            [this]
+            {
+                if (watched_ != 0)
+                    Q_EMIT monitor_requested(watched_);
+            });
+    monitor_row->addWidget(monitor_open_, 0, Qt::AlignVCenter);
+    monitor_direction_ = new QComboBox(monitor_block_);
+    monitor_direction_->setObjectName(QStringLiteral("inspectorMonitorDirection"));
+    monitor_direction_->setAccessibleName(tr("Direction"));
+    fill_monitor_direction(monitor_direction_, vss::monitor_direction::both);
+    connect(monitor_direction_, &QComboBox::activated, this,
+            [this]
+            {
+                if (refreshing_ || monitor_link_ == 0)
+                    return;
+                const auto link = backend_.link(monitor_link_);
+                if (!link)
+                    return;
+                vss::link_options options = link->options;
+                options.direction = static_cast<vss::monitor_direction>(
+                    monitor_direction_->currentData().toInt());
+                if (const auto done =
+                        backend_.set_link_options(monitor_link_, options);
+                    !done)
+                {
+                    Q_EMIT error_message(
+                        tr("The monitor's direction could not be changed."));
+                }
+                refresh();
+            });
+    auto* direction_caption = new QLabel(tr("Direction"), monitor_block_);
+    direction_caption->setFont(Theme::instance().font(text_style::caption));
+    direction_caption->setProperty("muted", true);
+    monitor_layout->insertWidget(1, direction_caption);
+    monitor_layout->insertWidget(2, monitor_direction_);
+    monitor_direction_hint_ = new QLabel(monitor_block_);
+    monitor_direction_hint_->setObjectName(
+        QStringLiteral("inspectorMonitorDirectionHint"));
+    monitor_direction_hint_->setWordWrap(true);
+    monitor_direction_hint_->setFont(Theme::instance().font(text_style::caption));
+    monitor_direction_hint_->setProperty("muted", true);
+    monitor_layout->insertWidget(3, monitor_direction_hint_);
+    monitor_row->addStretch(1);
+    monitor_layout->addLayout(monitor_row);
+    monitor_block_->hide();
+    layout->addWidget(monitor_block_);
+
     // Details form: captions in column 0, values in column 1, which stretches.
     auto* form = new QGridLayout();
     form->setHorizontalSpacing(8);
@@ -236,7 +313,46 @@ void InspectorPanel::build()
     int row = 0;
     form->addWidget(caption(tr("State"), content_), row, 0, Qt::AlignVCenter);
     state_ = new StatusChip(content_);
+    // The same size as the chip in the Ports table.
+    state_->set_small(true);
+    state_->setObjectName(QStringLiteral("inspectorStateChip"));
     form->addWidget(state_, row++, 1, Qt::AlignLeft | Qt::AlignVCenter);
+
+    // Stop or Start, for a port made from an address: its links stay, and
+    // while it is stopped nothing tries to open it.
+    run_caption_ = caption(tr("Connection"), content_);
+    run_row_ = new QWidget(content_);
+    auto* run_layout = new QHBoxLayout(run_row_);
+    run_layout->setContentsMargins(0, 0, 0, 0);
+    run_layout->setSpacing(8);
+    pause_button_ = new QPushButton(tr("Pause"), run_row_);
+    pause_button_->setObjectName(QStringLiteral("inspectorPauseButton"));
+    pause_button_->setProperty("size", QStringLiteral("small"));
+    polish(pause_button_);
+    connect(pause_button_, &QPushButton::clicked, this,
+            [this]
+            {
+                if (selected_ != 0 && port_)
+                    Q_EMIT pause_requested(selected_, !port_->paused);
+            });
+    run_layout->addWidget(pause_button_);
+    run_button_ = new QPushButton(tr("Stop"), run_row_);
+    run_button_->setObjectName(QStringLiteral("inspectorRunButton"));
+    run_button_->setProperty("size", QStringLiteral("small"));
+    polish(run_button_);
+    connect(run_button_, &QPushButton::clicked, this,
+            [this]
+            {
+                if (selected_ != 0 && port_)
+                    Q_EMIT run_requested(selected_, port_->stopped);
+            });
+    run_layout->addWidget(run_button_);
+    run_layout->addStretch(1);
+    form->addWidget(run_caption_, row, 0, Qt::AlignVCenter);
+    form->addWidget(run_row_, row++, 1, Qt::AlignLeft | Qt::AlignVCenter);
+    run_caption_->hide();
+    run_row_->hide();
+    run_button_->hide();
 
     form->addWidget(caption(tr("Path"), content_), row, 0, Qt::AlignVCenter);
     // The path can be selected with the mouse or copied with its own button.
@@ -295,6 +411,34 @@ void InspectorPanel::build()
     keep_left_to_right(traffic_);
     traffic_->setFont(Theme::instance().font(text_style::data));
     form->addWidget(traffic_, row++, 1);
+
+    // A network client's connection: where it goes, since when, and what has
+    // gone through since it came up.  Shown only for a client.
+    const auto add_connection_row = [&](connection_row& entry,
+                                        const QString& name)
+    {
+        entry.caption = caption(name, content_);
+        entry.value = new QLabel(content_);
+        entry.value->setObjectName(QStringLiteral("inspectorConnectionValue"));
+        entry.value->setAccessibleName(name);
+        entry.value->setFont(Theme::instance().font(text_style::data));
+        entry.value->setWordWrap(true);
+        entry.value->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        keep_left_to_right(entry.value);
+        form->addWidget(entry.caption, row, 0, Qt::AlignTop);
+        form->addWidget(entry.value, row++, 1);
+        entry.caption->hide();
+        entry.value->hide();
+    };
+    add_connection_row(remote_row_, tr("Remote"));
+    add_connection_row(local_row_, tr("Local"));
+    add_connection_row(connected_row_, tr("Connected at"));
+    add_connection_row(error_row_, tr("Last error"));
+    add_connection_row(next_try_row_, tr("Next try"));
+    add_connection_row(received_row_, tr("Received"));
+    add_connection_row(sent_row_, tr("Sent"));
+    add_connection_row(reconnects_row_, tr("Reconnects"));
+    add_connection_row(history_row_, tr("Recent events"));
 
     // The serial number spans both columns and is advanced-only (see
     // set_advanced), and only for physical ports.
@@ -528,6 +672,120 @@ void InspectorPanel::update_plugin_part()
     }
 }
 
+void InspectorPanel::update_connection_rows(const port_view& port)
+{
+    const bool shown = port.connection.has_value();
+    for (connection_row* entry :
+         {&remote_row_, &local_row_, &connected_row_, &error_row_,
+          &next_try_row_, &received_row_, &sent_row_, &reconnects_row_,
+          &history_row_})
+    {
+        entry->caption->setVisible(shown);
+        entry->value->setVisible(shown);
+    }
+    if (!shown)
+        return;
+    const connection_view& connection = *port.connection;
+    const bool up = connection.phase == connect_phase::connected;
+
+    const QUrl target(connection.target);
+    remote_row_.value->setText(
+        target.port() > 0
+            ? tr("%1, port %2").arg(target.host()).arg(target.port())
+            : target.host());
+    // The engine's client transport does not say which local address and
+    // port it uses (capability `network_local_address`), so this says so.
+    local_row_.value->setText(backend_.caps().network_local_address && up
+                                  ? QString()
+                                  : tr("Not reported"));
+    connected_row_.value->setText(
+        up ? QLocale().toString(connection.connected_at, QLocale::ShortFormat)
+           : tr("Not connected"));
+    error_row_.value->setText(connection.reason.isEmpty()
+                                  ? tr("None")
+                                  : connection_text::error_with_code(connection));
+    next_try_row_.value->setText(
+        connection.phase == connect_phase::retrying &&
+                connection.next_try_at.isValid()
+            ? QLocale().toString(connection.next_try_at.time(),
+                                 QLocale::LongFormat)
+            : tr("None planned"));
+    // The last events with the time of each, newest last.
+    QStringList lines;
+    for (const connection_event& entry : connection.history)
+        lines << tr("%1  %2").arg(
+            QLocale().toString(entry.when.time(), QLocale::LongFormat),
+            entry.text);
+    history_row_.value->setText(lines.isEmpty() ? tr("None yet")
+                                                : lines.join(QLatin1Char('\n')));
+    // The counters run from when the connection came up, not from when the
+    // port was made.
+    const auto since = [](quint64 now, quint64 base)
+    { return now >= base ? now - base : now; };
+    if (up)
+    {
+        received_row_.value->setText(
+            tr("%1 in %n read(s)", nullptr,
+               static_cast<int>(since(port.stats.read_ops,
+                                      connection.base_reads)))
+                .arg(format_bytes(since(port.stats.bytes_rx,
+                                        connection.base_bytes_rx))));
+        sent_row_.value->setText(
+            tr("%1 in %n write(s)", nullptr,
+               static_cast<int>(since(port.stats.write_ops,
+                                      connection.base_writes)))
+                .arg(format_bytes(since(port.stats.bytes_tx,
+                                        connection.base_bytes_tx))));
+    }
+    else
+    {
+        received_row_.value->setText(tr("Not connected"));
+        sent_row_.value->setText(tr("Not connected"));
+    }
+    reconnects_row_.value->setText(QString::number(connection.reconnects));
+}
+
+void InspectorPanel::update_monitor_block()
+{
+    watched_ = 0;
+    monitor_link_ = 0;
+    vss::monitor_direction direction = vss::monitor_direction::both;
+    if (port_.has_value())
+    {
+        for (const link_view& link : backend_.links())
+        {
+            if (link.shape == link_shape::monitor &&
+                link.targets.contains(port_->id) && !link.sources.isEmpty())
+            {
+                watched_ = link.sources.front();
+                monitor_link_ = link.id;
+                direction = link.options.direction;
+                break;
+            }
+        }
+    }
+    const auto source = watched_ != 0 ? backend_.port(watched_)
+                                      : std::optional<port_view>{};
+    monitor_block_->setVisible(source.has_value());
+    if (!source)
+        return;
+    monitor_text_->setText(
+        tr("This port is a monitor. It receives a copy of the traffic on %1, "
+           "and what is written to it does not reach %1.")
+            .arg(source->name));
+    {
+        const QSignalBlocker blocker(monitor_direction_);
+        monitor_direction_->setCurrentIndex(std::max(
+            0, monitor_direction_->findData(static_cast<int>(direction))));
+    }
+    monitor_direction_hint_->setText(monitor_direction_description(direction));
+    monitor_direction_->setAccessibleDescription(
+        monitor_direction_description(direction));
+    monitor_open_->setText(tr("Open %1 in the Monitor").arg(source->name));
+    monitor_open_->setAccessibleName(
+        tr("Open %1 in the Monitor").arg(source->name));
+}
+
 void InspectorPanel::update_content()
 {
     const bool has_port = port_.has_value();
@@ -540,6 +798,7 @@ void InspectorPanel::update_content()
     const port_view& port = *port_;
     name_->setText(port.name);
     update_plugin_part();
+    update_monitor_block();
     state_->set_kind(chip_kind(PortModel::state_kind(port)));
     state_->set_text(PortModel::state_text(port));
     state_->setToolTip(port.state == vss::endpoint_state::failed
@@ -552,6 +811,24 @@ void InspectorPanel::update_content()
                                format_bytes(port.stats.bytes_tx)));
     traffic_->setToolTip(tr("Bytes received and sent in total. The status "
                             "bar shows the current rate."));
+    update_connection_rows(port);
+    {
+        const bool can = port.can_stop && backend_.caps().port_stop;
+        run_caption_->setVisible(can);
+        run_row_->setVisible(can);
+        run_button_->setVisible(can);
+        const QString label = port.stopped ? tr("Start") : tr("Stop");
+        run_button_->setText(label);
+        run_button_->setAccessibleName(
+            port.stopped ? tr("Start %1").arg(port.name)
+                         : tr("Stop %1").arg(port.name));
+        // A stopped port has only Start; any other can be paused or resumed.
+        pause_button_->setVisible(backend_.caps().port_pause && !port.stopped);
+        pause_button_->setText(port.paused ? tr("Resume") : tr("Pause"));
+        pause_button_->setAccessibleName(
+            port.paused ? tr("Resume %1").arg(port.name)
+                        : tr("Pause %1").arg(port.name));
+    }
     serial_row_->setVisible(advanced_ &&
                             port.kind == vss::endpoint_kind::physical);
     serial_label_->setText(serial_description());

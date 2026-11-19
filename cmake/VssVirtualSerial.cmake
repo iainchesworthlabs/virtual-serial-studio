@@ -25,7 +25,7 @@ option(VSS_FETCH_VIRTUAL_SERIAL
 set(VSS_VIRTUAL_SERIAL_GIT_REPO
   "https://github.com/iainchesworthlabs/virtual-serial.git" CACHE STRING
   "Git repository used by VSS_FETCH_VIRTUAL_SERIAL")
-set(VSS_VIRTUAL_SERIAL_GIT_TAG "v0.1.0-beta.2" CACHE STRING
+set(VSS_VIRTUAL_SERIAL_GIT_TAG "v0.1.0-beta.3" CACHE STRING
   "Git tag or branch used by VSS_FETCH_VIRTUAL_SERIAL")
 
 # ---------------------------------------------------------------------------

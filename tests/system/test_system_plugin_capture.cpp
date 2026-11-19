@@ -460,8 +460,8 @@ TEST_CASE("plugin capture: a status shows a running recording with its name")
     REQUIRE_EQ(current.bytes, size_of(text));
     REQUIRE_EQ(current.dropped, std::uint64_t{0});
     REQUIRE_EQ(current.recording, std::string("recordings/alpha"));
-    // The index is written last, so a recording that runs has no size yet.
-    REQUIRE_EQ(current.size, std::uint64_t{0});
+    // The size is what is on disk so far, and the index is written last.
+    REQUIRE(!current.failed);
     REQUIRE(!fs::exists(fixture.folder_of(current.recording) /
                         std::string(recording_index_name)));
 }

@@ -8,6 +8,7 @@
 #include <vss/ports/listen_transport.hpp>
 #include <vss/ports/native_lines.hpp>
 #include <vss/ports/serial_transport.hpp>
+#include <vss/trace/recorder.hpp>
 
 #include <boost/asio/bind_executor.hpp>
 #include <boost/asio/error.hpp>
@@ -20,6 +21,23 @@ namespace vss {
 namespace vs = boost::virtual_serial;
 namespace {
 
+/// Opens a device through the serial library and records the call.  The
+/// library makes several operating system calls inside `make_serial_port`
+/// (CreateFile, then the line settings), and the error it returns is the raw
+/// code of whichever failed; the recorder keeps that code with the target and
+/// the baud rate asked for.
+template <class Executor, class Configuration>
+auto traced_open(const Executor& executor, const Configuration& configuration,
+                 boost::system::error_code& ec)
+{
+    std::string args = configuration.target;
+    args += " baud=" + std::to_string(configuration.baud_rate);
+    trace::call_scope scope("serial.open", 0, args);
+    auto port = vs::make_serial_port(executor, configuration, ec);
+    scope.finish(ec);
+    return port;
+}
+
 endpoint_kind map_kind(vs::backend_kind kind) noexcept
 {
     switch (kind)
@@ -31,6 +49,42 @@ endpoint_kind map_kind(vs::backend_kind kind) noexcept
     case vs::backend_kind::udp: return endpoint_kind::udp;
     }
     return endpoint_kind::physical;
+}
+
+/// A network client does not set the serial settings of the server's port: the
+/// port belongs to the server, which has the device, and the client asks what
+/// they are (RFC 2217 SET-BAUDRATE and the others, with the value zero).  A
+/// URI that says `settings=own` keeps the old behaviour of setting them.
+bool takes_device_settings(const vs::serial_config& configuration,
+                           const std::string& uri) noexcept
+{
+    return configuration.backend == vs::backend_kind::rfc2217 &&
+           uri.find("settings=own") == std::string::npos;
+}
+
+parity_mode from_vs(vs::parity_mode value) noexcept
+{
+    switch (value)
+    {
+    case vs::parity_mode::none: return parity_mode::none;
+    case vs::parity_mode::odd: return parity_mode::odd;
+    case vs::parity_mode::even: return parity_mode::even;
+    case vs::parity_mode::mark: return parity_mode::mark;
+    case vs::parity_mode::space: return parity_mode::space;
+    }
+    return parity_mode::none;
+}
+
+stop_bits_mode from_vs(vs::stop_bits_mode value) noexcept
+{
+    switch (value)
+    {
+    case vs::stop_bits_mode::one: return stop_bits_mode::one;
+    case vs::stop_bits_mode::one_point_five:
+        return stop_bits_mode::one_point_five;
+    case vs::stop_bits_mode::two: return stop_bits_mode::two;
+    }
+    return stop_bits_mode::one;
 }
 
 vs::parity_mode to_vs(parity_mode value) noexcept
@@ -129,6 +183,7 @@ serial_transport::serial_transport(const executor_type& executor,
         return;
     }
 
+    configuration.device_settings = takes_device_settings(configuration, uri_);
     kind_ = map_kind(configuration.backend);
     target_ = configuration.target;
     settings_.baud_rate = configuration.baud_rate;
@@ -137,7 +192,7 @@ serial_transport::serial_transport(const executor_type& executor,
     settings_.write_timeout = configuration.write_timeout;
     settings_.exclusive = configuration.exclusive;
 
-    auto port = vs::make_serial_port(executor_, configuration, parse_ec);
+    auto port = traced_open(executor_, configuration, parse_ec);
     if (parse_ec)
     {
         ec = parse_ec;
@@ -173,11 +228,15 @@ serial_transport::serial_transport(const executor_type& executor,
         return;
     }
 
-    configuration.baud_rate = settings.baud_rate;
-    configuration.data_bits = settings.data_bits;
-    configuration.parity = to_vs(settings.parity);
-    configuration.stop_bits = to_vs(settings.stop_bits);
-    configuration.flow_control = to_vs(settings.flow_control);
+    configuration.device_settings = takes_device_settings(configuration, uri_);
+    if (!configuration.device_settings)
+    {
+        configuration.baud_rate = settings.baud_rate;
+        configuration.data_bits = settings.data_bits;
+        configuration.parity = to_vs(settings.parity);
+        configuration.stop_bits = to_vs(settings.stop_bits);
+        configuration.flow_control = to_vs(settings.flow_control);
+    }
     configuration.read_timeout = settings.read_timeout;
     configuration.write_timeout = settings.write_timeout;
     configuration.exclusive = settings.exclusive;
@@ -186,7 +245,7 @@ serial_transport::serial_transport(const executor_type& executor,
     target_ = configuration.target;
     settings_ = settings;
 
-    auto port = vs::make_serial_port(executor_, configuration, parse_ec);
+    auto port = traced_open(executor_, configuration, parse_ec);
     if (parse_ec)
     {
         ec = parse_ec;
@@ -304,13 +363,58 @@ void serial_transport::async_write_some(boost::asio::const_buffer buffer,
     port_->async_write_some(buffer, std::move(handler));
 }
 
+void serial_transport::async_write_break(const line_break&, io_handler handler)
+{
+    boost::asio::post(executor_, [handler = std::move(handler)]
+                      { handler(boost::system::error_code{}, 0); });
+}
+
 void serial_transport::close()
 {
     if (!port_)
         return;
     VSS_PROFILE_ZONE("ports.serial.close");
-    boost::system::error_code ignored;
-    port_->close(ignored);
+    boost::system::error_code closed;
+    trace::call_scope scope("serial.close", 0, target_);
+    port_->close(closed);
+    scope.finish(closed);
+}
+
+bool serial_transport::is_line_error(boost::system::error_code ec) const noexcept
+{
+    // A fixture stops on a fault: that is what it is for.
+    if (kind_ == endpoint_kind::mock || ec.category() != vs::error_category())
+        return false;
+    switch (static_cast<vs::error>(ec.value()))
+    {
+    case vs::error::framing_error:
+    case vs::error::parity_error:
+    case vs::error::overrun:
+    case vs::error::break_detected:
+        return true;
+    default:
+        return false;
+    }
+}
+
+std::optional<line_format> serial_transport::peer_format() const
+{
+    if (kind_ != endpoint_kind::rfc2217 || !port_)
+        return std::nullopt;
+    auto* backend = vs::backend_cast<vs::rfc2217_port>(*port_);
+    if (backend == nullptr)
+        return std::nullopt;
+    const vs::serial_config options = backend->options();
+    // Only what the server said: before its answers, or when Studio set the
+    // settings itself, the transport does not know what the device has.
+    if (!options.device_settings || !backend->settings_known())
+        return std::nullopt;
+    line_format format;
+    format.baud_rate = options.baud_rate;
+    format.data_bits = options.data_bits;
+    format.parity = from_vs(options.parity);
+    format.stop_bits = from_vs(options.stop_bits);
+    return format;
 }
 
 void serial_transport::cancel()

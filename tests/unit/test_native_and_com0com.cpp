@@ -38,6 +38,72 @@ TEST_CASE("enumeration: the COM name database bitmap gives the numbers kept")
     REQUIRE_EQ(numbers.size(), std::size_t{7 + 7});
 }
 
+TEST_CASE("enumeration: what holds each COM number")
+{
+    const auto entry = [](unsigned number, const char* id, bool present)
+    {
+        com_port_entry e;
+        e.number = number;
+        e.instance_id = id;
+        e.description = "port";
+        e.present = present;
+        return e;
+    };
+    const auto find = [](const std::vector<com_number_holder>& rows,
+                         unsigned number)
+    {
+        for (const auto& row : rows)
+        {
+            if (row.number == number)
+                return row;
+        }
+        return com_number_holder{};
+    };
+
+    const auto rows = classify_com_numbers(
+        {1, 2, 3, 4, 5, 10},
+        {3, 7},
+        {entry(1, "SWD\\VSSCOMUM\\0003", false),   // Studio, removed
+         entry(2, "SWD\\VSSCOMUM\\0000", true),    // Studio, running
+         entry(4, "USB\\VID_303A&PID_1001\\1", false), // unplugged adapter
+         entry(5, "COM0COM\\PORT\\CNCB1", true)});
+    REQUIRE_EQ(rows.size(), std::size_t{7});
+
+    REQUIRE(find(rows, 1).kind == com_holder_kind::studio_port_gone);
+    REQUIRE(find(rows, 1).reusable_by_studio());
+    REQUIRE(find(rows, 2).kind == com_holder_kind::present_device);
+    REQUIRE(!find(rows, 2).reusable_by_studio());
+    // Marked and resolving, no device listed.
+    REQUIRE(find(rows, 3).kind == com_holder_kind::name_only);
+    REQUIRE(!find(rows, 3).reusable_by_studio());
+    REQUIRE(find(rows, 4).kind == com_holder_kind::other_port_gone);
+    REQUIRE(!find(rows, 4).reusable_by_studio());
+    REQUIRE(find(rows, 5).kind == com_holder_kind::present_device);
+    // Resolves only.
+    REQUIRE(find(rows, 7).kind == com_holder_kind::name_only);
+    // Only the database marks it.
+    REQUIRE(find(rows, 10).kind == com_holder_kind::database_only);
+    REQUIRE(find(rows, 10).reusable_by_studio());
+    // Sorted.
+    REQUIRE_EQ(rows.front().number, 1u);
+    REQUIRE_EQ(rows.back().number, 10u);
+
+    // A present device beats a gone one with the same number.
+    const auto both = classify_com_numbers(
+        {6}, {}, {entry(6, "SWD\\VSSCOMUM\\0001", false),
+                  entry(6, "USB\\X\\1", true)});
+    REQUIRE_EQ(both.size(), std::size_t{1});
+    REQUIRE(both[0].kind == com_holder_kind::present_device);
+}
+
+TEST_CASE("enumeration: Studio port instance ids")
+{
+    REQUIRE(is_studio_port_instance_id("SWD\\VSSCOMUM\\0003"));
+    REQUIRE(is_studio_port_instance_id("VSSCOM\\PORT\\0001"));
+    REQUIRE(!is_studio_port_instance_id("USB\\VID_303A&PID_1001\\1"));
+    REQUIRE(!is_studio_port_instance_id(""));
+}
+
 TEST_CASE("enumeration: the kept COM numbers are a sorted set or unknown")
 {
     // Windows answers; every other system says it cannot be asked.
