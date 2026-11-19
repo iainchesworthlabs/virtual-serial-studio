@@ -12,7 +12,7 @@
 <div class="vss-guidebar"><div class="vss-guidebar__in">
   <a href="{{ base_url }}/">&larr; Virtual Serial Studio</a>
   {% for path, label in links.bar %}<a href="{{ base_url }}/{{ path }}">{{ label }}</a>
-  {% endfor %}<a href="{{ links.download[0] }}">{{ links.download[1] }}</a>
+  {% endfor %}
   <span class="vss-guidebar__version">Describes version {{ config.extra.version }}</span>
 </div></div>
 {% endblock %}

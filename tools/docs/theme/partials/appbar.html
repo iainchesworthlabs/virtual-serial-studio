@@ -27,7 +27,7 @@
     {%- endfor %}
     </ul>
   </nav>
-  <a class="icl-button icl-button--small vss-appbar__cta" href="{{ links.download[0] }}">{{ links.download[1] }}</a>
+  <a class="icl-button icl-button--small vss-appbar__cta" href="{{ base_url }}/{{ links.download[0] }}"{% if page.url == links.download[0] %} aria-current="page"{% endif %}>{{ links.download[1] }}</a>
   <details class="vss-menu">
     <summary>Menu</summary>
     <div class="vss-menu__panel">

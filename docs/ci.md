@@ -22,7 +22,7 @@ run needs, from the event and the files changed, and the same answer goes to the
 A change to documentation, the changelog or licence text skips the builds. The
 list is in `.github/ci/plan.json`: `docs/`, the top-level `README.md`, `CHANGELOG.md`,
 `CONTRIBUTING.md`, `SECURITY.md` and `AGENTS.md`, and the `README.md` files under
-`apps/`, `libs/`, `cmake/` and `adapters/`, and `website/README.md`, and the tooling that builds
+`apps/`, `libs/`, `cmake/` and `adapters/`, and the tooling that builds
 and checks the documentation site (see [Documentation site](#documentation-site)). It
 does not hold `THIRD_PARTY_NOTICES.md`, which a GUI test compares with
 `third_party.json`, so a change to it builds.
@@ -40,7 +40,7 @@ was cancelled or was skipped.
 |---|---|---|
 | `fuzz.yml` | Push to `develop`, every night | Fuzzes each target for 60 seconds, or 10 minutes at night, within a budget for the whole run; see [Fuzzing](fuzzing.md) |
 | `release.yml` | A `v*` tag, every Monday, on request | Builds the packages and publishes them for a tag; see [Releasing](releasing.md) |
-| `docs.yml` | A pull request that changes the docs (also when it closes), a push to `develop` or `site` | Checks the presets and badges against the repository, then builds this site with `mkdocs build --strict` and checks it (see [Documentation site](#documentation-site)). A change under `website/` also builds the old product website with `tools/site_build.py` and checks it with `tools/site_check.py`, until the front pages replace it. A pull request from this repository gets a preview on the company site, and a push to `site` deploys the live site (see [Publishing](#publishing)). The push to `develop` gives the branch a status of its own |
+| `docs.yml` | A pull request that changes the docs (also when it closes), a push to `develop` or `site` | Checks the presets and badges against the repository, then builds this site with `mkdocs build --strict` and checks it (see [Documentation site](#documentation-site)). A push to `site` first refreshes the release data and the update feed from GitHub (see [Release data and the update feed](#release-data-and-the-update-feed)). A pull request from this repository gets a preview on the company site, and a push to `site` deploys the live site (see [Publishing](#publishing)). The push to `develop` gives the branch a status of its own |
 | `cache-hygiene.yml` | After a CI run on `develop`, a closed pull request, on request | Deletes Actions caches that nothing can restore any more, to keep the repository within its cache quota |
 | `dependabot-auto-merge.yml` | Dependabot pull requests | Turns on auto-merge for minor and patch updates of actions |
 
@@ -57,11 +57,13 @@ Locally:
 python -m pip install --require-hashes -r requirements/docs.txt
 mkdocs serve                                  # read it while editing
 mkdocs build --strict                         # what CI runs; writes build/docs
-python tools/ci/check_site_kit.py             # the four checks of this section; the last two take the built site
+python tools/ci/check_site_kit.py             # the checks of this section; the last three take the built site
 python tools/ci/check_site_address.py
 python tools/ci/check_site_layout.py --site build/docs
 python tools/ci/check_site_pages.py --site build/docs
+python tools/ci/check_release_data.py --site build/docs
 python -I tools/ci/test_site_checks.py        # their own tests; no MkDocs and no built site needed
+python -I tools/ci/test_site_release.py       # the tests of the release data hook and of the refresh; no network
 ```
 
 Set `NO_MKDOCS_2_WARNING=true` to keep MkDocs from printing its notice about version 2. `requirements/docs.txt` is made from
@@ -80,9 +82,10 @@ that is not there and a page missing from the navigation at a level that strict 
 The site has three kinds of page.
 
 - **Front pages.** Markdown with `template: marketing.html` in the front matter. That template (`tools/docs/theme/marketing.html`) is
-  plain HTML on the company shell. It does not extend Material and ships no script. Their links are relative. So far there is one, a
-  placeholder home page (`docs/index.md`) with the name, one sentence and a button to the guide. The others in the plan (products,
-  platforms, solutions, pricing and the rest) come in a later pull request. The menus of the app bar are one list in
+  plain HTML on the company shell. It does not extend Material and ships no script. Their links are relative. So far there are two: a
+  placeholder home page (`docs/index.md`) with the name, one sentence and a button to the guide, and Downloads (`docs/downloads.md`),
+  which is made from the release data (see [Release data and the update feed](#release-data-and-the-update-feed)). The others in the
+  plan (products, platforms, solutions, pricing and the rest) come in a later pull request. The menus of the app bar are one list in
   `tools/docs/theme/partials/links.html`; a menu with items opens as a native `<details>`, so it works with no script, and below 64rem
   the menus fold into one Menu. Only pages that exist are in it.
 - **The guide** (`/virtual-serial-studio/guide/`) **and the pages for programmers** (`/virtual-serial-studio/developers/`). They are
@@ -119,7 +122,7 @@ The program has another address compiled in, `https://virtual-serial-studio.com`
 page). It is not the site's address, and the program does not change for the site. `tools/ci/check_site_address.py` fails when
 `site_url` is another address, when a page of `docs/` other than this one and the plans writes the site's host or the address of the old
 GitHub Pages site, when a file writes the compiled-in host and is not one of the files that `COMPILED_IN` in the script lists (the
-program's source, tests and translations, the changelog, the website, a sample feed, and the pages that say what the program does with
+program's source, tests and translations, the changelog, a sample feed, and the pages that say what the program does with
 that address), and when `README.md` links to the site's host at another address than `site_url`.
 
 ### The company kit and the palette
@@ -160,8 +163,12 @@ most, one contact form. The form is not on a page yet. The script already holds 
 as the endpoint expects, the list of topics, a `label for` every field, a honeypot field inside an `aria-hidden` element and out of the
 tab order, and the consent box with its link to the company's privacy text. Stylesheets may not `@import` or load from an address.
 
-`FIXED` in the script lists the files that must be in the built site: the home page, the guide and developer pages, `theme.css`,
+`FIXED` in the script lists the files that must be in the built site: the home page, the guide, developer and Downloads pages, `theme.css`,
 `icon.svg` and `icl-app.json`. The company's contract also asks for `privacy/` and `support/`; they are added to `FIXED` with those pages.
+
+The pages `licensing/`, `privacy/` and `pricing/` are drafts until the owner says they are not. `check_site_drafts` in the same script
+fails when one of them is in the built site and its main content no longer contains the word DRAFT. A page that is not built yet is not
+an error, and the script says which are not there. The check goes when the owner takes the marks off.
 
 ### Links out of `docs/`
 
@@ -177,11 +184,63 @@ gives an app's icon.
 **Version.** `tools/docs/site_version_hook.py` reads the version from `project(virtual_serial_studio VERSION ...)` in `CMakeLists.txt`,
 and the templates say which version the pages describe.
 
+### Release data and the update feed
+
+The Downloads page and the update feed are made from three files in `tools/docs/release/`. The folder is outside `docs/`, so MkDocs does
+not publish the files as they are.
+
+| File | What it is | Who writes it |
+|---|---|---|
+| `release.json` | The newest release of the repository: its tag, date, whether it is a pre-release, its address on GitHub, and each file with its name, size and address | `tools/docs/refresh_release.py` |
+| `download_rules.json` | How the files of the release are sorted on the Downloads page: the group of each file, its label and the order | A person |
+| `update-feed.json` | The signed update feed of the newest release that has one (the `feed` job of `release.yml` attaches it to the release). The file may not exist | `tools/docs/refresh_release.py` |
+
+`tools/docs/site_release_hook.py` uses them when the site is built:
+
+- It replaces `<!-- releases:downloads -->` in a page's Markdown with the table of files: one table for each system, with the size of each
+  file and a link to its `.asc` signature. Every address is a link to github.com, and the hook refuses any other. It also replaces
+  `<!-- releases:version -->` (`0.1.0-rc.5`), `<!-- releases:tag -->` (`v0.1.0-rc.5`), `<!-- releases:date -->` (`15 November 2026`),
+  `<!-- releases:kind -->` (`final release`, `release candidate` or `pre-release`) and `<!-- releases:url -->` (the release on GitHub).
+  Any other `releases:` marker stops the build. The same values are in `config.extra.release` for the templates.
+- If `update-feed.json` exists it copies that file, byte for byte, to `updates/v1/feed.json` of the built site. The file is not read as text
+  and not changed. If it does not exist the site has no `updates/` folder, and the build logs a plain message.
+
+**Who refreshes them.** The Docs workflow does, on a push to `site` and on no other event: a step before the build runs
+`python3 tools/docs/refresh_release.py` with the job's own token (`GH_TOKEN: ${{ github.token }}` and `contents: read`). The release
+workflow moves `site` after its `feed` job, so that run sees the release and its feed. A pull request, a push to `develop` and the
+`Docs (strict)` job of the release workflow build from the files as they are committed. The refresh in the Docs run is not committed, so
+the committed `release.json` is only as new as the last time someone committed it.
+
+**To refresh by hand:**
+
+```sh
+python tools/docs/refresh_release.py
+```
+
+It makes one request to the GitHub API for the releases of the repository that `repo_url` of `mkdocs.yml` names, pre-releases included
+and drafts not, rewrites `release.json`, and downloads `update-feed.json` of the release with the greatest version that has one. The
+feed is limited to 64 KiB, each request to 15 seconds, only https is used, and a redirect is followed only to GitHub's own hosts. If a
+variable `GH_TOKEN` or `GITHUB_TOKEN` is set, it is sent to the API as a Bearer header (and to nothing else), and never printed. Both
+files are written only after everything was read, so a failure changes nothing. A feed that is committed must verify with the keys in
+`libs/vss_update/src/trusted_keys_release.cpp`, or the check below fails.
+
+**What the deploy does.** The deploy copies the built site, so `updates/v1/feed.json` arrives at
+`https://iainchesworthlabs.com/virtual-serial-studio/updates/v1/feed.json` with the bytes of `update-feed.json`. Studio reads
+`https://virtual-serial-studio.com/updates/v1/feed.json`, which it has compiled in. The plan (`docs/plan/site.md`, decision A) is that the
+company stack answers that address directly with the same file, with no redirect, because Studio refuses a redirect for the feed. That
+rule is in the company stack's repository and not here.
+
+**The check.** `tools/ci/check_release_data.py` holds three things. Every address in `release.json` begins with `repo_url` of
+`mkdocs.yml` and `/releases/`. If the built site has `updates/v1/feed.json`, it verifies with the keys in `trusted_keys_release.cpp`
+through `update_feed.verify_with_keys_file` (a feed when that file lists no key is an error, because no Studio would accept it; no feed
+means nothing to check). And the built feed is the same bytes as `update-feed.json`, with a feed in one place and none in the other
+reported. The action `docs-site` runs it with the other checks.
+
 ### In CI
 
 `.github/actions/docs-site` installs MkDocs from the hash-locked `requirements/docs.txt` (`uv pip install --require-hashes --no-build`),
-builds strictly, and runs the four checks of this section in order (`check_site_kit.py`, `check_site_address.py`, `check_site_layout.py`,
-`check_site_pages.py`). Two workflows use it, so they cannot disagree:
+builds strictly, and runs the checks of this section in order (`check_site_kit.py`, `check_site_address.py`, `check_site_layout.py`,
+`check_site_pages.py`, `check_release_data.py`). Three workflows use it, so they cannot disagree:
 
 - `ci.yml`, job `Docs build (strict)`: on every run of the workflow: a pull request, draft or ready, a queue entry, a push to `develop` and a run by hand. It has no path filter, because a required
   check that does not run blocks the pull request; `CI Status` waits for it like it does for the other static jobs.
@@ -189,11 +248,12 @@ builds strictly, and runs the four checks of this section in order (`check_site_
 - `release.yml`, job `Docs (strict)`: on a tag, before the packages are built, so that a broken page stops a release in a few minutes.
 
 The checks' own tests are `tools/ci/test_site_checks.py`: each check passes a good tree and fails, with a reason, on a bad one. The
-`changelog` job of `ci.yml` runs them with the other tests of `tools/ci`.
+release data hook and the refresh have theirs in `tools/ci/test_site_release.py`, which never uses the network. The `changelog` job of
+`ci.yml` runs both with the other tests of `tools/ci`.
 
 A change to the documentation tooling alone (`mkdocs.yml`, `tools/docs/`, `tools/ci/site_*.py`, `tools/ci/check_site_*.py`,
-`tools/ci/test_site_checks.py`, `requirements/docs.*` and `.github/actions/docs-site/`) is listed under `docs` in `.github/ci/plan.json`,
-so it does not start the build legs.
+`tools/ci/check_release_data.py`, `tools/ci/test_site_*.py`, `requirements/docs.*` and `.github/actions/docs-site/`) is listed under
+`docs` in `.github/ci/plan.json`, so it does not start the build legs.
 
 ### Publishing
 

@@ -34,7 +34,7 @@ folder for each into ``<out>/stable`` and ``<out>/preview``, which are what
 ``payload`` reads. It also writes ``<out>/serial.json`` and prints the serial,
 the number of published releases (docs/updates.md, section 10).
 
-A release folder holds ``release.json`` (the shape of website/data/release.json:
+A release folder holds ``release.json`` (the shape of tools/docs/release/release.json:
 tag, prerelease, published_at, html_url and the assets with name, size and url),
 ``SHA512SUMS`` (as ``sha512sum`` writes it) and, if there is one,
 ``summary.txt`` (plain text, UTF-8: the summary of the release).
@@ -78,7 +78,6 @@ import urllib.request
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Union
 
 import plugin_sign as ps
-import site_build
 from plugin_sign import (
     EXIT_FAILED,
     EXIT_OK,
@@ -1157,6 +1156,63 @@ def pick_releases(
     return newest[False], newest[True], published
 
 
+def release_record(entries: Any, repo: str) -> Dict[str, Any]:
+    """The first of the releases that the GitHub API gave, as the record
+    ``release.json`` holds: the tag, whether it is a pre-release, when it was
+    published, the address of the release and each file with its name, size
+    and download address, sorted by name. Every address must be one of
+    ``repo``'s releases (``https://github.com/<repo>/releases/``). Raises
+    ``ValueError`` with the reason when the release is not one."""
+    prefix = "https://github.com/%s/releases/" % repo
+    if not isinstance(entries, list) or not entries:
+        raise ValueError("the GitHub API returned no releases for %s" % repo)
+    entry = entries[0]
+    if not isinstance(entry, dict):
+        raise ValueError("the first release must be a JSON object")
+
+    def text(value: Any, where: str) -> str:
+        if not isinstance(value, str) or not value:
+            raise ValueError("%s must be a non-empty string" % where)
+        return value
+
+    def address(value: Any, where: str) -> str:
+        found = text(value, where)
+        if not found.startswith(prefix):
+            raise ValueError("%s '%s' does not start with %s" % (where, found, prefix))
+        return found
+
+    prerelease = entry.get("prerelease")
+    if not isinstance(prerelease, bool):
+        raise ValueError("the release has no boolean 'prerelease'")
+    listed = entry.get("assets")
+    if not isinstance(listed, list):
+        raise ValueError("the release 'assets' must be a JSON array")
+
+    assets: List[Dict[str, Any]] = []
+    for index, raw in enumerate(listed):
+        if not isinstance(raw, dict):
+            raise ValueError("assets[%d] must be a JSON object" % index)
+        size = raw.get("size")
+        if isinstance(size, bool) or not isinstance(size, int) or size < 0:
+            raise ValueError("assets[%d].size must be a non-negative integer" % index)
+        assets.append(
+            {
+                "name": text(raw.get("name"), "assets[%d].name" % index),
+                "size": size,
+                "url": address(raw.get("browser_download_url"), "assets[%d].download URL" % index),
+            }
+        )
+    assets.sort(key=lambda asset: str(asset["name"]))
+
+    return {
+        "tag": text(entry.get("tag_name"), "the release 'tag_name'"),
+        "prerelease": prerelease,
+        "published_at": text(entry.get("published_at"), "the release 'published_at'"),
+        "html_url": address(entry.get("html_url"), "the release 'html_url'"),
+        "assets": assets,
+    }
+
+
 def write_release_folder(
     entry: Dict[str, Any],
     repo: str,
@@ -1168,9 +1224,9 @@ def write_release_folder(
     tag = entry.get("tag_name")
     try:
         # The same conversion, with the same checks of every address, as the
-        # website's record of the newest release.
-        record = site_build.convert_release([entry], repo)
-    except site_build.BuildError as error:
+        # site's record of the newest release (tools/docs/refresh_release.py).
+        record = release_record([entry], repo)
+    except ValueError as error:
         raise Refusal("the release %s: %s" % (quoted(tag), error)) from None
     sums = next((a for a in record["assets"] if a["name"] == SUMS_ASSET), None)
     if sums is None:

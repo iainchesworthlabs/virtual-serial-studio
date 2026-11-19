@@ -22,8 +22,8 @@ checks by hand, and can download, check and start the install of a newer Studio.
 | Part | Where | Used by |
 |---|---|---|
 | Semantic versions, the reader and verifier of the signed feed, and the choice of what to offer | `libs/vss_update` | The update service of Studio, its unit tests and a fuzz target |
-| The tool that collects a feed's inputs from the releases, builds, signs and verifies a feed, and reads the feed keys from `trusted_keys_release.cpp` | `tools/update_feed.py` | The `feed` job, the website check and its tests |
-| The `feed` job of the release workflow, and the copy of the feed on the website | `.github/workflows/release.yml`, `tools/site_build.py`, `tools/site_check.py` | Every tagged release. The job signs nothing until the owner has added the keys (section 5), and the site has no copy until a release has a feed |
+| The tool that collects a feed's inputs from the releases, builds, signs and verifies a feed, and reads the feed keys from `trusted_keys_release.cpp` | `tools/update_feed.py` | The `feed` job, the release data check and its tests |
+| The `feed` job of the release workflow, and the copy of the feed on the site | `.github/workflows/release.yml`, `tools/docs/refresh_release.py`, `tools/docs/site_release_hook.py`, `tools/ci/check_release_data.py` | Every tagged release. The job signs nothing until the owner has added the keys (section 5), and the site has no copy until a release has a feed |
 
 The parts in Studio, with tests:
 
@@ -93,7 +93,7 @@ the code that makes it true (section 12, step 6):
 | `docs/editions.md`, Licence files | "There is no activation server and no telemetry." This stays true. The page gains one sentence on the update check |
 | `docs/licensing.md`, Seats and Revocation | "the GUI makes no network connection". Activation and seat counting stay offline; the sentence is narrowed |
 | `docs/user-guide.md`, Network addresses | "Studio does not use the network unless you add an endpoint" |
-| `website/pages/privacy.html` | "No network connection of its own... It does not check for updates." |
+| The privacy page of the site | "No network connection of its own... It does not check for updates." |
 | `docs/gui-design/design-deviations.md` | `Qt6::Network` "is not an approved dependency". The shell already links it for the single-instance socket; the update check is its second use |
 
 What does not change: no activation server, no licence check over the network, no usage data, no crash reports, no
@@ -503,7 +503,7 @@ window when there is a Plugins page to put them on (section 12, step 7).
 | The package step of Linux | `apps/vss_gui/src/updates/package_install.*`, `platform/linux/package_install_linux.cpp` | The administrator's step checks its own copy (section 7.2) |
 | The screens | `apps/vss_gui/src/support/update_dialog.*`, `support/update_text.*`, the Updates tab in `support/about_dialog.cpp`, the group in `support/settings_dialog.cpp`, `shell/update_notice.*`, the chip in `shell/status_bar.*`, the action in `shell/shell_window.cpp` | Strings from the screen spec, in `tr()` |
 | The feed tool | `tools/update_feed.py`, `tools/test_update_feed.py` | Builds the payload from a release's files and `SHA512SUMS`, signs it by calling OpenSSL as `tools/plugin_sign.py` does, and verifies a feed with a public key |
-| Publishing | `.github/workflows/release.yml` (a `feed` job after `publish`), `tools/site_build.py` (copies the newest feed to `updates/v1/feed.json`) | Section 10 |
+| Publishing | `.github/workflows/release.yml` (a `feed` job after `publish`), `tools/docs/refresh_release.py` (downloads the newest feed), `tools/docs/site_release_hook.py` (copies it to `updates/v1/feed.json`) | Section 10 |
 
 `FakeStudioBackend` is not involved: the update service is not part of the engine's backend. The service has its
 own fake transport and a fake clock, and every state of section 3 can be shown from a test.
@@ -523,12 +523,13 @@ own fake transport and a fake clock, and every state of section 3 can be shown f
    not the key Studio trusts fails the run, as the GPG check does for the packages.
 4. Without the secret the job writes "no update feed was signed" to the summary and succeeds, as the macOS signing
    step does. A pull request never signs.
-5. The website build (`tools/site_build.py --refresh-release`) downloads `update-feed.json` from the newest
-   release and writes it to `updates/v1/feed.json`. It does not parse, change or sign it. `tools/site_check.py`
-   verifies the copy with the public key.
-6. The Docs workflow publishes the site from `main`. A final release moves `main`, so the site and the feed follow.
-   After a pre-release the owner runs the Docs workflow by hand on `main`, which `website/README.md` already asks
-   for so that the downloads page lists the new files.
+5. The Docs workflow, on a push to the branch `site`, runs `tools/docs/refresh_release.py`. It downloads
+   `update-feed.json` from the newest release that has one and stores it in `tools/docs/release/`, and the site build
+   (`tools/docs/site_release_hook.py`) copies it to `updates/v1/feed.json`. Neither parses, changes or signs it.
+   `tools/ci/check_release_data.py` verifies the copy with the public key.
+6. The `site` job of the release workflow moves the branch `site` to the release's commit after the `feed` job, so
+   the Docs workflow that this starts sees the feed, for a pre-release as well as for a final release
+   ([Releasing](releasing.md#the-site)). The Downloads page lists the new files in the same run.
 
 **Withdrawing a release.** Publish a feed with a higher serial that no longer names it. Studio then offers nothing,
 or the release before. A release that is already installed is not removed; that is what a revocation list or a
@@ -566,7 +567,7 @@ request. Step 7 waits for the Plugins page.
 | Step | What | Size and who |
 |---|---|---|
 | 1 | `libs/vss_update`: versions, the feed reader and verifier, the choice, the (empty) key list, unit tests, a fuzz target | Small. Well specified by sections 4 and 5 |
-| 2 | `tools/update_feed.py` and its tests; the `feed` job in `release.yml`; the copy in `site_build.py` and the check in `site_check.py`; `docs/releasing.md` | Small. The workflow change is reviewed for what a pull request can reach |
+| 2 | `tools/update_feed.py` and its tests; the `feed` job in `release.yml`; the copy in `site_release_hook.py` and the check in `check_release_data.py`; `docs/releasing.md` | Small. The workflow change is reviewed for what a pull request can reach |
 | 3 | The screen spec `screens/12-updates.md` and the copy deck entries | Small, and the owner reads the words |
 | 4 | The service (transport, timer, settings, policy key), the question at first start, the Updates tab, the Help action, the Settings rows, the chip and banner, the update dialog up to "Download and install"; translations; accessibility checks | Medium |
 | 5 | Download, hash and the install step for each kind; the install-kind tests; the TLS backend in the packages and the release checks | Medium. The Windows hand-over and the packaging need a guest run |
@@ -578,7 +579,7 @@ For the owner, outside the repository:
 - Make `upd-2026-a` and `upd-2026-b` as the licence keys were made, and give the two public halves for
   `trusted_keys_release.cpp`.
 - Add `UPDATE_FEED_PRIVATE_KEY` (the private half of `upd-2026-a`) as a secret of the `release` environment.
-- Publish the website, so that the feed's address exists (`website/README.md`, "Publishing").
+- Publish the site, so that the feed's address exists (`docs/ci.md`, "Publishing").
 
 ## 13. Decisions
 
@@ -587,7 +588,7 @@ Decided by the owner on 15 November 2026:
 | # | Question | Decision |
 |---|---|---|
 | 1 | Is the automatic check on or off in a new install? | **Off.** Studio asks once, at the first start, whether to turn it on (section 3.5). When it is on: once a day, 60 seconds after start (section 6.2) |
-| 2 | Where does Studio read the feed? | **The owner's domain** (section 4.1), copied there from the release asset by the website build |
+| 2 | Where does Studio read the feed? | **The owner's domain** (section 4.1), copied there from the release asset by the site build |
 | 3 | Is the feed signed with its own Ed25519 keys, which the owner makes and keeps? | **Yes** (section 5): `upd-<year>-a` in the release environment's secrets and `upd-<year>-b` offline as the standby |
 | 4 | Does the Windows installer show its pages on an update, or run silently and restart Studio? | **It shows its pages.** A silent upgrade that starts Studio again is a later piece of work (section 7.3) |
 | 8 | Is "the first start" of decision 1 the first start ever for that user, or the first start of each newly installed version? | **The first start ever.** Studio asks once for each user and keeps the answer across updates (section 3.5) |

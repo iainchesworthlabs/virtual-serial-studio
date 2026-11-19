@@ -6,13 +6,13 @@
            <details>, no script); each item is (path, label, one line on what is there). An entry with no items is a plain link.
            The menus of docs/plan/site.md (Products, Platforms, Solutions, Developers, Quality and security, Pricing, Resources) are
            added with their pages, so that no menu leads to a page that is not there.
-    download: where the Download button goes, as (address, label). It is the releases of the repository until the Download page exists.
+    download: where the Download button of the app bar goes, as (path, label): the Downloads page.
     bar:   the slim bar above the guide's own header, back to the front pages.
     more:  the row of links above the company footer. -#}
 {%- set menus = [
   ("Guide", "guide/", []),
   ("Developers", "developers/", []),
 ] -%}
-{%- set download = (config.repo_url ~ "/releases", "Download") -%}
-{%- set bar = [("guide/", "Guide"), ("developers/", "Developers")] -%}
-{%- set more = [("guide/", "Guide"), ("developers/", "Developers")] -%}
+{%- set download = ("downloads/", "Download") -%}
+{%- set bar = [("guide/", "Guide"), ("developers/", "Developers"), ("downloads/", "Downloads")] -%}
+{%- set more = [("guide/", "Guide"), ("developers/", "Developers"), ("downloads/", "Downloads")] -%}

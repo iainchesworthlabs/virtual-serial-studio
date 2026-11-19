@@ -174,7 +174,7 @@ Python, standard library only, each with tests in `tools/ci/test_site_checks.py`
 One composite action `.github/actions/docs-site` installs MkDocs from a hash-locked requirements file, builds
 strictly and runs the checks. `ci.yml` (no path filter, so it can be required), `docs.yml` and `release.yml`
 (early, so a broken page stops a release in a minute) all use it. `.github/ci/plan.json` gets the new paths
-(`mkdocs.yml`, `tools/docs/**`, `website/` until removed) so that a docs-only change does not start every build leg.
+(`mkdocs.yml`, `tools/docs/**`) so that a docs-only change does not start every build leg.
 
 Pictures: one script writes light and dark 1280 px grabs for the owner to look at. They are not committed.
 
@@ -248,7 +248,7 @@ Differences between the brief and the repositories, and stale text to fix in the
 - **`website/README.md` rules versus the owner's direction:** it asks for no marketing wording and no stated email
   address; the owner's later direction is a product site and shows `support@`. The owner's direction is followed;
   plain Australian English still applies.
-- **`website/data/release.json` still says rc.5**, and there is no `website/data/update-feed.json`.
+- **`tools/docs/release/release.json` still says rc.5**, and there is no `tools/docs/release/update-feed.json`.
 - **No update can verify on `develop` today:** no feed key is built in.
 - **Stale design pages** (the code and `changelog.d/` are right, the pages are wrong): `README.md:49` and
   `docs/plugins.md` say plugins do not run (the host, sandbox on Windows, Plugins page and `vss_cli plugin run` are

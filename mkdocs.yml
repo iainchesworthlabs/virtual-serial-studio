@@ -19,7 +19,7 @@ edit_uri: edit/develop/docs/
 # tools/ci/check_site_address.py holds the files that cannot read this line to it (docs/ci.md, "The site address").
 site_url: https://iainchesworthlabs.com/virtual-serial-studio/
 docs_dir: docs
-# Not the default "site": that name is too close to website/, the product site.
+# Not the default "site", which is also the name of the branch that deploys the live site (docs/ci.md, "Publishing").
 site_dir: build/docs
 strict: true
 
@@ -37,6 +37,7 @@ validation:
 # The front pages are not in the guide's menu: they use their own bar (tools/docs/theme/).
 not_in_nav: |
   /index.md
+  /downloads.md
 
 # Not published on the site. The files stay in the repository and a published page that links to one gets a link to the
 # file on GitHub instead (tools/docs/mkdocs_hooks.py). tools/docs/site_layout.json says, for each page of docs/, the
@@ -89,6 +90,10 @@ hooks:
   - tools/docs/site_layout_hook.py
   # The version of the program the pages describe, from CMakeLists.txt, for the templates (extra.version).
   - tools/docs/site_version_hook.py
+  # The newest release for the Downloads page (<!-- releases:downloads --> and the other releases: markers, extra.release) and the
+  # signed update feed, which is copied unchanged to updates/v1/feed.json. The data is tools/docs/release/ (docs/ci.md, "Release data
+  # and the update feed").
+  - tools/docs/site_release_hook.py
 
 theme:
   name: material

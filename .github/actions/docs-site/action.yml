@@ -5,9 +5,9 @@ description: >-
   installed from the hash-locked requirements/docs.txt, and then checks what the build produced. The
   strictness is more than MkDocs' default: mkdocs.yml turns a link that points nowhere, a heading anchor
   that is not there and a page that is not in the navigation into errors. The checks of the company kit and
-  palette, of the site's address, of its layout and of its pages (docs/ci.md, "Documentation site") run after
-  it. The job must have checked the repository out. Used by docs.yml and by ci.yml, so they cannot disagree
-  about what a good build is.
+  palette, of the site's address, of its layout, of its pages and of the release data and the update feed
+  (docs/ci.md, "Documentation site") run after it. The job must have checked the repository out. Used by
+  docs.yml, ci.yml and release.yml, so they cannot disagree about what a good build is.
 
 runs:
   using: composite
@@ -35,9 +35,10 @@ runs:
       run: mkdocs build --strict
 
     # The pinned company kit and the palette (Node is on every hosted image), the one place the address is written, the
-    # table that says where each page is, and the built pages (titles, headings, links, anchors, nothing loaded from
-    # another host). What the build is not able to say for itself.
-    - name: Check the kit, the address, the layout and the pages
+    # table that says where each page is, the built pages (titles, headings, links, anchors, nothing loaded from
+    # another host) and the release data (every address a release of this repository, the update feed verified with the
+    # keys Studio trusts and the same bytes as the stored copy). What the build is not able to say for itself.
+    - name: Check the kit, the address, the layout, the pages and the release data
       shell: bash
       run: |
         set -euo pipefail
@@ -45,3 +46,4 @@ runs:
         python3 tools/ci/check_site_address.py
         python3 tools/ci/check_site_layout.py --site build/docs
         python3 tools/ci/check_site_pages.py --site build/docs
+        python3 tools/ci/check_release_data.py --site build/docs

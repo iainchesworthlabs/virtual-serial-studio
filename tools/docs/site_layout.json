@@ -6,6 +6,10 @@
    "new": ""
   },
   {
+   "src": "downloads.md",
+   "new": "downloads/"
+  },
+  {
    "src": "user-guide.md",
    "new": "guide/"
   },

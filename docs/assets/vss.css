@@ -59,6 +59,14 @@
 .icl-prose code { overflow-wrap: anywhere; }
 /* The permalink mark MkDocs puts after a heading is for the guide; the front pages do not need it. */
 .icl-prose .headerlink { display: none; }
+.icl-prose pre { margin: var(--icl-space-4) 0; padding: var(--icl-space-3) var(--icl-space-4); overflow-x: auto; background: var(--icl-surface-2); border: 1px solid var(--icl-border); border-radius: var(--icl-radius-s); font-size: var(--icl-step--1); }
+.icl-prose pre code { overflow-wrap: normal; }
+
+/* The table of files on the Downloads page (tools/docs/site_release_hook.py): one table for each system, the name of the file under its label. */
+.vss-dl th[scope="row"] { font-weight: 560; }
+.vss-dl td { white-space: nowrap; }
+.vss-dl td a { display: inline-block; padding: var(--icl-space-2) 0; }
+.vss-dl__name { display: block; margin-top: var(--icl-space-1); color: var(--icl-fg-muted); font-family: var(--icl-font-mono); font-size: var(--icl-step--1); font-weight: 400; overflow-wrap: anywhere; }
 
 /* The row of links above the company footer */
 .vss-more { padding-block: var(--icl-space-6); border-top: 1px solid var(--icl-border); font-size: var(--icl-step--1); }

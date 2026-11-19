@@ -10,7 +10,9 @@ name: Docs
 # removed when the pull request closes. A push to develop builds and checks, so that the branch has a status of its own
 # (the badge in the README shows it). A push to the branch `site` deploys the live site. The release workflow moves
 # `site` after it has published a release or a release candidate and attached the update feed, so the live site
-# describes the latest published release (docs/releasing.md, "The site").
+# describes the latest published release (docs/releasing.md, "The site"). Only that push asks GitHub for the newest release
+# and its update feed before it builds, so the Downloads page and updates/v1/feed.json are the release's; every other run builds
+# from the release data in tools/docs/release/ (docs/ci.md, "Release data and the update feed").
 #
 # The deploy is the shared reusable workflow docs-deploy-aws.yml of icl-common-infra. It signs in to AWS with GitHub's
 # OIDC token, with a role that the company stack trusts for a push to `site` and for a pull request of this repository
@@ -29,20 +31,15 @@ on:
       - "tools/docs/**"
       - "tools/ci/site_*.py"
       - "tools/ci/check_site_*.py"
-      - "tools/ci/test_site_checks.py"
+      - "tools/ci/check_release_data.py"
+      - "tools/ci/test_site_*.py"
       - ".github/actions/docs-site/**"
       - "README.md"
       - "CMakePresets.json"
       - "tools/check_docs.py"
-      - "website/**"
-      - "tools/site_build.py"
-      - "tools/site_check.py"
       - "tools/update_feed.py"
       - "tools/plugin_sign.py"
       - "libs/vss_update/src/trusted_keys_release.cpp"
-      - "tools/test_site_build.py"
-      - "tools/test_site_check.py"
-      - "apps/vss_gui/src/theme/resources/tokens.json"
       - "apps/vss_gui/assets/icon/**"
       - ".github/workflows/docs.yml"
   push:
@@ -86,6 +83,13 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The release data and the update feed come from GitHub only for the live site, so that a pull request is built from what it holds
+      # (tools/docs/release/, docs/ci.md, "Release data and the update feed"). The token is the job's own, with the job's contents: read.
+      - name: Refresh the release data and the update feed
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/site' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/docs/refresh_release.py
       - uses: ./.github/actions/docs-site
       - name: Keep the built site
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -94,25 +98,6 @@ jobs:
           path: build/docs
           if-no-files-found: error
           retention-days: 7
-
-  website:
-    name: Build and check the website
-    if: ${{ github.event.action != 'closed' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    steps:
-      - name: Check out
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Test the site tools
-        run: python3 -m unittest discover -s tools -p "test_site_*.py"
-      - name: Build the website
-        run: python3 tools/site_build.py
-      - name: Check links, outside resources and accessibility
-        run: python3 tools/site_check.py
 
   deploy:
     name: Deploy the site

@@ -294,7 +294,6 @@ perf/                performance suite and floors
 cmake/               dependency, warning, coverage and sanitizer helpers
 drivers/windows      the vsscom kernel-mode and user-mode COM port drivers
 packaging/linux      the launcher entry and the Debian copyright file of the Linux packages
-website/             the source of the product website
 tools/               Boost fetch, changelog, coverage, performance and Tracy
                      reports, fuzz and analysis drivers, the PTY pair helper,
                      CI planning and the VM harness
