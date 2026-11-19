@@ -1,1 +1,1 @@
-**A number in a plugin's settings no longer changes each time a setup is saved and opened.** Very long numbers in a plugin's settings were read slightly off, so saving a setup, opening it and saving it again could write different text. Numbers are now read exactly, and the text stays the same.
+**A number in a plugin's settings no longer changes each time a setup is saved and opened.** Very long numbers in a plugin's settings were read slightly off, so saving, opening and saving a setup again could write different text. Numbers are now read exactly.
