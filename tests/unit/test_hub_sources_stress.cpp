@@ -16,6 +16,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -315,9 +316,13 @@ void bus_churn(const link_options& options, int messages)
         }
     }
 
-    // A receiver beside the bus heard each stayer once.  What the others
-    // sent is written into the stayers and carried on to it, once, so it
-    // hears them too, in order.
+    // A receiver beside the bus heard each stayer once, in order: the join
+    // reads them as they are sent.  What the others sent is written into the
+    // stayers and carried on to it, once, so it hears them too.  But it hears
+    // each of those from whichever stayer's delay line lets it go first, and
+    // the three lines run on threads of their own, so with a delay two
+    // neighbours can reach it the other way round.  Without a delay they are
+    // in order.  Nothing is heard twice either way.
     const auto beside = by_sender(tap.written());
     for (const char tag : {'a', 'b', 'c'})
         REQUIRE(complete(beside.at(tag), messages));
@@ -325,7 +330,15 @@ void bus_churn(const link_options& options, int messages)
     {
         REQUIRE(sender == 'a' || sender == 'b' || sender == 'c' ||
                 sender == 'C' || sender == 'G');
-        REQUIRE(strictly_rising(numbers));
+        if (options.delay_ms != 0 && (sender == 'C' || sender == 'G'))
+        {
+            REQUIRE_EQ(std::set<int>(numbers.begin(), numbers.end()).size(),
+                       numbers.size());
+        }
+        else
+        {
+            REQUIRE(strictly_rising(numbers));
+        }
     }
 
     // The goer is off the bus and heard only while it was on.
