@@ -19,7 +19,7 @@ description: "Virtual serial ports, port sharing, a traffic monitor and test aut
 <section class="icl-section"><div class="icl-wrap">
 <div class="vss-intro">
 <h2>What you can do with it</h2>
-<p>Studio does these jobs in a window, and the command line does the same jobs with no window. Each card goes to a page that shows how, and what the job does not cover.</p>
+<p>Each card goes to a page that shows how Studio does the job, and what the job does not cover.</p>
 </div>
 <ul class="icl-grid vss-grid-3">
 <li><article class="icl-card"><p class="vss-kicker">Virtual ports</p><h3><a href="solutions/develop-and-test-without-hardware/">Give a program a serial port</a></h3><p>Make a port for your program, or two ports joined like a null-modem cable, before the device exists or while it is somewhere else.</p></article></li>
@@ -44,9 +44,9 @@ description: "Virtual serial ports, port sharing, a traffic monitor and test aut
 <ul class="vss-links"><li><a href="products/studio/">Studio</a></li><li><a href="pricing/">Community edition</a></li></ul>
 </div>
 <div>
-<h3>A test lab that runs Studio from a script</h3>
-<p>You run the same setup every time, from a script, with no window. The command line runs a saved setup and records and replays traffic. A Python client lets a test make ports, send bytes, wait for a reply and get a test report. The Python client is built from source today. <span class="vss-chip vss-chip--src">Built from source only</span></p>
-<ul class="vss-links"><li><a href="guide/command-line/">Command line</a></li><li><a href="guide/control-from-a-script/">Control it from a script</a></li></ul>
+<h3>A test lab</h3>
+<p>You run the same setup every time. A saved setup comes back the same way on every run, and Studio records traffic and plays it back. Test automation shows how a test or a CI job uses it.</p>
+<ul class="vss-links"><li><a href="solutions/test-automation-and-ci/">Test automation</a></li></ul>
 </div>
 </div>
 </div></section>
@@ -57,7 +57,7 @@ description: "Virtual serial ports, port sharing, a traffic monitor and test aut
 <p>Community is the whole application, free. Pro and Enterprise add a licence file, support and terms agreed with you, and are quoted on request.</p>
 </div>
 <ul class="vss-plans">
-<li class="vss-plan"><h3>Community</h3><p class="vss-plan__price">Free<small>GPL-3.0-or-later</small></p><p class="vss-plan__for">Studio, the command line and the source, with help on GitHub.</p><a class="icl-button icl-button--ghost" href="downloads/">Download</a></li>
+<li class="vss-plan"><h3>Community</h3><p class="vss-plan__price">Free<small>GPL-3.0-or-later</small></p><p class="vss-plan__for">Studio and the source, with help on GitHub.</p><a class="icl-button icl-button--ghost" href="downloads/">Download</a></li>
 <li class="vss-plan"><h3>Pro</h3><p class="vss-plan__price">Price on request</p><p class="vss-plan__for">For labs that depend on Studio: a licence file and support.</p><a class="icl-button icl-button--ghost" href="pricing/">See Pro</a></li>
 <li class="vss-plan"><h3>Enterprise</h3><p class="vss-plan__price">Price on request</p><p class="vss-plan__for">For organisations: terms written for you, with seats, computers and a support agreement.</p><a class="icl-button icl-button--ghost" href="pricing/">See Enterprise</a></li>
 </ul>
@@ -86,7 +86,7 @@ description: "Virtual serial ports, port sharing, a traffic monitor and test aut
 <section class="icl-section"><div class="icl-wrap">
 <div class="vss-intro">
 <h2>Windows, Linux and macOS</h2>
-<p>Studio and the command line run on Windows, Linux and macOS. <a href="downloads/">Downloads</a> has the files for each system and says what each one needs.</p>
+<p>Studio runs on Windows, Linux and macOS. <a href="downloads/">Downloads</a> has the files for each system and says what each one needs.</p>
 </div>
 </div></section>
 
