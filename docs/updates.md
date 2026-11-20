@@ -113,7 +113,7 @@ The words below are the proposal for the screen spec (`docs/gui-design/docs/scre
 | Settings | An **Updates** group at the end of the General page: "Check for updates automatically" and "Include pre-release versions" |
 | First start | The question of section 3.5, once |
 | Status bar | A chip, "Update available", only while there is one. It opens the update dialog |
-| Plugins page (when it exists) | A row's version shows "1.3.0 available" with the same dialog behind it |
+| Plugins page (it exists; this row is not built) | A row's version shows "1.3.0 available" with the same dialog behind it |
 
 ### 3.2 The Updates tab of About
 
@@ -483,9 +483,9 @@ fails the release job, not the user's first check.
 - **How a plugin is packed for download** is the plugin install work's to decide (`vss_cli plugin install`). The
   feed gives a file, a size and a hash, and hands the checked file to that installer.
 
-The plugin host, the Plugins page and the install command are not built (`docs/plugins.md`, "What is built").
-So the feed format, the reader and the comparison cover plugins from the start, and the plugin rows appear in the
-window when there is a Plugins page to put them on (section 12, step 7).
+The plugin host, the Plugins page and the install command are built (`docs/plugins.md`, "What is built"). The plugin
+rows of the update dialog and the hand-over to the plugin installer are not. So the feed format, the reader and the
+comparison cover plugins from the start, and the plugin rows can now be added to the window (section 12, step 7).
 
 ## 9. Code layout
 
@@ -562,7 +562,8 @@ It is left out of the first version to keep it small.
 
 Steps 1 to 6 are done, in three pull requests: step 1, the tool of step 2 and step 3 in the first; the rest of
 step 2 in the second; steps 4, 5 and 6 together in the third, because the rule of section 2 becomes true with the
-request. Step 7 waits for the Plugins page.
+request. Step 7 is not done: the Plugins page and `vss_cli plugin install` exist now, and the plugin rows are not yet
+added to the update dialog.
 
 | Step | What | Size and who |
 |---|---|---|
@@ -572,7 +573,7 @@ request. Step 7 waits for the Plugins page.
 | 4 | The service (transport, timer, settings, policy key), the question at first start, the Updates tab, the Help action, the Settings rows, the chip and banner, the update dialog up to "Download and install"; translations; accessibility checks | Medium |
 | 5 | Download, hash and the install step for each kind; the install-kind tests; the TLS backend in the packages and the release checks | Medium. The Windows hand-over and the packaging need a guest run |
 | 6 | The rule change of section 2 in every place it is written; the privacy page; the user guide; the README if an option was added | Small. Goes in with step 4, because that is when the sentence becomes true |
-| 7 | Plugin rows and the plugin install hand-over | After the Plugins page and `vss_cli plugin install` exist |
+| 7 | Plugin rows and the plugin install hand-over | Not built. The Plugins page and `vss_cli plugin install` exist |
 
 For the owner, outside the repository:
 
