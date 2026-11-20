@@ -48,9 +48,11 @@ DecodeDialog::DecodeDialog(const QString& place_name,
                 qobject_cast<QStandardItemModel*>(protocol_->model());
             if (model != nullptr)
             {
-                auto* item = model->item(protocol_->count() - 1);
-                item->setEnabled(false);
-                item->setToolTip(each.reason);
+                if (auto* item = model->item(protocol_->count() - 1))
+                {
+                    item->setEnabled(false);
+                    item->setToolTip(each.reason);
+                }
             }
         }
     }
