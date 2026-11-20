@@ -1,1 +1,1 @@
-**State chips look the same in the Inspector and the Ports table.** The Inspector's state chip was drawn by its own code, with a different height, spacing, mark size and text position from the chip in the Ports table. Both now use one drawing, in both themes and at larger text sizes.
+**State chips look the same in the Inspector and the Ports table.** The Inspector's state chip had a different height, spacing, mark size and text position from the chip in the Ports table. Both now use one drawing, in both themes and at larger text sizes.

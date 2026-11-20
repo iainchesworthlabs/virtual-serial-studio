@@ -1,0 +1,1 @@
+**The footer message "Started the ports that were running before" no longer draws over the counts.** When Studio started the ports from last time, the message was drawn on top of the Links, RX and TX and Engine counts, so neither could be read. The message now has the footer to itself until it goes, then the counts come back.

@@ -1583,9 +1583,20 @@ with **Run without isolation...**.
 ### The list and the detail
 
 The list is on the left, with a box to filter it by name. A row shows the
-plugin's name, who stands behind it, its version, its state and a switch. The
-rows that need attention are first. Choose a row to see its detail on the
-right. F6 moves between the list and the detail.
+plugin's name, who stands behind it, its version and a switch that says On or
+Off. A row has a state beside the switch only when the state is neither On nor
+Off, such as Needs your decision or Stopped, so a row with a state is one to
+read. The rows that need attention are first. Choose a row to see its detail on
+the right. F6 moves between the list and the detail.
+
+Under the list, **Add a plugin...** adds a plugin, and **More options** has
+**Import a key...**, **Open the plugin folder** and **Check again**.
+
+The detail starts with the plugin's name and state, then why it is in that state
+and what to do about it, then what it adds, who made it and what its signature
+says, and what it may do. The facts that matter less, such as the fingerprint,
+where its files are and how far it is kept apart, come last under **Technical
+details**.
 
 The line under the name says who stands behind the plugin:
 
@@ -1623,13 +1634,13 @@ when the new version asks for more than the one you approved.
 ### Approving an author's key
 
 An author of plugins publishes a small public key file, which ends in
-`.vsskey.json`. Choose **Import a key...** and pick the file. Studio shows the
-author's name, the key's id and its fingerprint in groups of four. Compare the
-fingerprint with the one the author published on their website or sent you, tick
-the box and choose **Approve this key**. Studio never looks for key files in a
-plugin's folder, and approving a key never switches a plugin on: each plugin
-still needs its own decision. **Remove this key...** in the detail of a plugin
-takes it back, and the plugins signed with it ask again.
+`.vsskey.json`. Choose **More options**, then **Import a key...**, and pick the
+file. Studio shows the author's name, the key's id and its fingerprint in groups
+of four. Compare the fingerprint with the one the author published on their
+website or sent you, tick the box and choose **Approve this key**. Studio never
+looks for key files in a plugin's folder, and approving a key never switches a
+plugin on: each plugin still needs its own decision. **Remove this key...** in
+the detail of a plugin takes it back, and the plugins signed with it ask again.
 
 ### Running a plugin without isolation
 
@@ -1663,6 +1674,30 @@ administrator can also put a plugin's folder in the machine plugin folder, which
 the page shows under the list. If your
 administrator has turned your own plugin folder off, those two buttons are
 disabled.
+
+### Upgrading a plugin
+
+To put a new version of a plugin that you added for yourself in place of the
+one you have, choose **Add a plugin...** and pick the folder of the new version.
+Studio sees that you have a copy of that plugin, and the question reads
+**Upgrade** *name*. It lists the new version and the version you have. It
+replaces your copy only when you choose **Upgrade plugin**. Studio switches the
+plugin off first if it is running, waits until it has stopped, and replaces the
+plugin's folder. The plugin's settings, its instances and its saved data stay.
+
+The new files are a version you have not decided about, so the plugin does not
+run until you do. Its row is in **Needs your decision**, and **Review and
+decide** says what changed since the version you approved. You do not have to
+remove the plugin first.
+
+A folder with the same version as your copy but other files is offered as
+**Replace**, and a folder with an older version as **Replace** with a warning
+that it is older. A folder with exactly the files you have is refused, because
+there is nothing to change. A plugin that your administrator installed for
+everyone, or that came with Studio, is not replaced from here: that copy is the
+one that runs. The administrator replaces it with
+`vss_cli plugin install <folder> --for-everyone --replace`, and the question
+shows that command.
 
 ## Updates
 

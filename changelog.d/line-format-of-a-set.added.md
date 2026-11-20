@@ -1,1 +1,1 @@
-**Ports that are linked keep one baud rate and framing.** A new port or fixture added to a port that is there starts at that port speed, the fixture dialog opens with it, and Port Settings can give the same settings to every port linked to the port you are changing.
+**Ports that are linked keep one baud rate and framing.** A new port or fixture added to a port that is there starts at that port's speed, the fixture dialog opens with it, and Port Settings can give the same settings to every port linked to the port you are changing.

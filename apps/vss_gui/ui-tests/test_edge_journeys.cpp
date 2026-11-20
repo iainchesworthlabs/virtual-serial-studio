@@ -503,7 +503,7 @@ TEST_CASE("edge: a status message does not draw over the counters")
             (text.startsWith(QStringLiteral("Ports")) ||
              text.startsWith(QStringLiteral("Links")) ||
              text.startsWith(QStringLiteral("RX")) ||
-             text.startsWith(QStringLiteral("Hub"))))
+             text.startsWith(QStringLiteral("Engine"))))
             drawn << text;
     }
     if (!drawn.isEmpty())

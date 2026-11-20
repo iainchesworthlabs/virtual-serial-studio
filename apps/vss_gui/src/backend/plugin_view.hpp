@@ -400,6 +400,20 @@ struct plugin_key_file_view
     bool inside_plugin_folder = false;
 };
 
+/// What adding a plugin folder does to the user's own copy of the same
+/// plugin.
+enum class plugin_replacement
+{
+    /// The user has no copy: the folder is added.
+    none,
+    /// The user's copy has an older version than the folder.
+    upgrade,
+    /// The user's copy has the same version, with other files.
+    replace,
+    /// The user's copy has a newer version than the folder.
+    downgrade
+};
+
 /// What the host found in a plugin folder the user chose, before anything is
 /// copied. `plugin` holds the verdict as the list would show it once the
 /// plugin was installed for this user.
@@ -410,7 +424,8 @@ struct plugin_inspection_view
         none,
         /// The folder has no readable plugin.json.
         not_a_plugin,
-        /// A plugin with this id is installed for the user already.
+        /// The user has a copy with exactly these files already. A copy with
+        /// other files is not this problem: it is replaced, see `replaces`.
         already_installed,
         /// A plugin with this id is installed for everyone on the computer,
         /// and that copy is the one that runs.
@@ -425,6 +440,11 @@ struct plugin_inspection_view
     /// The folder the user chose.
     QString folder;
     plugin_view plugin;
+    /// The version of the user's own copy, which adding the folder replaces.
+    /// Empty when `replaces` is `none`.
+    QString installed_version;
+    /// What adding the folder does to the user's own copy of the plugin.
+    plugin_replacement replaces = plugin_replacement::none;
     /// The plugin can be added: nothing is wrong that adding would not fix.
     bool can_install = false;
 };
@@ -449,7 +469,9 @@ enum class plugin_request_error
     none,
     /// "That folder is not a plugin..."
     not_a_plugin,
-    /// "<plugin name> is already installed for you..."
+    /// "<plugin name> is already installed for you...": a copy with these
+    /// files, or a copy with other files that the request did not ask to
+    /// replace.
     already_installed,
     /// "<plugin name> is already installed for everyone..."
     installed_for_everyone,
@@ -472,6 +494,9 @@ struct plugin_request_result
     int count = 0;
     /// `approve_key`: the author's name.
     QString author;
+    /// `add_plugin`: what was done to the user's own copy of the plugin, when
+    /// there was one.
+    plugin_replacement replaced = plugin_replacement::none;
 };
 
 /// A decision about one plugin version, for its hash only.

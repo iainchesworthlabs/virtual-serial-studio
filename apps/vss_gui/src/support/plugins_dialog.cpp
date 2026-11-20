@@ -99,47 +99,44 @@ class PluginsDialog::Row final : public QWidget
 public:
     Row(bool copy, QWidget* parent) : QWidget(parent)
     {
-        auto* layout = new QHBoxLayout(this);
+        auto* layout = new QVBoxLayout(this);
         layout->setContentsMargins(copy ? 28 : 8, 6, 8, 6);
-        layout->setSpacing(8);
+        layout->setSpacing(2);
 
-        auto* texts = new QVBoxLayout();
-        texts->setSpacing(2);
+        // First line: the name, and the state chip when the row has one. The
+        // two lines have a right-hand part each, so that a wide chip takes
+        // room from the name only and never from the line under it.
+        auto* first_line = new QHBoxLayout();
+        first_line->setSpacing(8);
         name = new ElidedLabel(this);
         name->setFont(Theme::instance().font(text_style::label));
         name->setObjectName(QStringLiteral("pluginRowName"));
-        texts->addWidget(name);
+        first_line->addWidget(name, 1);
+        chip = new StatusChip(this);
+        chip->set_small(true);
+        chip->setObjectName(QStringLiteral("pluginRowChip"));
+        first_line->addWidget(chip, 0, Qt::AlignVCenter);
+        layout->addLayout(first_line);
+
+        // Second line: who stands behind it and its version, and the switch.
+        auto* second_line = new QHBoxLayout();
+        second_line->setSpacing(8);
         second = new ElidedLabel(this);
         second->setFont(Theme::instance().font(text_style::caption));
         second->setProperty("muted", true);
         second->setObjectName(QStringLiteral("pluginRowSecond"));
-        texts->addWidget(second);
-        layout->addLayout(texts, 1);
-
-        // The chip above and the switch below it, so that the name keeps the
-        // room in a list that is 320 wide.
-        auto* state = new QVBoxLayout();
-        state->setSpacing(4);
-        chip = new StatusChip(this);
-        chip->set_small(true);
-        chip->setObjectName(QStringLiteral("pluginRowChip"));
-        state->addWidget(chip, 0, Qt::AlignRight);
-
+        second_line->addWidget(second, 1);
         if (!copy)
         {
-            auto* toggle = new QHBoxLayout();
-            toggle->setSpacing(6);
-            toggle->addStretch(1);
             word = new QLabel(this);
             word->setFont(Theme::instance().font(text_style::caption));
             word->setObjectName(QStringLiteral("pluginRowWord"));
-            toggle->addWidget(word, 0, Qt::AlignVCenter);
+            second_line->addWidget(word, 0, Qt::AlignVCenter);
             toggle_switch = new Switch(QString(), this);
             toggle_switch->setObjectName(QStringLiteral("pluginRowSwitch"));
-            toggle->addWidget(toggle_switch, 0, Qt::AlignVCenter);
-            state->addLayout(toggle);
+            second_line->addWidget(toggle_switch, 0, Qt::AlignVCenter);
         }
-        layout->addLayout(state, 0);
+        layout->addLayout(second_line);
         // The list item carries the accessible name of the row; the parts of
         // it are not read again.
         setFocusPolicy(Qt::NoFocus);
@@ -157,6 +154,12 @@ public:
         name->setToolTip(plain_text(plugin.name));
         chip->set_kind(chip_kind(plugin.state));
         chip->set_text(state_text(plugin.state));
+        // The switch says On or Off. A chip that said it again would be noise
+        // that hides the rows that need reading, so the chip is for the other
+        // states, and for a copy that is not used, which has no switch.
+        chip->setVisible(toggle_switch == nullptr ||
+                         (plugin.state != plugin_state::available &&
+                          plugin.state != plugin_state::off));
         if (toggle_switch == nullptr)
             return;
         const bool usable = switch_usable(plugin);
@@ -348,25 +351,40 @@ void PluginsDialog::build()
     left_layout->addWidget(empty_, 1);
     empty_->hide();
 
+    // Adding a plugin is what most people come here to do, so it is a button
+    // of its own. The three other things are rare, and share a menu. The two
+    // wrap onto a second line at large text.
+    auto* buttons_box = new QWidget(left);
+    auto* buttons = new FlowLayout(nullptr);
+    buttons_box->setLayout(buttons);
     add_ = make_button(
         QCoreApplication::translate("PluginsDialog", "Add a plugin..."),
-        "quiet", left, QStringLiteral("pluginsAdd"));
+        nullptr, buttons_box, QStringLiteral("pluginsAdd"));
     connect(add_, &QPushButton::clicked, this, [this] { add_plugin(); });
-    import_ = make_button(
-        QCoreApplication::translate("PluginsDialog", "Import a key..."),
-        "quiet", left, QStringLiteral("pluginsImportKey"));
-    connect(import_, &QPushButton::clicked, this, [this] { import_key(); });
-    folder_ = make_button(
-        QCoreApplication::translate("PluginsDialog", "Open the plugin folder"),
-        "quiet", left, QStringLiteral("pluginsOpenFolder"));
-    connect(folder_, &QPushButton::clicked, this,
+    buttons->addWidget(add_);
+    more_ = make_button(
+        QCoreApplication::translate("PluginsDialog", "More options"), nullptr,
+        buttons_box, QStringLiteral("pluginsMore"));
+    auto* more_menu = new QMenu(more_);
+    more_menu->setToolTipsVisible(true);
+    import_action_ = more_menu->addAction(
+        QCoreApplication::translate("PluginsDialog", "Import a key..."));
+    import_action_->setObjectName(QStringLiteral("pluginsImportKey"));
+    connect(import_action_, &QAction::triggered, this,
+            [this] { import_key(); });
+    folder_action_ = more_menu->addAction(
+        QCoreApplication::translate("PluginsDialog", "Open the plugin folder"));
+    folder_action_->setObjectName(QStringLiteral("pluginsOpenFolder"));
+    connect(folder_action_, &QAction::triggered, this,
             [this] { open_plugin_folder(); });
-    check_ =
-        make_button(QCoreApplication::translate("PluginsDialog", "Check again"),
-                    "quiet", left, QStringLiteral("pluginsCheckAgain"));
-    connect(check_, &QPushButton::clicked, this, [this] { check_again(); });
-    for (QPushButton* button : {add_, import_, folder_, check_})
-        left_layout->addWidget(button, 0, Qt::AlignLeft);
+    check_action_ = more_menu->addAction(
+        QCoreApplication::translate("PluginsDialog", "Check again"));
+    check_action_->setObjectName(QStringLiteral("pluginsCheckAgain"));
+    connect(check_action_, &QAction::triggered, this,
+            [this] { check_again(); });
+    more_->setMenu(more_menu);
+    buttons->addWidget(more_);
+    left_layout->addWidget(buttons_box);
 
     auto* machine_row = new QWidget(left);
     auto* machine_layout = new QHBoxLayout(machine_row);
@@ -431,10 +449,8 @@ void PluginsDialog::build()
     // Tab order: the list, then the detail, then the footer.
     setTabOrder(filter_, list_);
     setTabOrder(list_, add_);
-    setTabOrder(add_, import_);
-    setTabOrder(import_, folder_);
-    setTabOrder(folder_, check_);
-    setTabOrder(check_, detail_scroll_);
+    setTabOrder(add_, more_);
+    setTabOrder(more_, detail_scroll_);
     setTabOrder(detail_scroll_, remove_);
     setTabOrder(remove_, copy_);
     setTabOrder(copy_, close_);
@@ -516,14 +532,18 @@ void PluginsDialog::refresh_header(const plugin_snapshot& snapshot)
         "PluginsDialog",
         "Your administrator installs the plugins on this computer.");
     add_->setEnabled(user_folder_usable);
-    folder_->setEnabled(user_folder_usable);
+    folder_action_->setEnabled(user_folder_usable);
     empty_button_->setEnabled(user_folder_usable);
-    for (QPushButton* button : {add_, folder_, empty_button_})
+    for (QPushButton* button : {add_, empty_button_})
     {
         button->setToolTip(user_folder_usable ? QString() : reason);
         button->setAccessibleDescription(user_folder_usable ? QString()
                                                             : reason);
     }
+    // A menu entry has the same reason as a tooltip, and as its status text,
+    // which is what assistive technology reads for it.
+    folder_action_->setToolTip(user_folder_usable ? QString() : reason);
+    folder_action_->setStatusTip(user_folder_usable ? QString() : reason);
 
     const QString machine = plain_text(snapshot.machine_folder);
     machine_line_->setText(
@@ -792,6 +812,25 @@ Switch* PluginsDialog::row_switch(const QString& plugin_id,
     return nullptr;
 }
 
+StatusChip* PluginsDialog::row_chip(const QString& plugin_id,
+                                    const QString& folder) const
+{
+    for (int index = 0; index < list_->count(); ++index)
+    {
+        const QString key = list_->item(index)->data(Qt::UserRole).toString();
+        const bool match = folder.isEmpty()
+                               ? key.startsWith(plugin_id + QLatin1Char('|'))
+                               : key == plugin_id + QLatin1Char('|') + folder;
+        if (match)
+        {
+            auto* row =
+                static_cast<Row*>(list_->itemWidget(list_->item(index)));
+            return row != nullptr ? row->chip : nullptr;
+        }
+    }
+    return nullptr;
+}
+
 QStringList PluginsDialog::row_keys() const
 {
     QStringList keys;
@@ -1047,7 +1086,8 @@ void PluginsDialog::refresh_detail()
     const plugin_view& view = *plugin;
     const plugin_view copy_of_view = view;
 
-    // -- heading: name, the Plugin mark, the state chip
+    // -- heading: name and the state chip. There is no "Plugin" mark: all of
+    // this dialog is about plugins, and the mark took room from the name.
     auto* heading_row = new QHBoxLayout();
     heading_row->setSpacing(8);
     auto* name = new ElidedLabel(root);
@@ -1055,9 +1095,6 @@ void PluginsDialog::refresh_detail()
     name->setObjectName(QStringLiteral("pluginDetailName"));
     name->set_full_text(view.name);
     heading_row->addWidget(name, 1, Qt::AlignVCenter);
-    auto* mark = new Tag(plugin_mark_text(), Tag::variant::n, root);
-    mark->setObjectName(QStringLiteral("pluginDetailMark"));
-    heading_row->addWidget(mark, 0, Qt::AlignVCenter);
     auto* chip =
         new StatusChip(state_text(view.state), chip_kind(view.state), root);
     chip->setObjectName(QStringLiteral("pluginDetailChip"));
@@ -1081,8 +1118,12 @@ void PluginsDialog::refresh_detail()
             actions_box->setLayout(actions);
             for (const plugin_action action : note.actions)
             {
+                // The step to take next is a normal button, so that it is
+                // seen and its edge lines up with the banner. The others are
+                // quiet.
                 QPushButton* button =
-                    make_button(action_text(action), "quiet", root,
+                    make_button(action_text(action),
+                                is_next_step(action) ? nullptr : "quiet", root,
                                 QStringLiteral("pluginAction.%1")
                                     .arg(static_cast<int>(action)));
                 connect(button, &QPushButton::clicked, this,
@@ -1105,18 +1146,53 @@ void PluginsDialog::refresh_detail()
         layout->addWidget(banner);
     }
 
-    // -- the definition list
-    auto* form = new QFormLayout();
-    form->setLabelAlignment(Qt::AlignLeft | Qt::AlignTop);
-    form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-    form->setRowWrapPolicy(QFormLayout::WrapLongRows);
-    form->setHorizontalSpacing(16);
-    form->setVerticalSpacing(8);
+    // -- what the plugin said of its licence check. It sits under the banner
+    // for the state, where a disagreement is seen, and not among the facts.
+    if (view.has_licence_report &&
+        view.licence_report_reason != vss::license::reason::ok)
+    {
+        QString text =
+            QCoreApplication::translate(
+                "PluginsDialog", "This plugin did not accept the licence: %1")
+                .arg(reason_sentence(view.licence_report_reason,
+                                     view.licence_status));
+        // Studio looked and found nothing wrong, so one of them is wrong.
+        if (view.licence_reason == vss::license::reason::ok &&
+            view.state != plugin_state::needs_licence)
+        {
+            text += QLatin1Char(' ') +
+                    QCoreApplication::translate(
+                        "PluginsDialog",
+                        "Studio and the plugin disagree. Check that Studio "
+                        "and the plugin are both up to date.");
+        }
+        auto* report = make_plain_note(root);
+        report->setObjectName(QStringLiteral("pluginDetailLicenceReport"));
+        report->set_kind(NoteBanner::kind::warn);
+        report->set_text(text);
+        layout->addWidget(report);
+    }
+
+    // -- the definition list, in two groups: who made it and what it adds,
+    // then the technical facts, which come after what it may do.
+    const auto make_form = []
+    {
+        auto* result = new QFormLayout();
+        result->setLabelAlignment(Qt::AlignLeft | Qt::AlignTop);
+        result->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+        result->setRowWrapPolicy(QFormLayout::WrapLongRows);
+        result->setHorizontalSpacing(16);
+        result->setVerticalSpacing(8);
+        return result;
+    };
+    QFormLayout* form = make_form();
+    QFormLayout* technical = make_form();
+    QFormLayout* current = form;
     const auto row =
         [&](const QString& label, QWidget* value, const QString& object_name)
     {
         value->setObjectName(object_name);
-        form->addRow(make_muted_label(label, root), value);
+        current->addRow(make_muted_label(label, root), value);
     };
 
     if (!view.adds.empty())
@@ -1167,8 +1243,22 @@ void PluginsDialog::refresh_detail()
         QLabel* sentence =
             make_plain_label(signature_sentence(view), signature_box);
         sentence->setObjectName(QStringLiteral("pluginDetailSignatureText"));
-        sentence_row->addWidget(sentence, 1);
-        if (view.trust == plugin_trust::official)
+        const bool official = view.trust == plugin_trust::official;
+        // The badge follows the sentence. With the sentence stretched across
+        // the pane it sat at the far edge, away from the words it belongs to.
+        // The sentence is held to the width of one line and given nearly all
+        // the stretch, so it takes that width and the badge is next to it,
+        // and where the pane is narrower the sentence still wraps. (A wrapping
+        // label that is not stretched is given about half its width, and one
+        // that shares the stretch equally with a spacer does not reach it.)
+        if (official)
+        {
+            sentence->setMaximumWidth(
+                sentence->fontMetrics().horizontalAdvance(sentence->text()) +
+                4);
+        }
+        sentence_row->addWidget(sentence, official ? 1000 : 1);
+        if (official)
         {
             // Only the host's own trust level draws this; nothing a plugin
             // says about itself can.
@@ -1177,6 +1267,7 @@ void PluginsDialog::refresh_detail()
             badge->setObjectName(QStringLiteral("pluginOfficialBadge"));
             badge->setAccessibleName(official_badge_text());
             sentence_row->addWidget(badge, 0, Qt::AlignTop);
+            sentence_row->addStretch(1);
         }
         signature_layout->addLayout(sentence_row);
         if (view.trust == plugin_trust::unknown_key)
@@ -1237,6 +1328,9 @@ void PluginsDialog::refresh_detail()
             key_box, QStringLiteral("pluginDetailKey"));
     }
 
+    // From here on the rows are the technical facts.
+    current = technical;
+
     if (!view.fingerprint.isEmpty())
     {
         auto* print_box = new QWidget(root);
@@ -1296,10 +1390,21 @@ void PluginsDialog::refresh_detail()
 
     if (view.state != plugin_state::not_installed)
     {
-        auto* timing = make_plain_label(timing_text(view.timing), root);
-        timing->setToolTip(timing_sentence(view));
-        timing->setAccessibleDescription(timing_sentence(view));
-        row(QCoreApplication::translate("PluginsDialog", "Timing"), timing,
+        // "Beside the data" means nothing until it is explained, and a person
+        // should not have to hover to learn it, so the sentence is shown.
+        auto* timing_box = new QWidget(root);
+        auto* timing_layout = new QVBoxLayout(timing_box);
+        timing_layout->setContentsMargins(0, 0, 0, 0);
+        timing_layout->setSpacing(2);
+        auto* timing = make_plain_label(timing_text(view.timing), timing_box);
+        timing->setObjectName(QStringLiteral("pluginDetailTimingText"));
+        timing_layout->addWidget(timing);
+        auto* timing_sentence_label = make_muted_label(
+            timing_sentence(view), timing_box, text_style::caption);
+        timing_sentence_label->setObjectName(
+            QStringLiteral("pluginDetailTimingSentence"));
+        timing_layout->addWidget(timing_sentence_label);
+        row(QCoreApplication::translate("PluginsDialog", "Timing"), timing_box,
             QStringLiteral("pluginDetailTiming"));
 
         auto* isolation_box = new QWidget(root);
@@ -1336,26 +1441,15 @@ void PluginsDialog::refresh_detail()
         auto* folder_layout = new QVBoxLayout(folder_box);
         folder_layout->setContentsMargins(0, 0, 0, 0);
         folder_layout->setSpacing(4);
-        auto* path_row = new QHBoxLayout();
-        path_row->setSpacing(6);
         auto* path = make_fixed_label(plain_text(view.folder), folder_box);
         path->setWordWrap(true);
         path->setObjectName(QStringLiteral("pluginDetailFolderText"));
-        path_row->addWidget(path, 1);
-        auto* copy_button = new CopyButton(folder_box);
-        copy_button->setObjectName(QStringLiteral("pluginDetailFolderCopy"));
-        copy_button->set_copy_text(
-            plain_text(view.folder),
-            QCoreApplication::translate("PluginsDialog", "folder path"));
-        connect(copy_button, &CopyButton::copied, this,
-                [this]
-                {
-                    ToastManager::instance().show(
-                        this, QCoreApplication::translate("PluginsDialog",
-                                                          "Path copied."));
-                });
-        path_row->addWidget(copy_button, 0, Qt::AlignTop);
-        folder_layout->addLayout(path_row);
+        folder_layout->addWidget(path);
+        // The actions are together under the path. The copy button used to be
+        // at the far edge of the pane, away from the path it copies, where
+        // the fingerprint's sits beside its value.
+        auto* path_actions = new QHBoxLayout();
+        path_actions->setSpacing(6);
         QPushButton* show = make_button(
             QCoreApplication::translate("PluginsDialog", "Show in folder"),
             "quiet", folder_box, QStringLiteral("pluginDetailShowFolder"));
@@ -1368,7 +1462,22 @@ void PluginsDialog::refresh_detail()
                         QDesktopServices::openUrl(
                             QUrl::fromLocalFile(open_path_text(copy_of_view)));
                 });
-        folder_layout->addWidget(show, 0, Qt::AlignLeft);
+        path_actions->addWidget(show, 0, Qt::AlignVCenter);
+        auto* copy_button = new CopyButton(folder_box);
+        copy_button->setObjectName(QStringLiteral("pluginDetailFolderCopy"));
+        copy_button->set_copy_text(
+            plain_text(view.folder),
+            QCoreApplication::translate("PluginsDialog", "folder path"));
+        connect(copy_button, &CopyButton::copied, this,
+                [this]
+                {
+                    ToastManager::instance().show(
+                        this, QCoreApplication::translate("PluginsDialog",
+                                                          "Path copied."));
+                });
+        path_actions->addWidget(copy_button, 0, Qt::AlignVCenter);
+        path_actions->addStretch(1);
+        folder_layout->addLayout(path_actions);
         row(QCoreApplication::translate("PluginsDialog", "Folder"), folder_box,
             QStringLiteral("pluginDetailFolder"));
     }
@@ -1423,32 +1532,6 @@ void PluginsDialog::refresh_detail()
         connect(change, &QPushButton::clicked, this,
                 [this, copy_of_view] { review(copy_of_view, true); });
         layout->addWidget(change, 0, Qt::AlignLeft);
-    }
-
-    // -- what the plugin said of its licence check
-    if (view.has_licence_report &&
-        view.licence_report_reason != vss::license::reason::ok)
-    {
-        QString text =
-            QCoreApplication::translate(
-                "PluginsDialog", "This plugin did not accept the licence: %1")
-                .arg(reason_sentence(view.licence_report_reason,
-                                     view.licence_status));
-        // Studio looked and found nothing wrong, so one of them is wrong.
-        if (view.licence_reason == vss::license::reason::ok &&
-            view.state != plugin_state::needs_licence)
-        {
-            text += QLatin1Char(' ') +
-                    QCoreApplication::translate(
-                        "PluginsDialog",
-                        "Studio and the plugin disagree. Check that Studio "
-                        "and the plugin are both up to date.");
-        }
-        auto* report = make_plain_note(root);
-        report->setObjectName(QStringLiteral("pluginDetailLicenceReport"));
-        report->set_kind(NoteBanner::kind::warn);
-        report->set_text(text);
-        layout->addWidget(report);
     }
 
     // -- what it runs
@@ -1636,6 +1719,24 @@ void PluginsDialog::refresh_detail()
                 [this, target] { Q_EMIT show_on_canvas(target); });
         use_row->addWidget(show, 0, Qt::AlignTop);
         layout->addLayout(use_row);
+    }
+
+    // -- the technical facts, after what the plugin may do and where it is
+    // used, because that is what a person decides on
+    if (technical->rowCount() > 0)
+    {
+        auto* technical_heading = make_plain_label(
+            QCoreApplication::translate("PluginsDialog", "Technical details"),
+            root, text_style::heading);
+        technical_heading->setObjectName(
+            QStringLiteral("pluginDetailTechnical"));
+        layout->addWidget(technical_heading);
+        layout->addLayout(technical);
+    }
+    else
+    {
+        // Never added to a layout, so nothing else owns it.
+        delete technical;
     }
 
     // -- the log
@@ -1871,7 +1972,26 @@ void PluginsDialog::on_plugin_inspected(quint64 request,
     waiting_for_add_ = true;
     PluginInstallDialog dialog(backend_, found, this);
     if (dialog.exec() != QDialog::Accepted)
+    {
         waiting_for_add_ = false;
+        return;
+    }
+    // A plugin that replaces the user's copy has no new row: the row that is
+    // there is the one to show.
+    if (found.replaces == plugin_replacement::none)
+        return;
+    waiting_for_add_ = false;
+    if (!snapshot_)
+        return;
+    for (const plugin_view& each : snapshot_->plugins)
+    {
+        if (each.id == found.plugin.id &&
+            each.installed_for == plugin_installed_for::you_only)
+        {
+            selected_key_ = key_of(each);
+            break;
+        }
+    }
 }
 
 void PluginsDialog::import_key()
@@ -1996,22 +2116,39 @@ void PluginsDialog::on_request_finished(const plugin_request_result& result)
     case plugin_request_kind::add_plugin:
         if (result.error == plugin_request_error::none)
         {
-            ToastManager::instance().show(
-                this, QCoreApplication::translate(
-                          "PluginsDialog",
-                          "Added for you only. Review it before it runs."));
+            const QString name = plain_text(result.plugin_name);
+            QString text;
+            switch (result.replaced)
+            {
+            case plugin_replacement::none:
+                text = QCoreApplication::translate(
+                    "PluginsDialog",
+                    "Added for you only. Review it before it runs.");
+                break;
+            case plugin_replacement::upgrade:
+                text = QCoreApplication::translate("PluginsDialog",
+                                                   "Upgraded %1. Review it "
+                                                   "before it runs.")
+                           .arg(name);
+                break;
+            case plugin_replacement::replace:
+            case plugin_replacement::downgrade:
+                text = QCoreApplication::translate("PluginsDialog",
+                                                   "Replaced %1. Review it "
+                                                   "before it runs.")
+                           .arg(name);
+                break;
+            }
+            ToastManager::instance().show(this, text);
             break;
         }
         waiting_for_add_ = false;
         if (result.error == plugin_request_error::already_installed)
         {
-            show_message(
-                NoteBanner::kind::warn,
-                QCoreApplication::translate(
-                    "PluginsDialog",
-                    "%1 is already installed for you. Remove it first to "
-                    "add a different copy.")
-                    .arg(plain_text(result.plugin_name)));
+            show_message(NoteBanner::kind::warn,
+                         QCoreApplication::translate(
+                             "PluginsDialog", "%1 is already installed for you.")
+                             .arg(plain_text(result.plugin_name)));
         }
         else if (result.error == plugin_request_error::installed_for_everyone ||
                  result.error == plugin_request_error::came_with_studio)

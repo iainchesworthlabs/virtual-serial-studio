@@ -55,6 +55,7 @@
 #include <QMenuBar>
 #include <QPushButton>
 #include <QSettings>
+#include <QStatusBar>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QToolBar>
@@ -76,6 +77,26 @@ void clear_settings()
 void wait_applied(vss::gui::ShellWindow& window)
 {
     REQUIRE(vss_test::wait_until([&window] { return !window.applying(); }));
+}
+
+/// The texts of the status bar's counters (Ports, Links, RX and TX, the
+/// engine) that are not hidden.  The chips on the right are labels too and
+/// stay.  A message in the bar must be the only thing drawn in its left part.
+QStringList drawn_counters(const QStatusBar* bar)
+{
+    QStringList drawn;
+    for (const auto* label : bar->findChildren<QLabel*>())
+    {
+        const QString text = label->text();
+        if (label->isVisibleTo(bar) &&
+            (text.startsWith(QStringLiteral("No ports")) ||
+             text.startsWith(QStringLiteral("Ports")) ||
+             text.startsWith(QStringLiteral("Links")) ||
+             text.startsWith(QStringLiteral("RX")) ||
+             text.startsWith(QStringLiteral("Engine"))))
+            drawn << text;
+    }
+    return drawn;
 }
 
 } // namespace
@@ -1621,6 +1642,33 @@ TEST_CASE("background: the ports that ran before a restart start again")
     REQUIRE(window.windowTitle().startsWith(QStringLiteral("lab.json*")));
     REQUIRE(!window.resume_banner()->isVisible());
     REQUIRE(window.needed_in_background());
+    clear_settings();
+}
+
+TEST_CASE("background: the start message is not drawn over by the counters")
+{
+    clear_settings();
+    QTemporaryDir directory;
+    write_running(running_file(directory), false);
+
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::ShellWindow window(backend);
+    window.show();
+    // The bar is empty when the ports start, so its counters are hidden, and
+    // the first port brings them back while the message is still up.
+    window.enable_background(running_file(directory), false);
+    wait_applied(window);
+    QApplication::processEvents();
+    REQUIRE(backend.ports().size() == 2);
+    auto* bar = window.statusBar();
+    REQUIRE(!bar->currentMessage().isEmpty());
+    REQUIRE_EQ(drawn_counters(bar).join(QStringLiteral(" | ")).toStdString(),
+               std::string());
+
+    // When the message goes the counters are there, so nothing is lost.
+    bar->clearMessage();
+    QApplication::processEvents();
+    REQUIRE(drawn_counters(bar).size() == 4);
     clear_settings();
 }
 

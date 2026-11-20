@@ -141,7 +141,7 @@ public:
     void start_again(const QString& plugin_id) override;
     void rescan() override;
     quint64 inspect_plugin(const QString& folder) override;
-    void add_plugin(const QString& folder) override;
+    void add_plugin(const QString& folder, bool replace) override;
     void remove_plugin(const QString& plugin_id, const QString& hash,
                        bool delete_saved_data) override;
     void add_instance(const QString& plugin_id, const QString& point_id,
@@ -161,10 +161,31 @@ public:
     void set_writable_ports(std::shared_ptr<const plugin_endpoint_table> ports);
 
 private:
+    /// A folder to be added for the user, in place of the user's copy of the
+    /// same plugin when `how` is not `none`.
+    struct pending_add
+    {
+        std::string id;
+        QString name;
+        QString folder;
+        plugin_replacement how = plugin_replacement::none;
+        /// The copy being replaced was running, so its files may stay in use
+        /// for a moment after it has stopped.
+        bool was_running = false;
+        int attempts = 0;
+    };
+
     void after_change();
     void refresh_extras();
     void delete_data_of_gone_plugins();
     void process_removals();
+    void process_replacements();
+    /// Looks at the pending removals and replacements again shortly.
+    void process_later();
+    /// Copies the folder into the user's plugin folder and tells the page how
+    /// it went. Slow thread. Returns true when the user's copy is still in use
+    /// and the copy is to be tried again shortly.
+    bool finish_add(const pending_add& what);
     std::vector<std::unique_ptr<vss::plugin::host::extension_handler>>
     make_handlers(const vss::plugin::host::extension_context& context);
     void ask_secret(const vss::plugin::host::secret_to_show& secret,
@@ -209,6 +230,8 @@ private:
     };
     /// Plugins switched off to be removed once they have stopped.
     std::vector<pending_removal> removals_;
+    /// Plugins switched off to be replaced once they have stopped.
+    std::vector<pending_add> replacements_;
     std::shared_ptr<const plugin_place_table> places_;
     std::shared_ptr<const plugin_endpoint_table> writable_;
     /// The answers owed for the dialogs asked for and not yet answered.
