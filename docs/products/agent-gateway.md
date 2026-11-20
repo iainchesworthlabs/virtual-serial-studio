@@ -63,7 +63,7 @@ with Client.connect() as c:
 </div>
 </div>
 <p>The same steps from a terminal are <code>vss_cli control port create</code>, <code>link</code>, <code>send</code>, <code>expect</code>, <code>run begin</code>, <code>run end</code> and <code>run report --out=smoke.xml</code>.</p>
-<ul class="vss-links"><li><a href="../../guide/control-from-a-script/">Controlling Studio from a script</a></li><li><a href="../../solutions/test-automation-and-ci/">Test automation and CI</a></li></ul>
+<ul class="vss-links"><li><a href="../../guide/control-from-a-script/">Controlling Studio from a script</a></li><li><a href="../../solutions/test-automation-and-ci/">Automate tests in a lab</a></li></ul>
 </div></section>
 
 <section class="icl-section"><div class="icl-wrap">
