@@ -14,6 +14,10 @@ name: Docs
 # and its update feed before it builds, so the Downloads page and updates/v1/feed.json are the release's; every other run builds
 # from the release data in tools/docs/release/ (docs/ci.md, "Release data and the update feed").
 #
+# Between releases the Publish the site workflow (publish-site.yml) also moves `site`, with a commit that changes site files
+# only (docs/ci.md, "Publishing the site between releases"). The `guard` job checks every push to `site`: the deploy runs only
+# when each file that the push changed is a site path (tools/docs/site_paths.json), or the push is the move of a release.
+#
 # The deploy is the shared reusable workflow docs-deploy-aws.yml of icl-common-infra. It signs in to AWS with GitHub's
 # OIDC token, with a role that the company stack trusts for a push to `site` and for a pull request of this repository
 # only, and that can write only this site's prefix. A run without the four secrets skips the deploy with a warning.
@@ -71,6 +75,28 @@ jobs:
           python3 -m unittest discover -s tools -p "test_check_docs.py"
           python3 tools/check_docs.py
 
+  # A push to `site` may change site files and nothing else, unless it moves the branch to a release. A push that does anything
+  # else is not deployed (docs/ci.md, "Publishing the site between releases"). The job is skipped for every other event.
+  guard:
+    name: Check what the push to site changed
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/site' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Check out, with the tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - name: Check the changed files
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: python3 tools/docs/publish_site.py guard --before "$BEFORE" --after "$AFTER"
+
   # The strict build and the checks of the site (docs/ci.md, "Documentation site"), the same action as the
   # `Docs build (strict)` job of ci.yml. The built site is kept as an artifact for the deploy jobs.
   build:
@@ -103,8 +129,12 @@ jobs:
 
   deploy:
     name: Deploy the site
-    needs: build
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/site' }}
+    needs: [build, guard]
+    # The guard is skipped for every event but a push to `site`, and a job that needs a skipped job is skipped too, so the
+    # condition names the results.
+    if: >-
+      ${{ always() && needs.build.result == 'success' && needs.guard.result == 'success'
+      && github.event_name == 'push' && github.ref == 'refs/heads/site' }}
     permissions:
       contents: read
       id-token: write

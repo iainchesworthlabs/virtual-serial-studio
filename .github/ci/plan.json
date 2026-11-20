@@ -23,7 +23,8 @@
     "tools/ci/check_release_data.py",
     "tools/ci/check_claims.py",
     "tools/ci/test_check_claims.py",
-    "tools/ci/test_site_*.py"
+    "tools/ci/test_site_*.py",
+    "tools/ci/test_publish_site.py"
   ],
   "no_build": [
     ".github/dependabot.yml",

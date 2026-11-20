@@ -1,0 +1,183 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Publish the site
+
+# Puts a change to the product site live without a release (docs/ci.md, "Publishing the site between releases").
+#
+# A change that touches only site files (tools/docs/site_paths.json) goes to `develop` as usual. This workflow then
+#
+#   plan     lists the site files that `site` would change, in the job summary, and
+#   release  waits for the owner's approval, then makes one commit on top of `site` that holds those files, and pushes it
+#            to `site`. The Docs workflow deploys on that push.
+#
+# Only the site files are copied. The application code, the build files, the workflows and CHANGELOG.md on `site` stay at
+# the last release, and the Docs workflow refuses a push to `site` that changes any of them unless it is a release.
+#
+# The approval is the GitHub environment `site-release`. The owner adds a required reviewer to it (docs/ci.md has the command).
+# An environment with no reviewer does not wait, so until the owner does that, `release` publishes at once.
+#
+# The push is made with the release bot's App token, as the `site` job of release.yml does, because a push made with
+# GITHUB_TOKEN does not start workflows, and the role that deploys trusts only a push to `site`. The two secrets
+# RELEASE_BOT_APP_ID and RELEASE_BOT_PRIVATE_KEY are the ones release.yml uses.
+
+on:
+  push:
+    branches: [develop]
+    # The same list as tools/docs/site_paths.json (tools/ci/test_publish_site.py checks that they are equal).
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "requirements/docs.in"
+      - "requirements/docs.txt"
+      - "tools/docs/**"
+      - ".github/actions/docs-site/**"
+      - "tools/ci/site_*.py"
+      - "tools/ci/check_site_*.py"
+      - "tools/ci/check_release_data.py"
+      - "tools/ci/check_claims.py"
+      - "tools/ci/test_check_claims.py"
+      - "tools/ci/test_site_*.py"
+      - "tools/ci/test_publish_site.py"
+  workflow_dispatch:
+
+# One publish at a time, in the order of the pushes. A run that waits for approval is not cancelled by a later one.
+concurrency:
+  group: publish-site
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  plan:
+    name: Show what would be published
+    if: ${{ github.ref == 'refs/heads/develop' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.plan.outputs.changed }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: List the site files that would change
+        id: plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git rev-parse --verify --quiet refs/remotes/origin/site >/dev/null; then
+            {
+              echo "## The site branch does not exist yet"
+              echo
+              echo "Nothing can be published between releases until the branch \`site\` exists. The first release creates it"
+              echo "(docs/ci.md, \"Publishing the site between releases\")."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::The branch site does not exist yet, so there is nothing to publish to."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 tools/docs/publish_site.py plan --site origin/site --source "$GITHUB_SHA" | tee "$RUNNER_TEMP/plan.txt"
+          count=$(grep -c '^[AMD] ' "$RUNNER_TEMP/plan.txt" || true)
+          {
+            if [ "$count" -eq 0 ]; then
+              echo "## Nothing to publish"
+              echo
+              echo "The site files of \`${GITHUB_SHA::12}\` are the site files that \`site\` already has."
+            else
+              echo "## Publishing would change $count site file(s)"
+              echo
+              echo "A is added, M is changed and D is deleted, compared with \`site\` at \`$(git rev-parse --short=12 origin/site)\`."
+              echo "Only site files are copied; nothing else on \`site\` changes."
+              echo
+              echo '```'
+              grep '^[AMD] ' "$RUNNER_TEMP/plan.txt"
+              echo '```'
+              echo
+              echo "The next job waits for approval of the \`site-release\` environment before it publishes."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$count" -eq 0 ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    name: Publish to the site branch
+    needs: plan
+    if: ${{ github.ref == 'refs/heads/develop' && needs.plan.outputs.changed == 'true' }}
+    # The owner adds a required reviewer to this environment (Settings, Environments), and the job then waits for the
+    # approval. Without a reviewer the job runs at once. The environment needs no secret and no branch rule of its own.
+    environment: site-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions: {}
+    steps:
+      - name: Create a token for the release bot
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+          permission-contents: write
+
+      # The token reads the repository (it has contents: write) and is not kept in the clone: the push below passes it
+      # for that one command only.
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          token: ${{ steps.app.outputs.token }}
+
+      - name: Build the commit and move the site branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          if ! git rev-parse --verify --quiet refs/remotes/origin/site >/dev/null; then
+            echo "::error::The branch site does not exist yet. The first release creates it."
+            exit 1
+          fi
+          site_before=$(git rev-parse origin/site)
+          # A release that was cut at or after this commit has taken its site files already. Publishing them again from here
+          # would put older files over newer ones.
+          if git merge-base --is-ancestor "$GITHUB_SHA" origin/site; then
+            echo "The branch site already contains ${GITHUB_SHA::12}, so there is nothing to publish from it." >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::The branch site already contains this commit."
+            exit 0
+          fi
+          python3 tools/docs/publish_site.py plan --site origin/site --source "$GITHUB_SHA" > "$RUNNER_TEMP/plan.txt"
+          status=0
+          commit=$(python3 tools/docs/publish_site.py build --site origin/site --source "$GITHUB_SHA" \
+            --message "Publish the site from develop at ${GITHUB_SHA::12}") || status=$?
+          if [ "$status" -eq 3 ]; then
+            echo "Nothing to publish: \`site\` already has these site files." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
+          # The token goes to git through the environment, so it is on no command line. git refuses a push that is not a
+          # fast-forward, and nothing here forces one.
+          basic=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')
+          echo "::add-mask::$basic"
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0="http.https://github.com/.extraheader"
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $basic"
+          git push origin "$commit:refs/heads/site"
+          {
+            echo "## Published to the site branch"
+            echo
+            echo "\`site\` moved from \`${site_before::12}\` to \`${commit::12}\`, made from the site files of \`${GITHUB_SHA::12}\`."
+            echo "The Docs workflow builds and deploys it."
+            echo
+            echo '```'
+            grep '^[AMD] ' "$RUNNER_TEMP/plan.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
