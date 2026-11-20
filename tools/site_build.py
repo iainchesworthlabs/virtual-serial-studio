@@ -62,6 +62,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+import release_version
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OUT = Path("build") / "website"
 
@@ -748,10 +750,7 @@ def newest_feed(entries: object, repo: str) -> tuple[str, str] | None:
     """The tag and the download address of the update feed of the release with
     the greatest version that has one (a final release or a pre-release; not a
     draft), or None.  Every address must be one of this repository's releases."""
-    # The feed tool's rules decide what a version is and which is greater.  It
-    # is imported here because it imports this module for its own use.
-    import update_feed
-
+    # The feed's rules decide what a version is and which is greater.
     prefix = f"https://github.com/{repo}/releases/"
     if not isinstance(entries, list):
         return None
@@ -764,7 +763,7 @@ def newest_feed(entries: object, repo: str) -> tuple[str, str] | None:
         if not isinstance(tag, str) or not isinstance(assets, list):
             continue
         version = tag.removeprefix("v")
-        if not update_feed.is_version(version):
+        if not release_version.is_version(version):
             continue
         for asset in assets:
             if not isinstance(asset, dict) or asset.get("name") != FEED_ASSET:
@@ -775,7 +774,7 @@ def newest_feed(entries: object, repo: str) -> tuple[str, str] | None:
                     f"the {FEED_ASSET} of {tag} has the download URL '{url}', which does "
                     f"not start with {prefix}"
                 )
-            if best is None or update_feed.compare_versions(version, best[0]) > 0:
+            if best is None or release_version.compare_versions(version, best[0]) > 0:
                 best = (version, tag, url)
     return None if best is None else (best[1], best[2])
 

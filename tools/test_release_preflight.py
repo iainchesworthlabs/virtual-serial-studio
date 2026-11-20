@@ -11,9 +11,9 @@ import json
 import subprocess
 import tempfile
 import unittest
+import unittest.mock
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest import mock
 
 import release_preflight as tool
 
@@ -124,7 +124,7 @@ class RunQueries(unittest.TestCase):
                     return subprocess.CompletedProcess(command, 0, stdout=text, stderr="")
             return subprocess.CompletedProcess(command, 1, stdout="", stderr="not found")
 
-        return asked, mock.patch.object(tool.subprocess, "run", side_effect=run)
+        return asked, unittest.mock.patch.object(tool.subprocess, "run", side_effect=run)
 
     def run_of(self, event: str, sha: str = SHA) -> dict:
         return {

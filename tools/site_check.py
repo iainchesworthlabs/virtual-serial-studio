@@ -53,6 +53,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlsplit
 
+import plugin_sign
 import update_feed
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -1088,7 +1089,7 @@ def check_feed(root: Path, files: set[str], keys_path: Path) -> list[Problem]:
             "the site has an update feed, but the build trusts no update feed key, "
             "so no Studio would accept it",
         )]
-    except update_feed.Refusal as refusal:
+    except plugin_sign.Refusal as refusal:
         return [(FEED_FILE, "feed", refusal.message)]
     except OSError as error:
         return [(FEED_FILE, "feed", f"cannot read the file: {error}")]
