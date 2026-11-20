@@ -9,7 +9,7 @@ description: "Community is free under the GPL and is the whole application. Pro 
 <p class="icl-eyebrow">Pricing</p>
 <h1>Three editions</h1>
 <p class="icl-lead">Community is the whole application, and it is free. Pro and Enterprise add a licence file, support and terms agreed with you. Their prices are on request.</p>
-<div class="icl-callout"><strong>DRAFT</strong><p>DRAFT, not legal advice, to be reviewed before it is relied on. The prices, terms and support for Pro and Enterprise are not decided, so this page does not state them. Anything marked Planned is not available yet.</p></div>
+<div class="icl-callout"><strong>DRAFT</strong><p>The prices, terms and support for Pro and Enterprise are not decided, so this page does not state them. Anything marked Planned is not available yet.</p></div>
 </div></section>
 
 <section class="icl-section icl-section--tint"><div class="icl-wrap">
