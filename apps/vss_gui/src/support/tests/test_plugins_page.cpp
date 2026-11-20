@@ -45,6 +45,7 @@
 #include <QTableWidget>
 #include <QTimer>
 
+#include <cstdlib>
 #include <functional>
 
 using namespace vss::gui;
@@ -642,11 +643,18 @@ TEST_CASE("plugins page: the header chip and the note on top follow the rules "
                               "computer. Plugins in your own plugin folder are "
                               "not used."));
     // "Add a plugin..." and "Open the plugin folder" are off, with the reason.
+    // The second is an entry of the "More options" menu, so its reason is its
+    // tooltip and its status text, which assistive technology reads.
+    const QString administrator_reason = QStringLiteral(
+        "Your administrator installs the plugins on this computer.");
     REQUIRE(!dialog.add_button()->isEnabled());
-    REQUIRE(!dialog.folder_button()->isEnabled());
-    REQUIRE_EQ(dialog.add_button()->toolTip(),
-               QStringLiteral("Your administrator installs the plugins on this "
-                              "computer."));
+    REQUIRE(!dialog.folder_action()->isEnabled());
+    REQUIRE_EQ(dialog.add_button()->toolTip(), administrator_reason);
+    REQUIRE_EQ(dialog.folder_action()->toolTip(), administrator_reason);
+    REQUIRE_EQ(dialog.folder_action()->statusTip(), administrator_reason);
+    // The other two entries still work: they do not touch the user's folder.
+    REQUIRE(dialog.import_key_action()->isEnabled());
+    REQUIRE(dialog.check_action()->isEnabled());
     snapshot.banner = plugin_banner::no_licence_for_official;
     snapshot.user_plugins_allowed = true;
     env.backend.set_snapshot(snapshot);
@@ -707,7 +715,7 @@ TEST_CASE("plugins page: an empty list, a filter and Check again")
     // Check again rescans, and says how many it found.
     dialog.filter()->clear();
     env.backend.clear_requests();
-    dialog.check_button()->click();
+    dialog.check_action()->trigger();
     REQUIRE_EQ(env.backend.count_of(plugin_request_kind::rescan), 1);
     env.backend.flush();
     settle();
@@ -841,8 +849,8 @@ TEST_CASE("install dialog: it shows the verdict, a plugin that cannot be used "
                                 "changed. Get the plugin again from its "
                                 "author.")},
         {twice,
-         QStringLiteral("Line noise is already installed for you. Remove "
-                        "it first to add a different copy.")},
+         QStringLiteral("Line noise is already installed for you. Its files "
+                        "are the same as the ones in this folder.")},
         {nothing, QStringLiteral("That folder is not a plugin. A plugin's "
                                  "folder holds a file named plugin.json.")},
         {admin, QStringLiteral("Your administrator installs the plugins on "
@@ -900,6 +908,165 @@ TEST_CASE("install dialog: text from the manifest is shown as plain text, and "
         if (button->isVisibleTo(&dialog))
             REQUIRE(button->width() >= button->sizeHint().width() - 1);
     }
+
+    // The longer text of a replacement, with the plugin's own text, fits too.
+    plugin_inspection_view older = found;
+    older.replaces = plugin_replacement::downgrade;
+    older.installed_version = QStringLiteral("9.9.9");
+    PluginInstallDialog replacing(backend, older);
+    replacing.show();
+    settle();
+    REQUIRE(all_text_plain(replacing, removed_characters()));
+    REQUIRE(replacing.width() <= 700);
+    vss_test::scale_text(&replacing, 2.0);
+    settle();
+    REQUIRE(vss_test::footer_fully_visible(replacing));
+    for (QPushButton* button : replacing.findChildren<QPushButton*>())
+    {
+        if (button->isVisibleTo(&replacing))
+            REQUIRE(button->width() >= button->sizeHint().width() - 1);
+    }
+}
+
+TEST_CASE("install dialog: another version of a plugin the user has replaces "
+          "it, says so, and asks the host to replace")
+{
+    FakePluginBackend backend;
+    const QString folder = QStringLiteral("C:/plugins/noise");
+
+    struct expected
+    {
+        plugin_replacement how;
+        QString title;
+        QString button;
+        QString lead;
+    };
+    const expected cases[] = {
+        {plugin_replacement::upgrade, QStringLiteral("Upgrade Line noise?"),
+         QStringLiteral("Upgrade plugin"), QString()},
+        {plugin_replacement::replace, QStringLiteral("Replace Line noise?"),
+         QStringLiteral("Replace plugin"),
+         QStringLiteral("Your copy has the same version, 1.0.0, with other "
+                        "files.")},
+        {plugin_replacement::downgrade,
+         QStringLiteral("Replace Line noise with an older version?"),
+         QStringLiteral("Replace plugin"),
+         QStringLiteral("Your copy is version 1.0.0. This folder holds an "
+                        "older version.")},
+    };
+    for (const expected& each : cases)
+    {
+        plugin_inspection_view found = inspection_of("org.example.noise", folder);
+        found.replaces = each.how;
+        found.installed_version = QStringLiteral("1.0.0");
+        PluginInstallDialog dialog(backend, found);
+        dialog.show();
+        settle();
+        REQUIRE_EQ(dialog.windowTitle(), each.title);
+        REQUIRE_EQ(dialog.add_button()->text(), each.button);
+        REQUIRE_EQ(accessible_name(dialog.add_button()), each.button);
+        REQUIRE(dialog.add_button()->isEnabled());
+        REQUIRE(dialog.cancel_button()->isDefault());
+        REQUIRE(dialog.cancel_button()->hasFocus());
+        // The version the person has is listed beside the new one.
+        auto* yours =
+            dialog.findChild<QLabel*>(QStringLiteral("installYourVersion"));
+        REQUIRE(yours != nullptr);
+        REQUIRE_EQ(yours->text(), QStringLiteral("1.0.0"));
+        // A copy that is not newer says so first, and is a warning at least.
+        if (each.lead.isEmpty())
+        {
+            REQUIRE(!dialog.banner()->text().contains(QStringLiteral("Your copy")));
+        }
+        else
+        {
+            REQUIRE(dialog.banner()->text().startsWith(each.lead));
+            REQUIRE(dialog.banner()->get_kind() != NoteBanner::kind::info);
+        }
+        // Enter alone cancels, and nothing is sent until the button is used.
+        backend.clear_requests();
+        key_click(&dialog, Qt::Key_Return);
+        settle();
+        REQUIRE(dialog.result() == QDialog::Rejected);
+        REQUIRE(backend.requests().empty());
+    }
+    for (const expected& each : cases)
+    {
+        plugin_inspection_view found = inspection_of("org.example.noise", folder);
+        found.replaces = each.how;
+        found.installed_version = QStringLiteral("1.0.0");
+        PluginInstallDialog dialog(backend, found);
+        dialog.show();
+        backend.clear_requests();
+        dialog.add_button()->click();
+        REQUIRE_EQ(backend.requests().size(), std::size_t{1});
+        REQUIRE(backend.requests()[0].kind == plugin_request_kind::add_plugin);
+        REQUIRE_EQ(backend.requests()[0].path, folder);
+        REQUIRE(backend.requests()[0].flag);
+    }
+
+    // A plugin the user does not have is added, not replaced.
+    {
+        PluginInstallDialog dialog(backend,
+                                   inspection_of("org.example.noise", folder));
+        dialog.show();
+        backend.clear_requests();
+        dialog.add_button()->click();
+        REQUIRE_EQ(backend.requests().size(), std::size_t{1});
+        REQUIRE(!backend.requests()[0].flag);
+        REQUIRE(dialog.findChild<QLabel*>(
+                    QStringLiteral("installYourVersion")) == nullptr);
+    }
+}
+
+TEST_CASE("install dialog: the command for a plugin installed for everyone "
+          "replaces that copy")
+{
+    FakePluginBackend backend;
+    plugin_inspection_view everyone =
+        inspection_of("org.example.noise", QStringLiteral("C:/my plugins/tool"));
+    everyone.failure = plugin_inspection_view::problem::installed_for_everyone;
+    everyone.can_install = false;
+    PluginInstallDialog dialog(backend, everyone);
+    dialog.show();
+    settle();
+    REQUIRE_EQ(dialog.everyone_command(),
+               QStringLiteral("vss_cli plugin install \"C:/my plugins/tool\" "
+                              "--for-everyone --replace"));
+}
+
+TEST_CASE("plugins page: a plugin the user has is upgraded after the person "
+          "confirms, and its row is the one shown")
+{
+    fixture env;
+    PluginsDialog dialog(env.backend);
+    const plugin_view scanner = sample_of("org.hobby.scanner");
+    const plugin_view noise = sample_of("org.example.noise");
+    REQUIRE(dialog.select(scanner.id, scanner.folder));
+
+    QString chosen = QStringLiteral("C:/somewhere/newer-noise");
+    dialog.set_folder_picker([&chosen] { return chosen; });
+    dialog.show();
+    settle();
+    plugin_inspection_view found = inspection_of("org.example.noise", chosen);
+    found.replaces = plugin_replacement::upgrade;
+    found.installed_version = noise.version;
+    env.backend.set_inspection(chosen, found);
+
+    when_shown<PluginInstallDialog>([](PluginInstallDialog& each)
+                                    { each.add_button()->click(); });
+    env.backend.clear_requests();
+    dialog.add_button()->click();
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            return env.backend.count_of(plugin_request_kind::add_plugin) == 1;
+        }));
+    REQUIRE_EQ(env.backend.requests()[0].path, chosen);
+    REQUIRE(env.backend.requests()[0].flag);
+    // No row is new, so the row that was upgraded is selected.
+    REQUIRE(dialog.selected() != nullptr);
+    REQUIRE_EQ(dialog.selected()->id, noise.id);
 }
 
 TEST_CASE("plugins page: a plugin that failed to be added says why")
@@ -910,12 +1077,11 @@ TEST_CASE("plugins page: a plugin that failed to be added says why")
     settle();
     env.backend.fail_next_add(plugin_request_error::already_installed,
                               QStringLiteral("Modbus fixture"));
-    env.backend.add_plugin(QStringLiteral("C:/x"));
+    env.backend.add_plugin(QStringLiteral("C:/x"), false);
     env.backend.flush();
     settle();
     REQUIRE_EQ(dialog.message_banner()->text(),
-               QStringLiteral("Modbus fixture is already installed for you. "
-                              "Remove it first to add a different copy."));
+               QStringLiteral("Modbus fixture is already installed for you."));
 }
 
 TEST_CASE("plugins page: adding a plugin that is installed elsewhere names the "
@@ -935,13 +1101,12 @@ TEST_CASE("plugins page: adding a plugin that is installed elsewhere names the "
          QStringLiteral("Modbus fixture came with Studio, and that copy runs. "
                         "A copy added for you only would not run.")},
         {plugin_request_error::already_installed,
-         QStringLiteral("Modbus fixture is already installed for you. Remove "
-                        "it first to add a different copy.")},
+         QStringLiteral("Modbus fixture is already installed for you.")},
     };
     for (const auto& [error, text] : cases)
     {
         env.backend.fail_next_add(error, QStringLiteral("Modbus fixture"));
-        env.backend.add_plugin(QStringLiteral("C:/x"));
+        env.backend.add_plugin(QStringLiteral("C:/x"), false);
         env.backend.flush();
         settle();
         REQUIRE_EQ(dialog.message_banner()->text(), text);
@@ -1516,7 +1681,7 @@ TEST_CASE("key dialog: the page opens it for a key file the host accepts, and "
         key.fingerprint = QStringLiteral("0123456789abcdef");
         env.backend.set_key_file(path, key);
         picked = path;
-        dialog.import_key_button()->click();
+        dialog.import_key_action()->trigger();
         env.backend.flush();
         settle();
     };
@@ -1539,7 +1704,7 @@ TEST_CASE("key dialog: the page opens it for a key file the host accepts, and "
     env.backend.clear_requests();
     picked = QStringLiteral("C:/keys/ev") + QChar(0x202e) +
              QStringLiteral("il.vsskey.json");
-    dialog.import_key_button()->click();
+    dialog.import_key_action()->trigger();
     settle();
     REQUIRE_EQ(dialog.message_banner()->text(),
                QStringLiteral("That file is not a plugin key file."));
@@ -2006,6 +2171,314 @@ TEST_CASE("plugins page: at 200 percent text nothing is clipped and the footer "
     }
 }
 
+// -- layout of the page -------------------------------------------------------
+
+namespace
+{
+
+/// The Row widget that holds the switch of this plugin.
+QWidget* row_widget(PluginsDialog& dialog, const QString& id)
+{
+    Switch* box = dialog.row_switch(id);
+    return box != nullptr ? box->parentWidget() : nullptr;
+}
+
+QPushButton* detail_button(PluginsDialog& dialog, const QString& text)
+{
+    for (QPushButton* button : dialog.detail()->findChildren<QPushButton*>())
+    {
+        if (button->text() == text)
+            return button;
+    }
+    return nullptr;
+}
+
+int top_in_detail(PluginsDialog& dialog, const char* object_name)
+{
+    auto* widget =
+        dialog.detail()->findChild<QWidget*>(QString::fromLatin1(object_name));
+    REQUIRE(widget != nullptr);
+    return widget->mapTo(dialog.detail(), QPoint(0, 0)).y();
+}
+
+} // namespace
+
+TEST_CASE("plugins page: a row shows a state chip only for a state its switch "
+          "cannot say")
+{
+    fixture env;
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    int with_chip = 0;
+    int without_chip = 0;
+    for (const plugin_view& each : env.backend.snapshot()->plugins)
+    {
+        StatusChip* chip = dialog.row_chip(each.id, each.folder);
+        REQUIRE(chip != nullptr);
+        const bool has_switch =
+            dialog.row_switch(each.id, each.folder) != nullptr;
+        const bool said_by_switch =
+            has_switch && (each.state == plugin_state::available ||
+                           each.state == plugin_state::off);
+        REQUIRE_EQ(chip->isVisibleTo(chip->parentWidget()), !said_by_switch);
+        (said_by_switch ? without_chip : with_chip) += 1;
+        // Whether it shows or not, a screen reader still hears the state.
+        const auto row = static_cast<int>(dialog.row_keys().indexOf(
+            each.id + QLatin1Char('|') + each.folder));
+        const QModelIndex index = dialog.list()->model()->index(row, 0);
+        REQUIRE(index.data(Qt::AccessibleTextRole)
+                    .toString()
+                    .endsWith(state_text(each.state)));
+    }
+    // The samples have both kinds of row, and a copy that is not used, which
+    // has no switch, keeps its chip.
+    REQUIRE(with_chip > 0);
+    REQUIRE(without_chip > 0);
+    StatusChip* copy_chip = dialog.row_chip(
+        QStringLiteral("com.virtualserialstudio.modbus"),
+        QStringLiteral(
+            "C:/Users/you/Studio/plugins/Modbus fixture (your copy)"));
+    REQUIRE(copy_chip != nullptr);
+    REQUIRE(copy_chip->isVisibleTo(copy_chip->parentWidget()));
+    REQUIRE_EQ(copy_chip->text(), QStringLiteral("Not used"));
+}
+
+TEST_CASE("plugins page: a wide chip does not take room from the line under "
+          "the name")
+{
+    fixture env;
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    // "Needs your decision" is the widest chip. Its row and a row with no chip
+    // both show the word Off and the switch on their second line, so the
+    // second line has the same room in both.
+    QWidget* decision = row_widget(dialog, QStringLiteral("org.hobby.scanner"));
+    QWidget* plain = row_widget(dialog, QStringLiteral("org.example.noise"));
+    REQUIRE(decision != nullptr);
+    REQUIRE(plain != nullptr);
+    auto* decision_second =
+        decision->findChild<QLabel*>(QStringLiteral("pluginRowSecond"));
+    auto* plain_second =
+        plain->findChild<QLabel*>(QStringLiteral("pluginRowSecond"));
+    REQUIRE(decision_second != nullptr);
+    REQUIRE(plain_second != nullptr);
+    REQUIRE(dialog.row_chip(QStringLiteral("org.hobby.scanner"))
+                ->isVisibleTo(decision));
+    REQUIRE(!dialog.row_chip(QStringLiteral("org.example.noise"))
+                 ->isVisibleTo(plain));
+    REQUIRE_EQ(decision_second->width(), plain_second->width());
+}
+
+TEST_CASE("plugins page: the detail puts what a plugin may do before its "
+          "technical facts")
+{
+    fixture env;
+    PluginsDialog dialog(env.backend);
+    dialog.resize(dialog.width(), 900);
+    dialog.show();
+    settle();
+    dialog.select(QStringLiteral("com.virtualserialstudio.modbus"));
+    settle();
+
+    // What it is, who made it and what it may do, in that order, then where it
+    // is used, then the technical facts, then the messages.
+    const char* order[] = {
+        "pluginDetailName",        "pluginDetailAdds",
+        "pluginDetailDescription", "pluginDetailVersion",
+        "pluginDetailAuthor",      "pluginDetailSignature",
+        "pluginDetailMayDo",       "pluginDetailShowUse",
+        "pluginDetailTechnical",   "pluginDetailFingerprint",
+        "pluginDetailLicence",     "pluginDetailTiming",
+        "pluginDetailIsolation",   "pluginDetailInstalledFor",
+        "pluginDetailFolder",      "pluginDetailLog"};
+    int last = -1;
+    for (const char* name : order)
+    {
+        const int top = top_in_detail(dialog, name);
+        REQUIRE(top > last);
+        last = top;
+    }
+}
+
+TEST_CASE("plugins page: the detail has no Plugin mark, and a plugin with no "
+          "technical facts has no heading for them")
+{
+    fixture env;
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    for (const plugin_view& each : env.backend.snapshot()->plugins)
+    {
+        dialog.select(each.id, each.folder);
+        settle();
+        REQUIRE(dialog.detail()->findChild<QWidget*>(
+                    QStringLiteral("pluginDetailMark")) == nullptr);
+        // The heading is there exactly when a row of the second group is.
+        const bool heading =
+            dialog.detail()->findChild<QWidget*>(
+                QStringLiteral("pluginDetailTechnical")) != nullptr;
+        const bool facts =
+            dialog.detail()->findChild<QWidget*>(
+                QStringLiteral("pluginDetailFingerprint")) != nullptr ||
+            dialog.detail()->findChild<QWidget*>(
+                QStringLiteral("pluginDetailFolder")) != nullptr ||
+            dialog.detail()->findChild<QWidget*>(
+                QStringLiteral("pluginDetailTiming")) != nullptr;
+        REQUIRE_EQ(heading, facts);
+    }
+}
+
+TEST_CASE("plugins page: the next step is a normal button and the rest are "
+          "quiet, and running without isolation is never the normal one")
+{
+    for (const plugin_action next :
+         {plugin_action::start_now, plugin_action::review_and_decide,
+          plugin_action::show_used_copy, plugin_action::licence,
+          plugin_action::start_again})
+        REQUIRE(is_next_step(next));
+    for (const plugin_action other :
+         {plugin_action::copy_details, plugin_action::run_without_isolation,
+          plugin_action::show_log})
+        REQUIRE(!is_next_step(other));
+
+    fixture env;
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    const auto role_of = [&](const QString& id, const QString& text)
+    {
+        dialog.select(id);
+        settle();
+        QPushButton* button = detail_button(dialog, text);
+        REQUIRE(button != nullptr);
+        return button->property("role").toString();
+    };
+    REQUIRE_EQ(role_of(QStringLiteral("org.example.crashy"),
+                       QStringLiteral("Start again")),
+               QString());
+    REQUIRE_EQ(role_of(QStringLiteral("org.example.crashy"),
+                       QStringLiteral("Show log")),
+               QStringLiteral("quiet"));
+    REQUIRE_EQ(role_of(QStringLiteral("org.hobby.scanner"),
+                       QStringLiteral("Review and decide")),
+               QString());
+    // A plugin that cannot be kept apart has two quiet actions, and neither
+    // is drawn as the step to take.
+    REQUIRE_EQ(role_of(QStringLiteral("org.example.isolate"),
+                       QStringLiteral("Run without isolation...")),
+               QStringLiteral("quiet"));
+    REQUIRE_EQ(role_of(QStringLiteral("org.example.isolate"),
+                       QStringLiteral("Copy details")),
+               QStringLiteral("quiet"));
+}
+
+TEST_CASE("plugins page: Add a plugin is a button and the rest are in a menu "
+          "under More options")
+{
+    fixture env;
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    REQUIRE(dialog.add_button()->isVisibleTo(&dialog));
+    REQUIRE_EQ(dialog.add_button()->text(), QStringLiteral("Add a plugin..."));
+    REQUIRE_EQ(dialog.more_button()->text(), QStringLiteral("More options"));
+    QMenu* menu = dialog.more_button()->menu();
+    REQUIRE(menu != nullptr);
+    QStringList texts;
+    for (const QAction* action : menu->actions())
+        texts << action->text();
+    REQUIRE_EQ(texts, (QStringList{QStringLiteral("Import a key..."),
+                                   QStringLiteral("Open the plugin folder"),
+                                   QStringLiteral("Check again")}));
+    // None of the four is a link under the list any more.
+    for (QPushButton* button : dialog.findChildren<QPushButton*>())
+    {
+        REQUIRE(button->text() != QStringLiteral("Import a key..."));
+        REQUIRE(button->text() != QStringLiteral("Check again"));
+    }
+    // It is a menu button for assistive technology, with a name.
+    QAccessibleInterface* interface =
+        QAccessible::queryAccessibleInterface(dialog.more_button());
+    REQUIRE(interface != nullptr);
+    REQUIRE(interface->role() == QAccessible::ButtonMenu);
+    REQUIRE_EQ(accessible_name(dialog.more_button()),
+               QStringLiteral("More options"));
+
+    // "Open the plugin folder" asks the file manager for the user's folder.
+    QString opened;
+    dialog.set_path_opener([&opened](const QString& path) { opened = path; });
+    dialog.folder_action()->trigger();
+    REQUIRE_EQ(opened, env.backend.snapshot()->user_folder);
+}
+
+TEST_CASE("plugins page: the badge follows the signature sentence, the "
+          "timing is explained under its value and the folder's actions sit "
+          "together under the path")
+{
+    fixture env;
+    PluginsDialog dialog(env.backend);
+    dialog.resize(dialog.width(), 900);
+    dialog.show();
+    settle();
+    dialog.select(QStringLiteral("com.virtualserialstudio.modbus"));
+    settle();
+
+    auto* sentence = dialog.detail()->findChild<QLabel*>(
+        QStringLiteral("pluginDetailSignatureText"));
+    auto* badge = dialog.detail()->findChild<QWidget*>(
+        QStringLiteral("pluginOfficialBadge"));
+    REQUIRE(sentence != nullptr);
+    REQUIRE(badge != nullptr);
+    const int gap = badge->geometry().left() - sentence->geometry().right();
+    REQUIRE(gap >= 0);
+    REQUIRE(gap <= 24);
+
+    auto* timing = dialog.detail()->findChild<QLabel*>(
+        QStringLiteral("pluginDetailTimingText"));
+    auto* timing_line = dialog.detail()->findChild<QLabel*>(
+        QStringLiteral("pluginDetailTimingSentence"));
+    REQUIRE(timing != nullptr);
+    REQUIRE(timing_line != nullptr);
+    REQUIRE_EQ(timing->text(), QStringLiteral("Timed by Studio"));
+    REQUIRE_EQ(timing_line->text(),
+               timing_sentence(env.sample(
+                   QStringLiteral("com.virtualserialstudio.modbus"),
+                   QStringLiteral("C:/Users/you/Studio/plugins/Modbus "
+                                  "fixture"))));
+    REQUIRE(timing_line->isVisibleTo(dialog.detail()));
+    dialog.select(QStringLiteral("org.example.noise"));
+    settle();
+    timing_line = dialog.detail()->findChild<QLabel*>(
+        QStringLiteral("pluginDetailTimingSentence"));
+    REQUIRE(timing_line != nullptr);
+    REQUIRE_EQ(timing_line->text(),
+               QStringLiteral("Data on a link waits for this plugin, for up to "
+                              "800 microseconds each time."));
+
+    dialog.select(QStringLiteral("com.virtualserialstudio.modbus"));
+    settle();
+    auto* path = dialog.detail()->findChild<QWidget*>(
+        QStringLiteral("pluginDetailFolderText"));
+    auto* show = dialog.detail()->findChild<QWidget*>(
+        QStringLiteral("pluginDetailShowFolder"));
+    auto* copy = dialog.detail()->findChild<QWidget*>(
+        QStringLiteral("pluginDetailFolderCopy"));
+    REQUIRE(path != nullptr);
+    REQUIRE(show != nullptr);
+    REQUIRE(copy != nullptr);
+    const int path_bottom =
+        path->mapTo(dialog.detail(), QPoint(0, path->height())).y();
+    const int show_middle =
+        show->mapTo(dialog.detail(), QPoint(0, show->height() / 2)).y();
+    const int copy_middle =
+        copy->mapTo(dialog.detail(), QPoint(0, copy->height() / 2)).y();
+    REQUIRE(show_middle >= path_bottom);
+    REQUIRE(copy_middle >= path_bottom);
+    REQUIRE(std::abs(show_middle - copy_middle) <= 4);
+}
+
 // -- pictures for a person to look at -----------------------------------------
 
 TEST_CASE("plugins page: pictures for review, when a folder is named")
@@ -2059,6 +2532,24 @@ TEST_CASE("plugins page: pictures for review, when a folder is named")
                 settle();
                 save(page,
                      QString::fromLatin1(id).section(QLatin1Char('.'), -1));
+            }
+            // The whole detail of two plugins at once, so the order of its
+            // sections can be judged without scrolling.
+            if (scale <= 1.0)
+            {
+                for (const char* id :
+                     {"com.virtualserialstudio.modbus", "org.hobby.scanner"})
+                {
+                    PluginsDialog page(env.backend);
+                    page.resize(page.width(), 1500);
+                    page.show();
+                    settle();
+                    page.select(QString::fromLatin1(id));
+                    settle();
+                    save(page,
+                         QString::fromLatin1(id).section(QLatin1Char('.'), -1) +
+                             QStringLiteral("-tall"));
+                }
             }
             PluginDecisionDialog decision(
                 env.backend, env.sample(QStringLiteral("org.hobby.scanner")),
@@ -2356,6 +2847,15 @@ TEST_CASE("plugins page: what the plugin said of its licence, and licence.read")
     auto* report = dialog.detail()->findChild<NoteBanner*>(
         QStringLiteral("pluginDetailLicenceReport"));
     REQUIRE(report != nullptr);
+    // It is near the top, above the facts and what the plugin may do, where a
+    // disagreement is seen.
+    {
+        auto* adds = dialog.detail()->findChild<QWidget*>(
+            QStringLiteral("pluginDetailAdds"));
+        REQUIRE(adds != nullptr);
+        REQUIRE(report->mapTo(dialog.detail(), QPoint(0, 0)).y() <
+                adds->mapTo(dialog.detail(), QPoint(0, 0)).y());
+    }
     const QString sentence =
         reason_sentence(vss::license::reason::expired, plugin.licence_status);
     REQUIRE(!sentence.isEmpty());

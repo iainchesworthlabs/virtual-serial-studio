@@ -26,7 +26,7 @@ Every plugin is in exactly one row of this table. The GUI shows the state, never
 | Can't be used | manifest_invalid, layout_invalid, signature_invalid, revoked, expired | "Can't be used" failed, cross | No | Tiles hidden |
 | Not installed | named by a setup, not found on this computer | "Not installed" neutral, hollow | No | Tiles hidden |
 
-A chip is text plus dot shape, never colour alone.
+A chip is text plus dot shape, never colour alone. The heading of the detail always shows the chip. A row of the list shows it only for a state that its Switch cannot say (see "The list").
 
 ## Menu and entry points
 Tools menu, after "Setup check": **Plugins...**. It is in the action registry, so Search actions (Ctrl+K) finds it as "Plugins". No shortcut key. Shown in Simple and Advanced mode.
@@ -47,7 +47,7 @@ Top NoteBanner, only one, in this order of priority:
 ### The list (left, 320 wide)
 A list with the accessible name "Installed plugins". Filter field above it, placeholder "Filter plugins". One row for each plugin, sorted with the rows that need attention first, then by name.
 
-Row: the plugin's name (600), second line "<trust line>, version <version>" (12, `ink3`), the state chip on the right, and a Switch at the far right. A copy that is not used (see "Installed for" below) is its own row, directly under the copy that is used, indented, with no Switch.
+Row: the plugin's name (600), second line "<trust line>, version <version>" (12, `ink3`), and on the right a Switch with the word "On" or "Off" beside it. The Switch says On or Off, so a row has the state chip only for the other states, and then the chip is above the Switch. A plugin that is simply on or off has no chip, so a row with a chip is a row to read. A copy that is not used (see "Installed for" below) is its own row, directly under the copy that is used, indented, with no Switch and always with its chip.
 
 Trust line, one of:
 - "Official"
@@ -61,16 +61,22 @@ Row accessible name: "<plugin name>, <trust line>, <state>", for example "Modbus
 
 Empty list: an EmptyState, title "No plugins are installed", text "Plugins are folders that you or your administrator put in the plugin folder. Studio does not download anything." Button "Open the plugin folder". With a filter and no match: "No plugin matches <text>."
 
-Under the list: "Add a plugin..." (quiet), "Import a key..." (quiet; opens "Import an author's key" below), "Open the plugin folder" (quiet; opens the per-user plugin folder in the file manager) and "Check again" (quiet; rescans; toast "Checked. <n> plugins found." with `%n`).
+Under the list, one row with two buttons: "Add a plugin..." and the menu button "More options". The row wraps to a second line at large text. The menu has "Import a key..." (opens "Import an author's key" below), "Open the plugin folder" (opens the per-user plugin folder in the file manager) and "Check again" (rescans; toast "Checked. <n> plugins found." with `%n`). Adding a plugin is the one thing most people come here to do, so it is a button of its own; the other three are rare and share a menu.
 
-"Add a plugin..." opens a folder chooser with the title "Choose a plugin's folder". The host looks into the folder first, off the GUI thread, and copies nothing. The dialog "Add a plugin" (below) then shows what it found. Only when the person confirms does Studio copy the folder into the per-user plugin folder and select the new row, which is in Needs your decision. Nothing runs. Toast "Added for you only. Review it before it runs." A folder with no description file: "That folder is not a plugin. A plugin's folder holds a file named plugin.json." A plugin already installed for you: "<plugin name> is already installed for you. Remove it first to add a different copy." Both are shown in the dialog, where they cannot be confirmed.
+"Add a plugin..." opens a folder chooser with the title "Choose a plugin's folder". The host looks into the folder first, off the GUI thread, and copies nothing. The dialog "Add a plugin" (below) then shows what it found. Only when the person confirms does Studio copy the folder into the per-user plugin folder and select the new row, which is in Needs your decision. Nothing runs. Toast "Added for you only. Review it before it runs." A folder with no description file: "That folder is not a plugin. A plugin's folder holds a file named plugin.json." A plugin installed for you with exactly these files: "<plugin name> is already installed for you. Its files are the same as the ones in this folder." Both are shown in the dialog, where they cannot be confirmed.
+
+A plugin installed for you with other files is not refused: the folder is another version of it, and the dialog offers to replace the copy (see "Add a plugin" below). This is how a plugin is upgraded, and it is the same flow for a version that is the same or older. When the person confirms, Studio switches the plugin off if it is running, waits until it has stopped, and replaces the plugin's folder with the copy. The plugin's settings, its instances and its saved data stay. The row that was there is selected. Toast "Upgraded <plugin name>. Review it before it runs." for a newer version, "Replaced <plugin name>. Review it before it runs." for the same version or an older one. The new files are a version nobody has decided about, so the plugin does not run until the person decides, and its row is in Needs your decision.
+
+A plugin that is installed for everyone or came with Studio is not replaced for the user, as before: that copy runs, and a copy added for the user would not.
 
 Studio never asks for administrator rights. A muted line under the buttons, with a CopyButton for the path: "To install a plugin for everyone on this computer, an administrator puts its folder in <machine plugin folder>."
 
-When the administrator has turned per-user plugins off, "Add a plugin..." and "Open the plugin folder" are disabled with the tooltip "Your administrator installs the plugins on this computer."
+When the administrator has turned per-user plugins off, "Add a plugin..." and the menu entry "Open the plugin folder" are disabled with the tooltip "Your administrator installs the plugins on this computer."
 
 ### The detail (right)
-For the selected plugin. Heading: the plugin's name in title type, then the "Plugin" mark and the state chip.
+For the selected plugin. Heading: the plugin's name in title type, then the state chip. There is no "Plugin" mark here, because everything in this dialog is a plugin.
+
+Order, top to bottom: the heading; why and what to do; the licence report, when there is one; who made it and what it adds (the definition list, first group); "What it may do"; "What it runs"; "Used in this setup"; "Technical details" (the definition list, second group); "Recent messages". What a plugin can do to this computer comes before where its files are, because that is what a person decides on. Nothing is hidden or collapsed: all of it is one scroll away.
 
 **Why and what to do.** A NoteBanner directly under the heading in every state but Available and Off. One sentence of why, one of what to do, and the action:
 
@@ -99,7 +105,9 @@ For the selected plugin. Heading: the plugin's name in title type, then the "Plu
 
 There is never a way to run a plugin whose signature failed or that was withdrawn.
 
-**Definition list.** Rows that have no value are left out.
+The actions are buttons in a row directly under the banner, wrapping at large text. The one that is the next step to take is a normal button: "Start now", "Review and decide", "Show the copy that is used", "Licence" and "Start again". The others are quiet: "Copy details", "Show log" and "Run without isolation...". "Run without isolation..." is never the normal button, however alone it stands, because it is the step that gives a plugin more access.
+
+**Definition list.** Rows that have no value are left out. It is in two groups, with the heading "Technical details" over the second. The first group is "What it adds", "Description", "Version", "Made by", "Status", "Signature" and "Signing key". The second is "Fingerprint", "Expires", "Licence", "Timing", "Isolation", "Installed for" and "Folder".
 
 | Row label | Value |
 |---|---|
@@ -114,10 +122,10 @@ There is never a way to run a plugin whose signature failed or that was withdraw
 | "Timing" | "Timed by Studio", "In the path of the data", or "Beside the data" (see below) |
 | "Isolation" | "Full", "Partial: <what is missing>", "None on this computer", or, after the override below, "None. You allowed this on <date>." with a quiet button "Undo" |
 | "Installed for" | "Everyone on this computer", "You only", or "Came with Studio" |
-| "Folder" | The path in the fixed font, with a CopyButton and a quiet button "Show in folder" |
+| "Folder" | The path in the fixed font, and under it a quiet button "Show in folder" and a CopyButton |
 
 Signature sentences:
-- Official: "Signed by Virtual Serial Studio." with the Virtual Serial Studio badge.
+- Official: "Signed by Virtual Serial Studio." with the Virtual Serial Studio badge directly after it, not at the far edge.
 - Third-party, approved: "Signed by <author name>. Not verified by Virtual Serial Studio."
 - Signed with a key that is not on this computer: "Signed with a key that Studio does not have (<key id>), so the signature could not be checked." with a quiet button "Import the author's key...".
 - Unsigned: "Not signed. Studio cannot tell who made it or whether it was changed."
@@ -126,7 +134,7 @@ A muted line under the Signature row, always: "A signature shows who made a plug
 
 When the plugin runs with a program that is not part of it: a warn line, "Uses the <runtime name> on this computer. Those files are not covered by the signature."
 
-Timing sentences, as tooltips and accessible descriptions:
+Timing sentences, as a muted line under the value, which is also its accessible description. A value such as "Beside the data" means nothing to a person who has to hover to learn it:
 - "Timed by Studio": "Studio carries out this plugin's rules itself, so its timing is exact and it keeps working if the plugin stops."
 - "In the path of the data": "Data on a link waits for this plugin, for up to <n> microseconds each time."
 - "Beside the data": "This plugin watches and acts, and data never waits for it."
@@ -170,16 +178,19 @@ Acceptance: every state in the tables can be shown from `FakeStudioBackend`; a s
 ## Add a plugin (width 560)
 Context `PluginInstallDialog`. Opens after "Add a plugin..." and the choice of a folder, once the host has looked into it. Modal. Initial focus and default are Cancel. Title "Add <plugin name>?"; for a folder that is not a plugin, "Add a plugin". Sub "Studio copies the folder into your own plugin folder. Nothing runs."
 
+When the folder is another version of a plugin the user has (see "Plugins" above), the dialog replaces the copy instead of adding one. The title is "Upgrade <plugin name>?" for a newer version, "Replace <plugin name>?" for the same version with other files and "Replace <plugin name> with an older version?" for an older one. Sub "Studio stops the plugin, replaces your copy with the files in this folder and keeps its settings and saved data. A version you have not decided about does not run until you do."
+
 Top NoteBanner:
-- A plugin that can be added: what its state will be, in the sentence of the table above (for example "You have not decided whether to run this plugin."); when there is none, info "Nothing is wrong with it."
+- A plugin that can be added: what its state will be, in the sentence of the table above (for example "You have not decided whether to run this plugin."); when there is none, info "Nothing is wrong with it." For a copy that replaces the user's own, "This plugin changed since you approved it. Review it again before it runs." when the user decided about their copy.
+- A copy that is not newer than the user's own: the sentence above comes second, and the banner is warn at least, never info. First line, for the same version "Your copy has the same version, <version>, with other files." and for an older one "Your copy is version <version>. This folder holds an older version."
 - A plugin that cannot be used (danger): "Studio cannot add this plugin." and a second line, the sentence of the table above for its state.
-- Not a plugin, already installed for you, and per-user plugins off by policy (danger): the sentences of "Plugins", above, "That folder is not a plugin. A plugin's folder holds a file named plugin.json.", "<plugin name> is already installed for you. Remove it first to add a different copy." and "Your administrator installs the plugins on this computer."
+- Not a plugin, already installed for you with these files, and per-user plugins off by policy (danger): the sentences of "Plugins", above, "That folder is not a plugin. A plugin's folder holds a file named plugin.json.", "<plugin name> is already installed for you. Its files are the same as the ones in this folder." and "Your administrator installs the plugins on this computer."
 
-Body: the plugin's name, then a definition list with the rows "Version", "Made by", "Signature" (the signature sentence of the detail), "Signing key" and "Fingerprint" as in the detail; rows with no value are left out. Then the line "To install it for everyone on this computer, an administrator runs this command. Studio never asks for administrator rights." and the command in a CodeBlock with a CopyButton, accessible name "Install command": `vss_cli plugin install <folder> --for-everyone` (the folder in double quotes when it has a space).
+Body: the plugin's name, then a definition list with the rows "Version", "Your version" (only when the copy replaces the user's own), "Made by", "Signature" (the signature sentence of the detail), "Signing key" and "Fingerprint" as in the detail; rows with no value are left out. Then the line "To install it for everyone on this computer, an administrator runs this command. Studio never asks for administrator rights." and the command in a CodeBlock with a CopyButton, accessible name "Install command": `vss_cli plugin install <folder> --for-everyone` (the folder in double quotes when it has a space). When a copy for everyone is installed already, the command ends with `--replace`, so that the administrator can put this copy in its place.
 
-Buttons: Cancel, "Add plugin" (primary, not the default). "Add plugin" is disabled when the banner is danger. Cancel copies nothing.
+Buttons: Cancel, "Add plugin" (primary, not the default). "Add plugin" is "Upgrade plugin" for a newer version and "Replace plugin" for the same version or an older one. The button is disabled when the banner is danger. Cancel copies nothing and replaces nothing.
 
-Acceptance: Enter alone cancels; nothing is copied until "Add plugin" is pressed; a plugin that cannot be used cannot be confirmed; text from the manifest is plain text; the command is only text, and Studio never starts a program with more rights.
+Acceptance: Enter alone cancels; nothing is copied until the button is pressed; a copy of the user's own is replaced only by the button of this dialog, which asks the host to replace; a plugin that cannot be used cannot be confirmed; text from the manifest is plain text; the command is only text, and Studio never starts a program with more rights.
 
 ## Decide about a plugin (width 640)
 Context `PluginDecisionDialog`. Opens from "Review and decide", from switching on a plugin that needs a decision, and from "Change what it may do...". Modal. Initial focus is Cancel. No button is the default except Cancel for anything but an official plugin.
@@ -212,7 +223,7 @@ Buttons: Cancel; then "Switch on" (official), "Run this plugin" (signed) or "Run
 Acceptance: the dialog cannot be answered by Enter alone for a signed or unsigned plugin (Cancel is the default); every permission sentence is read by a screen reader with its state ("Needed", "ticked", "not ticked"); the fingerprint shown equals the one in the Plugins dialog; a decision is stored for that fingerprint only.
 
 ## Import an author's key (width 560)
-Context `PluginKeyImportDialog`. Opens from "Import the author's key..." on a plugin, and from "Import a key..." (quiet) under the list in Plugins. Decided by the owner: an author publishes a small public key file; the user imports it here and compares its fingerprint with what the author published; only then is the key approved. A key is never approved because it lies in a plugin's own folder.
+Context `PluginKeyImportDialog`. Opens from "Import the author's key..." on a plugin, and from "Import a key..." in the "More options" menu under the list in Plugins. Decided by the owner: an author publishes a small public key file; the user imports it here and compares its fingerprint with what the author published; only then is the key approved. A key is never approved because it lies in a plugin's own folder.
 
 Step 1 is a file chooser, title "Choose an author's public key file", filter "Plugin key files (*.vsskey.json)". A file that is not a key file: "That file is not a plugin key file." A key id that is already in use: "A key with the id <key id> is already approved. An id cannot change its key." or, for an official or administrator's key, "The id <key id> belongs to a key that is already on this computer."
 
@@ -338,7 +349,7 @@ Buttons: Cancel, "Add" (primary). "Add" is disabled until every field has text. 
 Acceptance: every row and button is reachable by keyboard in the order of the page; the state words are text, never colour alone; the section reads as a list.
 
 ## What a plugin said of its licence
-Context `PluginsDialog`. An official plugin checks the licence itself and tells Studio what it found (`licence.report`, reason as the licence library names it, `ok` when it accepted). When the reason is not `ok`, the detail shows a warn banner under the Licence row: "This plugin did not accept the licence: <sentence>", where the sentence is the one the Licence page already shows for that reason, never text from the plugin. When Studio's own check found the licence fine and the plugin's row does not say it needs one, the banner adds: "Studio and the plugin disagree. Check that Studio and the plugin are both up to date."
+Context `PluginsDialog`. An official plugin checks the licence itself and tells Studio what it found (`licence.report`, reason as the licence library names it, `ok` when it accepted). When the reason is not `ok`, the detail shows a warn banner under the banner for the state, near the top, where a disagreement is seen: "This plugin did not accept the licence: <sentence>", where the sentence is the one the Licence page already shows for that reason, never text from the plugin. When Studio's own check found the licence fine and the plugin's row does not say it needs one, the banner adds: "Studio and the plugin disagree. Check that Studio and the plugin are both up to date."
 
 ## Plugins that record, and the places they may use
 A plugin that was granted `traffic.tap` and asks Studio to record names the places it wants by name: a port by its name as the Ports list shows it, and a link by the names of its ends, "<first end> - <second end>" (several ends on one side are joined by "+"). A name Studio does not know is refused, and the plugin is told so. Studio publishes the table of names, with each port's line settings and control lines, from the GUI thread whenever the ports or links change, so that nothing the plugin does waits on the GUI. The "Recording" chip in the status bar shows while one runs.
