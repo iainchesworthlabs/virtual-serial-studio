@@ -66,6 +66,10 @@
    "new": "solutions/capture-and-analysis/"
   },
   {
+   "src": "solutions/features.md",
+   "new": "solutions/features/"
+  },
+  {
    "src": "solutions/sharing-and-bridging-ports.md",
    "new": "solutions/sharing-and-bridging-ports/"
   },

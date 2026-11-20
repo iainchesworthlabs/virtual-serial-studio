@@ -7,7 +7,7 @@ description: "Four jobs people use Virtual Serial Studio for: develop without ha
 <section class="vss-head"><div class="icl-wrap">
 <p class="icl-eyebrow">Solutions</p>
 <h1>What people use it for</h1>
-<p class="icl-lead">Pick the job you have. Each page says what to do in Studio, shows one example, and says what is not built yet.</p>
+<p class="icl-lead">Pick the job you have. Each page says what to do in Studio, shows one example, and says what is not built yet. <a href="features/">The full list of features</a> is on its own page.</p>
 </div></section>
 
 <section class="icl-section"><div class="icl-wrap">
@@ -33,6 +33,7 @@ description: "Four jobs people use Virtual Serial Studio for: develop without ha
 <div>
 <h2>Where the detail is</h2>
 <ul class="vss-links">
+<li><a href="features/">Everything Studio can do</a></li>
 <li><a href="../guide/">The guide</a></li>
 <li><a href="../guide/scenarios/">Scenario recipes</a></li>
 <li><a href="../products/">Products</a></li>

@@ -85,7 +85,7 @@ Menus follow ADL's `links.html` shape (a native `<details>` dropdown each, no sc
 |---|---|
 | Products | All products; Studio; Command line (`vss_cli`); Agent and gateway (`vss_agent`, `vss_gate`, Python client `vss_control`); Plugins and the plugin SDK; Windows drivers |
 | Platforms | Windows; macOS; Linux (one page each) |
-| Solutions | Develop and test without hardware; Share a device and put it on the network; Watch and record traffic; Automate tests in a lab |
+| Solutions | Develop and test without hardware; Share a device and put it on the network; Watch and record traffic; Automate tests in a lab; What Studio can do (the full feature list) |
 | Developers | Control API and Python client; Plugin SDK; Command line reference; Topology JSON format; Building from source; Architecture (curated, see section 3) |
 | Quality and security | Quality; Security policy and releases |
 | Pricing | Community, Pro, Enterprise, comparison table |
@@ -118,7 +118,7 @@ Published at `/virtual-serial-studio/`:
 
 | Group | Pages |
 |---|---|
-| Front | `index`, `products/` (+ studio, command-line, agent-gateway, plugins, drivers), `platforms/` (+ windows, macos, linux), `solutions/` (four pages), `quality/`, `security/`, `pricing/`, `downloads/`, `whats-new/`, `faq/`, `support/`, `licensing/`, `privacy/`, `accessibility/`, `press/` |
+| Front | `index`, `products/` (+ studio, command-line, agent-gateway, plugins, drivers), `platforms/` (+ windows, macos, linux), `solutions/` (four jobs and a feature list), `quality/`, `security/`, `pricing/`, `downloads/`, `whats-new/`, `faq/`, `support/`, `licensing/`, `privacy/`, `accessibility/`, `press/` |
 | Guide | `guide/` split by task from `docs/user-guide.md` (about 2,100 lines): getting started, ports, the command line, automation, plugins, licences, updates, troubleshooting, limits |
 | Developers | `developers/` with a curated set (proposed: control API, plugin SDK, CLI reference, topology format, building, architecture). The rest stays repository-only. |
 | Generated | `updates/v1/feed.json` (byte copy of the signed feed), `theme.css` (the palette), `icon.svg`, `icl-app.json` (the company tile manifest: name, summary, tags, status, icon, order), `404.html`, `sitemap.xml` |
