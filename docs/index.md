@@ -18,24 +18,24 @@ description: "Virtual serial ports, port sharing, a traffic monitor and test aut
 
 <section class="icl-section"><div class="icl-wrap">
 <div class="vss-intro">
-<h2>What it does today</h2>
-<p>Studio is the application. <code>vss_cli</code> does the same jobs with no window. Each card goes to a page that says how, and what the job does not cover.</p>
+<h2>What you can do with it</h2>
+<p>Studio does these jobs in a window, and the command line does the same jobs with no window. Each card goes to a page that shows how, and what the job does not cover.</p>
 </div>
 <ul class="icl-grid vss-grid-3">
 <li><article class="icl-card"><p class="vss-kicker">Virtual ports</p><h3><a href="solutions/develop-and-test-without-hardware/">Give a program a serial port</a></h3><p>Make a port for your program, or two ports joined like a null-modem cable, before the device exists or while it is somewhere else.</p></article></li>
 <li><article class="icl-card"><p class="vss-kicker">Port sharing</p><h3><a href="solutions/sharing-and-bridging-ports/">Share and bridge ports</a></h3><p>Give one real device to several programs, merge several senders into one device, share a bus, or put a port on the network.</p></article></li>
 <li><article class="icl-card"><p class="vss-kicker">Traffic monitor</p><h3><a href="solutions/capture-and-analysis/">Watch and record traffic</a></h3><p>See every byte on every port, in text or hex, record it with its time, export it, and play a recording back.</p></article></li>
 <li><article class="icl-card"><p class="vss-kicker">Device emulation</p><h3><a href="solutions/develop-and-test-without-hardware/">Answer like a device</a></h3><p>Make a port reply from a script, or poll like a master, and replay what a device sent, with a delay you choose.</p></article></li>
-<li><article class="icl-card"><p class="vss-kicker">Test automation</p><h3><a href="solutions/test-automation-and-ci/">Run tests with no window</a></h3><p>Run a saved setup from a terminal or a CI job, drive ports from a script, wait for a reply and keep a JUnit report.</p></article></li>
-<li><article class="icl-card"><p class="vss-kicker">Test benches</p><h3><a href="solutions/test-automation-and-ci/">Build a bench and keep it</a></h3><p>Lay out ports, links, modem control lines and a multi-drop bus in a diagram, add delay and faults, and save it as a file.</p></article></li>
+<li><article class="icl-card"><p class="vss-kicker">Test automation</p><h3><a href="solutions/test-automation-and-ci/">Run tests with no window</a></h3><p>Run a saved setup from a terminal or a CI job, drive ports from a script, wait for a reply and keep a test report.</p></article></li>
+<li><article class="icl-card"><p class="vss-kicker">Test benches</p><h3><a href="solutions/test-automation-and-ci/">Build a bench and keep it</a></h3><p>Lay out your ports and links in a diagram, add delay and faults, and save the whole bench as a file you can open again.</p></article></li>
 </ul>
-<ul class="vss-links"><li><a href="products/studio/">Studio</a></li><li><a href="solutions/">All solutions</a></li></ul>
+<ul class="vss-links"><li><a href="products/studio/">Studio</a></li><li><a href="solutions/features/">Everything it can do</a></li><li><a href="solutions/">What people use it for</a></li></ul>
 </div></section>
 
 <section class="icl-section icl-section--tint"><div class="icl-wrap">
 <div class="vss-intro">
 <h2>Who it is for</h2>
-<p>One program, two ways to use it.</p>
+<p>One program, used two ways.</p>
 </div>
 <div class="vss-two">
 <div>
@@ -44,9 +44,9 @@ description: "Virtual serial ports, port sharing, a traffic monitor and test aut
 <ul class="vss-links"><li><a href="products/studio/">Studio</a></li><li><a href="pricing/">Community edition</a></li></ul>
 </div>
 <div>
-<h3>A test lab that drives Studio from a harness</h3>
-<p>You run the same setup every time, from a script, with no window. <code>vss_cli</code> runs a saved setup and records and replays traffic. A Python client lets a test make ports, send bytes, wait for a reply and hand back a JUnit report. The agent, the gateway and the client are built from source today. <span class="vss-chip vss-chip--src">Built from source only</span></p>
-<ul class="vss-links"><li><a href="guide/command-line/">Command line</a></li><li><a href="products/agent-gateway/">Agent and gateway</a></li></ul>
+<h3>A test lab that runs Studio from a script</h3>
+<p>You run the same setup every time, from a script, with no window. The command line runs a saved setup and records and replays traffic. A Python client lets a test make ports, send bytes, wait for a reply and get a test report. The Python client is built from source today. <span class="vss-chip vss-chip--src">Built from source only</span></p>
+<ul class="vss-links"><li><a href="guide/command-line/">Command line</a></li><li><a href="guide/control-from-a-script/">Control it from a script</a></li></ul>
 </div>
 </div>
 </div></section>
@@ -58,8 +58,8 @@ description: "Virtual serial ports, port sharing, a traffic monitor and test aut
 </div>
 <ul class="vss-plans">
 <li class="vss-plan"><h3>Community</h3><p class="vss-plan__price">Free<small>GPL-3.0-or-later</small></p><p class="vss-plan__for">Studio, the command line and the source, with help on GitHub.</p><a class="icl-button icl-button--ghost" href="downloads/">Download</a></li>
-<li class="vss-plan"><h3>Pro</h3><p class="vss-plan__price">Price on request</p><p class="vss-plan__for">For test labs: a licence file and support.</p><a class="icl-button icl-button--ghost" href="pricing/">See Pro</a></li>
-<li class="vss-plan"><h3>Enterprise</h3><p class="vss-plan__price">Price on request</p><p class="vss-plan__for">Negotiated terms, seats and computers, and a support agreement.</p><a class="icl-button icl-button--ghost" href="pricing/">See Enterprise</a></li>
+<li class="vss-plan"><h3>Pro</h3><p class="vss-plan__price">Price on request</p><p class="vss-plan__for">For labs that depend on Studio: a licence file and support.</p><a class="icl-button icl-button--ghost" href="pricing/">See Pro</a></li>
+<li class="vss-plan"><h3>Enterprise</h3><p class="vss-plan__price">Price on request</p><p class="vss-plan__for">For organisations: terms written for you, with seats, computers and a support agreement.</p><a class="icl-button icl-button--ghost" href="pricing/">See Enterprise</a></li>
 </ul>
 <ul class="vss-links"><li><a href="pricing/">Compare the editions</a></li><li><a href="licensing/">Licensing</a></li></ul>
 </div></section>
@@ -67,18 +67,17 @@ description: "Virtual serial ports, port sharing, a traffic monitor and test aut
 <section class="icl-section icl-section--tint"><div class="icl-wrap">
 <div class="vss-intro">
 <h2>Quality and security</h2>
-<p>What the repository shows, and where to find it.</p>
+<p>What is done to keep Studio reliable, and what you can check for yourself.</p>
 </div>
 <div class="vss-two">
 <ul class="vss-ticks">
-<li>The libraries are built with AddressSanitizer, UBSan and ThreadSanitizer at <code>-O1</code>, and the tests run under them.</li>
-<li>Ten libFuzzer harnesses read the files and network bytes that come from outside: setups, endpoint addresses, plugin manifests, licences and the update feed among them.</li>
-<li>Coverage of the libraries has a gate of 90 percent of statements and 80 percent of branches.</li>
+<li>Studio is built and tested on Windows, Linux and macOS every night.</li>
+<li>The tests also run under tools that catch memory mistakes and data races, and the code that reads files and network data is fuzzed.</li>
+<li>Vulnerabilities are reported privately through GitHub.</li>
 </ul>
 <ul class="vss-ticks">
-<li>Every release file has a GPG signature, and <code>SHA512SUMS</code> lists every file. Each release has an SPDX bill of materials, and each package has a provenance attestation.</li>
+<li>Every release file is signed, and every release has a checksum list and a software bill of materials. You can check a download yourself.</li>
 <li>Studio sends nothing about you or your computer. There is no telemetry, no account and no usage data.</li>
-<li>Vulnerabilities are reported privately through GitHub.</li>
 </ul>
 </div>
 <ul class="vss-links"><li><a href="quality/">Quality and trust</a></li><li><a href="security/">Security</a></li><li><a href="downloads/#verify">Verify a download</a></li></ul>
@@ -87,7 +86,7 @@ description: "Virtual serial ports, port sharing, a traffic monitor and test aut
 <section class="icl-section"><div class="icl-wrap">
 <div class="vss-intro">
 <h2>Windows, Linux and macOS</h2>
-<p>Studio and <code>vss_cli</code> run on Windows, Linux and macOS. <a href="downloads/">Downloads</a> has the files for each system and says what each one needs.</p>
+<p>Studio and the command line run on Windows, Linux and macOS. <a href="downloads/">Downloads</a> has the files for each system and says what each one needs.</p>
 </div>
 </div></section>
 
