@@ -146,7 +146,8 @@ long long start_idle_child(const char*)
         // What `--hang` does, without starting the program again: say so on
         // standard output, then wait until something ends the process.
         constexpr std::string_view text = "hanging\n";
-        static_cast<void>(::write(STDOUT_FILENO, text.data(), text.size()));
+        if (::write(STDOUT_FILENO, text.data(), text.size()) < 0)
+            ::_exit(127);
         for (;;)
             ::pause();
     }
