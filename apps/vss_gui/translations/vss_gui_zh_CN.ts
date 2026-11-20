@@ -22548,6 +22548,56 @@ Networks: %5</source>
             <source>Add plugin</source>
             <translation>添加插件</translation>
         </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Upgrade %1?</source>
+            <translation>升级 %1？</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Replace %1?</source>
+            <translation>替换 %1？</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Replace %1 with an older version?</source>
+            <translation>用较旧的版本替换 %1？</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio stops the plugin, replaces your copy with the files in this folder and keeps its settings and saved data. A version you have not decided about does not run until you do.</source>
+            <translation>Studio 会停止该插件，用此文件夹中的文件替换您的副本，并保留其设置和已保存的数据。您尚未决定的版本在您决定之前不会运行。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your copy has the same version, %1, with other files.</source>
+            <translation>您的副本是同一版本 %1，但文件不同。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your copy is version %1. This folder holds an older version.</source>
+            <translation>您的副本是版本 %1。此文件夹中是较旧的版本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your version</source>
+            <translation>您的版本</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Upgrade plugin</source>
+            <translation>升级插件</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Replace plugin</source>
+            <translation>替换插件</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>%1 is already installed for you. Its files are the same as the ones in this folder.</source>
+            <translation>%1 已为您安装。其文件与此文件夹中的文件相同。</translation>
+        </message>
     </context>
     <context>
         <name>PluginKeyImportDialog</name>
@@ -23424,11 +23474,6 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_dialogs.cpp" line="1" />
-            <source>%1 is already installed for you. Remove it first to add a different copy.</source>
-            <translation>%1 已为您安装。请先将其移除，再添加其他副本。</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
             <source>Your administrator installs the plugins on this computer.</source>
             <translation>此计算机上的插件由管理员安装。</translation>
         </message>
@@ -23932,6 +23977,31 @@ Networks: %5</source>
             <location filename="../src/support/plugins_dialog.cpp" line="1562" />
             <source>What %1 found</source>
             <translation>%1 发现的内容</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>More options</source>
+            <translation>更多选项</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Technical details</source>
+            <translation>技术详细信息</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Upgraded %1. Review it before it runs.</source>
+            <translation>已升级 %1。运行前请先查看。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Replaced %1. Review it before it runs.</source>
+            <translation>已替换 %1。运行前请先查看。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1 is already installed for you.</source>
+            <translation>%1 已为您安装。</translation>
         </message>
     </context>
     <context>

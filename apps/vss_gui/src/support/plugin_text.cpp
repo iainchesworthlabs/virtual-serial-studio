@@ -544,6 +544,24 @@ QString action_text(plugin_action action)
     return {};
 }
 
+bool is_next_step(plugin_action action)
+{
+    switch (action)
+    {
+    case plugin_action::start_now:
+    case plugin_action::review_and_decide:
+    case plugin_action::show_used_copy:
+    case plugin_action::licence:
+    case plugin_action::start_again:
+        return true;
+    case plugin_action::copy_details:
+    case plugin_action::run_without_isolation:
+    case plugin_action::show_log:
+        return false;
+    }
+    return false;
+}
+
 plugin_note_text note_for(const plugin_view& plugin)
 {
     plugin_note_text out;
