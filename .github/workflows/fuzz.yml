@@ -112,7 +112,7 @@ jobs:
 
       - name: Report the failure
         if: ${{ (failure() || (cancelled() && github.event_name == 'schedule')) && github.event_name == 'schedule' }}
-        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
+        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
         with:
           engine: libFuzzer
           detail: A fuzz target crashed, timed out or ran out of memory, the fuzz build failed, or the run was cancelled or ran out of time before every target had its turn. The run keeps the crashing input as the fuzz-crashes artifact. Fix the bug and add the input to libs/<lib>/fuzz/regressions/.

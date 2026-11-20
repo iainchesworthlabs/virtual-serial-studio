@@ -67,7 +67,7 @@ jobs:
     if: github.ref != 'refs/heads/main'
     permissions:
       contents: read
-    uses: iainchesworthlabs/icl-common-infra/.github/workflows/docs.yml@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
+    uses: iainchesworthlabs/icl-common-infra/.github/workflows/docs.yml@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
 
   website:
     name: Build and check the website
@@ -136,4 +136,4 @@ jobs:
     permissions:
       pages: write
       id-token: write
-    uses: iainchesworthlabs/icl-common-infra/.github/workflows/docs-deploy.yml@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
+    uses: iainchesworthlabs/icl-common-infra/.github/workflows/docs-deploy.yml@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
