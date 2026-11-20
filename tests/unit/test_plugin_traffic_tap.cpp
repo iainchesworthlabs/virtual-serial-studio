@@ -364,10 +364,10 @@ TEST_CASE("traffic tap: closing and destroying while traffic flows")
     senders.reserve(ports.size());
     for (const auto& port : ports)
     {
-        senders.emplace_back([&stop, port] {
+        senders.emplace_back([&stop, target = port] {
             while (!stop)
             {
-                inject_now(port, "payload");
+                inject_now(target, "payload");
                 std::this_thread::yield();
             }
         });

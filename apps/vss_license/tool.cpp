@@ -694,7 +694,7 @@ unknown_field(const boost::json::object& object,
 {
     for (const auto& entry : object)
     {
-        const std::string_view name = entry.key();
+        const std::string_view name{entry.key().data(), entry.key().size()};
         if (std::ranges::find(known, name) == known.end())
         {
             std::string qualified(owner);

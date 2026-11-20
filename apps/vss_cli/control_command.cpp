@@ -1609,6 +1609,10 @@ std::optional<secret_string> read_token_file(const std::string& path)
 /// literal, so this never fails and never allocates.
 const char* control_usage() noexcept
 {
+    // The text is one string made of adjacent literals. Each block below
+    // names its commands first, then describes them, and ends with a blank
+    // line. Keep the lines within 80 columns once printed.
+    // Block 1: status and stop.
     return "  vss_cli control status [--instance=<name>] "
            "[--token-file=<file>]\n"
            "  vss_cli control stop [--instance=<name>]\n"
@@ -1621,6 +1625,7 @@ const char* control_usage() noexcept
            "      given on the command line, where other programs can read\n"
            "      it.\n"
            "\n"
+           // Block 2: tokens, which need the administration endpoint.
            "  vss_cli control token create --label=<text>\n"
            "           (--role=monitor|control|control-apply |\n"
            "            --scope=<name>[,<name>...])\n"
@@ -1643,6 +1648,7 @@ const char* control_usage() noexcept
            "      list shows the records, never the tokens, and where each is\n"
            "      good.  revoke ends a token and its sessions.\n"
            "\n"
+           // Block 3: watching events, and listing or closing sessions.
            "  vss_cli control watch [--data] [--ports=<id>[,<id>...]]\n"
            "           [--interval=<ms>] [--seconds=<n>] [--count=<n>]\n"
            "           [--instance=<name>] [--token-file=<file>]\n"
@@ -1665,6 +1671,7 @@ const char* control_usage() noexcept
            "      the program gave itself.  kick closes one session by its\n"
            "      number.\n"
            "\n"
+           // Block 4: checking the audit log.
            "  vss_cli control audit verify [--instance=<name>]\n"
            "      Have the gateway check its audit log: that every line is a\n"
            "      record, that the numbers follow each other and that each\n"
@@ -1675,6 +1682,7 @@ const char* control_usage() noexcept
            "      changed or moved; an intact one does not prove that nobody\n"
            "      rewrote the whole log.  It cannot be used over TCP.\n"
            "\n"
+           // Block 5: changing ports and links, and sending bytes.
            "  vss_cli control port create <name> [--kind=<kind>]\n"
            "           [--instance=<name>] [--token-file=<file>]\n"
            "  vss_cli control port remove <id> [--instance=<name>]\n"
@@ -1701,6 +1709,7 @@ const char* control_usage() noexcept
            "      (monitor) has neither.  When the engine says no, the line\n"
            "      ends with the name of its error, as in (engine.not_found).\n"
            "\n"
+           // Block 6: read-only commands on ports and links, and ping.
            "  vss_cli control port show <id> [--instance=<name>]\n"
            "           [--token-file=<file>]\n"
            "  vss_cli control links [--instance=<name>] [--token-file=<file>]\n"
@@ -1714,6 +1723,7 @@ const char* control_usage() noexcept
            "      whether the gateway answers; it needs no scope and does not\n"
            "      ask the agent.\n"
            "\n"
+           // Block 7: waiting for bytes on a port.
            "  vss_cli control expect <id> --pattern=<digits> [--timeout=<ms>]\n"
            "           [--tx] [--send-to=<id> --send=<digits>]\n"
            "           [--instance=<name>] [--token-file=<file>]\n"
@@ -1731,6 +1741,7 @@ const char* control_usage() noexcept
            "      scope monitor.data, and control.data as well to send; the\n"
            "      default role of this user (monitor) has neither.\n"
            "\n"
+           // Block 8: test runs and their JUnit report.
            "  vss_cli control expect ... --label=<text>\n"
            "  vss_cli control run begin <name> [--instance=<name>]\n"
            "           [--token-file=<file>]\n"
@@ -1759,6 +1770,7 @@ const char* control_usage() noexcept
            "      that opened a run can read it.  These need the scope\n"
            "      monitor.\n"
            "\n"
+           // Block 9: which commands work over TCP and what they need.
            "  vss_cli control <command> ... --loopback-port=<port>\n"
            "           --token-file=<file>\n"
            "      status, watch, port, link, unlink, links, ping, send, expect "
@@ -1771,6 +1783,7 @@ const char* control_usage() noexcept
            "      with token create --transport=loopback: a token made for\n"
            "      one transport is refused on the other.  token, sessions,\n"
            "      kick, audit and stop cannot be used over TCP.\n"
+           // The final blank line ends the text.
            "\n";
 }
 

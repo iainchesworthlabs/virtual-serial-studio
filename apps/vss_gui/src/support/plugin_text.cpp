@@ -79,16 +79,16 @@ QString plain_text(const QString& text)
 {
     QString out;
     out.reserve(text.size());
-    for (qsizetype index = 0; index < text.size(); ++index)
+    qsizetype index = 0;
+    while (index < text.size())
     {
-        const QChar unit = text.at(index);
-        if (unit.isHighSurrogate() && index + 1 < text.size() &&
-            text.at(index + 1).isLowSurrogate())
+        const QChar unit = text.at(index++);
+        if (unit.isHighSurrogate() && index < text.size() &&
+            text.at(index).isLowSurrogate())
         {
             // A character outside the first plane: kept as it is.
             out.append(unit);
-            out.append(text.at(index + 1));
-            ++index;
+            out.append(text.at(index++));
             continue;
         }
         if (unit.isSurrogate())
@@ -564,7 +564,10 @@ bool is_next_step(plugin_action action)
 
 plugin_note_text note_for(const plugin_view& plugin)
 {
+    // Pick the note shown under a plugin. Each case sets the banner colour
+    // (info, warn or danger), the sentence, and the buttons that can help.
     plugin_note_text out;
+    // Marks the note as shown, so a plugin with no note leaves it hidden.
     const auto set = [&out](NoteBanner::kind kind, const QString& text,
                             std::vector<plugin_action> actions = {})
     {
@@ -584,6 +587,8 @@ plugin_note_text note_for(const plugin_view& plugin)
             {plugin_action::start_now});
         break;
     case plugin_note::backing_off:
+        // One second is worded separately from the plural form, because the
+        // plural text is not right for a count of one.
         if (plugin.back_off_seconds == 1)
         {
             set(kind::info,
@@ -604,6 +609,8 @@ plugin_note_text note_for(const plugin_view& plugin)
                 .arg(plugin.attempt),
             {plugin_action::start_now});
         break;
+    // A decision is needed before the plugin can run: either it is new, or
+    // it changed after it was approved.
     case plugin_note::decision_first:
         set(kind::warn,
             QCoreApplication::translate(
@@ -619,6 +626,8 @@ plugin_note_text note_for(const plugin_view& plugin)
                 "before it runs."),
             {plugin_action::review_and_decide});
         break;
+    // An administrator's policy keeps the plugin from running. These are
+    // information, not warnings, because the person cannot change them.
     case plugin_note::blocked_official_only:
         set(kind::info,
             QCoreApplication::translate(
@@ -639,6 +648,9 @@ plugin_note_text note_for(const plugin_view& plugin)
                 "can give this plugin."),
             {plugin_action::copy_details});
         break;
+    // The plugin cannot be kept apart from the rest of the computer. The
+    // person can run it anyway only when the administrator allows an
+    // override.
     case plugin_note::isolation_no_override:
         set(kind::info,
             QCoreApplication::translate(
@@ -657,6 +669,8 @@ plugin_note_text note_for(const plugin_view& plugin)
             {plugin_action::run_without_isolation,
              plugin_action::copy_details});
         break;
+    // Another copy of the same plugin is the one in use. Say so, and point to
+    // that copy.
     case plugin_note::not_used_same:
         if (plugin.newer_than_used_copy)
         {
@@ -675,6 +689,8 @@ plugin_note_text note_for(const plugin_view& plugin)
                 {plugin_action::show_used_copy});
         }
         break;
+    // The same identifier with a different signer is not the same plugin, so
+    // both signers are named for the person to compare.
     case plugin_note::not_used_different_signer:
         set(kind::warn,
             QCoreApplication::translate(
@@ -686,6 +702,8 @@ plugin_note_text note_for(const plugin_view& plugin)
                     trust_line(plugin)),
             {plugin_action::show_used_copy, plugin_action::copy_details});
         break;
+    // A reserved identifier without the official signature is treated as an
+    // attempt to pass as an official plugin.
     case plugin_note::not_used_reserved:
         set(kind::danger,
             QCoreApplication::translate(
@@ -694,6 +712,8 @@ plugin_note_text note_for(const plugin_view& plugin)
                 "it is not signed by Virtual Serial Studio. It will not run."),
             {plugin_action::copy_details});
         break;
+    // The licence check failed. The reason sentence comes from the licence
+    // state, and the plugin's settings are kept.
     case plugin_note::needs_licence:
         set(kind::warn,
             QCoreApplication::translate(
@@ -704,6 +724,8 @@ plugin_note_text note_for(const plugin_view& plugin)
                                      plugin.licence_status)),
             {plugin_action::licence});
         break;
+    // Studio stopped the plugin itself. Each reason offers to start it again
+    // and to show the log, so the person can see what went wrong first.
     case plugin_note::stopped_failures:
         set(kind::danger,
             QCoreApplication::translate(
@@ -728,6 +750,8 @@ plugin_note_text note_for(const plugin_view& plugin)
                 .arg(plain_text(plugin.limit_name)),
             {plugin_action::start_again, plugin_action::show_log});
         break;
+    // The plugin and this build do not match, either because Studio is too
+    // old for the plugin or the plugin is too old for Studio.
     case plugin_note::newer_studio_version:
         set(kind::info,
             QCoreApplication::translate(
@@ -736,6 +760,8 @@ plugin_note_text note_for(const plugin_view& plugin)
                 "%1.")
                 .arg(plain_text(plugin.studio_version)));
         break;
+    // A capability that is missing from this build is named so the person
+    // knows what to look for in a later release.
     case plugin_note::newer_studio_capability:
         set(kind::info,
             QCoreApplication::translate(
@@ -750,6 +776,8 @@ plugin_note_text note_for(const plugin_view& plugin)
                 "This plugin was made for an older version of Studio. Ask its "
                 "author for a newer one."));
         break;
+    // The plugin's files are not what they should be. These are danger
+    // notes, and the details can be copied for the author.
     case plugin_note::invalid_manifest:
     {
         QString text = QCoreApplication::translate(
@@ -775,6 +803,7 @@ plugin_note_text note_for(const plugin_view& plugin)
                 "changed. Get the plugin again from its author."),
             {plugin_action::copy_details});
         break;
+    // Withdrawn plugins are never run again. No action is offered.
     case plugin_note::withdrawn:
         set(kind::danger,
             QCoreApplication::translate(
@@ -782,6 +811,7 @@ plugin_note_text note_for(const plugin_view& plugin)
                 "This plugin was withdrawn by Virtual Serial Studio. It will "
                 "not run."));
         break;
+    // The plugin carries its own end date, shown as a date and not a time.
     case plugin_note::expired:
         set(kind::warn,
             QCoreApplication::translate(
@@ -789,6 +819,8 @@ plugin_note_text note_for(const plugin_view& plugin)
                 "This plugin expired on %1. Look for a newer version.")
                 .arg(date_text(plugin.expires)));
         break;
+    // The setup refers to a plugin that is not here. Nothing is removed from
+    // the setup.
     case plugin_note::not_installed:
         set(kind::info,
             QCoreApplication::translate(

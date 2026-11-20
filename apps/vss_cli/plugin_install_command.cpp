@@ -92,9 +92,10 @@ bool parse(const std::vector<std::string>& arguments, options& out)
                      command.c_str(), argument.c_str());
         return false;
     };
-    for (std::size_t index = 2; index < arguments.size(); ++index)
+    std::size_t index = 2;
+    while (index < arguments.size())
     {
-        const std::string& argument = arguments[index];
+        const std::string& argument = arguments[index++];
         if (argument == "--json" && allowed(command, flag::json))
         {
             out.json = true;
@@ -115,14 +116,13 @@ bool parse(const std::vector<std::string>& arguments, options& out)
         }
         else if (argument == "--root" && allowed(command, flag::root))
         {
-            if (index + 1 >= arguments.size() || arguments[index + 1].empty())
+            if (index >= arguments.size() || arguments[index].empty())
             {
                 std::fprintf(stderr, "plugin %s: --root needs a folder\n",
                              command.c_str());
                 return false;
             }
-            ++index;
-            out.root = fs::path(arguments[index]);
+            out.root = fs::path(arguments[index++]);
         }
         else if (argument.rfind("--root=", 0) == 0 &&
                  allowed(command, flag::root))

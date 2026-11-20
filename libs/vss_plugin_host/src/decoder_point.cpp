@@ -794,12 +794,54 @@ private:
         return t;
     }
 
+    /// Adds data from the front of the backlog: as many bytes as the room
+    /// and the chunk size take.  False when there is no room at all.
+    bool add_data(run& r, tap_item& front, std::size_t index,
+                  std::vector<decoder_item>& items, byte_buffer& blob,
+                  std::size_t& room)
+    {
+        if (front.bytes == nullptr || front.bytes->empty())
+        {
+            r.backlog.pop_front();
+            r.front_used = 0;
+            return true;
+        }
+        const std::size_t left = front.bytes->size() - r.front_used;
+        const std::size_t count = std::min<std::size_t>(
+            {left, room, static_cast<std::size_t>(max_decoder_chunk)});
+        if (count == 0)
+            return false;
+        const std::size_t way = front.direction == data_direction::tx ? 1U : 0U;
+        decoder_data_item item;
+        item.place = front.place;
+        item.direction = direction_of(front.direction);
+        item.offset = r.offsets[index][way];
+        item.t_ns = time_of(r, index, front.when);
+        item.length = count;
+        items.push_back(std::move(item));
+        const auto from = front.bytes->begin() +
+                          static_cast<std::ptrdiff_t>(r.front_used);
+        blob.insert(blob.end(), from,
+                    from + static_cast<std::ptrdiff_t>(count));
+        r.offsets[index][way] += count;
+        room -= count;
+        r.front_used += count;
+        if (r.front_used == front.bytes->size())
+        {
+            r.backlog.pop_front();
+            r.front_used = 0;
+        }
+        return true;
+    }
+
     /// Adds the first item of the backlog, or as much of it as the room
     /// takes, to the message.  False when no more can be added.
     bool add_item(run& r, tap_item& front, std::vector<decoder_item>& items,
                   byte_buffer& blob, std::size_t& room)
     {
         const std::size_t index = index_of(r, front.place);
+        // An item from a place the run does not follow is dropped, except a
+        // loss, which names its places one by one below.
         if (index >= r.names.size() && front.kind != tap_item_kind::loss)
         {
             r.backlog.pop_front();
@@ -809,43 +851,11 @@ private:
         switch (front.kind)
         {
         case tap_item_kind::data:
-        {
-            if (front.bytes == nullptr || front.bytes->empty())
-            {
-                r.backlog.pop_front();
-                r.front_used = 0;
-                return true;
-            }
-            const std::size_t left = front.bytes->size() - r.front_used;
-            const std::size_t count = std::min<std::size_t>(
-                {left, room, static_cast<std::size_t>(max_decoder_chunk)});
-            if (count == 0)
-                return false;
-            const std::size_t way =
-                front.direction == data_direction::tx ? 1U : 0U;
-            decoder_data_item item;
-            item.place = front.place;
-            item.direction = direction_of(front.direction);
-            item.offset = r.offsets[index][way];
-            item.t_ns = time_of(r, index, front.when);
-            item.length = count;
-            items.push_back(std::move(item));
-            const auto from = front.bytes->begin() +
-                              static_cast<std::ptrdiff_t>(r.front_used);
-            blob.insert(blob.end(), from,
-                        from + static_cast<std::ptrdiff_t>(count));
-            r.offsets[index][way] += count;
-            room -= count;
-            r.front_used += count;
-            if (r.front_used == front.bytes->size())
-            {
-                r.backlog.pop_front();
-                r.front_used = 0;
-            }
-            return true;
-        }
+            return add_data(r, front, index, items, blob, room);
         case tap_item_kind::lines:
         {
+            // Only a change in the six lines is reported, as the lines that
+            // changed and the state of all six.
             control_lines now;
             now.bits = front.lines.bits & six_lines;
             const unsigned changed = now.bits ^ r.lines[index].bits;
@@ -873,6 +883,8 @@ private:
         }
         case tap_item_kind::loss:
         {
+            // One item for each place and direction that lost bytes; the
+            // offsets move on by what was lost so later data lines up.
             for (const tap_loss& loss : front.losses)
             {
                 const std::size_t where = index_of(r, loss.place);

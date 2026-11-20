@@ -187,7 +187,8 @@ std::vector<std::string> environment()
 
 long long start_idle_child(const char* self)
 {
-    std::array<char, 32768> path{};
+    // Long enough for any path, and on the heap rather than the stack.
+    std::vector<char> path(32768);
     const DWORD length = ::GetModuleFileNameA(nullptr, path.data(),
                                               static_cast<DWORD>(path.size()));
     const bool known = length > 0 && length < path.size();

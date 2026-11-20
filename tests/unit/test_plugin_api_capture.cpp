@@ -9,6 +9,7 @@
 #include "plugin_api_support.hpp"
 #include "test_framework.hpp"
 
+#include <bit>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -27,6 +28,13 @@ namespace
 std::string repeated(char c, std::size_t count)
 {
     return std::string(count, c);
+}
+
+/// Whether two doubles are the same number, bit for bit.
+bool same_double(double first, double second)
+{
+    return std::bit_cast<std::uint64_t>(first) ==
+           std::bit_cast<std::uint64_t>(second);
 }
 
 std::string header_of(const api_message& message)
@@ -519,10 +527,13 @@ TEST_CASE("plugin api: capture.result is written and read")
 TEST_CASE("plugin api: capture.result is refused when it is wrong")
 {
     using message_type = capture_result_message;
+    // "full" holds every member after the op and re, so each case below can
+    // be a copy of it with one member left out or changed.
     const std::string full = R"("running":false,"bytes":1,"seconds":2,)"
                              R"("dropped":3,"ring":false,"recording":"r",)"
                              R"("size":4})";
     const std::string head = R"({"op":"capture.result","re":1,)";
+    // The full message is accepted, then each member is left out in turn.
     (void)accepted<message_type>(head + full);
     require_refused<message_type>(R"({"op":"capture.result","re":1,"bytes":1,)"
                                   R"("seconds":2,"dropped":3,"ring":false,)"
@@ -548,6 +559,7 @@ TEST_CASE("plugin api: capture.result is refused when it is wrong")
         head + R"("running":false,"bytes":1,"seconds":2,"dropped":3,)"
                R"("ring":false,"size":4})",
         "capture.result.recording: is required");
+    // A recording path must stay inside the recordings folder.
     require_refused<message_type>(
         head + R"("running":false,"bytes":1,"seconds":2,"dropped":3,)"
                R"("ring":false,"recording":"../x","size":4})",
@@ -556,6 +568,8 @@ TEST_CASE("plugin api: capture.result is refused when it is wrong")
         head + R"("running":false,"bytes":1,"seconds":2,"dropped":3,)"
                R"("ring":false,"recording":"r"})",
         "capture.result.size: is required");
+    // Members of the wrong type: a string for a flag or a number, a
+    // negative number, and a number for a flag.
     require_refused<message_type>(
         head + R"("running":"no","bytes":1,"seconds":2,)"
                R"("dropped":3,"ring":false,"recording":"r","size":4})",
@@ -572,6 +586,8 @@ TEST_CASE("plugin api: capture.result is refused when it is wrong")
         head + R"("running":false,"bytes":1,"seconds":2,)"
                R"("dropped":3,"ring":1,"recording":"r","size":4})",
         "capture.result.ring: must be true or false");
+    // The frame checks: an answer has no bytes after the header, and it
+    // carries a re (the request's number) and never an id.
     require_refused<message_type>(head + full, "has no bytes", {1});
     require_refused<message_type>(R"({"op":"capture.result","id":1,)" + full,
                                   "must have a re and no id");
@@ -590,6 +606,7 @@ TEST_CASE("plugin api: capture.result is refused when it is wrong")
     REQUIRE_EQ(edge.seconds, max_api_number);
     REQUIRE_EQ(edge.dropped, max_api_number);
     REQUIRE_EQ(edge.size, max_api_number);
+    // One past the limit is refused for each of the four numbers in turn.
     const std::string past = std::to_string(max_api_number + 1);
     require_refused<message_type>(
         head + R"("running":false,"bytes":)" + past +
@@ -613,6 +630,8 @@ TEST_CASE("plugin api: capture.result is refused when it is wrong")
             past + "}",
         "capture.result.size: must be a whole number");
 
+    // The writer applies the same limits: the largest values round-trip, and
+    // each out-of-range member stops the message being written.
     message_type body;
     body.bytes = max_api_number;
     body.seconds = max_api_number;
@@ -631,6 +650,7 @@ TEST_CASE("plugin api: capture.result is refused when it is wrong")
     body.dropped = 0;
     body.size = max_api_number + 1;
     require_not_written(body, 1);
+    // Put the numbers back in range, then check a path that leaves the folder.
     body.size = 0;
     body.recording = "../r";
     require_not_written(body, 1);
@@ -714,7 +734,7 @@ TEST_CASE("plugin api: a time scale of timeline.load reads back as itself")
     {
         body.time_scale = scale;
         const auto read = round_trip(body, 1);
-        REQUIRE(read.time_scale == scale);
+        REQUIRE(same_double(read.time_scale, scale));
     }
     // Any other is written and read back as the same double, or it is
     // not written.
@@ -729,7 +749,7 @@ TEST_CASE("plugin api: a time scale of timeline.load reads back as itself")
             continue;
         }
         const auto read = round_trip(body, 1);
-        REQUIRE(read.time_scale == scale);
+        REQUIRE(same_double(read.time_scale, scale));
     }
 }
 
@@ -793,6 +813,8 @@ TEST_CASE("plugin api: timeline.load has the limits of its members")
         R"({"op":"timeline.load","id":1,"instance":1,"recording":"r",)"
         R"("place":"p",)";
     const std::string scale = "timeline.load.time_scale: must be a number from";
+    // The time scale runs from 0.01 to 100, both ends included, and it must
+    // be a number: not a string, null or a flag.
     REQUIRE(accepted<message_type>(head + R"("time_scale":0.01})").time_scale ==
             0.01);
     REQUIRE(accepted<message_type>(head + R"("time_scale":100})").time_scale ==
@@ -809,6 +831,8 @@ TEST_CASE("plugin api: timeline.load has the limits of its members")
     require_refused<message_type>(head + R"("time_scale":null})", scale);
     require_refused<message_type>(head + R"("time_scale":true})", scale);
 
+    // The seed is optional, and the seed and the instance number go up to
+    // max_api_number and no further.
     const std::string most = std::to_string(max_api_number);
     const auto top = accepted<message_type>(head + R"("seed":)" + most + "}");
     REQUIRE(top.seed.has_value());
@@ -828,6 +852,8 @@ TEST_CASE("plugin api: timeline.load has the limits of its members")
             .instance,
         max_api_number);
 
+    // Text limits: a recording path of 240 bytes and a place of 128 bytes are
+    // accepted, and one byte more is refused.
     REQUIRE_EQ(accepted<message_type>(
                    R"({"op":"timeline.load","id":1,"instance":1,)"
                    R"("recording":")" +
@@ -851,7 +877,8 @@ TEST_CASE("plugin api: timeline.load has the limits of its members")
             repeated('p', 129) + R"("})",
         "timeline.load.place: is longer than 128 bytes");
 
-    // Written.
+    // Written. The largest message round-trips, then one member at a time is
+    // made invalid, and put back before the next, to show the writer refuses.
     message_type body;
     body.instance = max_api_number;
     body.recording = repeated('r', max_recording_path);
@@ -878,6 +905,7 @@ TEST_CASE("plugin api: timeline.load has the limits of its members")
     body.seed = max_api_number + 1;
     require_not_written(body, 1);
     body.seed.reset();
+    // Time scales out of range, zero, negative, infinite or not a number.
     for (const double bad :
          {0.009, 100.01, 0.0, -1.0, std::numeric_limits<double>::infinity(),
           -std::numeric_limits<double>::infinity(),
@@ -886,6 +914,7 @@ TEST_CASE("plugin api: timeline.load has the limits of its members")
         body.time_scale = bad;
         require_not_written(body, 1);
     }
+    // A valid scale writes again, and a request needs an id, not zero.
     body.time_scale = 1.0;
     (void)round_trip(body, 1);
     require_not_written(body, 0);

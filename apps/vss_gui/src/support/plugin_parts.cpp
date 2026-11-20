@@ -60,6 +60,8 @@ QString part_action_text(part_action action)
 part_description describe_part(const plugin_part& part,
                                const plugin_view* plugin)
 {
+    // A null plugin means the plugin is not installed. Start with the fields
+    // that are true whatever the state is.
     part_description out;
     out.plugin_id = part.plugin_id;
     const QString name = shown_name(part, plugin);
@@ -67,6 +69,8 @@ part_description describe_part(const plugin_part& part,
     out.state = plugin != nullptr ? plugin->state : plugin_state::not_installed;
     out.state_text = state_text(out.state);
 
+    // The line saying where the part comes from adds the trust level only
+    // when the plugin is known.
     if (plugin != nullptr)
     {
         out.provided_by = QCoreApplication::translate(
@@ -79,6 +83,8 @@ part_description describe_part(const plugin_part& part,
             QCoreApplication::translate("PluginPart", "%1, from the plugin %2")
                 .arg(type, name);
     }
+    // A running plugin needs no badge, action or note, so return early with
+    // only the accessible name filled in.
     out.running = is_running(plugin);
     if (out.running)
     {
@@ -87,6 +93,8 @@ part_description describe_part(const plugin_part& part,
                 .arg(plain_text(part.target_name), type);
         return out;
     }
+    // From here the plugin is not running: mark the part with a badge and a
+    // matching accessible name.
     out.badge =
         QCoreApplication::translate("PluginPart", "Plugin not available");
     out.accessible_name = QCoreApplication::translate(
@@ -101,6 +109,8 @@ part_description describe_part(const plugin_part& part,
         out.tone = tone;
         out.action_text = part_action_text(action);
     };
+    // The groups pick the wording of the note. Several plugin states share
+    // one group when the note would say the same thing.
     enum class group
     {
         off,
@@ -111,6 +121,8 @@ part_description describe_part(const plugin_part& part,
         cannot,
         missing
     };
+    // Map the plugin state to a group and to the action offered. A missing
+    // plugin is the default.
     group which = group::missing;
     if (plugin != nullptr)
     {
@@ -134,6 +146,8 @@ part_description describe_part(const plugin_part& part,
             act(part_action::licence, part_tone::warn);
             break;
         case plugin_state::stopped:
+            // A stopped plugin that still has fixed replies is less serious
+            // than one that has nothing to send.
             which = group::stopped;
             act(part_action::start_again,
                 part.fixed_replies ? part_tone::warn : part_tone::danger);
@@ -150,14 +164,18 @@ part_description describe_part(const plugin_part& part,
             break;
         case plugin_state::available:
         case plugin_state::starting:
+            // These states are not described as unavailable here.
             break;
         }
     }
     else
     {
+        // No plugin record at all: the only help is the plugins page.
         act(part_action::show_in_plugins, part_tone::info);
     }
 
+    // The note depends first on the kind of part. Generators and link
+    // behaviours have their own wording; fixtures use the group below.
     out.note_shown = true;
     if (part.kind == part_kind::generator)
     {
@@ -166,6 +184,8 @@ part_description describe_part(const plugin_part& part,
                        .arg(type);
         return out;
     }
+    // A link behaviour that is not running either drops data or passes it
+    // on unchanged, and the note says which.
     if (part.kind == part_kind::link_behaviour)
     {
         out.note =
@@ -182,6 +202,8 @@ part_description describe_part(const plugin_part& part,
                       .arg(type);
         return out;
     }
+    // A fixture note: why the plugin is not running and what the port does
+    // meanwhile.
     switch (which)
     {
     case group::off:
@@ -208,6 +230,7 @@ part_description describe_part(const plugin_part& part,
                        .arg(name);
         break;
     case group::licence:
+        // The licence reason comes from the plugin's own licence state.
         out.note = QCoreApplication::translate(
                        "PluginPart",
                        "This fixture comes from the plugin %1. %2 The port "
@@ -216,6 +239,7 @@ part_description describe_part(const plugin_part& part,
                                                   plugin->licence_status));
         break;
     case group::stopped:
+        // With fixed replies the fixture keeps answering without the plugin.
         out.note =
             part.fixed_replies
                 ? QCoreApplication::translate(
@@ -303,6 +327,8 @@ describe_port_parts(const std::vector<port_view>& ports,
 std::vector<plugin_tile_text>
 plugin_toolbox_tiles(const plugin_snapshot& snapshot, bool fixtures_can_run)
 {
+    // Collect one tile per fixture type a plugin adds, keeping the plugin's
+    // name beside it so the tiles can be sorted afterwards.
     struct entry
     {
         QString plugin_name;
@@ -311,6 +337,8 @@ plugin_toolbox_tiles(const plugin_snapshot& snapshot, bool fixtures_can_run)
     std::vector<entry> entries;
     for (const plugin_view& plugin : snapshot.plugins)
     {
+        // The plugin's state decides whether its tiles can be used and, if
+        // not, what the tile says about why.
         QString reason;
         bool enabled = false;
         const QString name = plain_text(plugin.name);
@@ -346,6 +374,8 @@ plugin_toolbox_tiles(const plugin_snapshot& snapshot, bool fixtures_can_run)
         }
         for (const plugin_addition& addition : plugin.adds)
         {
+            // Only fixtures become toolbox tiles; other additions are placed
+            // elsewhere.
             if (addition.kind != plugin_addition_kind::fixture)
                 continue;
             plugin_tile_text tile;
@@ -364,6 +394,8 @@ plugin_toolbox_tiles(const plugin_snapshot& snapshot, bool fixtures_can_run)
                 enabled && !fixtures_can_run
                     ? no_timeline.arg(plain_text(addition.type_name))
                     : reason;
+            // A tile that cannot be used shows the reason where a
+            // description would otherwise be.
             tile.enabled = usable;
             tile.reason = why;
             tile.accessible_name =
@@ -373,6 +405,7 @@ plugin_toolbox_tiles(const plugin_snapshot& snapshot, bool fixtures_can_run)
                 QCoreApplication::translate("PluginToolbox",
                                             "Fixture from the plugin %1. %2.")
                     .arg(name, trust_line(plugin));
+            // The plugin's own description is appended after the trust line.
             const QString own = plain_text(addition.description);
             if (!own.isEmpty())
                 description += QLatin1Char(' ') + own;
@@ -385,6 +418,8 @@ plugin_toolbox_tiles(const plugin_snapshot& snapshot, bool fixtures_can_run)
             entries.push_back({name, tile});
         }
     }
+    // Order by plugin name, then by tile label, ignoring case. A stable sort
+    // keeps equal entries in the order the plugins listed them.
     std::stable_sort(
         entries.begin(), entries.end(),
         [](const entry& left, const entry& right)
@@ -545,7 +580,11 @@ std::vector<plugin_notice_text> plugin_notices(const plugin_snapshot& before,
                                                const plugin_snapshot& after,
                                                const QStringList& used)
 {
+    // Compare two snapshots and raise a notice for each plugin that changed
+    // in a way the person should hear about.
     std::vector<plugin_notice_text> out;
+    // Plugins are matched by id and folder, because one id can be installed
+    // in more than one folder.
     const auto find = [](const plugin_snapshot& snapshot,
                          const plugin_view& like) -> const plugin_view*
     {
@@ -556,8 +595,10 @@ std::vector<plugin_notice_text> plugin_notices(const plugin_snapshot& before,
         }
         return nullptr;
     };
+    // A plugin counts as used when the setup lists it or the caller says so.
     const auto is_used = [&used](const plugin_view& plugin)
     { return !plugin.used_in.empty() || used.contains(plugin.id); };
+    // States in which the plugin has been started at some point.
     const auto running = [](plugin_state state)
     {
         return state == plugin_state::available ||
@@ -565,6 +606,7 @@ std::vector<plugin_notice_text> plugin_notices(const plugin_snapshot& before,
                state == plugin_state::stopped;
     };
 
+    // Walk the new snapshot and look each plugin up in the old one.
     for (const plugin_view& now : after.plugins)
     {
         const QString name = plain_text(now.name);
@@ -590,8 +632,11 @@ std::vector<plugin_notice_text> plugin_notices(const plugin_snapshot& before,
             out.push_back(notice);
             continue;
         }
+        // Nothing changed that matters, so say nothing.
         if (was->state == now.state && was->hash == now.hash)
             continue;
+        // Changed after approval: the content hash differs and the plugin
+        // was put back to waiting for a decision.
         if (now.state == plugin_state::needs_decision &&
             now.note == plugin_note::decision_changed && was->hash != now.hash)
         {
@@ -610,6 +655,7 @@ std::vector<plugin_notice_text> plugin_notices(const plugin_snapshot& before,
         else if (now.state == plugin_state::stopped &&
                  was->state != plugin_state::stopped && is_used(now))
         {
+            // Only a plugin that the open setup uses is worth a notice.
             notice.kind = plugin_notice_kind::stopped;
             notice.warn = true;
             notice.text =
@@ -627,6 +673,7 @@ std::vector<plugin_notice_text> plugin_notices(const plugin_snapshot& before,
         else if (now.state == plugin_state::cannot_be_used &&
                  now.note == plugin_note::withdrawn && running(was->state))
         {
+            // The publisher withdrew a plugin that was running.
             notice.kind = plugin_notice_kind::withdrawn;
             notice.warn = true;
             notice.text =

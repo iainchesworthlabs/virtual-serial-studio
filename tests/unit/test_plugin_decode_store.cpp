@@ -222,8 +222,11 @@ TEST_CASE("decode store: a frame's fields at the edge and one past")
 
 TEST_CASE("decode store: a trigger's limits at the edge and one past")
 {
+    // The unchanged sample trigger must be accepted before any limit is
+    // pushed, so a later refusal can only come from the field being changed.
     REQUIRE(taken(trigger()));
 
+    // The text is limited to 200 characters and may not be empty.
     decoded_trigger value = trigger();
     value.text.assign(200, 't');
     REQUIRE(taken(value));
@@ -232,6 +235,8 @@ TEST_CASE("decode store: a trigger's limits at the edge and one past")
     value.text.clear();
     REQUIRE(refusal(value) == reject_reason::text_empty);
 
+    // Expected and actual bytes are limited to 128 characters each. Giving
+    // only one of the pair is a bad combination.
     value = trigger();
     value.expected.assign(128, 'a');
     value.actual.assign(128, 'b');
@@ -244,6 +249,7 @@ TEST_CASE("decode store: a trigger's limits at the edge and one past")
     value.expected.clear();
     REQUIRE(taken(value));
 
+    // Place and sender are each limited to 128 characters.
     value = trigger();
     value.place.assign(128, 'p');
     value.sender.assign(128, 's');
@@ -254,12 +260,15 @@ TEST_CASE("decode store: a trigger's limits at the edge and one past")
     value.place.assign(129, 'p');
     REQUIRE(refusal(value) == reject_reason::text_too_long);
 
+    // Times are carried as JSON numbers, so 2^53 - 1 is the largest accepted.
     value = trigger();
     value.when_ns = (std::uint64_t{1} << 53) - 1;
     REQUIRE(taken(value));
     value.when_ns += 1;
     REQUIRE(refusal(value) == reject_reason::number_out_of_range);
 
+    // The protocol id (128) and version (64) have their own limits, and
+    // neither may be empty.
     value = trigger();
     value.protocol = decode_protocol{std::string(128, 'i'),
                                      std::string(64, 'v')};
@@ -272,6 +281,8 @@ TEST_CASE("decode store: a trigger's limits at the edge and one past")
     value.protocol->version.clear();
     REQUIRE(refusal(value) == reject_reason::text_empty);
 
+    // A frame has a length from 1 to 65536, an end time that is not before
+    // its start, and a message of at most 64 characters.
     value = trigger();
     value.frame = decode_trigger_frame{0, 65536, 5, 5, std::string(64, 'm')};
     REQUIRE(taken(value));
@@ -298,6 +309,7 @@ TEST_CASE("decode store: a trigger's limits at the edge and one past")
     value.field->name.clear();
     REQUIRE(refusal(value) == reject_reason::text_empty);
 
+    // A range that covers must not end before it starts.
     value = trigger();
     value.covers = decode_covers{1, 1};
     REQUIRE(taken(value));
@@ -310,6 +322,7 @@ TEST_CASE("decode store: a trigger's limits at the edge and one past")
     value.request->length = 65537;
     REQUIRE(refusal(value) == reject_reason::number_out_of_range);
 
+    // The cause carries an event number, which has the same 2^53 - 1 limit.
     value = trigger();
     decode_cause cause;
     cause.which = decode_cause::kind::bus_fault;

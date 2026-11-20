@@ -206,7 +206,8 @@ bool takes_a_value(std::string_view name)
 std::optional<std::size_t>
 find_command_word(const std::vector<std::string>& words)
 {
-    for (std::size_t index = 0; index < words.size(); ++index)
+    std::size_t index = 0;
+    while (index < words.size())
     {
         const std::string& word = words[index];
         if (word == "--")
@@ -219,10 +220,11 @@ find_command_word(const std::vector<std::string>& words)
             return index;
         // `--seconds 5 run lab.json`: 5 belongs to --seconds, as it does in
         // the parser.
-        if (word[1] == '-' && word.find('=') == std::string::npos &&
+        const bool value_follows =
+            word[1] == '-' && word.find('=') == std::string::npos &&
             takes_a_value(word) && index + 1 < words.size() &&
-            !words[index + 1].starts_with("--"))
-            ++index;
+            !words[index + 1].starts_with("--");
+        index += value_follows ? 2 : 1;
     }
     return std::nullopt;
 }
@@ -267,9 +269,10 @@ parse_result parse_arguments(const command_spec& spec,
     arguments& parsed = result.args;
     bool only_arguments = false;
 
-    for (std::size_t index = 0; index < words.size(); ++index)
+    std::size_t index = 0;
+    while (index < words.size())
     {
-        const std::string& word = words[index];
+        const std::string& word = words[index++];
         if (only_arguments || word.size() < 2 || word[0] != '-')
         {
             parsed.positional.push_back(word);
@@ -316,13 +319,13 @@ parse_result parse_arguments(const command_spec& spec,
             // The value is the next word, which may not look like an option:
             // `--out --seconds` is a missing value, not a file called that.
             const bool present =
-                index + 1 < words.size() && !words[index + 1].starts_with("--");
+                index < words.size() && !words[index].starts_with("--");
             if (!present)
             {
                 result.error = name + " needs a value";
                 return result;
             }
-            value = words[++index];
+            value = words[index++];
         }
         if (auto problem = value_problem(*option, value); !problem.empty())
         {

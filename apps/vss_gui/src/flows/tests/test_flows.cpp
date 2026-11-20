@@ -1951,6 +1951,7 @@ TEST_CASE(
     const auto row_centre = [&dialog](int index)
     {
         QWidget* row = dialog.device_radio(index)->parentWidget();
+        REQUIRE(row != nullptr);
         return row->mapTo(&dialog, QPoint(row->width() / 2, row->height() / 2));
     };
 

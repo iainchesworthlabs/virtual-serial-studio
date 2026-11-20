@@ -464,12 +464,9 @@ plugin_view base(const QString& id, const QString& name, plugin_state state,
     return view;
 }
 
-} // namespace
-
-std::vector<plugin_view> fake_plugin_samples()
+/// Plugins that are on, starting or off.
+void add_running_samples(std::vector<plugin_view>& list)
 {
-    std::vector<plugin_view> list;
-
     plugin_view available =
         base(QStringLiteral("com.virtualserialstudio.modbus"),
              QStringLiteral("Modbus fixture"), plugin_state::available,
@@ -520,7 +517,11 @@ std::vector<plugin_view> fake_plugin_samples()
                         {},
                         {}});
     list.push_back(off);
+}
 
+/// Plugins that wait for a decision about them.
+void add_decision_samples(std::vector<plugin_view>& list)
+{
     plugin_view decision = base(
         QStringLiteral("org.hobby.scanner"), QStringLiteral("Barcode scanner"),
         plugin_state::needs_decision, plugin_trust::unsigned_plugin);
@@ -557,7 +558,11 @@ std::vector<plugin_view> fake_plugin_samples()
     unknown.reason_code = QStringLiteral("key_unknown");
     unknown.isolation = plugin_isolation::full;
     list.push_back(unknown);
+}
 
+/// Plugins that policy or the host blocks, and ones that need an override.
+void add_blocked_samples(std::vector<plugin_view>& list)
+{
     plugin_view blocked = base(
         QStringLiteral("org.example.blocked"), QStringLiteral("Blocked tool"),
         plugin_state::blocked, plugin_trust::unsigned_plugin);
@@ -597,7 +602,11 @@ std::vector<plugin_view> fake_plugin_samples()
     no_override.reason_code = QStringLiteral("sandbox_insufficient");
     no_override.installed_for = plugin_installed_for::everyone;
     list.push_back(no_override);
+}
 
+/// Plugins that are not used, need a licence or have stopped.
+void add_unused_samples(std::vector<plugin_view>& list)
+{
     plugin_view unused =
         base(QStringLiteral("com.virtualserialstudio.modbus"),
              QStringLiteral("Modbus fixture"), plugin_state::not_used,
@@ -610,8 +619,8 @@ std::vector<plugin_view> fake_plugin_samples()
     unused.used_copy_trust = plugin_trust::official;
     unused.used_copy_installed_for = plugin_installed_for::with_studio;
     unused.has_used_copy = true;
-    unused.used_copy_id = available.id;
-    unused.used_copy_folder = available.folder;
+    unused.used_copy_id = list.front().id;
+    unused.used_copy_folder = list.front().folder;
     unused.folder = QStringLiteral(
         "C:/Users/you/Studio/plugins/Modbus fixture (your copy)");
     unused.hash = QStringLiteral("fedcba9876543210") + unused.hash.mid(16);
@@ -648,7 +657,11 @@ std::vector<plugin_view> fake_plugin_samples()
     stopped.log.push_back({QDateTime(QDate(2026, 11, 15), QTime(9, 30, 0)),
                            QStringLiteral("Segmentation fault")});
     list.push_back(stopped);
+}
 
+/// Plugins that cannot be used, and one that is not installed.
+void add_unusable_samples(std::vector<plugin_view>& list)
+{
     plugin_view newer = base(
         QStringLiteral("org.example.future"), QStringLiteral("Future plugin"),
         plugin_state::needs_newer_studio, plugin_trust::third_party);
@@ -696,7 +709,20 @@ std::vector<plugin_view> fake_plugin_samples()
     missing.fingerprint.clear();
     missing.hash.clear();
     list.push_back(missing);
+}
 
+} // namespace
+
+std::vector<plugin_view> fake_plugin_samples()
+{
+    std::vector<plugin_view> list;
+    // The first sample is the Modbus fixture: the sample that is not used
+    // names it as the copy that is used.
+    add_running_samples(list);
+    add_decision_samples(list);
+    add_blocked_samples(list);
+    add_unused_samples(list);
+    add_unusable_samples(list);
     return list;
 }
 

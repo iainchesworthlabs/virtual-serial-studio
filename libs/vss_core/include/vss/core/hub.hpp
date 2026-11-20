@@ -125,20 +125,21 @@ public:
 
     /// Bidirectional link between two endpoints.
     result<link_id> connect(endpoint_id a, endpoint_id b,
-                            link_options options = {});
+                            const link_options& options = {});
 
     /// One endpoint feed many listeners; replies are merged back.
     result<link_id> split(endpoint_id source,
                           const std::vector<endpoint_id>& targets,
-                          link_options options = {});
+                          const link_options& options = {});
 
     /// Many publishers merged into one endpoint.
     result<link_id> join(const std::vector<endpoint_id>& sources,
-                         endpoint_id target, link_options options = {});
+                         endpoint_id target,
+                         const link_options& options = {});
 
     /// One way traffic from `from` to `to`.
     result<link_id> redirect(endpoint_id from, endpoint_id to,
-                             link_options options = {});
+                             const link_options& options = {});
 
     /// Passive one-way copy, for a monitor port.  `options.direction` says
     /// which bytes of `from` it copies; the modem lines are always off.
@@ -482,7 +483,7 @@ private:
     result<link_id> add_link(link_mode mode,
                              const std::vector<endpoint_id>& sources,
                              const std::vector<endpoint_id>& targets,
-                             link_options options);
+                             const link_options& options);
     bool would_create_cycle(endpoint_id from, endpoint_id to) const;
     bool bus_would_create_cycle(const std::vector<endpoint_id>& members) const;
     /// The node of the cycle graph an endpoint stands for: itself, or the

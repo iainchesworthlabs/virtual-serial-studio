@@ -99,7 +99,8 @@ public:
     {
         for (const auto& entry : object_)
         {
-            const std::string_view key = entry.key();
+            const std::string_view key{entry.key().data(),
+                                       entry.key().size()};
             if (std::ranges::find(asked_, key) == asked_.end())
                 return fail(key, "is not a member of a setup");
         }
