@@ -75,6 +75,7 @@ void pump(int milliseconds)
 /// this platform has no display for the hardware renderer.
 int main(int argc, char* argv[])
 {
+    // The one option: turn the swap interval off before the window is made.
     bool old_present = false;
     for (int index = 1; index < argc; ++index)
     {
@@ -84,6 +85,8 @@ int main(int argc, char* argv[])
 
     QApplication application(argc, argv);
     QCoreApplication::setOrganizationName(QStringLiteral("vss-present-check"));
+    // Ask for the hardware renderer. If the platform gives another one there
+    // is nothing to measure, so the check is skipped and not failed.
     const auto state =
         rendering::initialise(rendering::render_mode::hardware, {}, {});
     if (state.active != rendering::renderer::hardware)
@@ -92,6 +95,8 @@ int main(int argc, char* argv[])
                    stdout);
         return kSkip;
     }
+    // The default format is read when a window is created, so it is set
+    // before the canvas below is made.
     if (old_present)
     {
         QSurfaceFormat format = QSurfaceFormat::defaultFormat();
@@ -99,11 +104,15 @@ int main(int argc, char* argv[])
         QSurfaceFormat::setDefaultFormat(format);
     }
 
+    // The canvas is painted in the dark theme's sunken colour, which is the
+    // colour the picture is checked for later.
     auto& theme = vss::gui::Theme::instance();
     theme.initialise();
     theme.set_mode(vss::gui::theme_mode::dark);
     const QColor ground = theme.colour(vss::gui::colour_role::sunken);
 
+    // A window that stays on top with the canvas filling it, so that other
+    // windows are less likely to cover it when the screen is read.
     QWidget window(nullptr, Qt::Window | Qt::WindowStaysOnTopHint);
     window.setWindowTitle(QStringLiteral("vss present check"));
     auto* layout = new QVBoxLayout(&window);
@@ -117,6 +126,7 @@ int main(int argc, char* argv[])
     style.ground = ground;
     style.dots = ground;
     canvas->set_style(style);
+    // The canvas reports when its device is made, or why it could not be.
     bool device_ready = false;
     rendering::gpu_report report;
     QObject::connect(canvas, &rendering::GpuCanvas::device_ready, &window,
@@ -126,6 +136,8 @@ int main(int argc, char* argv[])
                          report = got;
                      });
 
+    // Show the window and run the event loop for a while, so the device is
+    // made and some frames are presented before the screen is read.
     window.resize(480, 320);
     window.show();
     window.raise();
@@ -134,6 +146,8 @@ int main(int argc, char* argv[])
     window.raise();
     pump(500);
 
+    // No device after the wait is a failure, not a skip: the platform
+    // reported a display above.
     if (!device_ready || !report.device_created)
     {
         std::fprintf(stdout, "present check: the canvas has no device (%s)\n",
@@ -161,6 +175,9 @@ int main(int argc, char* argv[])
         return kSkip;
     }
 
+    // Sample every seventh pixel of the middle of the picture, leaving the
+    // edges out, and count those near the canvas colour and those near white
+    // (what a window shows before anything is presented).
     int samples = 0;
     int matching = 0;
     int white = 0;
@@ -181,6 +198,9 @@ int main(int argc, char* argv[])
                  report.backend.toLocal8Bit().constData(),
                  report.device.toLocal8Bit().constData(), samples, matching,
                  white);
+    // Nine tenths the canvas colour is a pass, and nine tenths white is a
+    // blank window, which is a failure. Any other mix means something else
+    // is on top, so the answer is a skip.
     if (samples > 0 && matching * 10 >= samples * 9)
         return EXIT_SUCCESS;
     if (samples > 0 && white * 10 >= samples * 9)

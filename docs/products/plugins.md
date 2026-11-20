@@ -1,104 +1,88 @@
 ---
 template: marketing.html
 title: Plugins
-title_tag: "Plugins and the plugin host: Virtual Serial Studio"
-description: "Studio and vss_cli run plugins as programs of their own after you trust them. How trust, signing, the sandbox and the licence check work, and how to build one."
+title_tag: "Plugins for Virtual Serial Studio: Virtual Serial Studio"
+description: "Plugins add decoders, generators and recording to Studio. You install one, decide whether to trust it and switch it on, and each runs apart from Studio."
 ---
-<!-- OWNER DECISION: official plugins. None exist in the repository, so the page says Planned. Which plugins come first, who signs them, and whether any needs a licence are not decided. -->
+<!-- OWNER DECISION: official plugins. The three plugins in the section "Official plugins" are taken from the plugin.json files of the Pro repository (virtual-serial-studio-pro, version 0.1.0, edition pro). None is released yet and the public host does not start every kind of plugin they use, so the page says Planned. Still needed: (1) the release in which each becomes available; (2) where a customer gets the plugin folder, since Studio never downloads a plugin (that repository plans a signed zip, a Windows installer and Linux packages, and nothing for macOS); (3) whether Enterprise is named beside Pro. When one is released, change its row and the Planned chip, and update docs/user-guide/limits.md, docs/editions.md, docs/pricing.md and docs/faq.md, which still say that no official plugin has been released. -->
 <!-- OWNER DECISION: how a plugin author gets the plugin API and a manifest guide. Today there is the plugin API reference in the developer pages and the design in docs/plugins.md; there is no SDK package beyond the licence reader in sdk/licence-reader. -->
 <section class="vss-head"><div class="icl-wrap">
-<h1>Plugins and the plugin host</h1>
-<p class="icl-lead">A plugin adds something to Studio and runs as a program of its own. The host starts it, keeps it running, stops it, and keeps it apart from your files where the computer can. <span class="vss-chip vss-chip--ok">Plugin host in the packages</span> <span class="vss-chip vss-chip--plan">Official plugins: Planned</span></p>
+<p class="icl-eyebrow">Products</p>
+<h1>Plugins</h1>
+<p class="icl-lead">A plugin adds something to Studio, such as a decoder that reads a protocol in your traffic. You choose which plugins to install, you decide whether to trust each one, and each runs as a program of its own, apart from Studio. <span class="vss-chip vss-chip--ok">Plugin host in the packages</span></p>
+<div class="icl-actions"><a class="icl-button" href="../../guide/plugins/">Plugins in the guide</a></div>
 </div></section>
 
 <section class="icl-section"><div class="icl-wrap">
 <div class="vss-two">
 <div>
-<h2>What a plugin is</h2>
-<p>A plugin is a folder that holds a manifest, <code>plugin.json</code>, the program it runs, and usually a signature, <code>plugin.sig</code>. Studio never downloads a plugin. You or your administrator put the folder in a plugin folder.</p>
-<p>The manifest names the extension points the plugin offers. They are generator, fixture, modifier, adapter and decoder. The Plugins page says what a plugin adds, such as fixtures, generators, link behaviours or connections to other tools.</p>
-<p>The host runs the plugin as its own process and talks to it over a private channel that only the host holds. The messages are in <a href="../../developers/plugin-api/">the plugin API, message by message</a>. If a plugin fails, the host starts it again after 1, 2, 4 and then 8 seconds, and stops trying after the fifth failure in ten minutes.</p>
-</div>
-<div>
-<h2>Where plugins are managed</h2>
+<h2>What a plugin can add</h2>
 <ul class="vss-ticks">
-<li><strong>Tools, Plugins...</strong> in Studio lists the plugins with their state, who stands behind each one, what it adds, how far it is kept apart from your files, and what it may do. <strong>Add a plugin...</strong> looks into a folder and shows what it found before anything is copied.</li>
-<li>In the Advanced toolbox a plugin that is switched on has a tile for each fixture type. A port a plugin provides says so in the Inspector.</li>
-<li><code>vss_cli plugin list</code>, <code>verify</code>, <code>install</code>, <code>remove</code> and <code>run</code> do the same from a terminal. They do not raise administrator rights for you. Installing a plugin for everyone needs a prompt that you opened as an administrator.</li>
+<li><strong>A decoder</strong> reads the traffic of a port and shows the frames and events it finds in a window of its own, <strong>Tools, Decoded traffic...</strong>. Choose <strong>Decode as...</strong> on a port, pick the protocol, and the decoder starts. It only reads, and it never changes or delays your data.</li>
+<li><strong>A generator</strong> sends traffic of its own onto a port.</li>
+<li><strong>Recording and replay.</strong> A plugin you allow can record the data of the ports and links you name, and play one of its own recordings onto a port. While it does, the status bar says <strong>Reading data</strong> or <strong>Recording</strong>.</li>
+<li><strong>Remote control.</strong> A plugin can ask to let another computer use this computer's ports. Studio asks you each time, shows what the session could do and how long it would last, and starts on <strong>Refuse</strong>.</li>
 </ul>
-</div>
-</div>
-</div></section>
-
-<section class="icl-section icl-section--tint"><div class="icl-wrap">
-<div class="vss-intro">
-<h2>Trust and signing</h2>
-<p>A signature shows who made a plugin and that its files are unchanged. It does not show that the plugin is safe, so a plugin runs only after a decision.</p>
-</div>
-<div class="vss-table"><table>
-<thead><tr><th scope="col">Line on the Plugins page</th><th scope="col">What it means</th></tr></thead>
-<tbody>
-<tr><th scope="row">Official</th><td>Signed by Virtual Serial Studio. Runs on its signature. None exist yet.</td></tr>
-<tr><th scope="row">Signed by an author</th><td>Signed with a key that you or your administrator chose to trust. You decide about each plugin, for that exact version. If its files change, Studio asks again.</td></tr>
-<tr><th scope="row">Signed with an unknown key</th><td>The key is not on this computer, so the signature could not be checked.</td></tr>
-<tr><th scope="row">Unsigned</th><td>Nobody signed it. Studio cannot tell who made it or whether it was changed. It installs only with <code>--allow-unsigned</code>.</td></tr>
-</tbody></table></div>
-<ul class="vss-ticks">
-<li>The question you answer lists the plugin's name, version and fingerprint, what it adds and each permission it asks for. A permission the plugin marks as optional has a box you can clear. The dialog starts on Cancel.</li>
-<li>An author publishes a public key file ending in <code>.vsskey.json</code>. <strong>Import a key...</strong> shows its fingerprint, which you compare with the one the author published. Choosing to trust a key never switches a plugin on.</li>
-<li>Keys are Ed25519. <code>tools/plugin_sign.py</code> in the repository makes a key (<code>keygen</code>), signs a plugin folder (<code>plugin</code>) and checks a signature (<code>verify</code>). A key can be kept encrypted with a passphrase.</li>
-<li>An administrator can set a policy file that, for example, turns off the plugin folder of each user.</li>
-</ul>
-</div></section>
-
-<section class="icl-section"><div class="icl-wrap">
-<div class="vss-intro">
-<h2>The sandbox</h2>
-<p>Where the computer can do it, the host runs a plugin apart from your files and your other programs. The Plugins page shows, for each plugin, how far that went and which parts were not applied.</p>
-</div>
-<div class="vss-table"><table>
-<thead><tr><th scope="col">System</th><th scope="col">What the host does today</th></tr></thead>
-<tbody>
-<tr><th scope="row">Windows</th><td>Runs the plugin in a job object and an AppContainer of its own. It can read its own folder and write its data folder and no other file of yours. It has no network unless the permission was granted, cannot open other programs, has no window or clipboard, and is held to limits on memory, processes and processor time.</td></tr>
-<tr><th scope="row">Linux and macOS</th><td>Does not confine a plugin yet, and says so. An official plugin runs without confinement. Any other plugin runs only if you choose <strong>Run without isolation...</strong> for that version, where your administrator allows it.</td></tr>
-</tbody></table></div>
-<p>The sandbox is a second line of defence. The first is the decision about trust.</p>
-</div></section>
-
-<section class="icl-section icl-section--tint"><div class="icl-wrap">
-<div class="vss-two">
-<div>
-<h2>The licence check</h2>
-<p>An official plugin that needs a licence is not started without one, and the Plugins page says so. The host checks that the licence on this computer is valid and names that plugin, or all official plugins.</p>
-<p>A plugin can check the licence itself. The host hands it the licence file when it asks: always to an official plugin, and to any other only if the manifest asks for the permission <code>licence.read</code> and you allow it. <code>sdk/licence-reader</code> in the repository is a reader for licence files that a plugin may copy. It is under the BSD 2-Clause licence, and the rest of Studio is GPL.</p>
-<p>Switching other features on or off by licence is not built. <span class="vss-chip vss-chip--plan">Planned</span></p>
+<p>The plugin interface also has fixtures, link behaviours and connections to other tools. Studio does not run those yet. <span class="vss-chip vss-chip--plan">Planned</span></p>
 </div>
 <div>
-<h2>How a third-party plugin is built and run today</h2>
+<h2>Install, trust and switch one on</h2>
 <ol>
-<li>Write a program that reads its channel number from <code>VSS_PLUGIN_CHANNEL</code>, says hello, and answers the host's messages as <a href="../../developers/plugin-api/">the API reference</a> lists them. <code>VSS_PLUGIN_ID</code> and <code>VSS_PLUGIN_DATA</code> name the plugin and its data folder.</li>
-<li>Write <code>plugin.json</code>: the id, name and version, the program to run for each platform, the permissions it asks for with a reason for each, and its extension points.</li>
-<li>Sign the folder with <code>tools/plugin_sign.py</code>, or leave it unsigned.</li>
-<li>Run <code>vss_cli plugin verify &lt;folder&gt;</code>, then <code>vss_cli plugin install &lt;folder&gt;</code>.</li>
-<li>Decide about the plugin in Studio, on the Plugins page. <code>vss_cli plugin run</code> never makes that decision for you.</li>
-<li>Run it with <code>vss_cli plugin run &lt;id&gt; --seconds 30</code>, adding <code>--instance fixture:&lt;type&gt;</code> to ask for an instance of one of its extension points.</li>
+<li>Get the plugin's folder from its author. Studio never downloads a plugin.</li>
+<li>Open <strong>Tools, Plugins...</strong> and choose <strong>Add a plugin...</strong>. Studio looks into the folder and shows who made it and what its signature says. It copies nothing until you choose <strong>Add plugin</strong>.</li>
+<li>If the author signed it and you have their public key, choose <strong>More options</strong>, then <strong>Import a key...</strong>, and compare the fingerprint with the one the author published.</li>
+<li>Switch the plugin on. Studio asks first. The question lists the plugin's name, version, what it adds and each permission it asks for. It starts on <strong>Cancel</strong>.</li>
+<li>Use what it adds, such as <strong>Decode as...</strong> on a port, or <strong>Add...</strong> in the plugin's own page.</li>
 </ol>
+<p>An administrator can install a plugin for everyone on a computer and can limit a computer to official plugins.</p>
 </div>
 </div>
-<pre class="vss-code"><code>vss_cli plugin verify ./modbus-fixture
-vss_cli plugin install ./modbus-fixture
-vss_cli plugin run com.example.modbus-fixture --seconds 30 --instance fixture:meter</code></pre>
-<p><code>plugin run</code> prints one line each time the plugin's state changes, including the process id, how far it is confined and what was not applied. <code>--json</code> prints one JSON object on each line instead. It exits with 0 when the plugin ran and was stopped, and 1 when it never ran or failed too often.</p>
-<ul class="vss-links"><li><a href="../../developers/plugin-api/">The plugin API</a></li><li><a href="../../guide/plugins/#plugins">Plugins in the guide</a></li><li><a href="../../guide/command-line/">Command line</a></li></ul>
+<ul class="vss-links"><li><a href="../../guide/plugins/#deciding-about-a-plugin">Deciding about a plugin</a></li><li><a href="../../guide/plugins/#accepting-an-authors-key">Accepting an author's key</a></li><li><a href="../../guide/plugins/#adding-and-removing-a-plugin">Adding and removing a plugin</a></li><li><a href="../../guide/plugins/#decoding-traffic">Decoding traffic</a></li></ul>
+</div></section>
+
+<section class="icl-section icl-section--tint"><div class="icl-wrap">
+<div class="vss-two">
+<div>
+<h2>You stay in charge</h2>
+<p>A plugin runs as a program of its own, apart from Studio, and only after you have decided to trust that version of it. A signed plugin shows who made it, and Studio asks again if its files change.</p>
+<p>The list in <strong>Tools, Plugins...</strong> shows, for each plugin, who stands behind it, what it adds, what it may do and how far Studio keeps it apart from your files.</p>
+</div>
+<div>
+<h2>Who made it</h2>
+<ul class="vss-ticks">
+<li><strong>Official:</strong> signed by Virtual Serial Studio, and the only plugins that show its badge.</li>
+<li><strong>Signed by an author:</strong> signed with a key that you or your administrator accepted.</li>
+<li><strong>Signed with an unknown key:</strong> the author's key is not on this computer, so the signature could not be checked.</li>
+<li><strong>Unsigned:</strong> nobody signed it, so Studio cannot tell who made it or whether it was changed.</li>
+</ul>
+</div>
+</div>
 </div></section>
 
 <section class="icl-section"><div class="icl-wrap">
 <div class="vss-intro">
-<h2>Planned</h2>
-<p>These are not available. Confinement of a plugin on Linux and macOS is not built either, and the sandbox table above says so.</p>
+<h2>Official plugins</h2>
+<p>Official plugins are made and signed by Virtual Serial Studio. Every official plugin needs a licence, and the licence is what gives you access to them. It also brings support. Three are in development. <span class="vss-chip vss-chip--plan">Planned</span></p>
+</div>
+<div class="vss-table"><table>
+<thead><tr><th scope="col">Plugin</th><th scope="col">What it does for you</th><th scope="col">Edition</th></tr></thead>
+<tbody>
+<tr><th scope="row">Diagnostics and replay</th><td>Records the traffic of the ports and links you choose. It adds the recording to a support bundle only after you have seen it and removed what you do not want to share. It plays a recording back with its original timing or a scaled one.</td><td>Pro</td></tr>
+<tr><th scope="row">Protocol decoding and triggers</th><td>Reads the traffic of a port or link and decodes Modbus RTU, Modbus ASCII and NMEA 0183. It also decodes a protocol you write down in a description file, and Jandy AquaLink serial messages. It reports what does not fit the protocol and turns each finding into a trigger.</td><td>Pro</td></tr>
+<tr><th scope="row">Remote control and monitoring</th><td>Controls or watches Studio on one other, paired computer, over an encrypted TLS 1.3 connection that both computers check.</td><td>Pro</td></tr>
+</tbody></table></div>
+<ul class="vss-links"><li><a href="../../pricing/">Pricing</a></li><li><a href="../../guide/licences/">Licences in the guide</a></li></ul>
+</div></section>
+
+<section class="icl-section icl-section--tint"><div class="icl-wrap">
+<div class="vss-intro">
+<h2>How plugins are kept safe</h2>
+<p>A signature shows who made a plugin and that its files are unchanged. It does not show that the plugin is safe, so a plugin runs only after you decide, and the host also runs it apart from your files where the computer allows.</p>
 </div>
 <ul class="vss-ticks">
-<li>Official plugins, signed by Virtual Serial Studio. None exist. <span class="vss-chip vss-chip--plan">Planned</span></li>
-<li>Response timing rules and seeded fault injection for a plugin or a test. The rule library exists and has no way in yet. <span class="vss-chip vss-chip--plan">Planned</span></li>
+<li><strong>Windows:</strong> a plugin runs in a sandbox of its own. It can read its own folder and write its own data folder and no other file of yours, and it has no network unless you allowed that permission.</li>
+<li><strong>Linux and macOS:</strong> Studio does not keep a plugin apart yet, and the Plugins page says so. An official plugin runs without that. Any other plugin runs only if you choose <strong>Run without isolation...</strong> for that version, where your administrator allows it.</li>
 </ul>
+<p>If you write plugins, the messages between a plugin and Studio are in the plugin API reference.</p>
+<ul class="vss-links"><li><a href="../../developers/plugin-api/">The plugin API</a></li><li><a href="../../guide/plugins/">Plugins in the guide</a></li><li><a href="../../guide/limits/#what-does-not-exist-yet">What does not exist yet</a></li></ul>
 </div></section>

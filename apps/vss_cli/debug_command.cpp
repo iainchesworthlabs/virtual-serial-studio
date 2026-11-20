@@ -500,6 +500,7 @@ const char* debug_usage() noexcept
 
 int command_debug(const std::vector<std::string>& arguments)
 {
+    // Read the command line. A bad option is a usage error.
     options given;
     std::string problem;
     if (!read_options(arguments, given, problem))
@@ -512,9 +513,12 @@ int command_debug(const std::vector<std::string>& arguments)
         std::fprintf(stderr, "vss_cli: debug wants a command; see --help\n");
         return exit_usage;
     }
+    // Listing the running Studios needs no connection, so it is answered
+    // before one is made.
     if (given.verb == "list")
         return list_instances(given);
 
+    // Refuse an unknown command before a person is asked to approve access.
     const bool known =
         given.verb == "trace" || !operation_for(given.verb).empty();
     if (!known)
@@ -529,11 +533,14 @@ int command_debug(const std::vector<std::string>& arguments)
         return exit_usage;
     }
 
+    // Pick which running Studio to talk to. `code` carries the exit status
+    // when none can be chosen.
     int code = exit_ok;
     const auto instance = choose_instance(given, code);
     if (!instance)
         return code;
 
+    // Connect with only the scopes this command needs.
     dbg::client_options connect;
     connect.instance = *instance;
     connect.scopes = scopes_for(given.verb);
@@ -541,6 +548,8 @@ int command_debug(const std::vector<std::string>& arguments)
     auto session = dbg::client::connect(connect);
     if (!session)
     {
+        // Give the two common failures a plain explanation: the person
+        // said no, or Studio is not listening.
         const auto& error = session.error();
         if (error == vss::make_error_code(vss::errc::permission_denied))
             std::fprintf(stderr,
@@ -556,6 +565,8 @@ int command_debug(const std::vector<std::string>& arguments)
         return exit_not_running;
     }
 
+    // The trace command has its own path: it can follow the trace live, or
+    // fetch one batch and print the entries as text.
     if (given.verb == "trace")
     {
         if (given.follow)
@@ -572,6 +583,8 @@ int command_debug(const std::vector<std::string>& arguments)
             std::fprintf(stderr, "vss_cli: %s\n", done->message.c_str());
             return exit_refused;
         }
+        // With --json the reply is printed as it came; otherwise the entries
+        // are printed one per line. An unparsable reply prints nothing.
         boost::system::error_code ec;
         const json::value body = json::parse(done->json, ec);
         if (given.as_json)
@@ -588,6 +601,7 @@ int command_debug(const std::vector<std::string>& arguments)
         return exit_ok;
     }
 
+    // Every other command is one call to the operation named for the verb.
     const auto done =
         (*session)->call(operation_for(given.verb), build_args(given));
     if (!done)
@@ -601,6 +615,8 @@ int command_debug(const std::vector<std::string>& arguments)
                      done->code.c_str());
         return exit_refused;
     }
+    // A binary reply (a picture) cannot go to the terminal, so it must be
+    // written to the file given with --out.
     if (!done->blob.empty())
     {
         if (given.out_file.empty())

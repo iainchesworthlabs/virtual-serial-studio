@@ -1,0 +1,18 @@
+{
+  "comment": "The paths that make up the product site, and nothing else. tools/docs/publish_site.py copies only files that match one of these from develop to the branch `site`, and refuses a push to `site` that changes any other file (docs/ci.md, 'Publishing the site between releases'). A pattern is relative to the repository root: `*` matches within one folder name, `**` matches across folders. The `paths:` of .github/workflows/publish-site.yml has to be this same list; tools/ci/test_publish_site.py checks that. Application code, the build files, the workflows and CHANGELOG.md are not site paths, so they reach `site` only with a release.",
+  "paths": [
+    "docs/**",
+    "mkdocs.yml",
+    "requirements/docs.in",
+    "requirements/docs.txt",
+    "tools/docs/**",
+    ".github/actions/docs-site/**",
+    "tools/ci/site_*.py",
+    "tools/ci/check_site_*.py",
+    "tools/ci/check_release_data.py",
+    "tools/ci/check_claims.py",
+    "tools/ci/test_check_claims.py",
+    "tools/ci/test_site_*.py",
+    "tools/ci/test_publish_site.py"
+  ]
+}

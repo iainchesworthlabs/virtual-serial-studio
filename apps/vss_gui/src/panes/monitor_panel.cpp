@@ -646,7 +646,8 @@ bool MonitorPanel::eventFilter(QObject* watched, QEvent* event)
         // size does through the theme.
         apply_metrics();
     }
-    else if (watched == table_ && type == QEvent::KeyPress)
+    else if (table_ != nullptr && watched == table_ &&
+             type == QEvent::KeyPress)
     {
         // Ctrl+Alt+Left and Right narrow and widen the column the cursor is in
         // (Left and Right move it); Ctrl+Alt+0 fits it to its heading and
@@ -802,7 +803,8 @@ void MonitorPanel::apply_metrics()
     // Polishing the table can change its font (the style sheet puts back the
     // font a widget had before it was styled), and a change that came while
     // this ran was not acted on: look again with the font the table has now.
-    if (table_->font().pointSizeF() != own)
+    const double now = table_->font().pointSizeF();
+    if (now < own || own < now)
         apply_metrics();
 }
 

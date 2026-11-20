@@ -33,6 +33,8 @@ LinkSettingsDialog::LinkSettingsDialog(const link_view& link,
                                        QWidget* parent)
     : QDialog(parent), link_(link)
 {
+    // Window setup: the title doubles as the accessible name, and the width
+    // comes from a theme metric.
     const QString title = tr("Settings for %1").arg(name);
     setWindowTitle(title);
     setAccessibleName(title);
@@ -42,6 +44,9 @@ LinkSettingsDialog::LinkSettingsDialog(const link_view& link,
     setMinimumWidth(
         Theme::instance().metric(QStringLiteral("layout.dialogWidths.small")));
 
+    // The page is a single column: header, the rows that apply to this kind
+    // of link, an error line and a footer. The bottom margin is zero because
+    // the footer draws its own padding.
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(24, 24, 24, 0);
     layout->setSpacing(14);
@@ -52,6 +57,8 @@ LinkSettingsDialog::LinkSettingsDialog(const link_view& link,
            "changes."),
         this, false, {}));
 
+    // Delay and jitter are both millisecond spin boxes with the same range,
+    // so one helper builds them.
     const auto make_ms = [this](const QString& label, int maximum)
     {
         auto* spin = new QSpinBox(this);
@@ -61,6 +68,7 @@ LinkSettingsDialog::LinkSettingsDialog(const link_view& link,
         spin->setSuffix(tr(" ms"));
         return spin;
     };
+    // Start from the values the link has now.
     delay_ = make_ms(tr("Delay"), static_cast<int>(vss::max_link_delay_ms));
     delay_->setValue(static_cast<int>(link.options.delay_ms));
     jitter_ = make_ms(tr("Jitter"), static_cast<int>(vss::max_link_delay_ms));
@@ -78,11 +86,15 @@ LinkSettingsDialog::LinkSettingsDialog(const link_view& link,
     layout->addWidget(delay_row);
     layout->addWidget(jitter_row);
 
+    // Wire timing applies to every shape except a bus, which has its own
+    // half duplex settings below.
     wire_timing_ = new WireTimingFields(this);
     wire_timing_->set_options(link.options.wire_timing);
     wire_timing_->setVisible(link.shape != link_shape::bus);
     layout->addWidget(wire_timing_);
 
+    // Direction is only for a monitor. The hint under it follows the choice
+    // and is also set as the accessible description.
     direction_ = new QComboBox(this);
     direction_->setObjectName(QStringLiteral("linkDirection"));
     direction_->setAccessibleName(tr("Direction"));
@@ -105,6 +117,8 @@ LinkSettingsDialog::LinkSettingsDialog(const link_view& link,
         monitor_direction_description(link.options.direction));
     layout->addWidget(direction_row);
 
+    // The merge policy only matters when more than one port can write to the
+    // link, so the row stays hidden otherwise.
     const bool bus = link.shape == link_shape::bus;
     const bool many_senders = !bus && link.sources.size() > 1;
     policy_ = new QComboBox(this);
@@ -121,18 +135,22 @@ LinkSettingsDialog::LinkSettingsDialog(const link_view& link,
     policy_row->setVisible(many_senders);
     layout->addWidget(policy_row);
 
+    // Modem line emulation only makes sense between two ports.
     modem_lines_ = new QCheckBox(tr("Emulate modem lines"), this);
     modem_lines_->setObjectName(QStringLiteral("linkModemLines"));
     modem_lines_->setChecked(link.options.emulate_modem_lines);
     modem_lines_->setVisible(link.shape == link_shape::two_way);
     layout->addWidget(modem_lines_);
 
+    // Half duplex settings belong to a bus. The engine may not support them,
+    // and the fields then show that they are unavailable.
     half_duplex_ = new HalfDuplexFields(this);
     half_duplex_->set_available(half_duplex_available);
     half_duplex_->set_options(link.options.half_duplex);
     half_duplex_->setVisible(bus);
     layout->addWidget(half_duplex_);
 
+    // The error line is filled in by update_state when the values clash.
     error_ = new QLabel(this);
     error_->setWordWrap(true);
     error_->setFont(Theme::instance().font(text_style::caption));
@@ -140,6 +158,8 @@ LinkSettingsDialog::LinkSettingsDialog(const link_view& link,
     layout->addWidget(error_);
     layout->addStretch(1);
 
+    // Footer: Apply is the default button and is the one update_state
+    // enables or disables.
     QHBoxLayout* footer_layout = nullptr;
     auto* footer = make_footer(this, footer_layout);
     auto* cancel = make_button(tr("Cancel"), nullptr, footer);
@@ -152,6 +172,8 @@ LinkSettingsDialog::LinkSettingsDialog(const link_view& link,
     footer_layout->addWidget(apply_);
     layout->addWidget(footer);
 
+    // Any edit re-checks the values, then the first useful control gets the
+    // focus.
     connect(delay_, &QSpinBox::valueChanged, this, [this] { update_state(); });
     connect(jitter_, &QSpinBox::valueChanged, this, [this] { update_state(); });
     connect(half_duplex_, &HalfDuplexFields::changed, this,

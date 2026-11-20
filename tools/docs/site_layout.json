@@ -30,10 +30,6 @@
    "new": "solutions/develop-and-test-without-hardware/"
   },
   {
-   "src": "solutions/device-emulation.md",
-   "new": "solutions/device-emulation/"
-  },
-  {
    "src": "solutions/test-automation-and-ci.md",
    "new": "solutions/test-automation-and-ci/"
   },
@@ -42,16 +38,12 @@
    "new": "solutions/capture-and-analysis/"
   },
   {
+   "src": "solutions/features.md",
+   "new": "solutions/features/"
+  },
+  {
    "src": "solutions/sharing-and-bridging-ports.md",
    "new": "solutions/sharing-and-bridging-ports/"
-  },
-  {
-   "src": "solutions/test-benches.md",
-   "new": "solutions/test-benches/"
-  },
-  {
-   "src": "solutions/fault-injection-and-timing.md",
-   "new": "solutions/fault-injection-and-timing/"
   },
   {
    "src": "pricing.md",

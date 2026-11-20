@@ -23,6 +23,7 @@
 #include <boost/json.hpp>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -123,16 +124,34 @@ utf8_char read_utf8(std::string_view text, std::size_t index) noexcept
 /// reads.
 bool unwanted(std::uint32_t point) noexcept
 {
-    return point < 0x20 || (point >= 0x7f && point <= 0x9f) || point == 0xad ||
-           point == 0x34f || point == 0x61c || point == 0x115f ||
-           point == 0x1160 || point == 0x180e ||
-           (point >= 0x200b && point <= 0x200f) || point == 0x2028 ||
-           point == 0x2029 || (point >= 0x202a && point <= 0x202e) ||
-           (point >= 0x2060 && point <= 0x206f) || point == 0x3164 ||
-           (point >= 0xfe00 && point <= 0xfe0f) || point == 0xfeff ||
-           (point >= 0xfff9 && point <= 0xfffb) ||
-           (point >= 0xe0000 && point <= 0xe007f) ||
-           (point >= 0xe0100 && point <= 0xe01ef);
+    struct code_range
+    {
+        std::uint32_t first;
+        std::uint32_t last;
+    };
+    // Control characters, soft hyphen, joiners and direction marks, line and
+    // paragraph separators, variation selectors, tags and the like.
+    static constexpr std::array<code_range, 16> ranges{{
+        {0x0, 0x1f},
+        {0x7f, 0x9f},
+        {0xad, 0xad},
+        {0x34f, 0x34f},
+        {0x61c, 0x61c},
+        {0x115f, 0x1160},
+        {0x180e, 0x180e},
+        {0x200b, 0x200f},
+        {0x2028, 0x202e},
+        {0x2060, 0x206f},
+        {0x3164, 0x3164},
+        {0xfe00, 0xfe0f},
+        {0xfeff, 0xfeff},
+        {0xfff9, 0xfffb},
+        {0xe0000, 0xe007f},
+        {0xe0100, 0xe01ef},
+    }};
+    return std::any_of(ranges.begin(), ranges.end(),
+                       [point](const code_range& range)
+                       { return point >= range.first && point <= range.last; });
 }
 
 /// Spaces of other widths, which are shown as an ordinary space.
@@ -1044,7 +1063,8 @@ private:
             const auto parsed = control::parse_scope(name);
             if (!parsed)
                 unknown = true;
-            else if (*parsed == control::scope::admin)
+            else if (control::scope_set{*parsed}.contains(
+                         control::scope::admin))
                 return refused_with(control_refusal::permission_denied,
                                     "A plugin cannot have the administration "
                                     "scope.");

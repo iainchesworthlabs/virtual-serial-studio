@@ -555,7 +555,7 @@ public:
     /// `options` may carry a `delay_ms` and `jitter_ms`, and a `half_duplex`
     /// line; the other fields are fixed for a bus.
     result<link_id> bus(const std::vector<std::string>& members,
-                        link_options options = {});
+                        const link_options& options = {});
     result<void> disconnect(link_id id);
 
     /// Adds the named port as one more target of a two-way link or a split

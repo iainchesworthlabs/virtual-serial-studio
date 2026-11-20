@@ -298,6 +298,7 @@ void allow_without_isolation(ServicePluginBackend& backend,
         },
         60000));
     const plugin_view* now = find_view(backend.snapshot(), id);
+    REQUIRE(now != nullptr);
     if (now->state == plugin_state::needs_isolation)
         backend.set_no_isolation(view.id, view.hash, true);
 }
@@ -510,6 +511,7 @@ TEST_CASE(
         }
         REQUIRE(back);
         const plugin_view* view = find_view(backend.snapshot(), id);
+        REQUIRE(view != nullptr);
         REQUIRE_EQ(view->instances.size(), std::size_t{1});
         // The plugin is not running, so the instance is not either.
         REQUIRE(view->instances.front().state ==
@@ -692,6 +694,7 @@ TEST_CASE("service backend: what a plugin reports of its licence check reaches "
         60000);
     REQUIRE(reported);
     const plugin_view* view = find_view(backend.snapshot(), id);
+    REQUIRE(view != nullptr);
     REQUIRE(view->licence_report_reason == vss::license::reason::expired);
     backend.shut_down();
 }

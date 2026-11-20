@@ -361,26 +361,27 @@ std::vector<std::shared_ptr<endpoint>> hub::endpoints() const
     return out;
 }
 
-result<link_id> hub::connect(endpoint_id a, endpoint_id b, link_options options)
+result<link_id> hub::connect(endpoint_id a, endpoint_id b,
+                             const link_options& options)
 {
     return add_link(link_mode::duplex, {a}, {b}, options);
 }
 
 result<link_id> hub::split(endpoint_id source,
                            const std::vector<endpoint_id>& targets,
-                           link_options options)
+                           const link_options& options)
 {
     return add_link(link_mode::duplex, {source}, targets, options);
 }
 
 result<link_id> hub::join(const std::vector<endpoint_id>& sources,
-                          endpoint_id target, link_options options)
+                          endpoint_id target, const link_options& options)
 {
     return add_link(link_mode::one_way, sources, {target}, options);
 }
 
 result<link_id> hub::redirect(endpoint_id from, endpoint_id to,
-                              link_options options)
+                              const link_options& options)
 {
     return add_link(link_mode::one_way, {from}, {to}, options);
 }
@@ -463,7 +464,7 @@ result<link_id> hub::bus(const std::vector<endpoint_id>& members,
 result<link_id> hub::add_link(link_mode mode,
                               const std::vector<endpoint_id>& sources,
                               const std::vector<endpoint_id>& targets,
-                              link_options options)
+                              const link_options& options)
 {
     VSS_PROFILE_ZONE("hub.add_link");
     if (sources.empty() || targets.empty())
@@ -1722,7 +1723,7 @@ void hub::route_chunk(endpoint_id from, const stream_item& item,
             route_chunk(entry.target->id(), item, when, carried.get());
         if (shown_break)
             entry.target->write_break(*shown_break);
-        else
+        else if (shown_bytes)
             entry.target->write(*shown_bytes);
     }
 

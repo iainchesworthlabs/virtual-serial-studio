@@ -120,14 +120,25 @@ the packaging jobs for that branch. Unpack each package on its system and run
 
 The live site (at the address `site_url` gives in `mkdocs.yml`) describes the latest published release, a release candidate
 included. The company stack trusts a push to the branch `site` of this repository, and to no other branch, to deploy it. The `site` job
-of `release.yml` fast-forwards `site` to the tagged commit (the `version` job has already checked that the commit is on `develop`, so
-`site` only moves forward along `develop`). It runs after the `feed` job, so the site is built with the signed update feed that the
-release carries, and it uses the release bot's App token because a push made with `GITHUB_TOKEN` does not start workflows. The Docs
-workflow then builds and deploys ([Continuous integration](ci.md#publishing)). A release candidate moves `site` but never `main`.
+of `release.yml` moves `site` to the tagged commit (the `version` job has already checked that the commit is on `develop`). It runs after
+the `feed` job, so the site is built with the signed update feed that the release carries, and it uses the release bot's App token because
+a push made with `GITHUB_TOKEN` does not start workflows. The Docs workflow then builds and deploys ([Continuous integration](ci.md#publishing)).
+A release candidate moves `site` but never `main`.
 
-The shared publish workflow moves `main` only for a final release and has no way to move another branch for a release candidate, so the
-move is in this repository. The branch is created by the owner, who also allows the release bot to push to it in the rulesets. If the tag
-is not ahead of `site`, the job stops and the live site stays as it was.
+The move is always a fast-forward. Between releases the site can be published without a release
+([Publishing the site between releases](ci.md#publishing-the-site-between-releases)), which puts commits on `site` that the tag does not
+have. The job asks the compare API how the tag stands to `site`:
+
+- The branch does not exist: it is created at the tagged commit.
+- `ahead` or `identical`: nothing was published in between, and `site` moves to the tagged commit.
+- Anything else, which is `diverged` after a site-only update: the job makes a merge commit through the API with the tree of the tagged
+  commit and with the current `site` and the tagged commit as its parents, the message "Publish the site from <tag>", and moves `site` to
+  it with `force=false`. The live site is then the release, as it was before, and the history of `site` keeps the site-only commits.
+- `behind`: `site` is already past the tag, as a re-run of an old release would find it. The job leaves `site` alone and says so.
+
+The Docs workflow accepts that merge commit because its tree is the tree of a `v*` tag. The shared publish workflow moves `main` only for
+a final release and has no way to move another branch for a release candidate, so the move is in this repository. The branch is created by
+the owner, who also allows the release bot to push to it in the rulesets.
 
 ## Where `main` fits
 

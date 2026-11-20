@@ -318,8 +318,8 @@ TEST_CASE("update transport: a status other than 200 is a failed feed")
           QByteArray("204 No Content")})
     {
         test_server server;
-        server.respond = [status](QTcpSocket* socket, const QByteArray&)
-        { test_server::send(socket, status, ""); };
+        server.respond = [reply = status](QTcpSocket* socket, const QByteArray&)
+        { test_server::send(socket, reply, ""); };
         NetworkTransport transport(options_for(server), nullptr);
 
         feed_result result;

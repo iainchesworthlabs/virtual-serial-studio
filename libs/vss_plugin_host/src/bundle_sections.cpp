@@ -11,7 +11,6 @@
 #include <vss/plugin/manifest.hpp>
 
 #include <algorithm>
-#include <array>
 #include <cstddef>
 #include <exception>
 #include <fstream>
@@ -20,6 +19,7 @@
 #include <stdexcept>
 #include <span>
 #include <system_error>
+#include <vector>
 
 namespace vss::plugin::host
 {
@@ -223,7 +223,7 @@ std::optional<bundle_failure> read_file(const fs::path& full,
     // Never more than the listed size and one byte: a file that grows is
     // found, and not read to its end.
     sha512_hasher hasher;
-    std::array<char, read_chunk> buffer{};
+    std::vector<char> buffer(read_chunk);
     std::uint64_t seen = 0;
     while (seen <= file.size)
     {

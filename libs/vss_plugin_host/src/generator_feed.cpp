@@ -69,7 +69,7 @@ const char* to_string(feed_end_reason reason) noexcept
     return "unknown";
 }
 
-generator_feed::generator_feed(feed_options options)
+generator_feed::generator_feed(const feed_options& options)
     : options_(options)
 {
     options_.window_bytes =

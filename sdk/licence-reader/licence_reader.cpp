@@ -283,7 +283,8 @@ private:
             return at_ > start;
         }
         // Count downwards, so the most negative number fits too.
-        const std::int64_t lowest = std::numeric_limits<std::int64_t>::min();
+        constexpr std::int64_t lowest =
+            std::numeric_limits<std::int64_t>::min();
         std::int64_t total = 0;
         for (std::size_t index = digits_start; index < digits_end; ++index)
         {
@@ -935,6 +936,7 @@ payload_result read_payload(const std::vector<std::uint8_t>& bytes,
 {
     const std::string_view text(reinterpret_cast<const char*>(bytes.data()),
                                 bytes.size());
+    // The payload must parse as a JSON document whose top level is an object.
     json_value object;
     if (!json_reader(text).document(object) || object.type != json_kind::object)
     {
@@ -957,6 +959,8 @@ payload_result read_payload(const std::vector<std::uint8_t>& bytes,
         }
     }
 
+    // Identity of the licence: its id, kind and edition. Only the known
+    // kinds and editions are accepted, and the id must be an upper-case token.
     std::string kind_text;
     std::string edition_text;
     if (!required_text(object, "licence_id", longest_id, out.licence_id) ||
@@ -971,6 +975,8 @@ payload_result read_payload(const std::vector<std::uint8_t>& bytes,
     }
     out.trial = kind_text == "trial";
 
+    // The licensee is a nested object. Name is required; contact and email
+    // are optional, but any that are present must be plain display text.
     const json_value* licensee = object.member("licensee");
     std::string name;
     std::string contact;
@@ -985,6 +991,8 @@ payload_result read_payload(const std::vector<std::uint8_t>& bytes,
         return payload_result::malformed;
     }
 
+    // The validity window: all three times are required and the licence may
+    // not expire before it starts.
     if (!required_time(object, "issued_at", out.issued_at) ||
         !required_time(object, "starts_at", out.starts_at) ||
         !required_time(object, "expires_at", out.expires_at) ||
@@ -993,6 +1001,8 @@ payload_result read_payload(const std::vector<std::uint8_t>& bytes,
         return payload_result::malformed;
     }
 
+    // Grace period and seat count are range checked. Seats are checked for
+    // consistency with Studio even though this reader does not use them.
     std::int64_t grace = 0;
     std::int64_t seats = 0;
     if (!required_integer(object, "grace_days", 0, 366, grace) ||
@@ -1002,6 +1012,7 @@ payload_result read_payload(const std::vector<std::uint8_t>& bytes,
     }
     out.grace_days = static_cast<int>(grace);
 
+    // Feature and machine lists: each entry must have the right shape.
     std::vector<std::string> machines;
     if (!text_list(object, "features", 64, longest_feature + 2, out.features) ||
         !text_list(object, "machines", 1024, longest_machine + 1, machines) ||
@@ -1015,6 +1026,8 @@ payload_result read_payload(const std::vector<std::uint8_t>& bytes,
         return payload_result::malformed;
     }
 
+    // Optional members: the updates cut-off, the licence this one replaces
+    // and the clock reset token.
     std::string updates;
     std::string replaces;
     if (!optional_text(object, "updates_until", 20, updates) ||

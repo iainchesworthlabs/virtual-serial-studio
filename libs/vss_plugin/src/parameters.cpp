@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -617,7 +618,8 @@ bool settle(double& value)
         const json::value again = json::parse(written, failed);
         if (failed || !again.is_double())
             return false;
-        if (again.as_double() == value)
+        if (std::bit_cast<std::uint64_t>(again.as_double()) ==
+            std::bit_cast<std::uint64_t>(value))
             return true;
         value = again.as_double();
     }
@@ -772,7 +774,7 @@ std::optional<raw_parameters> from_json(std::string_view text,
     out.reserve(object.size());
     for (const auto& member : object)
     {
-        const std::string_view key = member.key();
+        const std::string_view key{member.key().data(), member.key().size()};
         if (key.empty() || key.size() > max_id_length ||
             !plain_text(key))
         {

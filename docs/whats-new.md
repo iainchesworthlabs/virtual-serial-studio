@@ -9,6 +9,6 @@ description: "What changed in each release of Virtual Serial Studio, taken from 
 
 # What's new
 
-This page lists what changed in each release, newest first. It is built from the project's changelog, which is written when a release is made, so a change appears here when the release that holds it is published. [Downloads](downloads.md) has the files of the newest release. Release candidates, and the notes that go with them, are on the [releases page on GitHub](https://github.com/iainchesworthlabs/virtual-serial-studio/releases).
+What changed in each release, newest first. A change appears here when the release that holds it is published. [Downloads](downloads.md) has the files of the newest release. Release candidates, and the notes that go with them, are on the [releases page on GitHub](https://github.com/iainchesworthlabs/virtual-serial-studio/releases).
 
 <!-- changelog:releases -->

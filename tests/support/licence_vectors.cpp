@@ -606,6 +606,11 @@ void add_envelopes(std::vector<licence_vector>& list)
 
 void add_payloads(std::vector<licence_vector>& list)
 {
+    // Each block changes one thing in the signed payload, then builds a
+    // licence file from it with licence_file() and records what a reader
+    // must answer.
+
+    // Members named in critical must be understood by the reader.
     payload_fields unknown_critical;
     unknown_critical.extra = "\"site_lock\":true,";
     unknown_critical.critical = "[\"site_lock\"]";
@@ -621,6 +626,7 @@ void add_payloads(std::vector<licence_vector>& list)
         "known-critical", "critical names only members every reader knows.",
         licence_file(known_critical), mid_term, "ok", true, "valid"));
 
+    // Members that are unknown, or null where optional, are skipped.
     payload_fields unknown_member;
     unknown_member.extra = "\"colour\":{\"name\":\"teal\",\"parts\":[1,2.5]},";
     list.push_back(make("unknown-member",
@@ -637,6 +643,8 @@ void add_payloads(std::vector<licence_vector>& list)
                         licence_file(null_optional), mid_term, "ok", true,
                         "valid"));
 
+    // A repeated member name is malformed, at any depth, because readers
+    // could otherwise pick different values from the same signed bytes.
     payload_fields twice;
     twice.extra = "\"seats\":2,";
     list.push_back(refused("duplicate-member-payload",
@@ -650,6 +658,7 @@ void add_payloads(std::vector<licence_vector>& list)
         "A member this version ignores holds an object with a name twice.",
         licence_file(twice_inside), "malformed"));
 
+    // The nesting limit is eight levels: one vector at the limit, one past.
     payload_fields deep;
     deep.extra = "\"later\":[[[[[[[1]]]]]]],";
     list.push_back(make("nesting-8",
@@ -661,6 +670,7 @@ void add_payloads(std::vector<licence_vector>& list)
     list.push_back(refused("nesting-9", "A member nested nine deep.",
                            licence_file(too_deep), "malformed"));
 
+    // Text must be valid UTF-8 and may not hold control characters.
     payload_fields bad_text;
     bad_text.licensee = "{\"name\":\"Test \xff vector\"}";
     list.push_back(refused("not-utf-8",
@@ -674,6 +684,8 @@ void add_payloads(std::vector<licence_vector>& list)
                            "The licensee's name holds a control character.",
                            licence_file(control), "malformed"));
 
+    // Dates must be real calendar dates in the one accepted form, and the
+    // end may not be before the start.
     payload_fields bad_date;
     bad_date.expires_at = "\"2027-02-30T00:00:00Z\"";
     list.push_back(refused("bad-date", "expires_at is 30 February.",
@@ -696,6 +708,7 @@ void add_payloads(std::vector<licence_vector>& list)
                            "expires_at is before starts_at.",
                            licence_file(backwards), "malformed"));
 
+    // Number and name members must have the exact type and form.
     payload_fields fraction;
     fraction.grace_days = "28.0";
     list.push_back(refused("grace-not-whole", "grace_days is written 28.0.",
@@ -716,10 +729,13 @@ void add_payloads(std::vector<licence_vector>& list)
                            "address.",
                            licence_file(bad_email), "malformed"));
 
+    // The payload itself must be a JSON object.
     list.push_back(refused("payload-not-object",
                            "The signed payload is a JSON list.",
                            licence_file("[1,2,3]"), "malformed"));
 
+    // Members that are valid but are not checked by the reference reader:
+    // the machine list and the clock reset token.
     payload_fields listed;
     listed.machines = "[\"LAB-*\",\"bench-3\"]";
     licence_vector machines =

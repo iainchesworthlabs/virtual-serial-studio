@@ -251,7 +251,7 @@ TEST_CASE("canvas: a link keeps to the connector its wire was dragged from")
     const qreal edge = facing_right ? from.left() : from.right();
     // The automatic layout moves the nodes once they are linked, so what the
     // link must keep to is the side, not the old position.
-    const bool dragged_left = edge == from.left();
+    const bool dragged_left = facing_right;
     const QPoint handle =
         view.mapFromScene(QPointF(edge, from.center().y()));
     const QPoint target = view.mapFromScene(to.center());

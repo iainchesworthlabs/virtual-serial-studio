@@ -399,6 +399,11 @@ void flood_standard_output(unsigned long long bytes)
 std::optional<int> act(std::string_view argument, const char* self,
                        test_plugin::serve_options& serving)
 {
+    // Each argument is matched in turn. A flag with a value is read with
+    // value_after, and a value that does not parse falls through to the
+    // "unknown argument" answer at the end.
+
+    // What the plugin can see of its own process.
     if (argument == "--print-environment")
     {
         print_environment();
@@ -406,6 +411,7 @@ std::optional<int> act(std::string_view argument, const char* self,
     }
     if (argument == "--print-directory")
         return print_directory();
+    // Output on the standard streams, as text or as bytes given in hex.
     if (const auto text = value_after(argument, "--stdout="))
     {
         say(std::string(*text));
@@ -424,6 +430,8 @@ std::optional<int> act(std::string_view argument, const char* self,
             return std::nullopt;
         }
     }
+    // What the plugin has open: the standard input, the file descriptors and
+    // one handle, which a test uses to see what a launch passed down.
     if (argument == "--read-stdin")
     {
         read_standard_input();
@@ -443,6 +451,8 @@ std::optional<int> act(std::string_view argument, const char* self,
             return std::nullopt;
         }
     }
+    // Talk over the channel the host opened, then end with the exit code
+    // that comes back.
     if (const auto text = value_after(argument, "--channel-say="))
     {
         return channel_say(*text);
@@ -451,6 +461,8 @@ std::optional<int> act(std::string_view argument, const char* self,
     {
         return channel_echo();
     }
+    // Child processes, a signal that is ignored, and the process id, for the
+    // tests of stopping a plugin and all that it started.
     if (const auto text = value_after(argument, "--spawn-children="))
     {
         if (const auto count = parse_number<unsigned long long>(*text))
@@ -467,6 +479,8 @@ std::optional<int> act(std::string_view argument, const char* self,
         say("pid " + std::to_string(test_plugin::process_id()));
         return std::nullopt;
     }
+    // Load: a flood of output and an allocation, for the limits on output
+    // and memory.
     if (const auto text = value_after(argument, "--flood-stdout="))
     {
         if (const auto bytes = parse_number<unsigned long long>(*text))
@@ -483,6 +497,8 @@ std::optional<int> act(std::string_view argument, const char* self,
             return std::nullopt;
         }
     }
+    // Things a confined plugin may or may not do: read or write a file, open
+    // a connection to the loopback address, and open another process.
     if (const auto text = value_after(argument, "--read-file="))
     {
         read_file(std::string(*text));
@@ -511,6 +527,7 @@ std::optional<int> act(std::string_view argument, const char* self,
             return std::nullopt;
         }
     }
+    // Ways to end: never, by a crash, or with an exit code that was asked for.
     if (argument == "--hang")
     {
         say("hanging");
@@ -526,11 +543,14 @@ std::optional<int> act(std::string_view argument, const char* self,
         if (const std::optional<int> code = parse_number<int>(*text))
             return code;
     }
+    // Serve mode runs the plugin as a server. The flags that change it are
+    // kept in "serving" and apply when --serve itself is reached.
     if (argument == "--serve")
         return test_plugin::serve(serving);
     if (test_plugin::take_serve_modifier(argument, serving))
         return std::nullopt;
 
+    // Nothing matched: say so and end with 2, so a typo in a test fails.
     emit(stderr, "unknown argument\n");
     return 2;
 }

@@ -278,7 +278,7 @@ const char* to_string(feed_end_reason reason) noexcept;
 class generator_feed
 {
 public:
-    explicit generator_feed(feed_options options);
+    explicit generator_feed(const feed_options& options);
 
     feed_state state() const noexcept { return state_; }
     const feed_options& options() const noexcept { return options_; }
