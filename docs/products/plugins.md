@@ -4,7 +4,7 @@ title: Plugins
 title_tag: "Plugins for Virtual Serial Studio: Virtual Serial Studio"
 description: "Plugins add decoders, generators and recording to Studio. You install one, decide whether to trust it and switch it on, and each runs apart from Studio."
 ---
-<!-- OWNER DECISION: official plugins. The owner says official plugins exist in the Pro product, but this repository does not hold them, so the section "Official plugins" below is a placeholder. Needed: (1) the name of each official plugin; (2) one plain line on what each one does for a customer; (3) which edition has it (Pro, Enterprise or both); (4) whether any needs a licence beyond the edition; (5) where a customer gets the plugin folder, since Studio never downloads a plugin; (6) whether the plugin is signed by Virtual Serial Studio today. Remove the placeholder paragraph and the comment when this is filled in. Check docs/user-guide/limits.md, docs/editions.md, docs/pricing.md and docs/faq.md, which still say that no official plugin has been released. -->
+<!-- OWNER DECISION: official plugins. The three plugins in the section "Official plugins" are taken from the plugin.json files of the Pro repository (virtual-serial-studio-pro, version 0.1.0, edition pro). None is released yet and the public host does not start every kind of plugin they use, so the page says Planned. Still needed: (1) the release in which each becomes available; (2) where a customer gets the plugin folder, since Studio never downloads a plugin (that repository plans a signed zip, a Windows installer and Linux packages, and nothing for macOS); (3) whether Enterprise is named beside Pro. When one is released, change its row and the Planned chip, and update docs/user-guide/limits.md, docs/editions.md, docs/pricing.md and docs/faq.md, which still say that no official plugin has been released. -->
 <!-- OWNER DECISION: how a plugin author gets the plugin API and a manifest guide. Today there is the plugin API reference in the developer pages and the design in docs/plugins.md; there is no SDK package beyond the licence reader in sdk/licence-reader. -->
 <section class="vss-head"><div class="icl-wrap">
 <p class="icl-eyebrow">Products</p>
@@ -62,8 +62,15 @@ description: "Plugins add decoders, generators and recording to Studio. You inst
 <section class="icl-section"><div class="icl-wrap">
 <div class="vss-intro">
 <h2>Official plugins</h2>
-<p>Official plugins are made and signed by Virtual Serial Studio, and are part of the Pro product. Placeholder: the list of official plugins, what each one does and which edition has it will be added here.</p>
+<p>Official plugins are made and signed by Virtual Serial Studio. Every official plugin needs a licence, and the licence is what gives you access to them. It also brings support. Three are in development. <span class="vss-chip vss-chip--plan">Planned</span></p>
 </div>
+<div class="vss-table"><table>
+<thead><tr><th scope="col">Plugin</th><th scope="col">What it does for you</th><th scope="col">Edition</th></tr></thead>
+<tbody>
+<tr><th scope="row">Diagnostics and replay</th><td>Records the traffic of the ports and links you choose. It adds the recording to a support bundle only after you have seen it and removed what you do not want to share. It plays a recording back with its original timing or a scaled one.</td><td>Pro</td></tr>
+<tr><th scope="row">Protocol decoding and triggers</th><td>Reads the traffic of a port or link and decodes Modbus RTU, Modbus ASCII and NMEA 0183. It also decodes a protocol you write down in a description file, and Jandy AquaLink serial messages. It reports what does not fit the protocol and turns each finding into a trigger.</td><td>Pro</td></tr>
+<tr><th scope="row">Remote control and monitoring</th><td>Controls or watches Studio on one other, paired computer, over an encrypted TLS 1.3 connection that both computers check.</td><td>Pro</td></tr>
+</tbody></table></div>
 <ul class="vss-links"><li><a href="../../pricing/">Pricing</a></li><li><a href="../../guide/licences/">Licences in the guide</a></li></ul>
 </div></section>
 
