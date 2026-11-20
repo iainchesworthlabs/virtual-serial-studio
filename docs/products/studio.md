@@ -42,7 +42,7 @@ description: "Studio makes virtual serial ports, shares a real device with sever
 <tr><th scope="row">See the data on a port</th><td>Nothing new. It shows the data going through a setup you already have.</td></tr>
 <tr><th scope="row">Check this PC is ready</th><td>Opens the setup check, which says what is missing for ports other programs can open.</td></tr>
 </tbody></table></div>
-<ul class="vss-links"><li><a href="../../guide/#jobs-simple">Jobs in the guide</a></li><li><a href="../../solutions/">Solutions</a></li></ul>
+<ul class="vss-links"><li><a href="../../guide/getting-started/#jobs-simple">Jobs in the guide</a></li><li><a href="../../solutions/">Solutions</a></li></ul>
 </div></section>
 
 <section class="icl-section"><div class="icl-wrap">
@@ -71,7 +71,7 @@ description: "Studio makes virtual serial ports, shares a real device with sever
 <tr><th scope="row">Network endpoint</th><td>A <code>tcp</code>, <code>udp</code> or <code>rfc2217</code> port, as a client that connects out or as a listener that waits for other computers. A listener can take a list of the addresses allowed to connect.</td></tr>
 </tbody></table></div>
 <p>Links between ports are two-way, one-way, monitor, split, join and shared bus. A bus holds up to 64 ports and carries no modem lines. A link can hold what it carries for a set delay with jitter, and can pace its bytes at the time a wire would take.</p>
-<ul class="vss-links"><li><a href="../../guide/#adding-a-port">Adding a port</a></li><li><a href="../../guide/#connecting-ports">Connecting ports</a></li><li><a href="../../guide/#network-addresses">Network addresses</a></li></ul>
+<ul class="vss-links"><li><a href="../../guide/adding-ports/#adding-a-port">Adding a port</a></li><li><a href="../../guide/connecting-ports/#connecting-ports">Connecting ports</a></li><li><a href="../../guide/network/#network-addresses">Network addresses</a></li></ul>
 </div></section>
 
 <section class="icl-section"><div class="icl-wrap">
@@ -109,13 +109,13 @@ description: "Studio makes virtual serial ports, shares a real device with sever
 <h2>Setups as JSON, and templates</h2>
 <p>A setup is a JSON document that lists the ports and the links. <strong>File, Save</strong> writes it and <strong>File, Open</strong> applies it. <code>vss_cli run</code> runs the same file without the window.</p>
 <p><strong>File, Setups and templates</strong> opens four templates: a test bench with no hardware, a device shared with three programs, a device on the network, and two programs sharing one device one at a time. At the Advanced level, <strong>Export as command</strong> shows the <code>vss_cli</code> command that builds the current setup, and the Topology JSON tab edits the setup as text and names the line of a mistake.</p>
-<ul class="vss-links"><li><a href="../../guide/#saving-opening-and-templates">Saving and templates</a></li><li><a href="../command-line/">Command line</a></li></ul>
+<ul class="vss-links"><li><a href="../../guide/setups/#saving-opening-and-templates">Saving and templates</a></li><li><a href="../command-line/">Command line</a></li></ul>
 </div>
 <div>
 <h2>Plugins</h2>
 <p><strong>Tools, Plugins...</strong> lists the plugins on this computer, who stands behind each one, what it adds and what it may do. A plugin runs as a program of its own, apart from Studio, only after you have decided to trust that version. Studio never downloads a plugin.</p>
 <p>No official plugin exists yet. <span class="vss-chip vss-chip--plan">Planned</span></p>
-<ul class="vss-links"><li><a href="../plugins/">Plugins</a></li><li><a href="../../guide/#plugins">Plugins in the guide</a></li></ul>
+<ul class="vss-links"><li><a href="../plugins/">Plugins</a></li><li><a href="../../guide/plugins/#plugins">Plugins in the guide</a></li></ul>
 </div>
 </div>
 </div></section>
@@ -147,5 +147,5 @@ description: "Studio makes virtual serial ports, shares a real device with sever
 </ul>
 </div>
 </div>
-<ul class="vss-links"><li><a href="../../guide/#what-this-build-cannot-do">What this build cannot do</a></li><li><a href="../../platforms/">Platforms</a></li><li><a href="../../downloads/">Downloads</a></li></ul>
+<ul class="vss-links"><li><a href="../../guide/limits/#what-this-build-cannot-do">What this build cannot do</a></li><li><a href="../../platforms/">Platforms</a></li><li><a href="../../downloads/">Downloads</a></li></ul>
 </div></section>

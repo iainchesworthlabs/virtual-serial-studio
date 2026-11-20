@@ -50,5 +50,5 @@ description: Virtual Serial Studio runs on Windows, macOS and Linux. What each s
 <h2>Where to go next</h2>
 <p>Each page says what the system needs, how to install, and what is known not to work.</p>
 </div>
-<ul class="vss-links"><li><a href="windows/">Windows</a></li><li><a href="macos/">macOS</a></li><li><a href="linux/">Linux</a></li><li><a href="../products/drivers/">Drivers and virtual ports</a></li><li><a href="../downloads/">Downloads</a></li><li><a href="../guide/#what-this-build-cannot-do">What this build cannot do</a></li></ul>
+<ul class="vss-links"><li><a href="windows/">Windows</a></li><li><a href="macos/">macOS</a></li><li><a href="linux/">Linux</a></li><li><a href="../products/drivers/">Drivers and virtual ports</a></li><li><a href="../downloads/">Downloads</a></li><li><a href="../guide/limits/#what-this-build-cannot-do">What this build cannot do</a></li></ul>
 </div></section>

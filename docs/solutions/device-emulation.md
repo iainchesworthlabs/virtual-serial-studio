@@ -53,8 +53,8 @@ vss_cli respond device.json topology.json --port=device --seconds=60</code></pre
 
 <h2>More</h2>
 <ul class="vss-links">
-<li><a href="../../guide/#scripted-devices-with-vss_cli-respond">Scripted devices in the guide</a></li>
-<li><a href="../../guide/#mock-fixture-advanced">Mock fixture</a></li>
+<li><a href="../../guide/command-line/#scripted-devices-with-vss_cli-respond">Scripted devices in the guide</a></li>
+<li><a href="../../guide/adding-ports/#mock-fixture-advanced">Mock fixture</a></li>
 <li><a href="../../guide/scenarios/">Scenario recipes</a></li>
 <li><a href="../../products/command-line/">Command line</a></li>
 </ul>

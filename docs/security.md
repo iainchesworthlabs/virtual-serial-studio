@@ -113,7 +113,7 @@ description: "How to report a vulnerability in Virtual Serial Studio privately, 
 <li><h3>A network you control</h3><p>Listen on the interface they can reach, add <code>?allow=</code>, and allow only that port through the firewall.</p></li>
 </ol>
 <p>Do not listen on <code>0.0.0.0</code> on a network you do not control, and do not make the port reachable from the Internet. The network dialog and <code>vss_cli bridge</code> warn when a server can be reached from another computer and has no <code>allow=</code> list.</p>
-<ul class="vss-links"><li><a href="../guide/#keeping-it-safe">Keeping it safe, in the guide</a></li><li><a href="../solutions/sharing-and-bridging-ports/">Sharing and bridging ports</a></li></ul>
+<ul class="vss-links"><li><a href="../guide/network/#keeping-it-safe">Keeping it safe, in the guide</a></li><li><a href="../solutions/sharing-and-bridging-ports/">Sharing and bridging ports</a></li></ul>
 </div></section>
 
 <section class="icl-section icl-section--tint"><div class="icl-wrap">

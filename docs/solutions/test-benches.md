@@ -55,9 +55,9 @@ description: "Build a bench of virtual ports, linked pairs, modem control lines 
 
 <h2>More</h2>
 <ul class="vss-links">
-<li><a href="../../guide/#one-master-several-programs-and-a-silent-listener">One master, several programs and a silent listener</a></li>
-<li><a href="../../guide/#saving-opening-and-templates">Saving, opening and templates</a></li>
-<li><a href="../../guide/#rs-485-is-half-duplex-and-a-bus-can-be">Half-duplex buses</a></li>
+<li><a href="../../guide/sharing-a-device/#one-master-several-programs-and-a-silent-listener">One master, several programs and a silent listener</a></li>
+<li><a href="../../guide/setups/#saving-opening-and-templates">Saving, opening and templates</a></li>
+<li><a href="../../guide/timing-and-control-lines/#rs-485-is-half-duplex-and-a-bus-can-be">Half-duplex buses</a></li>
 <li><a href="../../guide/scenarios/">Scenario recipes</a></li>
 </ul>
 </div></div></section>

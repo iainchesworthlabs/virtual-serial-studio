@@ -68,9 +68,9 @@ description: "Give one serial device to several programs, merge senders into one
 
 <h2>More</h2>
 <ul class="vss-links">
-<li><a href="../../guide/#connecting-ports">Connecting ports</a></li>
-<li><a href="../../guide/#network-addresses">Network addresses</a></li>
-<li><a href="../../guide/#keeping-it-safe">Keeping it safe</a></li>
+<li><a href="../../guide/connecting-ports/#connecting-ports">Connecting ports</a></li>
+<li><a href="../../guide/network/#network-addresses">Network addresses</a></li>
+<li><a href="../../guide/network/#keeping-it-safe">Keeping it safe</a></li>
 <li><a href="../../guide/scenarios/">Scenario recipes</a></li>
 </ul>
 </div></div></section>

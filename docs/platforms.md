@@ -56,7 +56,7 @@ python3 tools/matrix/merge_results.py out --check
 
 ## Last results
 
-The last hosted run in which every cell passed is [run 42024525324](https://github.com/iainchesworthlabs/virtual-serial-studio/actions/runs/42024525324), on commit `f249d31` of the guest-cell pull request, on 2026-11-05. Every cell passed every applicable test, including T8 and T9, and the macOS cells ran T5 and T6 again (the GUI had become an application bundle, which the runner did not find until that run). The scheduled runs on `develop` from 2026-11-06 failed, so the table below has not been refreshed since; the run list of the workflow has the current state.
+The last run recorded on this page is [run 42024525324](https://github.com/iainchesworthlabs/virtual-serial-studio/actions/runs/42024525324), on commit `f249d31` of the guest-cell pull request, on 2026-11-05. Every cell passed every applicable test, including T8 and T9, and the macOS cells ran T5 and T6 again (the GUI had become an application bundle, which the runner did not find until that run). The table below is that run, with the guest cells of the same day, and it has not been refreshed since. The workflow's run list for `develop` shows 19 runs from 2026-11-05 to 2026-11-19 (read on 2026-11-20): six succeeded (a scheduled run and a run by hand on each of 9, 12 and 15 November) and thirteen failed, among them the scheduled runs of 16, 17, 18 and 19 November. This page does not say why they failed; the run list of `platform-matrix.yml` has the current state and the logs.
 
 | Cell | System | T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8 | T9 | T10 | T11 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|

@@ -48,7 +48,7 @@ description: How Studio makes virtual serial ports. A COM port driver on Windows
 <p>A driver that Microsoft has signed installs with no step by hand. That driver does not exist yet. <span class="vss-chip vss-chip--plan">Planned</span></p>
 <h2>Where it was tried</h2>
 <p>The driver tests run in a Windows 10 22H2 guest and a Windows 11 guest. Driver Verifier has been run on the kernel-mode driver in the Windows 11 guest. The state of each test is in <code>drivers/windows/README.md</code> in the repository.</p>
-<ul class="vss-links"><li><a href="../../platforms/windows/">Windows</a></li><li><a href="../../guide/#old-programs-on-windows">Old programs on Windows</a></li><li><a href="../../guide/#choosing-a-com-number-windows">Choosing a COM number</a></li></ul>
+<ul class="vss-links"><li><a href="../../platforms/windows/">Windows</a></li><li><a href="../../guide/windows/#old-programs-on-windows">Old programs on Windows</a></li><li><a href="../../guide/windows/#choosing-a-com-number-windows">Choosing a COM number</a></li></ul>
 </div>
 </div>
 </div></section>

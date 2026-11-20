@@ -40,8 +40,8 @@ description: "Give a program a virtual serial port, or join two programs with a 
 
 <h2>More</h2>
 <ul class="vss-links">
-<li><a href="../../guide/#quick-start">Quick start</a></li>
-<li><a href="../../guide/#adding-a-port">Adding a port</a></li>
+<li><a href="../../guide/getting-started/#quick-start">Quick start</a></li>
+<li><a href="../../guide/adding-ports/#adding-a-port">Adding a port</a></li>
 <li><a href="../../products/drivers/">Drivers and virtual ports</a></li>
 <li><a href="../../products/studio/">Studio</a></li>
 </ul>

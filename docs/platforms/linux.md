@@ -71,7 +71,7 @@ sudo dnf install ./virtual-serial-studio-&lt;version&gt;-&lt;release&gt;.x86_64.
 </ul>
 </div>
 </div>
-<ul class="vss-links"><li><a href="../../guide/virtual-ports-on-linux-and-macos/">Virtual ports on Linux and macOS</a></li><li><a href="../../guide/#when-the-operating-system-asks-or-says-no">When the operating system asks</a></li></ul>
+<ul class="vss-links"><li><a href="../../guide/virtual-ports-on-linux-and-macos/">Virtual ports on Linux and macOS</a></li><li><a href="../../guide/when-the-system-asks/#when-the-operating-system-asks-or-says-no">When the operating system asks</a></li></ul>
 </div></section>
 
 <section class="icl-section icl-section--tint"><div class="icl-wrap">

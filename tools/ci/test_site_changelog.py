@@ -35,7 +35,7 @@ All notable changes are documented here.
 
 ### Added
 
-- **A new thing.** It is described in [the guide](docs/user-guide.md#ports) and in [the folder](docs/images/) and on [GitHub](https://github.com/x/y).
+- **A new thing.** It is described in [the guide](docs/user-guide/index.md#ports) and in [the folder](docs/images/) and on [GitHub](https://github.com/x/y).
 
 ### Fixed
 
@@ -92,7 +92,7 @@ class Render(unittest.TestCase):
 
     def test_a_relative_link_becomes_a_link_to_the_file_on_github_and_an_absolute_one_stays(self) -> None:
         out = hook.render(CHANGELOG, REPO_URL)
-        self.assertIn("(https://github.com/example/site/blob/develop/docs/user-guide.md#ports)", out)
+        self.assertIn("(https://github.com/example/site/blob/develop/docs/user-guide/index.md#ports)", out)
         self.assertIn("(https://github.com/example/site/tree/develop/docs/images)", out)
         self.assertIn("(https://github.com/x/y)", out)
         self.assertIn("(#nowhere)", out)

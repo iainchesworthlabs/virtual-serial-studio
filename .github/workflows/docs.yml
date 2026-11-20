@@ -32,6 +32,8 @@ on:
       - "tools/ci/site_*.py"
       - "tools/ci/check_site_*.py"
       - "tools/ci/check_release_data.py"
+      - "tools/ci/check_claims.py"
+      - "tools/ci/test_check_claims.py"
       - "tools/ci/test_site_*.py"
       - ".github/actions/docs-site/**"
       - "README.md"

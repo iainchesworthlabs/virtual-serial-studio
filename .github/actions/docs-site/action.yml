@@ -47,3 +47,4 @@ runs:
         python3 tools/ci/check_site_layout.py --site build/docs
         python3 tools/ci/check_site_pages.py --site build/docs
         python3 tools/ci/check_release_data.py --site build/docs
+        python3 tools/ci/check_claims.py

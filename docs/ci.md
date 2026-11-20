@@ -62,6 +62,7 @@ python tools/ci/check_site_address.py
 python tools/ci/check_site_layout.py --site build/docs
 python tools/ci/check_site_pages.py --site build/docs
 python tools/ci/check_release_data.py --site build/docs
+python tools/ci/check_claims.py               # reads the repository's text, not the built site
 python -I tools/ci/test_site_checks.py        # their own tests; no MkDocs and no built site needed
 python -I tools/ci/test_site_release.py       # the tests of the release data hook and of the refresh; no network
 python -I tools/ci/test_site_changelog.py     # the tests of the What's new hook
@@ -104,8 +105,9 @@ The site has three kinds of page.
 The files of `docs/` do not move: the code, the tests, `CONTRIBUTING.md` and the other pages cite them by path. The site's addresses
 are different. `tools/docs/site_layout.json` is the table: for each page of `docs/` it gives the address on the site, or `null` when
 the page is published on GitHub only. Nothing was ever public at an older address, so the table has no old addresses and nothing
-forwards. The user's guide, `docs/user-guide.md`, is `/virtual-serial-studio/guide/`, and the pages that are about using the studio are
-under `guide/` beside it. The pages for programmers are under `developers/`.
+forwards. The user's guide is the folder `docs/user-guide/`: `index.md` is `/virtual-serial-studio/guide/`, and each other page is one address under it
+(`docs/user-guide/windows.md` is `guide/windows/`). The pages that are about using the studio are under `guide/` beside them. The pages for
+programmers are under `developers/`.
 
 - `tools/docs/site_layout_hook.py` applies the table while the site is built, and stops the build when it and `exclude_docs` disagree.
 - `tools/ci/check_site_layout.py` checks the table and the built site: every file in the table is in `docs/`, every page of `docs/` is
@@ -248,11 +250,28 @@ stays as written, and `check_site_pages.py` allows only GitHub and gnu.org on a 
 sentence that says so, and, if the changelog has entries under Unreleased, an Unreleased heading with them. An unknown `changelog:` marker
 stops the build. `tools/ci/test_site_changelog.py` holds the hook, and the real `CHANGELOG.md`, to this.
 
+### The claims
+
+The project makes no claim of certification, qualification, compliance, approval by anyone or a guarantee, because it cannot show one.
+`tools/ci/check_claims.py` reads `README.md`, `SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, the fragments in `changelog.d/` and
+every Markdown page of `docs/` except `docs/plan/` (the plans have to discuss what the product is not) and `docs/gui-design/` (the design
+bundle quotes its own review language), and fails on each use, in any case, of the five adjectives that name those claims (they are listed
+in `WORDS` at the top of the script) that no exception covers. A longer word, such as the noun for a certificate or the negative of one of
+them, is not a use. It also fails on the name of a standard for safety-critical software anywhere it reads (`STANDARDS`, in the script): the
+project does not claim to support one, so there is no list of pages that may name them.
+
+An exception is an entry of `tools/docs/claims_exceptions.json`: one file, the words around the word (line breaks and case do not matter),
+and a reason the use is not a claim: a denial of a promise, a label that Studio shows, or a person accepting a key or a decision. An
+exception that matches nothing is an error, so the list holds only what the pages need. Only the owner fills in
+`approved_by` of an entry. The check passes while entries wait for that and says how many; `check_claims.py --strict` fails until none
+waits, which is how the owner holds a release to a list in which every entry has a name against it. `tools/ci/test_check_claims.py` holds the check, and the real
+repository, to this.
+
 ### In CI
 
 `.github/actions/docs-site` installs MkDocs from the hash-locked `requirements/docs.txt` (`uv pip install --require-hashes --no-build`),
 builds strictly, and runs the checks of this section in order (`check_site_kit.py`, `check_site_address.py`, `check_site_layout.py`,
-`check_site_pages.py`, `check_release_data.py`). Three workflows use it, so they cannot disagree:
+`check_site_pages.py`, `check_release_data.py`, `check_claims.py`). Three workflows use it, so they cannot disagree:
 
 - `ci.yml`, job `Docs build (strict)`: on every run of the workflow: a pull request, draft or ready, a queue entry, a push to `develop` and a run by hand. It has no path filter, because a required
   check that does not run blocks the pull request; `CI Status` waits for it like it does for the other static jobs.
@@ -261,10 +280,11 @@ builds strictly, and runs the checks of this section in order (`check_site_kit.p
 
 The checks' own tests are `tools/ci/test_site_checks.py`: each check passes a good tree and fails, with a reason, on a bad one. The
 release data hook and the refresh have theirs in `tools/ci/test_site_release.py`, which never uses the network, and the What's new hook has
-`tools/ci/test_site_changelog.py`. The `changelog` job of `ci.yml` runs all three with the other tests of `tools/ci`.
+`tools/ci/test_site_changelog.py`; the claims check has `tools/ci/test_check_claims.py`. The `changelog` job of `ci.yml` runs all four with
+the other tests of `tools/ci`.
 
 A change to the documentation tooling alone (`mkdocs.yml`, `tools/docs/`, `tools/ci/site_*.py`, `tools/ci/check_site_*.py`,
-`tools/ci/check_release_data.py`, `tools/ci/test_site_*.py`, `requirements/docs.*` and `.github/actions/docs-site/`) is listed under
+`tools/ci/check_release_data.py`, `tools/ci/check_claims.py`, `tools/ci/test_check_claims.py`, `tools/ci/test_site_*.py`, `requirements/docs.*` and `.github/actions/docs-site/`) is listed under
 `docs` in `.github/ci/plan.json`, so it does not start the build legs.
 
 ### Publishing

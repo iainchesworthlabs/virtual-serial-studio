@@ -90,7 +90,7 @@ description: "Studio and vss_cli run plugins as programs of their own after you 
 vss_cli plugin install ./modbus-fixture
 vss_cli plugin run com.example.modbus-fixture --seconds 30 --instance fixture:meter</code></pre>
 <p><code>plugin run</code> prints one line each time the plugin's state changes, including the process id, how far it is confined and what was not applied. <code>--json</code> prints one JSON object on each line instead. It exits with 0 when the plugin ran and was stopped, and 1 when it never ran or failed too often.</p>
-<ul class="vss-links"><li><a href="../../developers/plugin-api/">The plugin API</a></li><li><a href="../../guide/#plugins">Plugins in the guide</a></li><li><a href="../command-line/">Command line</a></li></ul>
+<ul class="vss-links"><li><a href="../../developers/plugin-api/">The plugin API</a></li><li><a href="../../guide/plugins/#plugins">Plugins in the guide</a></li><li><a href="../command-line/">Command line</a></li></ul>
 </div></section>
 
 <section class="icl-section"><div class="icl-wrap">

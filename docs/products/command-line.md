@@ -8,7 +8,7 @@ description: vss_cli makes virtual ports, runs saved setups, records and replays
 <p class="icl-crumb"><a href="../">Products</a> / Command line</p>
 <h1>The command line, vss_cli</h1>
 <p class="icl-lead">Everything you can build in the Studio window you can run from a terminal or a script: make ports, run a saved setup, record and replay traffic, make a port answer like a device, and read a test report.</p>
-<div class="icl-actions"><a class="icl-button" href="../../downloads/">Download</a><a class="icl-button icl-button--ghost" href="../../guide/#command-line-equivalents">Command line in the guide</a></div>
+<div class="icl-actions"><a class="icl-button" href="../../downloads/">Download</a><a class="icl-button icl-button--ghost" href="../../guide/command-line/#command-line-equivalents">Command line in the guide</a></div>
 </div></section>
 
 <section class="icl-section"><div class="icl-wrap">
@@ -89,5 +89,5 @@ vss_cli play run.jsonl --uri=serial://COM6 --speed=2</code></pre>
 <li>Linux: the deb and rpm put a link in <code>/usr/bin</code>. The archive has <code>bin/vss_cli</code>.</li>
 <li>macOS: the disk image holds <code>bin/vss_cli</code> beside the app. Copy it out of the mounted image to where you want it.</li>
 </ul>
-<ul class="vss-links"><li><a href="../../downloads/">Downloads</a></li><li><a href="../../guide/#command-line-equivalents">Command line equivalents</a></li><li><a href="../../guide/#recording-with-vss_cli-capture">Recording</a></li><li><a href="../../guide/#scripted-devices-with-vss_cli-respond">Scripted devices</a></li></ul>
+<ul class="vss-links"><li><a href="../../downloads/">Downloads</a></li><li><a href="../../guide/command-line/#command-line-equivalents">Command line equivalents</a></li><li><a href="../../guide/command-line/#recording-with-vss_cli-capture">Recording</a></li><li><a href="../../guide/command-line/#scripted-devices-with-vss_cli-respond">Scripted devices</a></li></ul>
 </div></section>

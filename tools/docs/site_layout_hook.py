@@ -2,8 +2,8 @@
 """MkDocs hook: where each page of docs/ is on the site.
 
 The files of docs/ stay where they are, because the code, the tests, CONTRIBUTING.md and the other pages cite them by path.
-The site has its own layout: the user's guide is /virtual-serial-studio/guide/ (the file user-guide.md in the repository), the
-other pages about using the studio are under guide/, and the pages for programmers are under developers/.
+The site has its own layout: the user's guide is /virtual-serial-studio/guide/ (docs/user-guide/index.md in the repository, with
+one address under it for each other page of docs/user-guide/), the other pages about using the studio are under guide/, and the pages for programmers are under developers/.
 tools/docs/site_layout.json says, for each page of docs/, the address it has on the site, or `null` when it is published on
 GitHub only. This hook applies that table to the files MkDocs found, and refuses to build when the table and the rest of the
 configuration disagree, so a page cannot be lost quietly:
