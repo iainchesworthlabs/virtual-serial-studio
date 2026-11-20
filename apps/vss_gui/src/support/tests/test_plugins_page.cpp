@@ -2224,9 +2224,9 @@ TEST_CASE("plugins page: a row shows a state chip only for a state its switch "
         REQUIRE_EQ(chip->isVisibleTo(chip->parentWidget()), !said_by_switch);
         (said_by_switch ? without_chip : with_chip) += 1;
         // Whether it shows or not, a screen reader still hears the state.
-        const QModelIndex index = dialog.list()->model()->index(
-            dialog.row_keys().indexOf(each.id + QLatin1Char('|') + each.folder),
-            0);
+        const auto row = static_cast<int>(dialog.row_keys().indexOf(
+            each.id + QLatin1Char('|') + each.folder));
+        const QModelIndex index = dialog.list()->model()->index(row, 0);
         REQUIRE(index.data(Qt::AccessibleTextRole)
                     .toString()
                     .endsWith(state_text(each.state)));
