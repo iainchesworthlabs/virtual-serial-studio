@@ -1044,7 +1044,7 @@ TEST_CASE("plugins page: a plugin the user has is upgraded after the person "
     const plugin_view noise = sample_of("org.example.noise");
     REQUIRE(dialog.select(scanner.id, scanner.folder));
 
-    const QString chosen = QStringLiteral("C:/somewhere/newer-noise");
+    QString chosen = QStringLiteral("C:/somewhere/newer-noise");
     dialog.set_folder_picker([&chosen] { return chosen; });
     dialog.show();
     settle();
