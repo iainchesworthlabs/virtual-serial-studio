@@ -54,7 +54,10 @@ on.
   page of the setup you selected (see [Jobs](#jobs-simple)).
 - The status bar shows the port and link counts, the receive and transmit rates,
   whether the engine is running ("Engine running" or "Engine stopped") and a
-  readiness chip that opens the setup check.
+  readiness chip that opens the setup check. With no ports it says "No ports
+  yet" and nothing else on the left. A short message, such as "Copied COM7.",
+  takes the place of those counts for a few seconds and then the counts come
+  back. The chips on the right stay.
 
 ### Advanced
 
@@ -108,9 +111,12 @@ on.
 - **Status bar**: port and link counts, receive and transmit rates, whether the
   engine is running ("Engine running" or "Engine stopped"), a chip that counts
   bytes dropped when there are any, a readiness chip that opens the setup
-  check, the edition chip (see [Licences](licences.md)), an **Update available**
-  chip when a check has found one (see [Updates](updates.md)) and, while
-  profiling is on, its address.
+  check, a chip that reads **Reading data** or **Recording** while a plugin does
+  (see [Plugins](plugins.md)), the edition chip (see [Licences](licences.md)),
+  an **Update available** chip when a check has found one (see
+  [Updates](updates.md)) and, while profiling is on, its address. A short message
+  takes the place of the counts on the left until it goes, and then the counts
+  come back. The chips on the right stay.
 
 ### Moving the panes
 
