@@ -168,7 +168,7 @@ jobs:
       # failure() is false for a job that runs out of time, which GitHub cancels; cancelled() covers it.
       - name: Open the nightly issue
         if: ${{ (failure() || (cancelled() && github.event_name == 'schedule')) && github.event_name == 'schedule' }}
-        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
+        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
         with:
           engine: Platform matrix
           detail: A hosted cell of the platform matrix failed a test or did not run one. The run summary has the table and the artifacts have the logs.
