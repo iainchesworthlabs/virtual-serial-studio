@@ -1,3 +1,0 @@
-User-agent: *
-Allow: /
-Sitemap: https://virtual-serial-studio.com/sitemap.xml

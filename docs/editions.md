@@ -8,26 +8,36 @@ What is built today:
 
 * **Licence files.** The library, the `vss_license` tool (built with the tools,
   not installed), and the Licence and Support pages in the window. A licence
-  is read and shown, and it gates nothing yet ([licensing](licensing.md)).
+  is read and shown. The control gateway reads it to report the edition, and the
+  plugin host asks whether it covers an official plugin before it starts one.
+  Nothing a user can use is gated by it yet, because no official plugin exists
+  ([licensing](licensing.md)).
 * **The support bundle.**
 * **Plugins.** The checks (the manifest, the hashes, the signature, the key and
   revocation lists, the policy file, the licence check, the messages, the
-  session and the restart rules) are a library. `vss_cli plugin list` shows
-  what discovery finds. This build runs no plugin, so every plugin feature
-  below is not available, and there is no Plugins page in the window
+  session and the restart rules) are a library. The plugin host runs the
+  plugins that are installed and switched on, each as a process of its own, in a
+  sandbox on Windows and without one on Linux and macOS. The window has a Plugins
+  page (**Tools, Plugins...**), and `vss_cli plugin run` runs one plugin from a
+  command line. What the host serves so far is generators, decoders, capture,
+  replay of a recording, the licence file, codes shown to the user and a session
+  with the control gateway. Fixtures run by the engine, behaviour modifiers and
+  automation adapters are not built, and no official plugin exists, so what
+  runs today is a plugin someone installs and decides about
   ([plugins](plugins.md)).
 * **The control endpoint.** The per-user agent and the control gateway, with
   tokens and the local and loopback levels, are built from source and are not
   in the installers yet; the owner has decided that `vss_agent` and `vss_gate`
   will be. There is no TLS, so no remote use of one computer from another
   ([agent](agent.md), [remote control](remote-control.md)).
-* **Response timing rules.** A library with no way in yet from the window, the
-  command line, the agent or a setup file. The owner has decided that the next
-  release candidate gives rule sets a way in through a setup file ([response
+* **Response timing rules.** A library with no way in from the window, the
+  command line, the agent or a setup file, so nothing a user runs applies them.
+  A way in through a setup file is planned and not built ([response
   timing](response-timing.md)).
 
-The official plugins, the Microsoft-signed driver and the language bindings
-other than Python are not built.
+Planned and not built: the official plugins, the Microsoft-signed driver, support
+as a service, remote use of one computer from another, and the language bindings
+other than Python.
 
 ## Who each edition is for
 
@@ -45,6 +55,9 @@ other than Python are not built.
 
 The base application and the test-signed driver are the Community edition. Pro
 and Enterprise add plugins (connectivity, automation, monitoring), the Microsoft-signed driver and support.
+This is the design. None of these additions exists yet: there is no official
+plugin, no Microsoft-signed driver and no support offer, and no licence unlocks
+anything in the application today.
 
 | | Community | Pro | Enterprise |
 |---|---|---|---|
@@ -119,7 +132,8 @@ for every edition and sends no licence.
 | Annual | 1 year | Renewed by sending a new file |
 | Enterprise | Negotiated | The same plugins as Pro. What it covers, how long it runs and the price are negotiated with each customer |
 
-When a licence expires, the Pro features switch off with a visible "licence
+When a licence expires (the design; there is no Pro feature to switch off yet),
+the Pro features switch off with a visible "licence
 expired" notice and a renew link, and Studio falls back to Community. It keeps
 every port, topology and file. A grace period of 28 days follows expiry before the plugins switch off. Studio
 remembers the latest date it has seen and refuses to go backwards, as a
@@ -171,7 +185,9 @@ owner approves.
 
 ### Automation and test harness plugins (Pro)
 
-All of this is in the first version.
+Planned for the first version, and not built: none of these plugins exists. The
+Python client of the control endpoint is built and is in the Community edition
+(see below).
 
 | Plugin | Purpose |
 |---|---|
@@ -210,11 +226,13 @@ more setup than the last:
 
 Remote control and monitoring between the two computers of a seat (one
 controlling or watching a running Studio on the other) use the same endpoint and
-the same access levels, and are a Pro plugin.
+the same access levels, and are planned as a Pro plugin. Neither the plugin nor
+TLS is built.
 
 ### Controlling responses and timing (Pro)
 
-A test lab needs to decide how a simulated device answers and when. These are
+Planned. The rule sets are a library with no way in from Studio or `vss_cli`, and
+no plugin sets them. A test lab needs to decide how a simulated device answers and when. These are
 behaviour modifiers and fixtures that a harness can set and change during a run:
 
 * a response delay or jitter, fixed or drawn from a distribution, so a test can
@@ -243,7 +261,7 @@ out itself.
   and driver). The user saves it and sends it; nothing is sent automatically.
 * **Licence page** showing the edition, the term and the expiry (built).
 * **Plugins page** listing installed plugins with their signer and status
-  (not built).
+  (built: **Tools, Plugins...**).
 * **Capability flags.** A Pro feature shows as unavailable, with the reason,
   as `docs/gui-design/docs/08-engine-gaps.md` already requires.
 
@@ -295,7 +313,9 @@ It follows the design tokens of the application.
 1. How response timing is declared to the engine, so that the fast cases run
    without a round trip to a plugin.
 2. Whether a plugin fixture type appears in the Advanced toolbox beside the
-   built-in ones.
+   built-in ones. (The window answers it for now: the toolbox has a **Plugins**
+   group with a tile for each fixture type of a plugin that is switched on, and
+   the tile is disabled, with the reason, while the engine cannot run it.)
 3. Whether an expired Annual licence keeps working with the Pro versions
    released during its term.
 4. How a seat is counted when there is no server: by trust, by the terms and

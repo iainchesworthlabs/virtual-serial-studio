@@ -49,6 +49,8 @@ class Page(HTMLParser):
         self.material = False
         self.description = ""
         self.headings: list[int] = []  # the levels of the headings of the main content, in order
+        self.main_text: list[str] = []  # the text of the main content (not of a script or a style), in order
+        self._raw = 0  # > 0 inside <script> or <style>
         self.images: list[dict[str, str]] = []  # the attributes of each <img>
         self._main = 0  # > 0 inside <main> (the front pages) or the article of a Material page
         self._stack: list[bool] = []
@@ -77,6 +79,8 @@ class Page(HTMLParser):
             self._in_title = True
         if tag == "h1":
             self.h1 += 1
+        if tag in ("script", "style"):
+            self._raw += 1
         if tag == "script":
             self.scripts.append(a.get("type", ""))
         if tag == "style":
@@ -129,6 +133,8 @@ class Page(HTMLParser):
             self._open.pop()
         if tag == "title":
             self._in_title = False
+        if tag in ("script", "style") and self._raw:
+            self._raw -= 1
         if tag in ("main", "article") and self._stack:
             if self._stack.pop():
                 self._main -= 1
@@ -136,6 +142,8 @@ class Page(HTMLParser):
     def handle_data(self, data):  # noqa: ANN001, ANN201
         if self._in_title:
             self.title += data
+        if self._main and not self._raw:
+            self.main_text.append(data)
 
 
 def parse(path: Path) -> Page:

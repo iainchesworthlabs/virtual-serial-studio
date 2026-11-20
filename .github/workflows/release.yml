@@ -435,7 +435,7 @@ jobs:
       RELEASE_BOT_PRIVATE_KEY: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
 
   # The update feed (docs/updates.md, section 10): a small file that says which release is the newest, signed with the
-  # owner's feed key and attached to the release as update-feed.json. The website build copies it to updates/v1/feed.json.
+  # owner's feed key and attached to the release as update-feed.json. The site build copies it to updates/v1/feed.json.
   # It signs only when this build trusts a feed key and the release environment holds the secret; otherwise it says so in
   # the summary and succeeds. Like publish it runs on a tag only, and only once publish has succeeded, so a pull request
   # (a branch ref) never starts it and never reaches the secret, which belongs to the release environment.

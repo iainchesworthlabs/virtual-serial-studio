@@ -235,12 +235,14 @@ The job does this:
 - Add the private half of the first key as the secret `UPDATE_FEED_PRIVATE_KEY` of the `release`
   environment.
 
-**The website.** Studio reads the feed from `https://virtual-serial-studio.com/updates/v1/feed.json`.
-The Docs workflow downloads `update-feed.json` of the newest release that has one and writes it
-there unchanged (`tools/site_build.py --refresh-release`), and `tools/site_check.py` verifies the
-copy with the keys in `trusted_keys_release.cpp`. The `site` job moves the `site` branch after the
-`feed` job has attached the file, so the Docs workflow that it starts sees the feed, for a final
-release and for a pre-release. Studio sees the new feed only when the site has been published.
+**The site.** Studio reads the feed from `https://virtual-serial-studio.com/updates/v1/feed.json`.
+The Docs workflow, on a push to `site`, downloads `update-feed.json` of the newest release that has
+one into `tools/docs/release/` (`tools/docs/refresh_release.py`), the site build copies it unchanged
+to `updates/v1/feed.json`, and `tools/ci/check_release_data.py` verifies the copy with the keys in
+`trusted_keys_release.cpp` ([Continuous integration](ci.md#release-data-and-the-update-feed)). The
+`site` job moves the `site` branch after the `feed` job has attached the file, so the Docs workflow
+that it starts sees the feed, for a final release and for a pre-release. Studio sees the new feed only
+when the site has been published.
 
 **Publishing a feed again between releases** (a summary corrected, a file withdrawn). There is no
 manual run of the job, because the private key is kept by the owner and a run in the `release`

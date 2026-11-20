@@ -1,1 +1,0 @@
-**The website says that the control endpoint on the same computer, its Python client and the JUnit reports of a run are in the Community edition.** They need no licence and are in the repository, not in the installers or packages. Controlling or watching Studio from another computer, the pytest plugin and the other bindings are still the Pro edition.

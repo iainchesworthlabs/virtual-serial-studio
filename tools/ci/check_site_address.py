@@ -16,7 +16,8 @@ and the program is not changed to move it, so the second domain forwards to the 
 - a page of docs/ writes the site's host or the old address (the GitHub Pages site) out, other than the pages that describe the
   address (docs/ci.md and the plans);
 - a file writes the compiled-in host out and is not one of COMPILED_IN: the program's source and tests, its translations, the
-  changelog, the website, a sample feed, and the pages of docs/ that describe what the program does with that address;
+  changelog, a sample feed, the pages of docs/ that describe what the program does with that address, and the Support and Press pages,
+  which write the support address (support@virtual-serial-studio.com) as plain text;
 - README.md names the old address, or links to the site's host at another address than `site_url`.
 
 A move to another address is then: change `site_url` and FIXED_ADDRESS in tools/ci/site_address.py, fix what this check names, and
@@ -46,21 +47,22 @@ COMPILED_IN = (
     "libs/vss_update/fuzz/corpus/",  # a sample feed
     "changelog.d/",
     "CHANGELOG.md",
-    "website/",
     "docs/ci.md",
     "docs/plan/",
     "docs/gui-design/",  # the screen specifications copy the dialogs' text
     "docs/updates.md",  # the design of the update check, which asks that address
-    "docs/user-guide.md",  # says what the update check asks, and where
+    "docs/user-guide/updates.md",  # says what the update check asks, and where
     "docs/releasing.md",  # the feed is published at that address
-    "docs/editions.md",  # the proposal for the website
+    "docs/editions.md",  # the proposal for the editions page
+    "docs/support.md",  # the support address (support@virtual-serial-studio.com) in plain text; the program has it compiled in too
+    "docs/press.md",  # the same address, as the press contact
     "tools/ci/check_site_address.py",
     "tools/ci/site_address.py",
     "tools/ci/test_site_checks.py",
 )
 
 # What is looked in for the compiled-in host. Build output, vendored code and binary files are not.
-ROOTS = ("apps", "libs", "tests", "tools", "packaging", "docs", "website", "changelog.d", ".github", "adapters", "sdk", "perf", "drivers")
+ROOTS = ("apps", "libs", "tests", "tools", "packaging", "docs", "changelog.d", ".github", "adapters", "sdk", "perf", "drivers")
 TOP_LEVEL = ("README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "AGENTS.md", "mkdocs.yml")
 SKIP_DIRS = {"build", "third_party", "__pycache__", "node_modules", ".git", ".icl-infra"}
 TEXT_SUFFIXES = {".md", ".cpp", ".hpp", ".h", ".c", ".ts", ".json", ".py", ".yml", ".yaml", ".html", ".css", ".txt", ".cmake", ".qml",

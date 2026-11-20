@@ -12,8 +12,9 @@ that owns the ports is described in [agent.md](agent.md).
 - **Community edition.** The control gateway on this computer, its tokens, the Python client and the JUnit report need
   no licence.
 - **One computer.** The gateway listens on a pipe or socket that only your user account can open, and, if you ask, on
-  TCP at `127.0.0.1` and `::1`. It cannot listen on any other address. Controlling one computer from another is a Pro
-  plugin and is not part of this page.
+  TCP at `127.0.0.1` and `::1`. It cannot listen on any other address. Controlling one computer from another is planned
+  and not built: it is designed as a Pro plugin ([remote-control.md](remote-control.md)), and no such plugin exists. It
+  is not part of this page.
 - **Loopback ports only.** A port made through the gateway is an in-process loopback port in the agent. Another
   program cannot open it, and the agent cannot attach a serial device to it yet. Use it to test a script or a
   protocol against bytes you send yourself. The ports you make in Studio's window are not the agent's, so the gateway
@@ -39,7 +40,8 @@ vss_cli control status
 ```
 
 `status` says who you are to the gateway, what you may do, whether the agent is running and which edition is in
-force. `vss_gate` does not read a licence yet, so the edition line says `community` whatever licence is installed.
+force. `vss_gate` reads the licence folders of this computer as it starts and once a minute after that, so the edition
+line agrees with `vss_cli licence`. It only reads them, and no command of the gateway needs a licence.
 An exit code of 3 from any `control` command means no gateway is running.
 
 To stop the gateway, press Ctrl-C in its terminal or run `vss_cli control stop`. Stopping it closes no port; the ports

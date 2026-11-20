@@ -10,7 +10,6 @@
     "apps/**/README.md",
     "libs/**/README.md",
     "cmake/**/README.md",
-    "website/README.md",
     "LICENSE*",
     "changelog.d/**",
     "mkdocs.yml",
@@ -21,7 +20,10 @@
     "tools/ci/site_address.py",
     "tools/ci/site_tools.py",
     "tools/ci/check_site_*.py",
-    "tools/ci/test_site_checks.py"
+    "tools/ci/check_release_data.py",
+    "tools/ci/check_claims.py",
+    "tools/ci/test_check_claims.py",
+    "tools/ci/test_site_*.py"
   ],
   "no_build": [
     ".github/dependabot.yml",
