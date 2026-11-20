@@ -972,8 +972,11 @@ TEST_CASE("service backend: another version of a plugin the user has replaces "
     REQUIRE(vss_test::wait_until(
         [&]
         {
-            const plugin_view* view = find_view(backend.snapshot(), id);
-            return version_is("1.3.0") &&
+            // Hold the snapshot while the view is read: a second call of
+            // snapshot() can replace it and free what the view points into.
+            const plugin_snapshot_ptr shot = backend.snapshot();
+            const plugin_view* view = find_view(shot, id);
+            return view != nullptr && view->version == QLatin1String("1.3.0") &&
                    view->state == plugin_state::needs_decision;
         },
         60000));
