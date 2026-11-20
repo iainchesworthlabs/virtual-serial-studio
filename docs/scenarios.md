@@ -3,7 +3,7 @@
 Each recipe can be built in the GUI, scripted with `vss_cli`, or written as a
 JSON topology that both accept. The URIs are examples. The `vss_cli` commands run
 until `Ctrl-C`, or for the `--seconds` you give, as the examples do; see
-[Command line equivalents](user-guide.md#command-line-equivalents).
+[Command line equivalents](user-guide/command-line.md#command-line-equivalents).
 
 ## Share one serial port with several applications
 
@@ -51,7 +51,7 @@ vss_cli bridge serial://COM3 tcp://192.168.1.50:4001 --seconds=60
 The same command accepts `udp://host:port` and `rfc2217://host:7001`, and the
 listening forms `tcp-listen://`, `udp-listen://` and `rfc2217-listen://` that
 wait for other computers (see [Network
-addresses](user-guide.md#network-addresses)). The bridge is a duplex link, so
+addresses](user-guide/network.md#network-addresses)). The bridge is a duplex link, so
 data from the network reaches the device and vice versa. Both directions are
 visible in the monitor. In the window the same job is **Ports → Network
 endpoint** (Advanced), or **Let other computers use my device** at Simple.
@@ -159,7 +159,7 @@ python -m serial.tools.miniterm rfc2217://127.0.0.1:7001 9600
 With a VPN instead, listen on the address the VPN gives this computer and add the
 VPN's range: `rfc2217-listen://10.8.0.1:7001?allow=10.8.0.0/24`. There is no
 password and nothing is encrypted, so do not listen on `0.0.0.0` on a network you
-do not control; [Keeping it safe](user-guide.md#keeping-it-safe) lists the
+do not control; [Keeping it safe](user-guide/network.md#keeping-it-safe) lists the
 choices. When the other computer is not connected, the member is silent, like a
 device that is unplugged.
 
@@ -181,7 +181,7 @@ hear each other.
 
 Two-wire RS-485 is a bus, where every station hears every other (see above). A
 bus does not enforce one station at a time, report overlap or carry RTS; see
-[RS-232, RS-422 and RS-485](user-guide.md#rs-232-rs-422-and-rs-485).
+[RS-232, RS-422 and RS-485](user-guide/timing-and-control-lines.md#rs-232-rs-422-and-rs-485).
 
 Do not add a one-way join from the devices back to the master after a split: that
 is a loop and is refused. The split already carries the answers back.
@@ -197,7 +197,7 @@ vss_cli virtual --kind=windows-driver --com=3
 
 or put `"com_number": 3` on a virtual port in the topology. Names above `COM9`
 fail in programs that build the name as `"COM%d"`, so keep to 1 to 9 where you can.
-[Old programs on Windows](user-guide.md#old-programs-on-windows) covers 32-bit
+[Old programs on Windows](user-guide/windows.md#old-programs-on-windows) covers 32-bit
 programs and programs that try every port.
 
 ## Watch traffic without disturbing the device

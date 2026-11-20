@@ -166,6 +166,21 @@ jobs:
           python3 tools/gen_app_icon.py --check
           python3 -m unittest discover -s tools -p "test_gen_app_icon.py" -v
 
+  # The documentation site, built strictly and checked (docs/ci.md, "Documentation site"). It has no path filter and
+  # runs on every pull request and queue entry, because a required check that does not run blocks the pull request;
+  # the build jobs are the ones the plan skips for a change to the documentation.
+  docs:
+    name: Docs build (strict)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/docs-site
+
   build:
     strategy:
       fail-fast: false
@@ -879,7 +894,7 @@ jobs:
   ci-status:
     name: CI Status
     if: always()
-    needs: [policy, plan, changelog, tools-windows, design, build, macos, gui, coverage, coverage-gui, performance, profiling, asan-ubsan, fuzz-regress, tsan, driver, zizmor, dependency-scan]
+    needs: [policy, plan, changelog, tools-windows, design, docs, build, macos, gui, coverage, coverage-gui, performance, profiling, asan-ubsan, fuzz-regress, tsan, driver, zizmor, dependency-scan]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:

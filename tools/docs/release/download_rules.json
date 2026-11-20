@@ -1,0 +1,17 @@
+{
+ "comment": "How the files of the newest release are sorted on the Downloads page. A file goes to the first rule whose match (a regular expression, searched in the file name) fits it. The groups are in the order of their first rule, and a file that fits no rule goes in Other files. A file ending .asc whose signed file is in the release is not a row: it is the Signature link of that file. Read by tools/docs/site_release_hook.py (docs/ci.md, \"Release data and the update feed\").",
+ "rules": [
+  {"match": "-windows-x86_64-testsigned\\.exe$", "platform": "Windows", "label": "Installer, with the test-signed driver"},
+  {"match": "-windows-x86_64-testsigned\\.zip$", "platform": "Windows", "label": "Zip archive, no installer"},
+  {"match": "-windows-x86_64.*\\.exe$", "platform": "Windows", "label": "Installer"},
+  {"match": "-windows-x86_64.*\\.zip$", "platform": "Windows", "label": "Zip archive, no installer"},
+  {"match": "-macos-arm64\\.dmg$", "platform": "macOS", "label": "Disk image, Apple silicon"},
+  {"match": "-macos-arm64\\.tar\\.gz$", "platform": "macOS", "label": "Archive, Apple silicon"},
+  {"match": "_amd64\\.deb$", "platform": "Linux", "label": "Package for Debian and Ubuntu, x86-64"},
+  {"match": "\\.x86_64\\.rpm$", "platform": "Linux", "label": "Package for Fedora and RHEL, x86-64"},
+  {"match": "-linux-x86_64\\.tar\\.gz$", "platform": "Linux", "label": "Archive, x86-64"},
+  {"match": "^SHA512SUMS$", "platform": "Checksums and contents", "label": "SHA-512 checksums of every file"},
+  {"match": "^sbom\\.spdx\\.json$", "platform": "Checksums and contents", "label": "Software bill of materials, SPDX"},
+  {"match": "^update-feed\\.json$", "platform": "Checksums and contents", "label": "Update feed, the signed file that Studio reads"}
+ ]
+}

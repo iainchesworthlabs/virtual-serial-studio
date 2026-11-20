@@ -34,7 +34,7 @@ folder for each into ``<out>/stable`` and ``<out>/preview``, which are what
 ``payload`` reads. It also writes ``<out>/serial.json`` and prints the serial,
 the number of published releases (docs/updates.md, section 10).
 
-A release folder holds ``release.json`` (the shape of website/data/release.json:
+A release folder holds ``release.json`` (the shape of tools/docs/release/release.json:
 tag, prerelease, published_at, html_url and the assets with name, size and url),
 ``SHA512SUMS`` (as ``sha512sum`` writes it) and, if there is one,
 ``summary.txt`` (plain text, UTF-8: the summary of the release).
@@ -78,8 +78,15 @@ import urllib.request
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Union
 
 import plugin_sign as ps
-import site_build
-from release_version import compare_versions, is_version, version_problem
+from plugin_sign import (
+    EXIT_FAILED,
+    EXIT_OK,
+    EXIT_USAGE,
+    MAX_ENVELOPE_SIZE,
+    Refusal,
+    quoted,
+    shown_path,
+)
 
 EXIT_NO_KEYS = 3
 
@@ -114,6 +121,9 @@ MAX_STUDIO_ENTRIES = 2
 MAX_STUDIO_FILES = 16
 MAX_PLUGIN_FILES = 16
 MAX_PLUGINS = 64
+MAX_VERSION_LENGTH = 64
+MAX_VERSION_NUMBER = 999999
+MAX_PRERELEASE_IDENTIFIERS = 16
 MAX_NAME_LENGTH = 255
 MAX_URL_LENGTH = 2048
 MAX_SIZE = 4 * 1024 * 1024 * 1024
@@ -133,9 +143,93 @@ PLUGIN_FILE_KEYS = ("os", "arch", "name", "url", "size", "sha512")
 
 # -- Versions ----------------------------------------------------------------
 
+_NUMBER = re.compile(r"(0|[1-9][0-9]*)")
+_IDENTIFIER = re.compile(r"[0-9A-Za-z-]+")
+_DIGITS = re.compile(r"[0-9]+")
+
+
+def _parse_version(text: Any) -> Tuple[Tuple[int, int, int], Tuple[str, ...]]:
+    """The three numbers and the pre-release identifiers of a version.
+    Raises ``ValueError`` with the reason when it is not one the feed allows."""
+    if not isinstance(text, str):
+        raise ValueError("must be a string")
+    if not 1 <= len(text) <= MAX_VERSION_LENGTH:
+        raise ValueError("must be 1 to %d characters" % MAX_VERSION_LENGTH)
+    core, dash, pre = text.partition("-")
+    parts = core.split(".")
+    if len(parts) != 3 or any(_NUMBER.fullmatch(p) is None for p in parts):
+        raise ValueError(
+            "must be a version such as 0.2.0 or 0.3.0-rc.1: three numbers "
+            "joined by dots, no leading zero, no leading v and no build "
+            "metadata"
+        )
+    if any(int(p) > MAX_VERSION_NUMBER for p in parts):
+        raise ValueError("has a number above %d" % MAX_VERSION_NUMBER)
+    numbers = (int(parts[0]), int(parts[1]), int(parts[2]))
+    if not dash:
+        return numbers, ()
+    identifiers = pre.split(".")
+    if len(identifiers) > MAX_PRERELEASE_IDENTIFIERS:
+        raise ValueError(
+            "has more than %d pre-release identifiers" % MAX_PRERELEASE_IDENTIFIERS
+        )
+    for identifier in identifiers:
+        if _IDENTIFIER.fullmatch(identifier) is None:
+            raise ValueError(
+                "has a pre-release identifier that is empty or holds a "
+                "character other than letters, digits and hyphen"
+            )
+        if _DIGITS.fullmatch(identifier) and _NUMBER.fullmatch(identifier) is None:
+            raise ValueError("has a numeric pre-release identifier with a leading zero")
+    if pre == "dev":
+        raise ValueError("is a development version, which no feed may name")
+    return numbers, tuple(identifiers)
+
+
+def version_problem(text: Any) -> Optional[str]:
+    """Why ``text`` is not a version the feed allows, or ``None``."""
+    try:
+        _parse_version(text)
+    except ValueError as error:
+        return str(error)
+    return None
+
+
+def is_version(text: Any) -> bool:
+    return version_problem(text) is None
+
+
 def is_prerelease(version: str) -> bool:
     """True when a valid version has a pre-release part."""
     return "-" in version
+
+
+def compare_versions(first: str, second: str) -> int:
+    """-1, 0 or 1: the precedence of two versions as Semantic Versioning
+    2.0.0 defines it (item 11). Both must be versions the feed allows."""
+    numbers_a, pre_a = _parse_version(first)
+    numbers_b, pre_b = _parse_version(second)
+    if numbers_a != numbers_b:
+        return -1 if numbers_a < numbers_b else 1
+    if pre_a == pre_b:
+        return 0
+    if not pre_a:
+        return 1
+    if not pre_b:
+        return -1
+    for left, right in zip(pre_a, pre_b):
+        if left == right:
+            continue
+        left_numeric = _DIGITS.fullmatch(left) is not None
+        right_numeric = _DIGITS.fullmatch(right) is not None
+        if left_numeric and right_numeric:
+            return -1 if int(left) < int(right) else 1
+        if left_numeric != right_numeric:
+            return -1 if left_numeric else 1
+        return -1 if left < right else 1
+    if len(pre_a) == len(pre_b):
+        return 0
+    return -1 if len(pre_a) < len(pre_b) else 1
 
 
 # -- The rules of the payload (check_payload) --------------------------------
@@ -248,10 +342,10 @@ def _check_object(
         return None
     for key in value:
         if key not in required and key not in optional:
-            problems.append("%s: unknown key %s" % (where, ps.quoted(key)))
+            problems.append("%s: unknown key %s" % (where, quoted(key)))
     for key in required:
         if key not in value:
-            problems.append("%s: the key %s is missing" % (where, ps.quoted(key)))
+            problems.append("%s: the key %s is missing" % (where, quoted(key)))
     return value
 
 
@@ -326,7 +420,7 @@ def _check_files(
         if pair in seen:
             problems.append(
                 "%s: holds two files for %s and %s"
-                % (where, ps.quoted(pair[0]), ps.quoted(pair[1]))
+                % (where, quoted(pair[0]), quoted(pair[1]))
             )
         else:
             seen.append(pair)
@@ -426,7 +520,7 @@ def _check_plugins(value: Any, problems: List[str]) -> None:
                     % (where, PLUGIN_ID_PREFIX, MAX_PLUGIN_ID_LENGTH)
                 )
             elif plugin_id in ids:
-                problems.append("plugins: holds the id %s twice" % ps.quoted(plugin_id))
+                problems.append("plugins: holds the id %s twice" % quoted(plugin_id))
             else:
                 ids.append(plugin_id)
         for name in ("version", "requires_studio"):
@@ -501,7 +595,7 @@ def parse_sums(data: bytes, where: str) -> Dict[str, str]:
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError:
-        raise ps.Refusal("%s is not valid UTF-8" % where) from None
+        raise Refusal("%s is not valid UTF-8" % where) from None
     sums: Dict[str, str] = {}
     for number, line in enumerate(text.split("\n"), 1):
         line = line.rstrip("\r")
@@ -509,14 +603,14 @@ def parse_sums(data: bytes, where: str) -> Dict[str, str]:
             continue
         found = _SUM_LINE.fullmatch(line)
         if found is None:
-            raise ps.Refusal(
+            raise Refusal(
                 "%s, line %d, is not a hash, two spaces and a file name"
                 % (where, number)
             )
         name, digest = found.group(2), found.group(1).lower()
         if sums.get(name, digest) != digest:
-            raise ps.Refusal(
-                "%s gives two different hashes for %s" % (where, ps.shown_path(name))
+            raise Refusal(
+                "%s gives two different hashes for %s" % (where, shown_path(name))
             )
         sums[name] = digest
     return sums
@@ -547,9 +641,9 @@ def find_sum(sums: Dict[str, str], name: str, where: str) -> Optional[str]:
         if uploaded_name(listed) == name
     )
     if len({digest for _, digest in found}) > 1:
-        raise ps.Refusal(
+        raise Refusal(
             "%s: SHA512SUMS has more than one line that could be %s: %s"
-            % (where, ps.shown_path(name), ", ".join(ps.shown_path(n) for n, _ in found))
+            % (where, shown_path(name), ", ".join(shown_path(n) for n, _ in found))
         )
     return found[0][1] if found else None
 
@@ -566,14 +660,14 @@ def match_asset(name: str) -> Optional[Tuple[int, str, str]]:
 def _field(document: Dict[str, Any], name: str, kind: type, where: str) -> Any:
     value = document.get(name)
     if not isinstance(value, kind):
-        raise ps.Refusal("%s: %s must be a %s" % (where, name, kind.__name__))
+        raise Refusal("%s: %s must be a %s" % (where, name, kind.__name__))
     return value
 
 
 def load_release(folder: str, channel: str) -> Release:
     """Reads a release folder for the channel ``stable`` or ``preview``."""
     if not os.path.isdir(folder):
-        raise ps.Refusal("the release folder %s was not found" % ps.shown_path(folder), ps.EXIT_USAGE)
+        raise Refusal("the release folder %s was not found" % shown_path(folder), EXIT_USAGE)
     json_path = os.path.join(folder, "release.json")
     sums_path = os.path.join(folder, "SHA512SUMS")
     summary_path = os.path.join(folder, "summary.txt")
@@ -582,9 +676,9 @@ def load_release(folder: str, channel: str) -> Release:
     try:
         document = ps.load_strict(ps.read_file(json_path, "the release file"))
     except ValueError as error:
-        raise ps.Refusal("%s %s" % (ps.shown_path(json_path), error)) from None
+        raise Refusal("%s %s" % (shown_path(json_path), error)) from None
     if not isinstance(document, dict):
-        raise ps.Refusal("%s is not a JSON object" % ps.shown_path(json_path))
+        raise Refusal("%s is not a JSON object" % shown_path(json_path))
     tag = _field(document, "tag", str, where)
     flagged = _field(document, "prerelease", bool, where)
     published_at = _field(document, "published_at", str, where)
@@ -594,28 +688,28 @@ def load_release(folder: str, channel: str) -> Release:
     version = tag[1:] if tag.startswith("v") else tag
     reason = version_problem(version)
     if reason is not None:
-        raise ps.Refusal("%s: the tag %s %s" % (where, ps.quoted(tag), reason))
+        raise Refusal("%s: the tag %s %s" % (where, quoted(tag), reason))
     pre = is_prerelease(version)
     if channel == "stable" and (flagged or pre):
-        raise ps.Refusal(
+        raise Refusal(
             "%s is %s, which is a pre-release; give it as --preview"
-            % (ps.shown_path(folder), version)
+            % (shown_path(folder), version)
         )
     if channel == "preview" and not (flagged or pre):
-        raise ps.Refusal(
+        raise Refusal(
             "%s is %s, which is not a pre-release; give it as --stable"
-            % (ps.shown_path(folder), version)
+            % (shown_path(folder), version)
         )
     if channel == "preview" and not pre:
-        raise ps.Refusal(
+        raise Refusal(
             "%s is flagged as a pre-release, but its version %s has no "
-            "pre-release part" % (ps.shown_path(folder), version)
+            "pre-release part" % (shown_path(folder), version)
         )
     released, separator, _ = published_at.partition("T")
     if not separator or not is_date(released):
-        raise ps.Refusal(
+        raise Refusal(
             "%s: published_at %s must start with a date and T"
-            % (where, ps.quoted(published_at))
+            % (where, quoted(published_at))
         )
 
     summary: Optional[str] = None
@@ -623,7 +717,7 @@ def load_release(folder: str, channel: str) -> Release:
         try:
             text = ps.read_file(summary_path, "the summary").decode("utf-8")
         except UnicodeDecodeError:
-            raise ps.Refusal("%s is not valid UTF-8" % ps.shown_path(summary_path)) from None
+            raise Refusal("%s is not valid UTF-8" % shown_path(summary_path)) from None
         # Line ends of the platform are not part of the text, and neither is
         # the line end that a text file has after its last line.
         text = text.replace("\r\n", "\n").rstrip("\n")
@@ -635,22 +729,22 @@ def load_release(folder: str, channel: str) -> Release:
     files: List[Tuple[int, Dict[str, Any]]] = []
     for index, asset in enumerate(assets):
         if not isinstance(asset, dict) or not isinstance(asset.get("name"), str):
-            raise ps.Refusal("%s: assets[%d] has no name" % (where, index))
+            raise Refusal("%s: assets[%d] has no name" % (where, index))
         name = asset["name"]
         matched = match_asset(name)
         if matched is None:
             continue
         place, kind, arch = matched
         if (kind, arch) in found:
-            raise ps.Refusal(
+            raise Refusal(
                 "%s: %s and %s are both the %s for %s"
-                % (where, ps.shown_path(found[(kind, arch)][1]), ps.shown_path(name), kind, arch)
+                % (where, shown_path(found[(kind, arch)][1]), shown_path(name), kind, arch)
             )
         found[(kind, arch)] = (place, name)
         digest = find_sum(sums, name, where)
         if digest is None:
-            raise ps.Refusal(
-                "%s: %s has no line in SHA512SUMS" % (where, ps.shown_path(name))
+            raise Refusal(
+                "%s: %s has no line in SHA512SUMS" % (where, shown_path(name))
             )
         files.append(
             (
@@ -666,7 +760,7 @@ def load_release(folder: str, channel: str) -> Release:
             )
         )
     if not files:
-        raise ps.Refusal("%s has no file that a Studio install uses" % where)
+        raise Refusal("%s has no file that a Studio install uses" % where)
     files.sort(key=lambda item: item[0])
     return Release(version, released, notes_url, summary, [f for _, f in files])
 
@@ -735,7 +829,7 @@ def build_payload(
 
 def refuse_problems(problems: List[str], what: str) -> None:
     if problems:
-        raise ps.Refusal(
+        raise Refusal(
             "the %s would be refused by Studio:\n  %s" % (what, "\n  ".join(problems))
         )
 
@@ -748,7 +842,7 @@ class FeedKey(NamedTuple):
     public_key: bytes
 
 
-class NoKeys(ps.Refusal):
+class NoKeys(Refusal):
     """The file lists no key. It has its own exit status, so that a job can
     tell a build that trusts no feed key from a feed that does not verify."""
 
@@ -791,7 +885,7 @@ def _code_of(text: str, where: str) -> str:
 
     code = _COMMENT_OR_LITERAL.sub(blank, text)
     if "/*" in _COMMENT_OR_LITERAL.sub(" ", code):
-        raise ps.Refusal("%s has a comment that is not closed" % where, ps.EXIT_USAGE)
+        raise Refusal("%s has a comment that is not closed" % where, EXIT_USAGE)
     return code
 
 
@@ -821,41 +915,41 @@ def read_feed_keys(path: str) -> List[FeedKey]:
     there, an array that no entry uses, a second purpose or an entry of
     another shape.
     """
-    where = ps.shown_path(path)
+    where = shown_path(path)
     data = ps.read_file(path, "the key file")
     if len(data) > KEYS_FILE_LIMIT:
-        raise ps.Refusal("%s is larger than %d bytes" % (where, KEYS_FILE_LIMIT), ps.EXIT_USAGE)
+        raise Refusal("%s is larger than %d bytes" % (where, KEYS_FILE_LIMIT), EXIT_USAGE)
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError:
-        raise ps.Refusal("%s is not valid UTF-8" % where, ps.EXIT_USAGE) from None
+        raise Refusal("%s is not valid UTF-8" % where, EXIT_USAGE) from None
     code = _code_of(text, where)
 
     window = _KEY_WINDOW.search(code)
     if window is not None:
-        raise ps.Refusal(
+        raise Refusal(
             "%s names %s, which this tool does not read; it cannot tell what "
             "that key may sign" % (where, window.group(1)),
-            ps.EXIT_USAGE,
+            EXIT_USAGE,
         )
 
     arrays: Dict[str, bytes] = {}
     declarations = _KEY_DECLARATION.findall(code)
     if len(_ANY_KEY_DECLARATION.findall(code)) != len(declarations):
-        raise ps.Refusal(
+        raise Refusal(
             "%s has a public_key that is not written as constexpr public_key "
             "NAME{0x.., ...};" % where,
-            ps.EXIT_USAGE,
+            EXIT_USAGE,
         )
     for name, body in declarations:
         if name in arrays:
-            raise ps.Refusal("%s declares the key %s twice" % (where, name), ps.EXIT_USAGE)
+            raise Refusal("%s declares the key %s twice" % (where, name), EXIT_USAGE)
         items = [item.strip() for item in body.split(",")]
         if len(items) != KEY_BYTES or any(_KEY_BYTE.fullmatch(i) is None for i in items):
-            raise ps.Refusal(
+            raise Refusal(
                 "%s: the key %s must be %d bytes written 0xHH and separated by "
                 "commas (and no comma after the last)" % (where, name, KEY_BYTES),
-                ps.EXIT_USAGE,
+                EXIT_USAGE,
             )
         arrays[name] = bytes(int(item, 16) for item in items)
 
@@ -867,50 +961,50 @@ def read_feed_keys(path: str) -> List[FeedKey]:
             continue
         entry = _KEY_ENTRY.match(code, call.start())
         if entry is None:
-            raise ps.Refusal(
+            raise Refusal(
                 "%s has an entry that is not make(\"KEY-ID\", feed_purpose, NAME): %s"
-                % (where, ps.quoted(code[call.start():call.start() + 60].splitlines()[0])),
-                ps.EXIT_USAGE,
+                % (where, quoted(code[call.start():call.start() + 60].splitlines()[0])),
+                EXIT_USAGE,
             )
         key_id, name = entry.group(1), entry.group(2)
         if not ps.is_key_id(key_id):
-            raise ps.Refusal(
+            raise Refusal(
                 "%s has the key id %s: 1 to 64 lower-case letters, digits and "
-                "hyphens" % (where, ps.quoted(key_id)),
-                ps.EXIT_USAGE,
+                "hyphens" % (where, quoted(key_id)),
+                EXIT_USAGE,
             )
         if key_id in (k.key_id for k in keys):
-            raise ps.Refusal("%s lists the key id %s twice" % (where, key_id), ps.EXIT_USAGE)
+            raise Refusal("%s lists the key id %s twice" % (where, key_id), EXIT_USAGE)
         if name not in arrays:
-            raise ps.Refusal(
+            raise Refusal(
                 "%s lists the key id %s with %s, which is not a key array"
                 % (where, key_id, name),
-                ps.EXIT_USAGE,
+                EXIT_USAGE,
             )
         if name in used:
-            raise ps.Refusal("%s uses the key %s twice" % (where, name), ps.EXIT_USAGE)
+            raise Refusal("%s uses the key %s twice" % (where, name), EXIT_USAGE)
         used.append(name)
         keys.append(FeedKey(key_id, arrays[name]))
 
     unused = [name for name in arrays if name not in used]
     if unused:
-        raise ps.Refusal(
+        raise Refusal(
             "%s declares the key %s and lists no entry for it" % (where, unused[0]),
-            ps.EXIT_USAGE,
+            EXIT_USAGE,
         )
     sizes = _KEY_LIST.findall(code)
     if keys:
         if [int(size) for size in sizes] != [len(keys)]:
-            raise ps.Refusal(
+            raise Refusal(
                 "%s must hold one std::array<trusted_key, %d> for its %d entries"
                 % (where, len(keys), len(keys)),
-                ps.EXIT_USAGE,
+                EXIT_USAGE,
             )
     elif sizes or _EMPTY_LIST.search(code) is None:
-        raise ps.Refusal(
+        raise Refusal(
             "%s lists no key, but it is not the empty list (return {};) either"
             % where,
-            ps.EXIT_USAGE,
+            EXIT_USAGE,
         )
     return keys
 
@@ -930,7 +1024,7 @@ _REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", re.ASCII)
 def _read_limited(response: Any, limit: int, what: str) -> bytes:
     data = response.read(limit + 1)
     if len(data) > limit:
-        raise ps.Refusal("%s is larger than %d bytes" % (what, limit))
+        raise Refusal("%s is larger than %d bytes" % (what, limit))
     return bytes(data)
 
 
@@ -955,13 +1049,13 @@ def fetch_releases(repo: str) -> List[Any]:
                 body = _read_limited(response, MAX_API_RESPONSE, "the answer of GitHub")
             found = json.loads(body.decode("utf-8"))
         except (OSError, ValueError) as error:
-            raise ps.Refusal("could not read the releases of %s (%s)" % (repo, error)) from None
+            raise Refusal("could not read the releases of %s (%s)" % (repo, error)) from None
         if not isinstance(found, list):
-            raise ps.Refusal("GitHub did not answer with a list of releases")
+            raise Refusal("GitHub did not answer with a list of releases")
         entries.extend(found)
         if len(found) < API_PAGE_SIZE:
             return entries
-    raise ps.Refusal("%s has more releases than this tool reads" % repo)
+    raise Refusal("%s has more releases than this tool reads" % repo)
 
 
 def download_bytes(url: str, limit: int) -> bytes:
@@ -969,13 +1063,13 @@ def download_bytes(url: str, limit: int) -> bytes:
     sent: a release file is public, and a redirect would pass a token on to
     another host."""
     if not url.startswith("https://"):
-        raise ps.Refusal("%s is not an https address" % ps.shown_path(url))
+        raise Refusal("%s is not an https address" % shown_path(url))
     request = urllib.request.Request(url, headers={"User-Agent": API_USER_AGENT})
     try:
         with urllib.request.urlopen(request, timeout=API_TIMEOUT_SECONDS) as response:
-            return _read_limited(response, limit, ps.shown_path(url))
+            return _read_limited(response, limit, shown_path(url))
     except OSError as error:
-        raise ps.Refusal("could not download %s (%s)" % (ps.shown_path(url), error)) from None
+        raise Refusal("could not download %s (%s)" % (shown_path(url), error)) from None
 
 
 _MARKDOWN_LINK = re.compile(r"\[([^\]\n]*)\]\([^)\s]*\)")
@@ -1047,7 +1141,7 @@ def pick_releases(
     newest: Dict[bool, Optional[Dict[str, Any]]] = {False: None, True: None}
     for entry in entries:
         if not isinstance(entry, dict):
-            raise ps.Refusal("the list of releases holds something that is not a release")
+            raise Refusal("the list of releases holds something that is not a release")
         if entry.get("draft") is True:
             continue
         published += 1
@@ -1062,6 +1156,63 @@ def pick_releases(
     return newest[False], newest[True], published
 
 
+def release_record(entries: Any, repo: str) -> Dict[str, Any]:
+    """The first of the releases that the GitHub API gave, as the record
+    ``release.json`` holds: the tag, whether it is a pre-release, when it was
+    published, the address of the release and each file with its name, size
+    and download address, sorted by name. Every address must be one of
+    ``repo``'s releases (``https://github.com/<repo>/releases/``). Raises
+    ``ValueError`` with the reason when the release is not one."""
+    prefix = "https://github.com/%s/releases/" % repo
+    if not isinstance(entries, list) or not entries:
+        raise ValueError("the GitHub API returned no releases for %s" % repo)
+    entry = entries[0]
+    if not isinstance(entry, dict):
+        raise ValueError("the first release must be a JSON object")
+
+    def text(value: Any, where: str) -> str:
+        if not isinstance(value, str) or not value:
+            raise ValueError("%s must be a non-empty string" % where)
+        return value
+
+    def address(value: Any, where: str) -> str:
+        found = text(value, where)
+        if not found.startswith(prefix):
+            raise ValueError("%s '%s' does not start with %s" % (where, found, prefix))
+        return found
+
+    prerelease = entry.get("prerelease")
+    if not isinstance(prerelease, bool):
+        raise ValueError("the release has no boolean 'prerelease'")
+    listed = entry.get("assets")
+    if not isinstance(listed, list):
+        raise ValueError("the release 'assets' must be a JSON array")
+
+    assets: List[Dict[str, Any]] = []
+    for index, raw in enumerate(listed):
+        if not isinstance(raw, dict):
+            raise ValueError("assets[%d] must be a JSON object" % index)
+        size = raw.get("size")
+        if isinstance(size, bool) or not isinstance(size, int) or size < 0:
+            raise ValueError("assets[%d].size must be a non-negative integer" % index)
+        assets.append(
+            {
+                "name": text(raw.get("name"), "assets[%d].name" % index),
+                "size": size,
+                "url": address(raw.get("browser_download_url"), "assets[%d].download URL" % index),
+            }
+        )
+    assets.sort(key=lambda asset: str(asset["name"]))
+
+    return {
+        "tag": text(entry.get("tag_name"), "the release 'tag_name'"),
+        "prerelease": prerelease,
+        "published_at": text(entry.get("published_at"), "the release 'published_at'"),
+        "html_url": address(entry.get("html_url"), "the release 'html_url'"),
+        "assets": assets,
+    }
+
+
 def write_release_folder(
     entry: Dict[str, Any],
     repo: str,
@@ -1073,13 +1224,13 @@ def write_release_folder(
     tag = entry.get("tag_name")
     try:
         # The same conversion, with the same checks of every address, as the
-        # website's record of the newest release.
-        record = site_build.convert_release([entry], repo)
-    except site_build.BuildError as error:
-        raise ps.Refusal("the release %s: %s" % (ps.quoted(tag), error)) from None
+        # site's record of the newest release (tools/docs/refresh_release.py).
+        record = release_record([entry], repo)
+    except ValueError as error:
+        raise Refusal("the release %s: %s" % (quoted(tag), error)) from None
     sums = next((a for a in record["assets"] if a["name"] == SUMS_ASSET), None)
     if sums is None:
-        raise ps.Refusal("the release %s has no %s" % (ps.quoted(tag), SUMS_ASSET))
+        raise Refusal("the release %s has no %s" % (quoted(tag), SUMS_ASSET))
     sums_data = download(str(sums["url"]), MAX_SUMS_BYTES)
     summary = summary_of(entry.get("body"))
     try:
@@ -1092,8 +1243,8 @@ def write_release_folder(
             with open(os.path.join(folder, "summary.txt"), "wb") as handle:
                 handle.write((summary + "\n").encode("utf-8"))
     except OSError as error:
-        raise ps.Refusal(
-            "could not write in %s (%s)" % (ps.shown_path(folder), error.strerror), ps.EXIT_USAGE
+        raise Refusal(
+            "could not write in %s (%s)" % (shown_path(folder), error.strerror), EXIT_USAGE
         ) from None
 
 
@@ -1108,7 +1259,7 @@ def collect(
     this run does not write again is removed."""
     stable, preview, serial = pick_releases(entries)
     if stable is None and preview is None:
-        raise ps.Refusal("%s has no published release with a version in its tag" % repo)
+        raise Refusal("%s has no published release with a version in its tag" % repo)
     if stable is not None and preview is not None:
         stable_version = str(_release_version(stable))
         preview_version = str(_release_version(preview))
@@ -1127,8 +1278,8 @@ def collect(
             elif os.path.isfile(old):
                 os.remove(old)
         except OSError as error:
-            raise ps.Refusal(
-                "could not remove %s (%s)" % (ps.shown_path(old), error.strerror), ps.EXIT_USAGE
+            raise Refusal(
+                "could not remove %s (%s)" % (shown_path(old), error.strerror), EXIT_USAGE
             ) from None
     for name, entry in (("stable", stable), ("preview", preview)):
         if entry is not None:
@@ -1142,8 +1293,8 @@ def collect(
         with open(os.path.join(out, "serial.json"), "wb") as handle:
             handle.write((json.dumps({"serial": serial}) + "\n").encode("utf-8"))
     except OSError as error:
-        raise ps.Refusal(
-            "could not write in %s (%s)" % (ps.shown_path(out), error.strerror), ps.EXIT_USAGE
+        raise Refusal(
+            "could not write in %s (%s)" % (shown_path(out), error.strerror), EXIT_USAGE
         ) from None
     return serial
 
@@ -1153,37 +1304,37 @@ def collect(
 
 def command_collect(args: argparse.Namespace) -> int:
     if _REPOSITORY.fullmatch(args.repo) is None:
-        raise ps.Refusal("--repo must be written owner/name", ps.EXIT_USAGE)
+        raise Refusal("--repo must be written owner/name", EXIT_USAGE)
     if args.releases_json is not None:
         try:
             entries = ps.load_strict(ps.read_file(args.releases_json, "the releases file"))
         except ValueError as error:
-            raise ps.Refusal("%s %s" % (ps.shown_path(args.releases_json), error)) from None
+            raise Refusal("%s %s" % (shown_path(args.releases_json), error)) from None
         if not isinstance(entries, list):
-            raise ps.Refusal(
+            raise Refusal(
                 "%s must hold the list of releases that GitHub answers with"
-                % ps.shown_path(args.releases_json)
+                % shown_path(args.releases_json)
             )
     else:
         entries = fetch_releases(args.repo)
     serial = collect(args.repo, entries, args.out, download_bytes)
     print(serial)
-    return ps.EXIT_OK
+    return EXIT_OK
 
 
 
 def command_payload(args: argparse.Namespace) -> int:
     if args.stable is None and args.preview is None:
-        raise ps.Refusal("give --stable, --preview or both", ps.EXIT_USAGE)
+        raise Refusal("give --stable, --preview or both", EXIT_USAGE)
     plugins: Any = []
     if args.plugins is not None:
         try:
             plugins = ps.load_strict(ps.read_file(args.plugins, "the plugins file"))
         except ValueError as error:
-            raise ps.Refusal("%s %s" % (ps.shown_path(args.plugins), error)) from None
+            raise Refusal("%s %s" % (shown_path(args.plugins), error)) from None
         if not isinstance(plugins, list):
-            raise ps.Refusal(
-                "%s must hold the plugins array, as a JSON list" % ps.shown_path(args.plugins)
+            raise Refusal(
+                "%s must hold the plugins array, as a JSON list" % shown_path(args.plugins)
             )
     protected = [args.plugins] if args.plugins is not None else []
     ps.check_output(args.out, protected)
@@ -1211,11 +1362,11 @@ def command_payload(args: argparse.Namespace) -> int:
         with open(args.out, "wb") as handle:
             handle.write(text.encode("utf-8"))
     except OSError as error:
-        raise ps.Refusal(
-            "could not write %s (%s)" % (ps.shown_path(args.out), error.strerror), ps.EXIT_USAGE
+        raise Refusal(
+            "could not write %s (%s)" % (shown_path(args.out), error.strerror), EXIT_USAGE
         ) from None
     print("wrote %s" % args.out)
-    return ps.EXIT_OK
+    return EXIT_OK
 
 
 def command_sign(args: argparse.Namespace) -> int:
@@ -1228,7 +1379,7 @@ def command_sign(args: argparse.Namespace) -> int:
     text = ps.sign_envelope(openssl, args.key, PURPOSE, args.key_id, payload)
     ps.write_text(args.out, text)
     print("wrote %s" % args.out)
-    return ps.EXIT_OK
+    return EXIT_OK
 
 
 _PUBLIC_KEY_HEX = re.compile(r"[0-9a-fA-F]{64}")
@@ -1245,40 +1396,40 @@ def verify_feed(
     """Checks a feed as Studio would and returns its serial. ``find_key``
     gives the public key for the key id that the file names, or refuses.
     Raises ``Refusal`` for every reason the feed is not accepted."""
-    if len(data) > ps.MAX_ENVELOPE_SIZE:
-        raise ps.Refusal(
+    if len(data) > MAX_ENVELOPE_SIZE:
+        raise Refusal(
             "%s is larger than %d bytes, which Studio does not read"
-            % (ps.shown_path(name), ps.MAX_ENVELOPE_SIZE)
+            % (shown_path(name), MAX_ENVELOPE_SIZE)
         )
     try:
         found = ps.parse_envelope(data)
     except ValueError as error:
-        raise ps.Refusal("%s %s" % (ps.shown_path(name), error)) from None
+        raise Refusal("%s %s" % (shown_path(name), error)) from None
     if found.purpose != PURPOSE:
-        raise ps.Refusal(
-            "the file is signed as %s, not as %s" % (ps.quoted(found.purpose), ps.quoted(PURPOSE))
+        raise Refusal(
+            "the file is signed as %s, not as %s" % (quoted(found.purpose), quoted(PURPOSE))
         )
     # Studio finds the key by the id in the file, so the right key under the
     # wrong id is a feed that Studio refuses.
     if key_id is not None and found.key_id != key_id:
-        raise ps.Refusal(
-            "the file names the key %s, not %s" % (ps.quoted(found.key_id), ps.quoted(key_id))
+        raise Refusal(
+            "the file names the key %s, not %s" % (quoted(found.key_id), quoted(key_id))
         )
     public_key = find_key(found.key_id)
     openssl = ps.find_openssl(openssl_override)
     message = ps.signed_message(found.purpose, found.payload)
     if not ps.verify_bytes(openssl, public_key, message, found.signature):
-        raise ps.Refusal("the signature does not hold")
+        raise Refusal("the signature does not hold")
     problems = check_payload(found.payload)
     if problems:
         more = " (and %d more)" % (len(problems) - 1) if len(problems) > 1 else ""
-        raise ps.Refusal(
+        raise Refusal(
             "the signature holds, but the payload is not valid: %s%s"
             % (problems[0], more)
         )
     serial = ps.load_strict(found.payload)["serial"]
     if min_serial is not None and serial < min_serial:
-        raise ps.Refusal(
+        raise Refusal(
             "the serial %d is lower than the lowest allowed, %d" % (serial, min_serial)
         )
     return int(serial)
@@ -1290,9 +1441,9 @@ def key_finder(keys: List[FeedKey]) -> Callable[[str], bytes]:
 
     def find(key_id: str) -> bytes:
         if key_id not in by_id:
-            raise ps.Refusal(
+            raise Refusal(
                 "the file names the key %s, which this build does not trust "
-                "(it trusts %s)" % (ps.quoted(key_id), ", ".join(by_id))
+                "(it trusts %s)" % (quoted(key_id), ", ".join(by_id))
             )
         return by_id[key_id]
 
@@ -1306,7 +1457,7 @@ def trusted_keys(keys_path: str) -> List[FeedKey]:
     if not keys:
         raise NoKeys(
             "%s lists no update feed key, so this build trusts none"
-            % ps.shown_path(keys_path)
+            % shown_path(keys_path)
         )
     return keys
 
@@ -1329,10 +1480,10 @@ def verify_with_keys_file(
 
 def command_verify(args: argparse.Namespace) -> int:
     if (args.public_key is None) == (args.keys_from is None):
-        raise ps.Refusal("give --public-key or --keys-from, and not both", ps.EXIT_USAGE)
+        raise Refusal("give --public-key or --keys-from, and not both", EXIT_USAGE)
     if args.public_key is not None:
         if _PUBLIC_KEY_HEX.fullmatch(args.public_key) is None:
-            raise ps.Refusal("--public-key must be 64 hex characters", ps.EXIT_USAGE)
+            raise Refusal("--public-key must be 64 hex characters", EXIT_USAGE)
         public_key = bytes.fromhex(args.public_key)
 
         def find_key(_key_id: str) -> bytes:
@@ -1347,13 +1498,13 @@ def command_verify(args: argparse.Namespace) -> int:
         data, args.file, find_key, args.key_id, args.min_serial, args.openssl
     )
     print("ok serial %d" % serial)
-    return ps.EXIT_OK
+    return EXIT_OK
 
 
 def command_keys(args: argparse.Namespace) -> int:
     for key in read_feed_keys(args.keys_from):
         print(key.key_id)
-    return ps.EXIT_OK
+    return EXIT_OK
 
 
 # -- Command line ------------------------------------------------------------
@@ -1427,7 +1578,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     arguments = build_parser().parse_args(argv)
     try:
         return int(arguments.handler(arguments))
-    except ps.Refusal as refusal:
+    except Refusal as refusal:
         print("update_feed: %s" % refusal.message, file=sys.stderr)
         return refusal.code
 

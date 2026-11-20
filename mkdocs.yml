@@ -1,56 +1,185 @@
+# The documentation site (docs/ci.md, "Documentation site"): the Markdown in docs/ built into the
+# /virtual-serial-studio/ section of https://iainchesworthlabs.com/. The Markdown stays the source of truth and stays
+# readable on GitHub; nothing in a page is written for the site.
+#
+#   python -m pip install --require-hashes -r requirements/docs.txt
+#   mkdocs build --strict            writes build/docs
+#   mkdocs serve                     to read it while editing
+#
+# The build is strict, and strict here means more than MkDocs' default: the `validation` block below turns a link that
+# points nowhere, a link to a heading that is not there and a page that is not in the navigation into errors. (By
+# default MkDocs reports those at INFO, which strict mode lets through.)
 site_name: Virtual Serial Studio
-site_description: A tool for real, virtual and networked serial ports
+site_description: Virtual serial ports, port sharing, a traffic monitor and test automation on one computer.
 repo_url: https://github.com/iainchesworthlabs/virtual-serial-studio
-site_url: https://virtual-serial-studio.com/docs/
+repo_name: iainchesworthlabs/virtual-serial-studio
+# Gitflow: a change to a page goes through develop.
+edit_uri: edit/develop/docs/
+# The one place that holds the site's address. Pages write {{ site_url }} where they need it, and
+# tools/ci/check_site_address.py holds the files that cannot read this line to it (docs/ci.md, "The site address").
+site_url: https://iainchesworthlabs.com/virtual-serial-studio/
 docs_dir: docs
-# Not the default "site": that name is too close to website/, the product site.
+# Not the default "site", which is also the name of the branch that deploys the live site (docs/ci.md, "Publishing").
 site_dir: build/docs
 strict: true
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    absolute_links: warn
+    unrecognized_links: warn
+    anchors: warn
+
+# The front pages are not in the guide's menu: they use their own bar (tools/docs/theme/).
+not_in_nav: |
+  /index.md
+  /downloads.md
+  /products/
+  /platforms/
+  /solutions/
+  /pricing.md
+  /quality.md
+  /security.md
+  /whats-new.md
+  /faq.md
+  /support.md
+  /licence.md
+  /privacy.md
+  /accessibility.md
+  /press.md
+
+# Not published on the site. The files stay in the repository and a published page that links to one gets a link to the
+# file on GitHub instead (tools/docs/mkdocs_hooks.py). tools/docs/site_layout.json says, for each page of docs/, the
+# address it has on the site or that it is on GitHub only, and tools/ci/check_site_layout.py holds the two to each other.
+#  - The design bundle (specifications, tokens and HTML mockups) is reference material for the people building the GUI.
+#    Plans are working notes for the owner.
+#  - The pages for the people who work on the project: continuous integration, releasing, the migration to the shared
+#    standard, the workstreams, the virtual machines, fuzzing, profiling, the application icon, the translations and the
+#    contribution rules.
+#  - The design records, proposals, plans and measurements. The guide and the developer pages that describe what is built
+#    replace them as they are written.
+exclude_docs: |
+  /gui-design/
+  /plan/
+  /agent.md
+  /app-icon.md
+  /break-event-plan.md
+  /ci.md
+  /contributing.md
+  /debug-api.md
+  /editions.md
+  /engine-serial-audit.md
+  /fuzzing.md
+  /i18n.md
+  /licensing.md
+  /migration.md
+  /nine-bit-serial.md
+  /plugins.md
+  /profiling.md
+  /releasing.md
+  /remote-control.md
+  /response-timing.md
+  /updates.md
+  /vm-testing.md
+  /windows-com-driver.md
+  /wire-timing-lateness.md
+  /wire-timing-plan.md
+  /workstreams.md
+
+hooks:
+  # A page that links outside docs/ gets a link to the file on GitHub instead, so the Markdown can keep the relative
+  # link that works when it is read there. The same hook publishes the application's icon as icon.svg.
+  - tools/docs/mkdocs_hooks.py
+  # {{ site_url }} in a page becomes the address above.
+  - tools/docs/site_address_hook.py
+  # The company shell (tools/docs/site-kit/) for the front pages and the guide.
+  - tools/docs/site_shell_hook.py
+  # Where each page lives on the site (tools/docs/site_layout.json): the pages of docs/user-guide/ are guide/ and the addresses
+  # under it, the pages for programmers are under developers/. The files do not move in the repository.
+  - tools/docs/site_layout_hook.py
+  # The version of the program the pages describe, from CMakeLists.txt, for the templates (extra.version).
+  - tools/docs/site_version_hook.py
+  # The newest release for the Downloads page (<!-- releases:downloads --> and the other releases: markers, extra.release) and the
+  # signed update feed, which is copied unchanged to updates/v1/feed.json. The data is tools/docs/release/ (docs/ci.md, "Release data
+  # and the update feed").
+  - tools/docs/site_release_hook.py
+  # The released sections of CHANGELOG.md for the What's new page (<!-- changelog:releases -->), with the headings shifted below the page's
+  # h1. Nothing else of CHANGELOG.md is read, and the fragments in changelog.d/ are not.
+  - tools/docs/site_changelog_hook.py
+
 theme:
   name: material
+  # The front pages (marketing.html) and the colours of the guide; see tools/docs/site_shell_hook.py.
+  custom_dir: tools/docs/theme
   # The system font: the published site loads nothing from another host.
   font: false
+  # The application's icon, taken from where the application takes it and not copied into docs/
+  # (tools/docs/mkdocs_hooks.py adds it to the site as icon.svg).
+  logo: icon.svg
+  favicon: icon.svg
+  # One palette. The dark colours follow the device (docs/assets/guide.css): Material would remember the first palette it
+  # chose and keep it when the device setting changed.
+  palette:
+    scheme: default
+  icon:
+    repo: fontawesome/brands/github
   features:
-    - navigation.sections
+    - content.action.edit
     - content.code.copy
-# The design bundle (specifications, tokens and HTML mockups) is reference
-# material for the people building the GUI, not part of the site.
-exclude_docs: |
-  gui-design/
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - tables
+  - toc:
+      permalink: true
+      # GitHub's heading anchors, so a link to #some-heading works on the site and on GitHub.
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.superfences
+
 nav:
-  - Home: index.md
-  - Using the studio:
-      - User guide: user-guide.md
+  - Guide:
+      - User guide:
+          - Contents: user-guide/index.md
+          - Getting started: user-guide/getting-started.md
+          - Adding ports: user-guide/adding-ports.md
+          - Links between ports: user-guide/connecting-ports.md
+          - Sharing a device: user-guide/sharing-a-device.md
+          - Timing and control lines: user-guide/timing-and-control-lines.md
+          - Windows: user-guide/windows.md
+          - Monitor and capture: user-guide/monitor-and-capture.md
+          - Setups: user-guide/setups.md
+          - Network addresses: user-guide/network.md
+          - When the system asks: user-guide/when-the-system-asks.md
+          - Settings and help: user-guide/settings-and-help.md
+          - Plugins: user-guide/plugins.md
+          - Updates: user-guide/updates.md
+          - Licences: user-guide/licences.md
+          - What this build cannot do: user-guide/limits.md
+          - Troubleshooting: user-guide/troubleshooting.md
+          - Command line equivalents: user-guide/command-line.md
       - Scenarios: scenarios.md
+      - Controlling Studio from a script: control-how-to.md
+      - Virtual ports on Linux and macOS: posix-virtual-ports.md
       - Interface design: ux.md
-  - Building and testing:
+  - Developers:
+      - Developers contents: developers.md
+      - Architecture: architecture.md
       - Building: building.md
       - Testing: testing.md
-      - Fuzzing: fuzzing.md
-      - Continuous integration: ci.md
-      - Profiling: profiling.md
-      - Releasing: releasing.md
-      - Languages: i18n.md
-      - Application icon: app-icon.md
-      - Contributing: contributing.md
-      - Editions and licensing (proposal): editions.md
-      - Licensing (design): licensing.md
-  - How it works:
-      - Architecture: architecture.md
-      - The per-user agent: agent.md
-      - Remote control and monitoring (proposal): remote-control.md
-      - A debug API (proposal): debug-api.md
-      - The plugin framework (design): plugins.md
-      - The plugin API, message by message: plugin-api-reference.md
-      - Online updates (design): updates.md
-      - Response timing rules (design): response-timing.md
-      - 9-bit serial and multi-drop addressing (design): nine-bit-serial.md
-      - POSIX virtual ports: posix-virtual-ports.md
-      - Windows COM port driver: windows-com-driver.md
-      - Baud rate, framing and break audit: engine-serial-audit.md
-      - Break as a timestamped event (plan): break-event-plan.md
-      - Wire time and gap delivery (plan): wire-timing-plan.md
       - Platforms: platforms.md
-      - Virtual machine testing: vm-testing.md
-      - Workstreams: workstreams.md
-      - Migration: migration.md
+      - The plugin API, message by message: plugin-api-reference.md
