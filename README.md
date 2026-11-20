@@ -33,18 +33,19 @@ abstraction that lets the transport be replaced.
 | Put several programs on one multi-drop line | A `bus` link: each port hears every other and never itself, with a `join` to a listen-only tap |
 | Record traffic with exact times | `vss_cli capture` and the monitor's **Export capture** write every byte as `.cap`, CSV or JSON Lines |
 | Script a device | `vss_cli respond` makes a port answer from a JSON script of rules, and the serial library's mock backend is exposed as an endpoint (**Ports, Mock fixture**) |
+| Run a plugin | **Tools, Plugins...** decides about and switches on an installed plugin, and `vss_cli plugin run <id>` runs one. A plugin is a program of its own, in a sandbox on Windows and without one on Linux and macOS. No official plugin exists yet |
 | Save and reload a topology | Validated JSON documents, opened by the GUI and by `vss_cli run` |
 | Measure the data path | `vss_cli bench` and a CI performance suite with enforced floors |
 
 ## Documentation
 
-- [docs/user-guide.md](docs/user-guide.md) — how to use the application: both modes, everyday jobs, network tools and troubleshooting.
+- [docs/user-guide/](docs/user-guide/index.md) — how to use the application, in pages by task: both modes, everyday jobs, network tools and troubleshooting.
 - [docs/ux.md](docs/ux.md) — who the interface is for, the simple/advanced design, and the human-factors decisions.
 - [docs/architecture.md](docs/architecture.md) — how the libraries, hub and transports fit together.
 - [docs/scenarios.md](docs/scenarios.md) — worked recipes for share, join, bridge and loopback.
 - [docs/control-how-to.md](docs/control-how-to.md) — drive ports from the command line or a Python test script: make ports, send and wait for bytes, keep a JUnit report.
 - [docs/agent.md](docs/agent.md) and [docs/remote-control.md](docs/remote-control.md) — the per-user agent and the control gateway, both first slices that are built from source and not installed.
-- [docs/plugins.md](docs/plugins.md), [docs/licensing.md](docs/licensing.md), [docs/editions.md](docs/editions.md) and [docs/response-timing.md](docs/response-timing.md) — the designs for plugins, licence files, the editions and response timing rules. Studio does not run plugins yet, and nothing in the window or the command line uses the response timing rules.
+- [docs/plugins.md](docs/plugins.md), [docs/plugin-api-reference.md](docs/plugin-api-reference.md), [docs/licensing.md](docs/licensing.md), [docs/editions.md](docs/editions.md) and [docs/response-timing.md](docs/response-timing.md) — the designs for plugins and their API, licence files, the editions and response timing rules. Studio runs plugins (the Plugins page and `vss_cli plugin run`), but no official plugin exists yet and a licence unlocks nothing a user can use. Nothing in the window or the command line uses the response timing rules.
 - [docs/profiling.md](docs/profiling.md) — Tracy zones and how to capture a trace.
 - [docs/posix-virtual-ports.md](docs/posix-virtual-ports.md) — stable virtual ports on Linux and macOS.
 - [docs/windows-com-driver.md](docs/windows-com-driver.md) — the optional Windows COM port driver.
@@ -53,7 +54,7 @@ abstraction that lets the transport be replaced.
 - [docs/building.md](docs/building.md), [docs/testing.md](docs/testing.md), [docs/ci.md](docs/ci.md), [docs/fuzzing.md](docs/fuzzing.md), [docs/profiling.md](docs/profiling.md) and [docs/releasing.md](docs/releasing.md) — build, test, CI, fuzzing, profiling and release.
 - [docs/workstreams.md](docs/workstreams.md) and [docs/migration.md](docs/migration.md) — where the platform work stands, and the move to the shared repository standard.
 
-Some of these pages are built as a site by the Docs workflow (`mkdocs build --strict`); [docs/ci.md](docs/ci.md#documentation-site) says which, and the others stay on GitHub.
+The Docs workflow builds the guide, the front pages and the pages for programmers as a site for <https://iainchesworthlabs.com/virtual-serial-studio/> (`mkdocs build --strict`). [docs/ci.md](docs/ci.md#documentation-site) says which pages are in it; the design records, proposals and plans stay on GitHub.
 
 ## Building
 
@@ -294,7 +295,6 @@ perf/                performance suite and floors
 cmake/               dependency, warning, coverage and sanitizer helpers
 drivers/windows      the vsscom kernel-mode and user-mode COM port drivers
 packaging/linux      the launcher entry and the Debian copyright file of the Linux packages
-website/             the source of the product website
 tools/               Boost fetch, changelog, coverage, performance and Tracy
                      reports, fuzz and analysis drivers, the PTY pair helper,
                      CI planning and the VM harness

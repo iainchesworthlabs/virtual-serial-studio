@@ -10,8 +10,17 @@ The API version is 1.1. Version 1.1 added the three messages of the section "Lic
 a plugin that needs them writes `"min": "1.1"` in its manifest.
 
 The messages every plugin uses (`hello`, `hello_ack`, `ping`, `pong`, `status`, `log`, `shutdown`, `bye`, `ok`, `error`)
-are in `protocol.hpp` and in section 7.3 of the design, and are not repeated here. Nothing in Studio sends or receives
-the messages on this page yet.
+are in `protocol.hpp` and in section 7.3 of the design, and are not repeated here.
+
+**What Studio sends and receives.** The plugin host (`libs/vss_plugin_host`), which the Plugins page and
+`vss_cli plugin run` use, sends and answers the messages of instances and parameters (`instance.*`, `params.changed`),
+generators (`generator.*`; `generator.pattern` is refused, since patterns are not made yet), capture (`capture.*`),
+replay (`timeline.load`), bundle sections (`bundle.prepare`), decoders and triggers (`decoder.*`, `trigger.publish`),
+the licence file (`licence.*`), codes shown to the user (`secret.show`) and the control session (`control.*`). The host
+has no handler for the messages of fixtures (`fixture.*`), rule sets (`rules.*`), modifiers (`modifier.*`) and
+automation adapters (`agent.*`, `adapter.state`): the codec reads and writes them and the tests cover them, and a plugin
+that sends one is answered as a message the host does not know. The support bundle dialog does not yet ask a plugin for
+its sections.
 
 ## How a message looks
 

@@ -6,8 +6,192 @@
    "new": ""
   },
   {
-   "src": "user-guide.md",
+   "src": "downloads.md",
+   "new": "downloads/"
+  },
+  {
+   "src": "products/index.md",
+   "new": "products/"
+  },
+  {
+   "src": "products/studio.md",
+   "new": "products/studio/"
+  },
+  {
+   "src": "products/command-line.md",
+   "new": "products/command-line/"
+  },
+  {
+   "src": "products/agent-gateway.md",
+   "new": "products/agent-gateway/"
+  },
+  {
+   "src": "products/plugins.md",
+   "new": "products/plugins/"
+  },
+  {
+   "src": "products/drivers.md",
+   "new": "products/drivers/"
+  },
+  {
+   "src": "platforms/index.md",
+   "new": "platforms/"
+  },
+  {
+   "src": "platforms/windows.md",
+   "new": "platforms/windows/"
+  },
+  {
+   "src": "platforms/macos.md",
+   "new": "platforms/macos/"
+  },
+  {
+   "src": "platforms/linux.md",
+   "new": "platforms/linux/"
+  },
+  {
+   "src": "solutions/index.md",
+   "new": "solutions/"
+  },
+  {
+   "src": "solutions/develop-and-test-without-hardware.md",
+   "new": "solutions/develop-and-test-without-hardware/"
+  },
+  {
+   "src": "solutions/device-emulation.md",
+   "new": "solutions/device-emulation/"
+  },
+  {
+   "src": "solutions/test-automation-and-ci.md",
+   "new": "solutions/test-automation-and-ci/"
+  },
+  {
+   "src": "solutions/capture-and-analysis.md",
+   "new": "solutions/capture-and-analysis/"
+  },
+  {
+   "src": "solutions/sharing-and-bridging-ports.md",
+   "new": "solutions/sharing-and-bridging-ports/"
+  },
+  {
+   "src": "solutions/test-benches.md",
+   "new": "solutions/test-benches/"
+  },
+  {
+   "src": "solutions/fault-injection-and-timing.md",
+   "new": "solutions/fault-injection-and-timing/"
+  },
+  {
+   "src": "pricing.md",
+   "new": "pricing/"
+  },
+  {
+   "src": "quality.md",
+   "new": "quality/"
+  },
+  {
+   "src": "security.md",
+   "new": "security/"
+  },
+  {
+   "src": "whats-new.md",
+   "new": "whats-new/"
+  },
+  {
+   "src": "faq.md",
+   "new": "faq/"
+  },
+  {
+   "src": "support.md",
+   "new": "support/"
+  },
+  {
+   "src": "licence.md",
+   "new": "licensing/"
+  },
+  {
+   "src": "privacy.md",
+   "new": "privacy/"
+  },
+  {
+   "src": "accessibility.md",
+   "new": "accessibility/"
+  },
+  {
+   "src": "press.md",
+   "new": "press/"
+  },
+  {
+   "src": "user-guide/index.md",
    "new": "guide/"
+  },
+  {
+   "src": "user-guide/getting-started.md",
+   "new": "guide/getting-started/"
+  },
+  {
+   "src": "user-guide/adding-ports.md",
+   "new": "guide/adding-ports/"
+  },
+  {
+   "src": "user-guide/connecting-ports.md",
+   "new": "guide/connecting-ports/"
+  },
+  {
+   "src": "user-guide/sharing-a-device.md",
+   "new": "guide/sharing-a-device/"
+  },
+  {
+   "src": "user-guide/timing-and-control-lines.md",
+   "new": "guide/timing-and-control-lines/"
+  },
+  {
+   "src": "user-guide/windows.md",
+   "new": "guide/windows/"
+  },
+  {
+   "src": "user-guide/monitor-and-capture.md",
+   "new": "guide/monitor-and-capture/"
+  },
+  {
+   "src": "user-guide/setups.md",
+   "new": "guide/setups/"
+  },
+  {
+   "src": "user-guide/network.md",
+   "new": "guide/network/"
+  },
+  {
+   "src": "user-guide/when-the-system-asks.md",
+   "new": "guide/when-the-system-asks/"
+  },
+  {
+   "src": "user-guide/settings-and-help.md",
+   "new": "guide/settings-and-help/"
+  },
+  {
+   "src": "user-guide/plugins.md",
+   "new": "guide/plugins/"
+  },
+  {
+   "src": "user-guide/updates.md",
+   "new": "guide/updates/"
+  },
+  {
+   "src": "user-guide/licences.md",
+   "new": "guide/licences/"
+  },
+  {
+   "src": "user-guide/limits.md",
+   "new": "guide/limits/"
+  },
+  {
+   "src": "user-guide/troubleshooting.md",
+   "new": "guide/troubleshooting/"
+  },
+  {
+   "src": "user-guide/command-line.md",
+   "new": "guide/command-line/"
   },
   {
    "src": "scenarios.md",

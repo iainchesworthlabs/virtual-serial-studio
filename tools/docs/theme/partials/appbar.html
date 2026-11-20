@@ -1,6 +1,6 @@
 {#-
     SPDX-License-Identifier: GPL-3.0-or-later
-    The app bar of the front pages: the product's name, the menus (partials/links.html), and a Download button. A menu is a native
+    The app bar of the front pages: the product's name, the menus (partials/links.html), and the Contact sales and Download buttons (Contact sales is hidden on narrow screens). A menu is a native
     <details>, so it opens with no script (a preview blocks every script); the shared name lets only one be open at a time where the
     browser supports it. Below 64rem the menus fold into one Menu. Nothing in a menu is a heading, so the page keeps one h1.
 -#}
@@ -27,7 +27,8 @@
     {%- endfor %}
     </ul>
   </nav>
-  <a class="icl-button icl-button--small vss-appbar__cta" href="{{ links.download[0] }}">{{ links.download[1] }}</a>
+  <a class="icl-button icl-button--small icl-button--ghost vss-appbar__sales" href="{{ base_url }}/{{ links.sales[0] }}">{{ links.sales[1] }}</a>
+  <a class="icl-button icl-button--small vss-appbar__cta" href="{{ base_url }}/{{ links.download[0] }}"{% if page.url == links.download[0] %} aria-current="page"{% endif %}>{{ links.download[1] }}</a>
   <details class="vss-menu">
     <summary>Menu</summary>
     <div class="vss-menu__panel">

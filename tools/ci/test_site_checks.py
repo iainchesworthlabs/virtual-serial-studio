@@ -2,16 +2,20 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Self-test of the documentation site's checks.
 
-Covers tools/ci/check_site_kit.py, check_site_address.py, check_site_layout.py and check_site_pages.py, and the hooks that need no
-MkDocs: tools/docs/site_layout_hook.py, site_version_hook.py and site_address_hook.py. Each check is shown to pass on a good tree and
-to fail, with a reason, on a bad one. It needs neither MkDocs nor a built site (the layout check is given a small site made here),
-and the palette tests are skipped without Node. Run it with `python -I tools/ci/test_site_checks.py`, or through
-`unittest discover -s tools/ci -p "test_*.py"`.
+Covers tools/ci/check_site_kit.py, check_site_address.py, check_site_layout.py, check_site_pages.py (with its DRAFT check) and
+check_release_data.py, and the hooks that need no MkDocs: tools/docs/site_layout_hook.py, site_version_hook.py and
+site_address_hook.py. Each check is shown to pass on a good tree and to fail, with a reason, on a bad one. It needs neither MkDocs
+nor a built site (the layout check is given a small site made here), the palette tests are skipped without Node, and the tests of the
+update feed are skipped without OpenSSL 3. The release data hook and the refresh have their own tests, in test_site_release.py. Run
+this one with `python -I tools/ci/test_site_checks.py`, or through `unittest discover -s tools/ci -p "test_*.py"`.
 """
 
+import contextlib
 import importlib.util
+import io
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -20,15 +24,20 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(REPO / "tools"))
 sys.path.insert(0, str(REPO / "tools" / "docs"))
 
+import check_release_data  # noqa: E402
 import check_site_address  # noqa: E402
 import check_site_kit  # noqa: E402
 import check_site_layout  # noqa: E402
 import check_site_pages  # noqa: E402
+import plugin_sign  # noqa: E402
 import site_address_hook  # noqa: E402
 import site_layout_hook  # noqa: E402
+import site_release_hook  # noqa: E402
 import site_version_hook  # noqa: E402
+import update_feed  # noqa: E402
 
 KIT = check_site_kit.KIT
 SITE = "https://iainchesworthlabs.com/virtual-serial-studio/"
@@ -173,7 +182,7 @@ class Address(unittest.TestCase):
         text = "https://virtual-serial-studio.com/updates/v1/feed.json\n"
         for name in ("apps/vss_gui/src/updates/update_types.hpp", "apps/vss_gui/src/support/app_identity.cpp",
                      "apps/vss_gui/src/support/tests/test_app_identity.cpp", "apps/vss_gui/translations/vss_gui_fr.ts",
-                     "docs/updates.md", "docs/user-guide.md", "changelog.d/x.added.md", "website/index.html"):
+                     "docs/updates.md", "docs/user-guide/updates.md", "docs/support.md", "docs/press.md", "changelog.d/x.added.md"):
             self.put(name, text)
         self.assertEqual(check_site_address.check(self.root), [])
 
@@ -350,7 +359,8 @@ class LayoutHook(unittest.TestCase):
     def test_the_table_of_the_repository_names_each_page_once(self) -> None:
         sources = [entry["src"] for entry in json.loads((REPO / "tools" / "docs" / "site_layout.json").read_text(encoding="utf-8"))["pages"]]
         self.assertEqual(len(sources), len(set(sources)))
-        self.assertIn("user-guide.md", sources)
+        self.assertIn("user-guide/index.md", sources)
+        self.assertNotIn("user-guide.md", sources)
 
 
 def front(title: str, body: str = "<h1>t</h1>", head: str = "", description: str | None = None, lang: str = "en-AU") -> str:
@@ -366,7 +376,9 @@ def fixed_site(site: Path) -> None:
         path = site / name
         path.parent.mkdir(parents=True, exist_ok=True)
         if name.endswith(".html"):
-            path.write_text(front(name.replace("/index.html", "") or "home"), encoding="utf-8")
+            address = name.replace("index.html", "")
+            body = "<h1>t</h1><p>DRAFT</p>" if address in check_site_pages.DRAFT_PAGES else "<h1>t</h1>"
+            path.write_text(front(name.replace("/index.html", "") or "home", body=body), encoding="utf-8")
         elif name.endswith(".css"):
             path.write_text("a {}\n", encoding="utf-8")
         elif name.endswith(".json"):
@@ -381,7 +393,6 @@ class Pages(unittest.TestCase):
         self.site = Path(self.tmp.name)
         fixed_site(self.site)
         (self.site / "faq").mkdir()
-        (self.site / "support").mkdir()
         (self.site / "press").mkdir()
 
     def tearDown(self) -> None:
@@ -397,7 +408,14 @@ class Pages(unittest.TestCase):
         self.assertEqual(self.problems(), "")
 
     def test_the_required_files_are_the_ones_this_site_has(self) -> None:
-        self.assertEqual(set(check_site_pages.FIXED), {"index.html", "guide/index.html", "developers/index.html", "theme.css", "icon.svg", "icl-app.json"})
+        self.assertEqual(set(check_site_pages.FIXED), {"index.html", "guide/index.html", "developers/index.html", "downloads/index.html",
+                                                       "privacy/index.html", "support/index.html", "theme.css", "icon.svg", "icl-app.json"})
+
+    def test_the_company_contract_pages_are_required(self) -> None:
+        for name in ("privacy/index.html", "support/index.html"):
+            (self.site / name).unlink()
+            self.assertIn(f"{name}: is not in the built site", self.problems())
+            self.put(name, front(name.replace("/index.html", "")))
 
     def test_a_missing_required_page_is_found(self) -> None:
         (self.site / "guide" / "index.html").unlink()
@@ -509,7 +527,6 @@ class ContactForm(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.site = Path(self.tmp.name)
         fixed_site(self.site)
-        (self.site / "support").mkdir()
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
@@ -569,6 +586,334 @@ class ContactForm(unittest.TestCase):
 
     def test_a_script_on_the_form_page_is_still_refused(self) -> None:
         self.assertIn("has a <script>", self.problems(CONTACT_FORM + "<script>x()</script>"))
+
+
+class Drafts(unittest.TestCase):
+    """check_site_drafts: the licence, privacy and pricing pages say DRAFT in their main content while they are built."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.site = Path(self.tmp.name)
+        fixed_site(self.site)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def put(self, address: str, html: str) -> None:
+        (self.site / address).mkdir(parents=True, exist_ok=True)
+        (self.site / address / "index.html").write_text(html, encoding="utf-8")
+
+    def test_the_pages_are_the_three_of_the_plan(self) -> None:
+        self.assertEqual(check_site_pages.DRAFT_PAGES, ["licensing/", "privacy/", "pricing/"])
+
+    def test_no_page_built_is_not_an_error_and_is_named(self) -> None:
+        self.assertEqual(check_site_pages.check_site_drafts(self.site), [])
+        # privacy/ is a required page (FIXED), so fixed_site builds it, with the word.
+        self.assertEqual(check_site_pages.absent_drafts(self.site), ["licensing/", "pricing/"])
+
+    def test_a_page_with_the_word_passes(self) -> None:
+        for address in check_site_pages.DRAFT_PAGES:
+            self.put(address, front(address.strip("/"), body="<h1>t</h1><p><strong>DRAFT</strong> for a solicitor.</p>"))
+        self.assertEqual(check_site_pages.check_site_drafts(self.site), [])
+        self.assertEqual(check_site_pages.absent_drafts(self.site), [])
+
+    def test_a_page_without_the_word_is_found(self) -> None:
+        self.put("privacy/", front("privacy", body="<h1>Privacy</h1><p>Final text.</p>"))
+        self.put("pricing/", front("pricing", body="<h1>Pricing</h1><p>DRAFT prices.</p>"))
+        problems = check_site_pages.check_site_drafts(self.site)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("privacy/index.html: the main content does not contain the word DRAFT", problems[0])
+
+    def test_only_the_main_content_counts(self) -> None:
+        in_the_shell = front("licensing", body="<h1>Licensing</h1>").replace("<main", "<header>DRAFT</header><main")
+        self.put("licensing/", in_the_shell)
+        self.assertEqual(len(check_site_pages.check_site_drafts(self.site)), 1)
+        in_a_script = front("licensing", body='<h1>Licensing</h1><script type="application/ld+json">"DRAFT"</script>')
+        self.put("licensing/", in_a_script)
+        self.assertEqual(len(check_site_pages.check_site_drafts(self.site)), 1)
+
+    def test_it_is_the_word_and_not_part_of_one(self) -> None:
+        self.put("pricing/", front("pricing", body="<h1>Pricing</h1><p>DRAFTS and REDRAFT.</p>"))
+        self.assertEqual(len(check_site_pages.check_site_drafts(self.site)), 1)
+        self.put("pricing/", front("pricing", body="<h1>Pricing</h1><p>This is a DRAFT.</p>"))
+        self.assertEqual(check_site_pages.check_site_drafts(self.site), [])
+
+    def test_a_material_page_counts_its_article(self) -> None:
+        material = (f'<!doctype html><html lang="en"><head><title>p</title><link rel="canonical" href="{SITE}privacy/"></head>'
+                    '<body><div class="md-container"><article class="md-typeset"><h1>p</h1><p>DRAFT</p></article></div></body></html>')
+        self.put("privacy/", material)
+        self.assertEqual(check_site_pages.check_site_drafts(self.site), [])
+
+    def test_the_whole_check_includes_it_and_the_command_names_what_is_absent(self) -> None:
+        self.put("pricing/", front("pricing", body="<h1>Pricing</h1><p>Final.</p>"))
+        self.assertIn("pricing/index.html: the main content does not contain the word DRAFT", "\n".join(check_site_pages.check_site(self.site, REPO)))
+        self.put("pricing/", front("pricing", body="<h1>Pricing</h1><p>DRAFT</p>"))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(check_site_pages.main(["--site", str(self.site), "--root", str(REPO)]), 0)
+        self.assertIn("Site pages: ok", out.getvalue())
+        self.assertIn("Site drafts: licensing/ not in the built site yet", out.getvalue())
+
+
+def openssl_problem() -> str:
+    """Why OpenSSL 3 cannot be used here, or an empty text."""
+    try:
+        plugin_sign.find_openssl()
+    except plugin_sign.Refusal as refusal:
+        return refusal.message
+    return ""
+
+
+OPENSSL_PROBLEM = openssl_problem()
+REAL_KEYS_FILE = REPO / "libs" / "vss_update" / "src" / "trusted_keys_release.cpp"
+RELEASE_FEED = "updates/v1/feed.json"
+RELEASES = "https://github.com/example/site/releases/"
+
+
+def keys_file_text(public_key: bytes) -> str:
+    """A file in the form of libs/vss_update/src/trusted_keys_release.cpp with one key, the public half of a throwaway key."""
+    items = ", ".join("0x%02x" % b for b in public_key)
+    return (
+        # In two parts, so that the licence check does not take it for this file's own tag.
+        "// SPDX-" "License-Identifier: GPL-3.0-or-later\n"
+        "namespace vss::update\n{\n"
+        "namespace\n{\n"
+        "constexpr public_key upd_2026_a{%s};\n"
+        "trusted_key make(std::string_view key_id, std::string_view purpose,\n"
+        "                 const public_key& key)\n"
+        "{\n    trusted_key entry;\n    entry.key = key;\n    return entry;\n}\n"
+        "} // namespace\n"
+        "std::span<const trusted_key> builtin_feed_keys()\n{\n"
+        "    static const std::array<trusted_key, 1> keys{\n"
+        '        make("upd-2026-a", feed_purpose, upd_2026_a)};\n'
+        "    return keys;\n}\n}\n"
+    ) % items
+
+
+class ReleaseData(unittest.TestCase):
+    """check_release_data.check_addresses: release.json holds only addresses of this repository's releases."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.folder = self.root / site_release_hook.RELEASE_DIR
+        self.folder.mkdir(parents=True)
+        (self.root / "mkdocs.yml").write_text("site_name: x\nrepo_url: https://github.com/example/site\n", encoding="utf-8")
+        shutil.copyfile(REPO / site_release_hook.RELEASE_DIR / site_release_hook.RULES_NAME, self.folder / site_release_hook.RULES_NAME)
+        self.write(self.record())
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    @staticmethod
+    def record(**changes: object) -> dict:
+        data = {"tag": "v0.2.0", "prerelease": False, "published_at": "2026-12-01T10:00:00Z", "html_url": RELEASES + "tag/v0.2.0",
+                "assets": [{"name": "a.deb", "size": 1, "url": RELEASES + "download/v0.2.0/a.deb"}]}
+        data.update(changes)
+        return data
+
+    def write(self, data: dict) -> None:
+        (self.folder / site_release_hook.RELEASE_NAME).write_text(json.dumps(data), encoding="utf-8")
+
+    def test_the_data_of_the_repository_is_good(self) -> None:
+        self.assertEqual(check_release_data.check_addresses(REPO), [])
+        self.assertEqual(check_release_data.check(REPO), [])
+
+    def test_a_good_record_passes(self) -> None:
+        self.assertEqual(check_release_data.check_addresses(self.root), [])
+
+    def test_an_address_of_another_repository_or_host_is_found(self) -> None:
+        for label, bad in (("another repository", "https://github.com/other/repo/releases/download/v1/a.deb"),
+                           ("another host", "https://example.com/example/site/releases/download/v1/a.deb"),
+                           ("a look-alike", "https://github.com/example/site-evil/releases/download/v1/a.deb"),
+                           ("http", "http://github.com/example/site/releases/download/v1/a.deb"),
+                           ("the repository but not its releases", "https://github.com/example/site/archive/v1.zip")):
+            with self.subTest(label):
+                data = self.record()
+                data["assets"][0]["url"] = bad
+                self.write(data)
+                text = "\n".join(check_release_data.check_addresses(self.root))
+                self.assertIn("release.json.assets[0].url", text)
+                self.assertIn(f"does not begin with {RELEASES}", text)
+
+    def test_the_release_page_address_is_held_too(self) -> None:
+        self.write(self.record(html_url="https://github.com/example/site/issues/1"))
+        self.assertIn("release.json.html_url", "\n".join(check_release_data.check_addresses(self.root)))
+
+    def test_every_address_is_reported_and_a_text_with_no_address_is_not(self) -> None:
+        data = self.record(note="no address here", more=["https://evil.test/x", "https://evil.test/y"])
+        self.write(data)
+        problems = check_release_data.check_addresses(self.root)
+        self.assertEqual(len(problems), 2)
+
+    def test_a_record_the_site_build_would_refuse_is_reported_with_the_reason(self) -> None:
+        self.write(self.record(prerelease="yes"))
+        self.assertIn("'prerelease' must be true or false", "\n".join(check_release_data.check_addresses(self.root)))
+
+    def test_a_missing_or_unreadable_file_is_reported(self) -> None:
+        (self.folder / site_release_hook.RELEASE_NAME).write_text("{not json", encoding="utf-8")
+        self.assertIn("cannot be read", "\n".join(check_release_data.check_addresses(self.root)))
+        (self.folder / site_release_hook.RELEASE_NAME).unlink()
+        self.assertIn("cannot be read", "\n".join(check_release_data.check_addresses(self.root)))
+
+
+@unittest.skipIf(bool(OPENSSL_PROBLEM), "OpenSSL 3 is not on the PATH: " + OPENSSL_PROBLEM)
+class ReleaseFeed(unittest.TestCase):
+    """The update feed of the built site (updates/v1/feed.json) against the keys Studio trusts and against the stored copy. The keys are
+    throwaway keys that OpenSSL makes for these tests."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls._keys = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(cls._keys.cleanup)
+        openssl = plugin_sign.find_openssl()
+        cls.keyfiles = []
+        for name in ("a.pem", "b.pem"):
+            path = Path(cls._keys.name) / name
+            subprocess.run([openssl, "genpkey", "-algorithm", "ed25519", "-out", str(path)], check=True, capture_output=True)
+            cls.keyfiles.append(path)
+        cls.public = [plugin_sign.public_key_of(openssl, str(p)) for p in cls.keyfiles]
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name) / "repo"
+        self.site = Path(self.tmp.name) / "site"
+        (self.root / site_release_hook.RELEASE_DIR).mkdir(parents=True)
+        self.site.mkdir()
+        self.source = self.root / site_release_hook.RELEASE_DIR / site_release_hook.FEED_NAME
+
+    def signed_feed(self, key_index: int = 0, key_id: str = "upd-2026-a") -> bytes:
+        payload = update_feed.build_payload(7, "2026-12-01T03:40:00Z", [], [])
+        text = plugin_sign.sign_envelope(plugin_sign.find_openssl(), str(self.keyfiles[key_index]), "update-feed", key_id, payload.encode("utf-8"))
+        return text.encode("ascii")
+
+    def changed_feed(self) -> bytes:
+        found = plugin_sign.parse_envelope(self.signed_feed())
+        payload = found.payload.replace(b'"serial": 7', b'"serial": 8')
+        self.assertNotEqual(payload, found.payload)
+        return plugin_sign.envelope_text(found.purpose, found.key_id, payload, found.signature).encode("ascii")
+
+    def keys_file(self, public_key: bytes | None = None) -> Path:
+        path = Path(self.tmp.name) / "trusted_keys_release.cpp"
+        path.write_text(keys_file_text(public_key or self.public[0]), encoding="utf-8")
+        return path
+
+    def publish(self, built: bytes | None, source: bytes | None = ...) -> list[str]:  # type: ignore[assignment]
+        """Put a feed in the built site and, by default, the same bytes in the release data. `source=None` means no stored copy."""
+        if source is ...:
+            source = built
+        shutil.rmtree(self.site / "updates", ignore_errors=True)
+        self.source.unlink(missing_ok=True)
+        if built is not None:
+            target = self.site / RELEASE_FEED
+            target.parent.mkdir(parents=True)
+            target.write_bytes(built)
+        if source is not None:
+            self.source.write_bytes(source)
+        return check_release_data.check_feed(self.root, self.site, self.keys_file())
+
+    def test_no_feed_in_either_place_is_nothing_to_check(self) -> None:
+        self.assertEqual(self.publish(None), [])
+        # Whatever the keys: the file is not read when there is no feed.
+        self.assertEqual(check_release_data.check_feed(self.root, self.site, REAL_KEYS_FILE), [])
+
+    def test_a_feed_that_verifies_and_is_the_stored_one_passes(self) -> None:
+        self.assertEqual(self.publish(self.signed_feed()), [])
+
+    def test_a_feed_that_does_not_verify_is_found(self) -> None:
+        for label, feed in (
+            ("another key", self.signed_feed(key_index=1)),
+            ("a changed payload", self.changed_feed()),
+            ("a key id that is not trusted", self.signed_feed(key_id="upd-2026-b")),
+            ("not an envelope", b"{}"),
+            ("empty", b""),
+            ("the wrong purpose", plugin_sign.sign_envelope(plugin_sign.find_openssl(), str(self.keyfiles[0]), "plugin", "upd-2026-a", b"{}").encode("ascii")),
+        ):
+            with self.subTest(label):
+                problems = self.publish(feed)
+                self.assertEqual(len(problems), 1)
+                self.assertTrue(problems[0].startswith(RELEASE_FEED + ": "), problems[0])
+                self.assertNotIn("\n", problems[0])
+
+    def test_a_feed_when_the_build_trusts_no_key_is_found(self) -> None:
+        self.publish(self.signed_feed())
+        problems = check_release_data.check_feed(self.root, self.site, REAL_KEYS_FILE)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("trusts no update feed key", problems[0])
+
+    def test_a_keys_file_that_cannot_be_read_is_found(self) -> None:
+        self.publish(self.signed_feed())
+        bad = Path(self.tmp.name) / "bad.cpp"
+        bad.write_text(keys_file_text(bytes(31)), encoding="utf-8")
+        self.assertEqual(len(check_release_data.check_feed(self.root, self.site, bad)), 1)
+        self.assertEqual(len(check_release_data.check_feed(self.root, self.site, Path(self.tmp.name) / "missing.cpp")), 1)
+
+    def test_the_built_feed_must_be_the_stored_bytes(self) -> None:
+        feed = self.signed_feed()
+        problems = self.publish(feed, source=feed + b"\n")
+        self.assertEqual(problems, [f"{RELEASE_FEED}: is not the same bytes as tools/docs/release/update-feed.json"])
+        problems = self.publish(feed, source=self.changed_feed())
+        self.assertEqual(len(problems), 1)
+        self.assertIn("is not the same bytes", problems[0])
+
+    def test_line_endings_are_bytes_too(self) -> None:
+        feed = self.signed_feed()
+        self.assertEqual(len(self.publish(feed, source=feed.replace(b"\n", b"\r\n"))), 1)
+
+    def test_a_feed_in_one_place_and_not_the_other_is_found(self) -> None:
+        feed = self.signed_feed()
+        problems = self.publish(feed, source=None)
+        self.assertEqual(problems, [f"{RELEASE_FEED}: the built site has an update feed, but tools/docs/release/update-feed.json does not exist"])
+        problems = self.publish(None, source=feed)
+        self.assertEqual(len(problems), 1)
+        self.assertIn(f"the built site has no {RELEASE_FEED}", problems[0])
+
+    def test_the_command_checks_the_feed_with_the_given_keys(self) -> None:
+        (self.root / "mkdocs.yml").write_text("repo_url: https://github.com/example/site\n", encoding="utf-8")
+        shutil.copyfile(REPO / site_release_hook.RELEASE_DIR / site_release_hook.RULES_NAME, self.source.with_name(site_release_hook.RULES_NAME))
+        (self.source.with_name(site_release_hook.RELEASE_NAME)).write_text(json.dumps(ReleaseData.record()), encoding="utf-8")
+        self.publish(self.signed_feed())
+        for keys, status in ((self.keys_file(), 0), (REAL_KEYS_FILE, 1)):
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = check_release_data.main(["--root", str(self.root), "--site", str(self.site), "--keys", str(keys)])
+            self.assertEqual(code, status, out.getvalue())
+        self.assertIn("::error::updates/v1/feed.json: ", out.getvalue())
+
+    def test_the_command_says_when_there_is_no_feed_to_check(self) -> None:
+        (self.root / "mkdocs.yml").write_text("repo_url: https://github.com/example/site\n", encoding="utf-8")
+        shutil.copyfile(REPO / site_release_hook.RELEASE_DIR / site_release_hook.RULES_NAME, self.source.with_name(site_release_hook.RULES_NAME))
+        (self.source.with_name(site_release_hook.RELEASE_NAME)).write_text(json.dumps(ReleaseData.record()), encoding="utf-8")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(check_release_data.main(["--root", str(self.root), "--site", str(self.site)]), 0)
+        self.assertIn("the site has no updates/v1/feed.json, so there is no feed to check", out.getvalue())
+
+
+class ReleaseFeedOfTheRepository(unittest.TestCase):
+    def test_the_repository_has_no_feed_key_yet_and_a_feed_would_be_found_today(self) -> None:
+        self.assertEqual(update_feed.read_feed_keys(str(REAL_KEYS_FILE)), [])
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        site = Path(tmp.name)
+        (site / "updates" / "v1").mkdir(parents=True)
+        (site / RELEASE_FEED).write_bytes(b"{}")
+        problems = check_release_data.check_feed(REPO, site)
+        self.assertTrue(any("trusts no update feed key" in problem for problem in problems), problems)
+
+    def test_the_command_has_a_help_and_the_default_keys_are_the_repositorys(self) -> None:
+        self.assertEqual(REPO / check_release_data.KEYS_FILE, REAL_KEYS_FILE)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as caught:
+            check_release_data.main(["--help"])
+        self.assertEqual(caught.exception.code, 0)
+        self.assertIn("--site", out.getvalue())
+
+    def test_a_site_that_is_not_a_folder_is_a_usage_error(self) -> None:
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            self.assertEqual(check_release_data.main(["--site", str(REPO / "no-such-folder")]), 2)
 
 
 class Version(unittest.TestCase):

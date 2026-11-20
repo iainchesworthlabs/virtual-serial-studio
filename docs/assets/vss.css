@@ -25,6 +25,8 @@
 .vss-drop__label { display: block; font-weight: 680; }
 .vss-drop__desc { display: block; margin-top: 0.125rem; color: var(--icl-fg-muted); font-size: var(--icl-step--1); line-height: 1.4; }
 .vss-appbar__cta { flex: none; }
+.vss-appbar__sales { display: none; flex: none; }
+@media (min-width: 90rem) { .vss-appbar__sales { display: inline-flex; } }
 
 .vss-menu summary { cursor: pointer; list-style: none; min-height: 2.75rem; display: inline-flex; align-items: center; padding-inline: var(--icl-space-4); font-weight: 650; border: 1px solid var(--icl-border); border-radius: 999px; }
 .vss-menu summary::-webkit-details-marker { display: none; }
@@ -59,9 +61,173 @@
 .icl-prose code { overflow-wrap: anywhere; }
 /* The permalink mark MkDocs puts after a heading is for the guide; the front pages do not need it. */
 .icl-prose .headerlink { display: none; }
+.icl-prose pre { margin: var(--icl-space-4) 0; padding: var(--icl-space-3) var(--icl-space-4); overflow-x: auto; background: var(--icl-surface-2); border: 1px solid var(--icl-border); border-radius: var(--icl-radius-s); font-size: var(--icl-step--1); }
+.icl-prose pre code { overflow-wrap: normal; }
+
+/* The table of files on the Downloads page (tools/docs/site_release_hook.py): one table for each system, the name of the file under its label. */
+.vss-dl th[scope="row"] { font-weight: 560; }
+.vss-dl td { white-space: nowrap; }
+.vss-dl td a { display: inline-block; padding: var(--icl-space-2) 0; }
+.vss-dl__name { display: block; margin-top: var(--icl-space-1); color: var(--icl-fg-muted); font-family: var(--icl-font-mono); font-size: var(--icl-step--1); font-weight: 400; overflow-wrap: anywhere; }
 
 /* The row of links above the company footer */
 .vss-more { padding-block: var(--icl-space-6); border-top: 1px solid var(--icl-border); font-size: var(--icl-step--1); }
 .vss-more p { margin: 0 0 var(--icl-space-3); color: var(--icl-fg-muted); }
 .vss-more ul { display: flex; flex-wrap: wrap; gap: var(--icl-space-1) var(--icl-space-5); margin: 0; padding: 0; list-style: none; }
 .vss-more a { display: inline-block; padding: var(--icl-space-2) 0; }
+
+/* ---------- The product, platform and solution pages ---------- */
+
+/* Keep text on the left edge of the page, with a readable line length */
+.icl-section > .icl-wrap > p { max-width: var(--icl-measure); }
+.vss-head .icl-crumb { margin-bottom: var(--icl-space-3); color: var(--icl-fg-muted); }
+.vss-head .icl-crumb a { color: var(--app-link); }
+
+/* A section's introduction: a heading and one paragraph under it */
+.vss-intro { max-width: 46rem; margin-bottom: var(--icl-space-6); }
+.vss-intro h2 { margin-bottom: var(--icl-space-3); }
+.vss-intro p { color: var(--icl-fg-muted); font-size: var(--icl-step-1); margin: 0; }
+
+/* Cards: the kit's .icl-card, with a kicker above the heading and the status chip at the foot */
+.vss-kicker { margin: 0; color: var(--app-link); font-size: var(--icl-step--1); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.icl-card ul { margin: 0; padding-left: 1.1rem; color: var(--icl-fg-muted); font-size: var(--icl-step--1); }
+.vss-card__status { margin-top: auto; }
+.icl-grid.vss-grid-3 { grid-template-columns: 1fr; }
+@media (min-width: 40rem) { .icl-grid.vss-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 64rem) { .icl-grid.vss-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* Status chips: In the packages, Built from source, Planned. Words carry the meaning; the look only repeats it. */
+.vss-chip { display: inline-block; padding: 0.0625rem var(--icl-space-2); border: 1px solid var(--icl-border); border-radius: 999px; font-size: var(--icl-step--1); font-weight: 650; line-height: 1.5; max-width: 100%; }
+.vss-chip--ok { background: var(--app-primary); border-color: var(--app-primary); color: var(--app-on-primary); }
+.vss-chip--src { border-color: var(--app-link); color: var(--app-link); }
+.vss-chip--plan { border-style: dashed; border-color: var(--icl-fg-muted); color: var(--icl-fg-muted); }
+
+/* Steps */
+.vss-steps { display: grid; gap: var(--icl-space-5); grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); margin: 0; padding: 0; list-style: none; counter-reset: step; }
+.vss-steps li { counter-increment: step; }
+.vss-steps li::before { content: counter(step); display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; margin-bottom: var(--icl-space-3); border-radius: 50%; background: var(--app-primary); color: var(--app-on-primary); font-weight: 750; }
+.vss-steps h3 { margin-top: 0; }
+.vss-steps p { margin: 0; color: var(--icl-fg-muted); }
+
+/* A block of text beside a picture of a window of the program */
+.vss-row { display: grid; gap: var(--icl-space-6); align-items: center; padding-block: var(--icl-space-6); }
+.vss-row > div { min-width: 0; }
+.vss-row p { color: var(--icl-fg-muted); max-width: 52ch; }
+@media (min-width: 52rem) {
+  .vss-row { grid-template-columns: 1fr 1fr; gap: var(--icl-space-8); }
+  .vss-row--flip .vss-shot { order: -1; }
+}
+.vss-shot { margin: 0; }
+.vss-shot img { display: block; width: 100%; height: auto; border: 1px solid var(--icl-border); border-radius: var(--icl-radius-s); }
+.vss-shot figcaption { margin-top: var(--icl-space-2); color: var(--icl-fg-muted); font-size: var(--icl-step--1); }
+
+/* Two columns, then one */
+.vss-two { display: grid; gap: var(--icl-space-7); }
+.vss-two > * { min-width: 0; }
+@media (min-width: 52rem) { .vss-two { grid-template-columns: 1fr 1fr; } }
+.vss-two p { max-width: 52ch; }
+.vss-two h2:not(:first-child) { margin-top: var(--icl-space-7); }
+
+/* Text of a solution page */
+.vss-text { max-width: 46rem; }
+.vss-text h2 { font-size: var(--icl-step-2); margin-top: var(--icl-space-7); margin-bottom: var(--icl-space-3); }
+.vss-text h2:first-child { margin-top: 0; }
+.vss-text h3 { margin-top: var(--icl-space-5); }
+.vss-text ul, .vss-text ol { padding-left: 1.25rem; }
+.vss-text li { margin-bottom: var(--icl-space-2); }
+.vss-text code { overflow-wrap: anywhere; }
+
+/* A list of points with a mark */
+.vss-ticks { margin: 0; padding: 0; list-style: none; }
+.vss-ticks li { position: relative; margin-bottom: var(--icl-space-3); padding-left: 1.75rem; }
+.vss-ticks li::before { content: "\2713"; position: absolute; left: 0; top: 0; color: var(--app-link); font-weight: 800; }
+
+/* Links side by side at the foot of a section */
+.vss-links { display: flex; flex-wrap: wrap; gap: var(--icl-space-2) var(--icl-space-5); margin: var(--icl-space-5) 0 0; padding: 0; list-style: none; font-weight: 650; }
+.vss-links a { display: inline-block; padding: var(--icl-space-1) 0; }
+
+/* Tables of the product pages: commands, files, systems */
+.vss-table { width: 100%; overflow-x: auto; }
+.vss-table table { width: 100%; border-collapse: collapse; font-size: var(--icl-step--1); }
+.vss-table caption { text-align: left; font-weight: 700; padding-bottom: var(--icl-space-2); }
+.vss-table th, .vss-table td { padding: var(--icl-space-3); border-bottom: 1px solid var(--icl-border); text-align: left; vertical-align: top; }
+.vss-table thead th { border-bottom: 2px solid var(--icl-fg); }
+.vss-table tbody th { font-weight: 650; }
+.vss-table td p { margin: 0; }
+.vss-table code { overflow-wrap: anywhere; }
+.vss-table th code { overflow-wrap: normal; white-space: nowrap; }
+.vss-table + p, .vss-table + ul, .vss-table + .vss-table { margin-top: var(--icl-space-5); }
+
+/* Code on a product page */
+.vss-code { margin: var(--icl-space-4) 0; padding: var(--icl-space-4) var(--icl-space-5); background: var(--icl-surface-2); border: 1px solid var(--icl-border); border-radius: var(--icl-radius-s); overflow-x: auto; font-family: var(--icl-font-mono); font-size: var(--icl-step--1); line-height: 1.6; }
+.vss-code code { font-size: inherit; white-space: pre; }
+
+/* How the parts fit: the programs on top, what they stand on below */
+.vss-stack { display: grid; gap: var(--icl-space-2); margin: 0; padding: 0; list-style: none; }
+.vss-stack > li { padding: var(--icl-space-3) var(--icl-space-4); border: 1px solid var(--icl-border); border-radius: var(--icl-radius-s); background: var(--icl-surface); }
+.vss-stack__name { display: block; margin-bottom: var(--icl-space-2); color: var(--icl-fg-muted); font-size: var(--icl-step--1); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.vss-stack__row { display: flex; flex-wrap: wrap; gap: var(--icl-space-2); margin: 0; padding: 0; list-style: none; }
+.vss-stack__row li { flex: 1 1 8rem; padding: var(--icl-space-2) var(--icl-space-3); border-radius: var(--icl-radius-s); background: var(--app-tint); font-weight: 620; font-size: var(--icl-step--1); line-height: 1.35; }
+.vss-stack__row li small { display: block; color: var(--icl-fg-muted); font-weight: 450; }
+
+/* ---------- The home page, pricing and the other front pages ---------- */
+
+/* The home page's hero has a picture of Studio beside the text */
+.icl-hero--app .icl-tags { margin-top: var(--icl-space-5); }
+.icl-hero--app .icl-button--ghost { background: transparent; color: var(--app-on-gradient); border-color: var(--app-on-gradient); }
+.icl-hero--app .icl-button--ghost:hover { background: color-mix(in srgb, var(--app-on-gradient) 14%, transparent); }
+.vss-hero-shot { margin: 0; }
+.vss-hero-shot img { display: block; width: 100%; height: auto; border-radius: var(--icl-radius-s); box-shadow: 0 18px 50px color-mix(in srgb, var(--app-gradient-from) 60%, transparent); }
+
+/* The questions and the text of the FAQ keep to the left edge, with a readable line length */
+.icl-section .icl-faq { margin-inline: 0; }
+
+/* The editions: three cards side by side */
+.vss-plans { display: grid; gap: var(--icl-space-5); grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); margin: 0; padding: 0; list-style: none; }
+.vss-plan { display: flex; flex-direction: column; gap: var(--icl-space-3); padding: var(--icl-space-5); background: var(--icl-surface); border: 1px solid var(--icl-border); border-radius: var(--icl-radius-m); }
+.vss-plan--featured { border: 2px solid var(--app-primary); }
+.vss-plan h3 { margin: 0; font-size: var(--icl-step-2); }
+.vss-plan__for { margin: 0; color: var(--icl-fg-muted); }
+.vss-plan__price { margin: 0; font-size: var(--icl-step-2); font-weight: 750; letter-spacing: -0.02em; }
+.vss-plan__price small { display: block; color: var(--icl-fg-muted); font-size: var(--icl-step--1); font-weight: 500; letter-spacing: 0; }
+.vss-plan ul { margin: 0; padding-left: 1.1rem; }
+.vss-plan li { margin-bottom: var(--icl-space-2); }
+.vss-plan .icl-button { margin-top: auto; align-self: flex-start; }
+
+/* The comparison of editions: a mark for what is included, a dash for what is not */
+.vss-compare th:not(:first-child), .vss-compare td { text-align: center; }
+.vss-compare tbody th { text-align: left; }
+.vss-compare .vss-group th { padding-top: var(--icl-space-5); background: transparent; color: var(--app-link); font-size: var(--icl-step--1); letter-spacing: 0.06em; text-transform: uppercase; text-align: left; }
+.vss-yes::before { content: "\2713"; font-weight: 800; color: var(--app-link); }
+.vss-no::before { content: "\2014"; color: var(--icl-fg-muted); }
+
+/* A row of figures that the repository shows */
+.vss-stats { display: grid; gap: var(--icl-space-5); grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); margin: 0 0 var(--icl-space-6); padding: 0; list-style: none; }
+.vss-stats li { padding-top: var(--icl-space-3); border-top: 3px solid var(--app-accent); }
+.vss-stats strong { display: block; font-size: var(--icl-step-3); line-height: 1.1; letter-spacing: -0.02em; }
+.vss-stats span { color: var(--icl-fg-muted); font-size: var(--icl-step--1); }
+
+/* A short list of definitions: the facts a writer needs on the press page */
+.vss-facts { display: grid; gap: var(--icl-space-3) var(--icl-space-6); grid-template-columns: 1fr; margin: 0; }
+.vss-facts dt { font-weight: 700; }
+.vss-facts dd { margin: 0 0 var(--icl-space-3); color: var(--icl-fg-muted); }
+@media (min-width: 40rem) { .vss-facts { grid-template-columns: minmax(9rem, 14rem) 1fr; } .vss-facts dd { margin: 0; } }
+
+/* The app bar keeps each label on one line: with seven menus the bar is full from 64rem. */
+.vss-appbar .icl-appbar__name, .vss-nav__link, .vss-drop > summary { white-space: nowrap; }
+.vss-appbar .vss-nav__list { gap: 0; }
+.vss-plans + p, .vss-plans + ul { margin-top: var(--icl-space-5); }
+
+/* The contact form of the Support page (docs/support.md). It posts to the company site's endpoint; the fields are the endpoint's. The trap field is
+   moved out of sight and out of the tab order; it is not display: none, so that a script that fills in what it finds still fills it in. */
+.vss-form { display: grid; gap: var(--icl-space-4); margin: var(--icl-space-5) 0; padding: var(--icl-space-5); background: var(--icl-surface-2); border: 1px solid var(--icl-border); border-radius: var(--icl-radius-m); }
+.vss-form label { display: block; margin-bottom: var(--icl-space-1); font-weight: 650; }
+.vss-form__opt { color: var(--icl-fg-muted); font-weight: 450; }
+.vss-form input[type="text"], .vss-form input[type="email"], .vss-form select, .vss-form textarea { display: block; width: 100%; min-height: 2.75rem; padding: var(--icl-space-2) var(--icl-space-3); background: var(--icl-surface); color: var(--icl-fg); border: 1px solid var(--icl-fg-muted); border-radius: var(--icl-radius-s); font: inherit; }
+.vss-form textarea { min-height: 9rem; resize: vertical; }
+.vss-form__help { margin: var(--icl-space-1) 0 0; color: var(--icl-fg-muted); font-size: var(--icl-step--1); }
+.vss-form__consent { display: grid; grid-template-columns: auto 1fr; gap: var(--icl-space-3); align-items: start; }
+.vss-form__consent input { width: 1.5rem; height: 1.5rem; margin: 0.125rem 0 0; }
+.vss-form__consent label { margin: 0; font-weight: 450; }
+.vss-form__trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.vss-form .icl-button { justify-self: start; cursor: pointer; }

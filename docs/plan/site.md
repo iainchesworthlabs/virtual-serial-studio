@@ -50,8 +50,10 @@ whether to build the messages and exit-codes check.
 
   Serving only these paths avoids the second problem in the company kit: its pages link `/assets/v1/icl.css` and
   other company paths with root-absolute links, which a blanket prefix rewrite would send to the wrong key.
-- **Mail:** `virtual-serial-studio.com` has no MX records today (checked 19 Nov), so mail to `support@` does not
-  arrive. I change no DNS. The owner decides where that mail goes before the address is published (owner step 5).
+- **Mail:** `virtual-serial-studio.com` had no MX records on 19 Nov; on 20 Nov its zone holds MX records to iCloud Mail
+  and the matching SPF and DKIM records, so mail to `support@` can arrive. I change no DNS and the second-domain change
+  leaves those records alone. The owner confirms that `support@` is an address or alias of that mailbox before the
+  address is published (owner step 5).
 - **GitHub Pages:** turn it off for the repository once the second domain answers. Today it answers "Site not found"
   for every address and `iainchesworthlabs.github.io/virtual-serial-studio/` forwards to the domain, so nothing is
   lost. The Pages custom domain and the A, AAAA and `www` CNAME records in the `virtual-serial-studio.com` Route 53
@@ -174,7 +176,7 @@ Python, standard library only, each with tests in `tools/ci/test_site_checks.py`
 One composite action `.github/actions/docs-site` installs MkDocs from a hash-locked requirements file, builds
 strictly and runs the checks. `ci.yml` (no path filter, so it can be required), `docs.yml` and `release.yml`
 (early, so a broken page stops a release in a minute) all use it. `.github/ci/plan.json` gets the new paths
-(`mkdocs.yml`, `tools/docs/**`, `website/` until removed) so that a docs-only change does not start every build leg.
+(`mkdocs.yml`, `tools/docs/**`) so that a docs-only change does not start every build leg.
 
 Pictures: one script writes light and dark 1280 px grabs for the owner to look at. They are not committed.
 
@@ -216,7 +218,7 @@ Written out as exact PowerShell 5.1 commands when each one is due. In order:
    outputs `DeployRoleArnVirtualSerialStudio`, `PreviewRoleArnVirtualSerialStudio`, `BucketName`, `DistributionId`.
 4. Second domain: remove the Pages custom domain and the GitHub A, AAAA and `www` CNAME records, then the
    certificate validation and the deploy in step 1.
-5. Decide where `support@virtual-serial-studio.com` mail goes (no MX today). I change no DNS.
+5. Confirm that `support@virtual-serial-studio.com` is an address or alias of the iCloud mailbox that the zone's MX records point at. I change no DNS.
 6. Create the `site` branch at a `develop` commit, and any ruleset that lets the release App move it.
 7. Redeploy the contact endpoint after icl-3.
 8. Tag the release, approve the `release` environment, publish.
@@ -248,7 +250,7 @@ Differences between the brief and the repositories, and stale text to fix in the
 - **`website/README.md` rules versus the owner's direction:** it asks for no marketing wording and no stated email
   address; the owner's later direction is a product site and shows `support@`. The owner's direction is followed;
   plain Australian English still applies.
-- **`website/data/release.json` still says rc.5**, and there is no `website/data/update-feed.json`.
+- **`tools/docs/release/release.json` still says rc.5**, and there is no `tools/docs/release/update-feed.json`.
 - **No update can verify on `develop` today:** no feed key is built in.
 - **Stale design pages** (the code and `changelog.d/` are right, the pages are wrong): `README.md:49` and
   `docs/plugins.md` say plugins do not run (the host, sandbox on Windows, Plugins page and `vss_cli plugin run` are

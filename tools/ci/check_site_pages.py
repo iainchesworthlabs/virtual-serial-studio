@@ -29,7 +29,7 @@ The front pages (tools/docs/theme/marketing.html), which run under a preview tha
   front pages and are not looked at.
 
 And the pages and files that the company site's contract asks for, and that other pages lead to, exist: see FIXED. The company's contract
-also asks for /virtual-serial-studio/privacy/ and /virtual-serial-studio/support/; they are added to FIXED with their pages.
+asks for /virtual-serial-studio/privacy/ and /virtual-serial-studio/support/, and they are in FIXED.
 """
 
 from __future__ import annotations
@@ -46,7 +46,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import site_tools  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-FIXED = ["index.html", "guide/index.html", "developers/index.html", "theme.css", "icon.svg", "icl-app.json"]
+FIXED = ["index.html", "guide/index.html", "developers/index.html", "downloads/index.html", "privacy/index.html", "support/index.html",
+         "theme.css", "icon.svg", "icl-app.json"]
+# The pages that are drafts until the owner says they are not: the licence and privacy texts are for a solicitor, and the prices are not
+# decided (docs/plan/site.md, decision D). While one of them is built it must say DRAFT in its main content. One that is not built yet
+# is not an error.
+DRAFT_PAGES = ["licensing/", "privacy/", "pricing/"]
+DRAFT_WORD = re.compile(r"\bDRAFT\b")
 ALLOWED_HOSTS = {"github.com", "www.gnu.org"}
 
 # The contact form. The endpoint is the company site's (iainchesworthlabs/icl-site: infra/lambda/contact/config.ts and
@@ -131,8 +137,24 @@ def check_forms(where: str, page: "site_tools.Page") -> list[str]:
     return problems
 
 
-def check_site(site: Path, root: Path) -> list[str]:
+def check_site_drafts(site: Path) -> list[str]:
+    """Each of DRAFT_PAGES that is in the built site still has the word DRAFT in its main content."""
     problems: list[str] = []
+    for address in DRAFT_PAGES:
+        path = site / address / "index.html"
+        if path.is_file() and not DRAFT_WORD.search(" ".join(site_tools.parse(path).main_text)):
+            problems.append(f"{address}index.html: the main content does not contain the word DRAFT. The licence, privacy and pricing pages keep "
+                            "their DRAFT marks until the owner says they can go")
+    return problems
+
+
+def absent_drafts(site: Path) -> list[str]:
+    """The addresses of DRAFT_PAGES that are not in the built site (yet)."""
+    return [address for address in DRAFT_PAGES if not (site / address / "index.html").is_file()]
+
+
+def check_site(site: Path, root: Path) -> list[str]:
+    problems: list[str] = check_site_drafts(site)
     for name in FIXED:
         if not (site / name).is_file():
             problems.append(f"{name}: is not in the built site (the company's contract requires it, or other pages lead to it)")
@@ -244,7 +266,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"::error::{problem}")
     if problems:
         return 1
+    absent = absent_drafts(site) if tmp is None else []
     print("Site pages: ok")
+    if absent:
+        print(f"Site drafts: {', '.join(absent)} not in the built site yet, so the DRAFT check has nothing to look at there")
     return 0
 
 
