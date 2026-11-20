@@ -7,6 +7,7 @@ if(VSS_BUILD_TESTS)
   add_executable(vss_gui_shell_tests
     main.cpp
     test_dock_panes.cpp
+    test_guide_pictures.cpp
     test_responsiveness.cpp
     test_plugin_surfaces.cpp
     test_shell.cpp

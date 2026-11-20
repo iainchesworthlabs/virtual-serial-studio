@@ -91,7 +91,7 @@ bus, and prints a sentence describing the result before you commit. A link that
 would make a loop is refused, with a message naming the pair, and nothing
 changes.
 
-![The Connect ports dialog with the relationships on the left and the From and To ports on the right](../images/connect-ports-light.png)
+<picture><source srcset="../../images/connect-ports-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/connect-ports-light.png" width="920" height="700" alt="The Connect ports dialog with the six ways to link ports on the left, Shared bus the last of them, and the From and To ports on the right"></picture>
 
 A join has **Choose one owner at a time** under **More options** (Advanced):
 only the owner's bytes reach the target and the others' are counted as dropped.
