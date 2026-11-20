@@ -96,6 +96,11 @@ enum class plugin_action
 
 QString action_text(plugin_action action);
 
+/// Whether an action is the step to take next, which is drawn as a normal
+/// button. The others are quiet. "Run without isolation..." is never the next
+/// step, however alone it stands, because it gives a plugin more access.
+bool is_next_step(plugin_action action);
+
 struct plugin_note_text
 {
     bool shown = false;

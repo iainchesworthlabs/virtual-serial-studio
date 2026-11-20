@@ -22581,6 +22581,56 @@ Redes: %5</translation>
             <source>Add plugin</source>
             <translation>Añadir complemento</translation>
         </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Upgrade %1?</source>
+            <translation>¿Actualizar %1?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Replace %1?</source>
+            <translation>¿Reemplazar %1?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Replace %1 with an older version?</source>
+            <translation>¿Reemplazar %1 por una versión anterior?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio stops the plugin, replaces your copy with the files in this folder and keeps its settings and saved data. A version you have not decided about does not run until you do.</source>
+            <translation>Studio detiene el complemento, reemplaza su copia por los archivos de esta carpeta y conserva sus ajustes y sus datos guardados. Una versión sobre la que no ha decidido no se ejecuta hasta que decida.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your copy has the same version, %1, with other files.</source>
+            <translation>Su copia tiene la misma versión, %1, con otros archivos.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your copy is version %1. This folder holds an older version.</source>
+            <translation>Su copia es la versión %1. Esta carpeta contiene una versión anterior.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your version</source>
+            <translation>Su versión</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Upgrade plugin</source>
+            <translation>Actualizar complemento</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Replace plugin</source>
+            <translation>Reemplazar complemento</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>%1 is already installed for you. Its files are the same as the ones in this folder.</source>
+            <translation>%1 ya está instalado para usted. Sus archivos son los mismos que los de esta carpeta.</translation>
+        </message>
     </context>
     <context>
         <name>PluginKeyImportDialog</name>
@@ -23463,11 +23513,6 @@ Redes: %5</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_dialogs.cpp" line="1" />
-            <source>%1 is already installed for you. Remove it first to add a different copy.</source>
-            <translation>%1 ya está instalado para usted. Elimínelo primero para añadir otra copia.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
             <source>Your administrator installs the plugins on this computer.</source>
             <translation>Su administrador instala los complementos en este equipo.</translation>
         </message>
@@ -23971,6 +24016,31 @@ Redes: %5</translation>
             <location filename="../src/support/plugins_dialog.cpp" line="1562" />
             <source>What %1 found</source>
             <translation>Lo que encontró %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>More options</source>
+            <translation>Más opciones</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Technical details</source>
+            <translation>Detalles técnicos</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Upgraded %1. Review it before it runs.</source>
+            <translation>%1 se ha actualizado. Revíselo antes de que se ejecute.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Replaced %1. Review it before it runs.</source>
+            <translation>%1 se ha reemplazado. Revíselo antes de que se ejecute.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1 is already installed for you.</source>
+            <translation>%1 ya está instalado para usted.</translation>
         </message>
     </context>
     <context>
