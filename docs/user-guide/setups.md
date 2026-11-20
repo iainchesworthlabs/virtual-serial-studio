@@ -102,8 +102,10 @@ The window is only for setting them up and watching them.
   the icon's menu) stops every port and link. Studio asks first.
 - **The running setup** is kept by itself, a second after each change. After a
   restart, a sign-out or a crash, the same ports start again the next time
-  Studio starts. After a Quit they do not start by themselves: a banner offers
-  **Start again**.
+  Studio starts, and the status bar says "Started the ports that were running
+  before: 3 ports, 2 links." (with your numbers) for a few seconds, in place of
+  the port and link counts. After a Quit they do not start by themselves: a
+  banner offers **Start again**.
 - **Start when I sign in** (in the icon's menu, or **Settings → Running**)
   starts Studio hidden when you sign in, so the ports are back after a restart
   without opening anything. It is off until you turn it on, and it is not

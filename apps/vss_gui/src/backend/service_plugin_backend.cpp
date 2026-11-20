@@ -16,6 +16,7 @@
 #include <vss/plugin/host/timeline_point.hpp>
 #include <vss/plugin/install.hpp>
 #include <vss/plugin/locations.hpp>
+#include <vss/plugin/manifest.hpp>
 #include <vss/plugin/parameters.hpp>
 #include <vss/plugin/trust_store.hpp>
 
@@ -33,6 +34,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <compare>
 #include <fstream>
 #include <future>
 #include <iterator>
@@ -116,28 +118,62 @@ bool is_shadowed(const host::service_plugin& plugin)
                static_cast<int>(plug::plugin_errc::shadowed);
 }
 
-/// What stops `id` being added for the user, when a copy of it is installed
-/// already. The user's own copy comes first. A copy for everyone, or one that
-/// came with Studio, is read before the user's folder, so it is the one that
-/// runs and a copy added for the user would never be used.
-std::optional<plugin_inspection_view::problem>
-installed_elsewhere(const host::service_snapshot& snapshot,
-                    const std::string& id)
+/// The copies of a plugin that are installed already, as far as adding it for
+/// the user is concerned.
+struct installed_copies
+{
+    /// The user's own copy, or null. It points into the snapshot the copies
+    /// were read from, which the caller keeps.
+    const host::service_plugin* own = nullptr;
+    /// What stops a copy added for the user from running: a copy for
+    /// everyone, or one that came with Studio, is read before the user's
+    /// folder, so it is the one that runs. Nothing when there is none.
+    std::optional<plugin_inspection_view::problem> other;
+};
+
+installed_copies installed_copies_of(const host::service_snapshot& snapshot,
+                                     const std::string& id)
 {
     using problem = plugin_inspection_view::problem;
-    std::optional<problem> found;
+    installed_copies found;
     for (const host::service_plugin& each : snapshot.plugins)
     {
         if (each.id != id)
             continue;
         if (each.scope == plug::plugin_scope::for_user)
-            return problem::already_installed;
-        if (each.scope == plug::plugin_scope::with_studio)
-            found = problem::came_with_studio;
-        else if (!found.has_value())
-            found = problem::installed_for_everyone;
+            found.own = &each;
+        else if (each.scope == plug::plugin_scope::with_studio)
+            found.other = problem::came_with_studio;
+        else if (!found.other.has_value())
+            found.other = problem::installed_for_everyone;
     }
     return found;
+}
+
+/// What adding the folder with this manifest does to the user's own copy.
+plugin_replacement replacement_for(const host::service_plugin& own,
+                                   const plug::manifest& incoming)
+{
+    if (!own.declared.has_value())
+        return plugin_replacement::replace;
+    const std::strong_ordering order =
+        plug::compare(incoming.version, own.declared->version);
+    if (order > 0)
+        return plugin_replacement::upgrade;
+    if (order < 0)
+        return plugin_replacement::downgrade;
+    return plugin_replacement::replace;
+}
+
+/// The program of the plugin is running, or about to, or waiting to be
+/// started again: its files may be in use.
+bool is_running(const host::service_plugin& plugin)
+{
+    if (plugin.run == nullptr)
+        return false;
+    const plug::run_state state = plugin.run->state;
+    return state != plug::run_state::stopped &&
+           state != plug::run_state::quarantined;
 }
 
 } // namespace
@@ -944,6 +980,7 @@ void ServicePluginBackend::after_change()
         {
             refresh_extras();
             process_removals();
+            process_replacements();
             delete_data_of_gone_plugins();
             restart_waiting_plugins();
             if (rescan_asked_.load())
@@ -1310,72 +1347,225 @@ quint64 ServicePluginBackend::inspect_plugin(const QString& folder)
                 out.failure = plugin_inspection_view::problem::cannot_write;
                 out.can_install = false;
             }
-            const auto elsewhere =
-                installed_elsewhere(*service_->snapshot(), found.declared->id);
-            if (elsewhere.has_value())
+            const auto now = service_->snapshot();
+            const installed_copies installed =
+                installed_copies_of(*now, found.declared->id);
+            if (installed.own != nullptr && installed.own->hash == found.hash)
             {
-                out.failure = *elsewhere;
+                // These very files are installed for the user already.
+                out.failure = plugin_inspection_view::problem::already_installed;
                 out.can_install = false;
+            }
+            else if (installed.other.has_value())
+            {
+                out.failure = *installed.other;
+                out.can_install = false;
+            }
+            else if (installed.own != nullptr &&
+                     out.failure == plugin_inspection_view::problem::none)
+            {
+                // Another version of a plugin the user has: adding it takes
+                // the place of the user's copy.
+                out.replaces = replacement_for(*installed.own, *found.declared);
+                out.installed_version =
+                    QString::fromStdString(installed.own->version);
+                // When the user decided about the copy they have, what they
+                // will be asked is a change of it.
+                if (installed.own->decided &&
+                    view.state == plugin_state::needs_decision &&
+                    view.note == plugin_note::decision_first)
+                    view.note = plugin_note::decision_changed;
             }
             notify_plugin_inspected(number, out);
         });
     return number;
 }
 
-void ServicePluginBackend::add_plugin(const QString& folder)
+void ServicePluginBackend::add_plugin(const QString& folder, bool replace)
 {
     boost::asio::post(
         slow_,
-        [this, folder]
+        [this, folder, replace]
         {
             plugin_request_result result;
             result.kind = plugin_request_kind::add_plugin;
-            plug::install_options install;
-            // The person saw the verdict, which says so for a plugin nobody
-            // signed.
-            install.allow_unsigned = true;
-            install.context = context_now();
             // The name comes from the manifest of the folder being added, so
             // that a refusal can say which plugin it is about.
             const plug::inspection looked =
-                plug::inspect_plugin(to_path(folder), install.context);
+                plug::inspect_plugin(to_path(folder), context_now());
+            pending_add what;
+            what.folder = folder;
             if (looked.declared.has_value())
             {
-                result.plugin_name =
-                    QString::fromStdString(looked.declared->name);
-                result.plugin_id =
-                    QString::fromStdString(looked.declared->id);
+                what.id = looked.declared->id;
+                what.name = QString::fromStdString(looked.declared->name);
+                result.plugin_name = what.name;
+                result.plugin_id = QString::fromStdString(what.id);
             }
-            using problem = plugin_inspection_view::problem;
-            const auto elsewhere =
-                looked.declared.has_value()
-                    ? installed_elsewhere(*service_->snapshot(),
-                                          looked.declared->id)
-                    : std::nullopt;
-            if (elsewhere.has_value() && *elsewhere != problem::already_installed)
+            if (!looked.declared.has_value())
             {
-                result.error = *elsewhere == problem::came_with_studio
-                                   ? plugin_request_error::came_with_studio
-                                   : plugin_request_error::installed_for_everyone;
+                // Not a plugin: the copy says so.
+                static_cast<void>(finish_add(what));
+                return;
+            }
+            const auto now = service_->snapshot();
+            const installed_copies installed =
+                installed_copies_of(*now, what.id);
+            if (installed.own != nullptr && installed.own->hash == looked.hash)
+            {
+                result.error = plugin_request_error::already_installed;
                 notify_request_finished(result);
                 return;
             }
-            std::string detail;
-            const auto done = plug::install_plugin(
-                to_path(folder), options_.user_root, install, &detail);
-            if (!done.has_value())
+            if (installed.other.has_value())
             {
-                const vss::error_code why = done.error();
-                if (why == vss::errc::already_exists)
-                    result.error = plugin_request_error::already_installed;
-                else if (why == vss::errc::permission_denied ||
-                         why == vss::errc::io_error)
-                    result.error = plugin_request_error::cannot_write;
-                else
-                    result.error = plugin_request_error::not_a_plugin;
+                result.error =
+                    *installed.other ==
+                            plugin_inspection_view::problem::came_with_studio
+                        ? plugin_request_error::came_with_studio
+                        : plugin_request_error::installed_for_everyone;
+                notify_request_finished(result);
+                return;
             }
-            service_->rescan();
-            notify_request_finished(result);
+            if (installed.own != nullptr)
+            {
+                // A copy with other files is replaced only when the person
+                // was asked and said yes.
+                if (!replace)
+                {
+                    result.error = plugin_request_error::already_installed;
+                    notify_request_finished(result);
+                    return;
+                }
+                what.how = replacement_for(*installed.own, *looked.declared);
+                what.was_running = is_running(*installed.own);
+            }
+            if (!what.was_running)
+            {
+                static_cast<void>(finish_add(what));
+                return;
+            }
+            // A running program cannot be replaced on every system: it is
+            // switched off first, and the folder is replaced once it has
+            // stopped. A second request for the same plugin takes the place
+            // of the first.
+            service_->set_enabled(what.id, false);
+            {
+                const std::scoped_lock lock(mutex_);
+                std::erase_if(replacements_, [&what](const pending_add& each)
+                              { return each.id == what.id; });
+                replacements_.push_back(what);
+            }
+            process_replacements();
+        });
+}
+
+bool ServicePluginBackend::finish_add(const pending_add& what)
+{
+    plugin_request_result result;
+    result.kind = plugin_request_kind::add_plugin;
+    result.plugin_name = what.name;
+    result.plugin_id = QString::fromStdString(what.id);
+    plug::install_options install;
+    // The person saw the verdict, which says so for a plugin nobody signed.
+    install.allow_unsigned = true;
+    install.replace = what.how != plugin_replacement::none;
+    install.context = context_now();
+    std::string detail;
+    const auto done = plug::install_plugin(to_path(what.folder),
+                                           options_.user_root, install, &detail);
+    if (done.has_value())
+    {
+        result.replaced = what.how;
+    }
+    else
+    {
+        const vss::error_code why = done.error();
+        // The program may take a moment to let go of its files after it has
+        // stopped, so the copy is tried again shortly, for fifteen seconds at
+        // most. The library puts the old copy back when it cannot move the
+        // new one in.
+        if (why == vss::errc::io_error && what.was_running &&
+            what.attempts < 60)
+            return true;
+        if (why == vss::errc::already_exists)
+            result.error = plugin_request_error::already_installed;
+        else if (why == vss::errc::permission_denied ||
+                 why == vss::errc::io_error)
+            result.error = plugin_request_error::cannot_write;
+        else
+            result.error = plugin_request_error::not_a_plugin;
+    }
+    service_->rescan();
+    notify_request_finished(result);
+    return false;
+}
+
+void ServicePluginBackend::process_replacements()
+{
+    std::vector<pending_add> waiting;
+    {
+        const std::scoped_lock lock(mutex_);
+        if (replacements_.empty())
+            return;
+        waiting = replacements_;
+    }
+    const auto now = service_->snapshot();
+    if (!now)
+        return;
+    bool retry = false;
+    for (const pending_add& each : waiting)
+    {
+        const auto found =
+            std::find_if(now->plugins.begin(), now->plugins.end(),
+                         [&each](const host::service_plugin& plugin)
+                         {
+                             return plugin.id == each.id &&
+                                    plugin.scope ==
+                                        plug::plugin_scope::for_user;
+                         });
+        // Still running: the next change of its state looks again.
+        if (found != now->plugins.end() && is_running(*found))
+            continue;
+        const bool again = finish_add(each);
+        const std::scoped_lock lock(mutex_);
+        const auto place =
+            std::find_if(replacements_.begin(), replacements_.end(),
+                         [&each](const pending_add& other)
+                         { return other.id == each.id; });
+        if (place == replacements_.end())
+            continue;
+        if (again)
+        {
+            ++place->attempts;
+            retry = true;
+        }
+        else
+        {
+            replacements_.erase(place);
+        }
+    }
+    if (retry)
+        process_later();
+}
+
+void ServicePluginBackend::process_later()
+{
+    if (down_.load())
+        return;
+    auto timer = std::make_shared<boost::asio::steady_timer>(io_);
+    timer->expires_after(std::chrono::milliseconds(250));
+    timer->async_wait(
+        [this, timer](const boost::system::error_code& failed)
+        {
+            if (failed || down_.load())
+                return;
+            boost::asio::post(slow_,
+                              [this]
+                              {
+                                  process_removals();
+                                  process_replacements();
+                              });
         });
 }
 
@@ -1514,17 +1704,8 @@ void ServicePluginBackend::process_removals()
                            [&id](const pending_removal& each)
                            { return each.id == id; }),
             removals_.end());
-    if (retry && !down_.load())
-    {
-        auto timer = std::make_shared<boost::asio::steady_timer>(io_);
-        timer->expires_after(std::chrono::milliseconds(250));
-        timer->async_wait(
-            [this, timer](const boost::system::error_code& failed)
-            {
-                if (!failed && !down_.load())
-                    boost::asio::post(slow_, [this] { process_removals(); });
-            });
-    }
+    if (retry)
+        process_later();
 }
 
 } // namespace vss::gui

@@ -22581,6 +22581,56 @@ Networks: %5</source>
             <source>Add plugin</source>
             <translation>הוספת התוסף</translation>
         </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Upgrade %1?</source>
+            <translation>לעדכן את %1?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Replace %1?</source>
+            <translation>להחליף את %1?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Replace %1 with an older version?</source>
+            <translation>להחליף את %1 בגרסה ישנה יותר?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio stops the plugin, replaces your copy with the files in this folder and keeps its settings and saved data. A version you have not decided about does not run until you do.</source>
+            <translation>Studio עוצר את התוסף, מחליף את העותק שלכם בקבצים שבתיקייה הזו ושומר על ההגדרות ועל הנתונים השמורים שלו. גרסה שעדיין לא החלטתם לגביה לא פועלת עד שתחליטו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your copy has the same version, %1, with other files.</source>
+            <translation>בעותק שלכם יש אותה גרסה, %1, עם קבצים אחרים.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your copy is version %1. This folder holds an older version.</source>
+            <translation>העותק שלכם הוא גרסה %1. התיקייה הזו מכילה גרסה ישנה יותר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your version</source>
+            <translation>הגרסה שלכם</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Upgrade plugin</source>
+            <translation>עדכון התוסף</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Replace plugin</source>
+            <translation>החלפת התוסף</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>%1 is already installed for you. Its files are the same as the ones in this folder.</source>
+            <translation>%1 כבר מותקן עבורכם. הקבצים שלו זהים לאלה שבתיקייה הזו.</translation>
+        </message>
     </context>
     <context>
         <name>PluginKeyImportDialog</name>
@@ -23463,11 +23513,6 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_dialogs.cpp" line="1" />
-            <source>%1 is already installed for you. Remove it first to add a different copy.</source>
-            <translation>%1 כבר מותקן עבורכם. הסירו אותו קודם כדי להוסיף עותק אחר.</translation>
-        </message>
-        <message>
-            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
             <source>Your administrator installs the plugins on this computer.</source>
             <translation>מנהל המערכת מתקין את התוספים במחשב הזה.</translation>
         </message>
@@ -23971,6 +24016,31 @@ Networks: %5</source>
             <location filename="../src/support/plugins_dialog.cpp" line="1562" />
             <source>What %1 found</source>
             <translation>מה ש-%1 מצא</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>More options</source>
+            <translation>אפשרויות נוספות</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Technical details</source>
+            <translation>פרטים טכניים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Upgraded %1. Review it before it runs.</source>
+            <translation>%1 עודכן. בדקו אותו לפני שהוא פועל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Replaced %1. Review it before it runs.</source>
+            <translation>%1 הוחלף. בדקו אותו לפני שהוא פועל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1 is already installed for you.</source>
+            <translation>%1 כבר מותקן עבורכם.</translation>
         </message>
     </context>
     <context>

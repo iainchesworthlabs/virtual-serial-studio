@@ -276,17 +276,28 @@ void FakePluginBackend::rescan()
     notify_request_finished(result);
 }
 
-void FakePluginBackend::add_plugin(const QString& folder)
+void FakePluginBackend::add_plugin(const QString& folder, bool replace)
 {
     fake_plugin_request seen;
     seen.kind = plugin_request_kind::add_plugin;
     seen.path = folder;
+    seen.flag = replace;
     record(seen);
     plugin_request_result result;
     result.kind = plugin_request_kind::add_plugin;
     result.error = add_error_;
     result.plugin_name = add_error_name_;
     add_error_ = plugin_request_error::none;
+    // What the folder was seen to be, as the real backend says it again.
+    const auto found = inspections_.constFind(folder);
+    if (found != inspections_.constEnd())
+    {
+        if (result.plugin_name.isEmpty())
+            result.plugin_name = found->plugin.name;
+        result.plugin_id = found->plugin.id;
+        if (replace && result.error == plugin_request_error::none)
+            result.replaced = found->replaces;
+    }
     notify_request_finished(result);
 }
 

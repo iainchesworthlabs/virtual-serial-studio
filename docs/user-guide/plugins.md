@@ -20,15 +20,35 @@ isolation...**.
 
 ## The list and the detail
 
-The list is on the left, with a box to filter it by name. A row shows the
-plugin's name, who stands behind it, its version, its state and a switch. The
-rows that need attention are first. A chip at the top says how many plugins are
-on and how many need attention. Choose a row to see its detail on the right. F6
-moves between the list and the detail. Under the list are **Add a plugin...**,
+The list is on the left, with a box to filter it by name (**Filter plugins**). A
+row shows the plugin's name, a line with who stands behind it and its version
+(for example "Signed by Example Ltd, version 1.2.0") and a switch that says On or
+Off. A row has a state beside the name only when the state is neither On nor
+Off, such as Needs your decision or Stopped, so a row with a state is one to
+read. The rows that need attention (Needs your decision, Stopped and Can't be
+used) are first, and the others follow by name. A copy of a plugin that is Not
+used, because another copy of the same plugin runs, sits under that other copy
+with a state and no switch. A chip at the top says how many plugins are on (for
+example **3 on**). When any plugin needs attention it says that instead (**1
+needs attention**, **2 need attention**). Choose a row to see its detail on the
+right. F6 moves between the list and the detail.
+
+Under the list, **Add a plugin...** adds a plugin, and **More options** has
 **Import a key...**, **Open the plugin folder** and **Check again**, which looks
-through the plugin folders again, and under the detail are **Remove plugin...**,
-**Copy details** and **Close**. The page shows the machine plugin folder too,
-with a button that copies its path.
+through the plugin folders again and says how many plugins it found. With no
+plugin installed the list says **No plugins are installed** and has **Open the
+plugin folder**. Under that is the machine plugin folder, with a button that
+copies its path. Along the bottom are **Remove plugin...**, **Copy details** and
+**Close**. **Copy details** copies the plugin's id, version, state, reason code,
+fingerprint, signing key id, who it is installed for, isolation and the host's
+own message, and nothing of its files or settings.
+
+A note can appear at the top of the window, one at a time:
+**A policy file was found on this computer and could not be trusted, so only
+official plugins will run.** (with **Copy details**), **Your administrator allows
+only official plugins on this computer.**, **Your administrator installs the
+plugins on this computer. Plugins in your own plugin folder are not used.** or
+**Official plugins need a Pro licence.** (with **Licence**).
 
 The line under the name says who stands behind the plugin:
 
@@ -46,83 +66,119 @@ used to decide what Studio shows about it.
 
 The state of a plugin is one of On, Starting, Off, Needs your decision,
 Blocked, Not isolated, Not used, Needs a licence, Stopped, Not compatible,
-Can't be used and Not installed. Under the name of the plugin the page says why
-and what you can do about it.
+Can't be used and Not installed.
 
 ## What the detail shows
 
-The detail of a plugin has, from the top: what it adds (a fixture, a generator,
-a link behaviour or a connection), its description, version and maker, and what
-the running plugin says of itself (**Status**). **Signature** says who stands
-behind it, with a **Virtual Serial Studio** badge for an official plugin only.
-**Signing key** shows the key's id and the day you accepted it, with **Remove
-this key...**. **Fingerprint** has a button that copies it. **Expires**, for a
-plugin that has an end date, and **Licence**, for an official plugin, say
-whether your licence includes it and, when it does not, why. **Timing** reads
-**Timed by Studio** (Studio carries out the plugin's rules itself),
-**In the path of the data** (data on a link waits for the plugin) or **Beside the
-data** (the plugin watches and acts, and data never waits for it). **Isolation** says how
-far it is kept apart. **Installed for** is everyone on this computer, you only or
-came with Studio, and **Folder** has **Show in folder** and a button that copies
-the path. A plugin whose licence check failed says so (**This plugin did not
-accept the licence**) and says what the plugin reported.
+The detail starts with the plugin's name and its state. Under that a note says
+why it is in that state and what to do about it. The next step, such as **Start
+now**, **Review and decide**, **Show the copy that is used**, **Licence** or
+**Start again**, is a normal button under the note. **Copy details**, **Show
+log** and **Run without isolation...** are quiet buttons. A plugin whose licence
+check failed says so under the note (**This plugin did not accept the licence**,
+and what the plugin reported).
 
-- **What it may do** lists the permissions you were asked about. One you turned
-  down is marked **Not allowed**. **Change what it may do...** opens the
-  question again.
+Then come, from the top:
+
+- **What it adds** (a fixture, a generator, a link behaviour or a connection),
+  **Description**, **Version**, **Made by** and, when the running plugin says
+  something of itself, **Status**.
+- **Signature** says who stands behind it and that a signature does not show the
+  plugin is safe. A **Virtual Serial Studio** badge sits next to the sentence for
+  an official plugin only. For a plugin signed with a key that Studio does not
+  have, **Import the author's key...** is under the sentence.
+- **Signing key**, for a plugin signed by an author whose key you accepted, shows
+  the key's id and the day you accepted it, with **Remove this key...**.
+- **What it may do** lists what the plugin asks to be allowed to do, one sentence
+  for each, with the plugin's own reason in quotes when it gave one. The ones
+  that give a plugin the most are marked with a warning. One you turned down is
+  marked **Not allowed**. **Change what it may do...** opens the question again;
+  it is disabled for a plugin your administrator installed (**Set by your
+  administrator**).
 - **What it runs** lists what Studio runs of the plugin, such as one generator
   or one decoder, each with its state (Not running, Waiting, Starting, Running,
-  Stopping or Refused) and **Remove**. A refused one says why, and shows the
-  plugin's own words as plain text. **Add...** has a menu with an entry for
-  each thing the plugin adds. An entry is disabled, with the reason in its tool
-  tip, when the plugin allows no more of that kind or needs settings that Studio
-  cannot ask for yet. When an entry needs a port or a name, Studio asks for it
-  first, and **Add** stays disabled until every field has a value. The list is
-  kept for the next start.
+  Stopping or Refused) and **Remove**. With nothing set up it says **Nothing is
+  set up yet.** A refused one says why, and shows the plugin's own words as
+  plain text. **Add...** has a menu with an entry for each thing the plugin adds.
+  An entry is disabled, with the reason in its tool tip, when the plugin allows
+  no more of that kind or needs settings that Studio cannot ask for yet. When an
+  entry needs a port or a name, Studio asks for it first, in a question called
+  **Add** and the name of the entry, and **Add** stays disabled until every
+  field has a value. The list is kept for the next start.
 - **What it found** is shown under a decoder: a table of the newest frames and
   problems with **Time**, **Place**, **Direction**, **What** and **Kind**. The
   words in it come from the plugin.
 - **Used in this setup** lists the parts of the open setup that use the plugin,
-  each with **Show**.
-- **Recent messages** has the lines the plugin wrote to its log, and **Copy**.
-  They come from the plugin and are shown as plain text.
+  each with **Show**, or says **Not used in this setup.**
+- **Technical details** come last, because they matter less. **Fingerprint** has
+  a button that copies it. **Expires**, for a plugin that has an end date.
+  **Licence** says whether your licence includes an official plugin and, when it
+  does not, why. **Timing** reads **Timed by Studio**, **In the path of the
+  data** or **Beside the data**, and a line under it explains the value: Studio
+  carries out the plugin's rules itself; data on a link waits for the plugin, for
+  up to a number of microseconds each time; or the plugin watches and acts and
+  data never waits for it. **Isolation** reads **Full**, **Partial** and what is
+  missing, **None on this computer**, or, for a plugin you allowed to run without
+  isolation, **None. You allowed this on** a date, with **Undo**. **Installed
+  for** reads **Everyone on this computer**, **You only** or **Came with
+  Studio**. **Folder** has the path, **Show in folder** and a button that copies
+  the path.
+- **Recent messages** and a number has the lines the plugin wrote to its log, and
+  **Copy**. They come from the plugin and are shown as plain text.
 
 ## Deciding about a plugin
 
 A plugin that Studio has not seen before, or whose files changed since you
 allowed it, needs your decision before it can run. Switch it on, or choose
-**Review and decide**. The question lists the plugin's name, version and
-fingerprint, what it adds and each permission it asks for. A permission that the
-plugin needs is a row. A permission that the plugin marks as optional has a
-check box, ticked, that you can untick. The permissions that give a plugin the
-most are marked with a warning.
+**Review and decide**. The question is called **Switch on** *name*? for an official
+plugin, **Run a plugin from** *author*? for one signed by an author whose key you
+accepted, and **Run an unofficial plugin?** for one that is unsigned or signed
+with a key you have not accepted. It says who stands behind
+the plugin, and for an unofficial plugin that it can do anything Studio can and
+that Studio cannot tell who made it or whether it was changed. It lists the
+plugin's name, version and fingerprint, what it adds and, under **It asks to:**,
+each permission it asks for. A permission that the plugin needs is a row marked
+**Needed**. A permission that the plugin marks as optional has a check box,
+ticked, that you can untick. The permissions that give a plugin the most are
+marked with a warning. The last line says how far Studio can keep the plugin
+apart on this computer.
 
 The dialog starts on **Cancel**, and Enter alone cancels. The button that says
-yes reads **Switch on** for an official plugin, **Run this plugin** for one signed
-by an author whose key you accepted and **Run anyway** for one that is unsigned or signed
-with a key you have not accepted. Where this computer cannot keep a plugin that
-is not official apart, it reads **Decide anyway**, and the plugin still does not
-run until you choose **Run without isolation...**, where your administrator
-allows it. Your answer is kept for that version of the
-plugin only. If its files change, Studio asks again, says that you allowed an
-earlier version, and lists what the new version asks for beyond the one you
-allowed. **Change what it may do...** in the detail of a plugin asks again for
-the permissions; it is disabled for a plugin your administrator installed.
+yes reads **Switch on** for an official plugin, **Run this plugin** for one
+signed by an author whose key you accepted and **Run anyway** for one that is
+unsigned or signed with a key you have not accepted. For a plugin signed with a
+key that Studio does not have, **Import the author's key...** is also in the
+question. Where this computer cannot keep a plugin that is not official apart, the
+button reads **Decide anyway**, and the plugin still does not run until you
+choose **Run without isolation...**, where your administrator allows it. Your
+answer is kept for that version of the plugin only. If its files change, Studio
+asks again, says that you allowed an earlier version (**You allowed an earlier
+version of this plugin. Look at what changed before you allow this one.**), and
+lists what the new version asks for beyond the one you allowed (**It asks for
+more than before:**). **Change what it may do...** in the detail of a plugin asks
+again for the permissions; it is disabled for a plugin your administrator
+installed.
 
 ## Accepting an author's key
 
 An author of plugins publishes a small public key file, which ends in
-`.vsskey.json`. Choose **Import a key...** and pick the file. Studio shows the
-author's name, the key's id and its fingerprint in groups of four. Compare the
+`.vsskey.json`. Choose **More options**, then **Import a key...**, and pick the
+file (the picker is called **Choose an author's public key file**). Studio asks
+**Approve the key of** *author*? and shows the author's name, the
+key's id, its fingerprint in groups of four and where the file is. Compare the
 fingerprint with the one the author published on their website or sent you, tick
 **The fingerprint is the one the author published** and choose **Approve this
-key**. If the key file you chose is inside a plugin's folder, Studio warns you
-that anyone who changed the plugin could have changed the file, so compare the
-fingerprint with one from somewhere else. Studio never looks for key files in a
-plugin's folder, and accepting a key never switches a plugin on: each plugin
-still needs its own decision. **Remove this key...** in the detail of a plugin
-asks first, then takes the key back, and the plugins signed with it stop running
-and ask again.
+key**, which stays disabled until you tick the box. If the key file you chose is
+inside a plugin's folder, Studio warns you that anyone who changed the plugin
+could have changed the file, so compare the fingerprint with one from somewhere
+else. A file that is not a plugin key file is refused with **That file is not a
+plugin key file.**, and a key whose id is already on this computer is refused
+and says so. Studio never looks for key files in a plugin's folder, and
+accepting a key never switches a plugin on: each plugin still needs its own
+decision. **Remove this key...** in the detail of a plugin asks **Remove the key
+of** *author*? first (**Plugins signed with this key stop running and
+ask again.**), then **Remove key** takes the key back, and the plugins signed
+with it stop running and ask again.
 
 ## Running a plugin without isolation
 
@@ -138,8 +194,8 @@ this plugin apart**. **Undo** in the Isolation row takes it back.
 
 - **Toolbox (Advanced).** A **Plugins** group under Ports and Bundles has a tile for each fixture type of a plugin that is switched on. A plugin that is starting, that needs a licence or that stopped keeps its tile, disabled, and the tile says why. A plugin that is switched off, waiting for your decision, blocked, not isolated, not used, not compatible or that cannot be used has no tile. A tile of a plugin that is on is also disabled, with the reason in its tool tip, while Studio cannot play a recording as a device, as for a Recorded device tile. A tile's top right corner has the plugin mark, and its menu has **Show in Plugins**.
 - **Ports.** A port that a plugin provides says so in the Inspector (**Provided by**). While its plugin is not available the port stays open and sends nothing, the canvas marks it **Plugin not available**, and the Inspector says why and offers the action that helps: **Switch on**, **Review and decide**, **Licence**, **Start again** or **Show in Plugins**. Its settings are kept.
-- **Notices.** One notice at a time appears at the top of the window when a new plugin is found, when a plugin changed and was stopped, when a plugin that your setup uses stopped, or when a plugin was withdrawn. A notice never takes the focus and **Dismiss** hides it.
-- **Status bar.** While a plugin reads the data of ports or links, a chip reads **Reading data**, or **Recording** when it records. It opens Plugins.
+- **Notices.** One notice at a time appears at the top of the window when a new plugin is found (**Review and decide**), when a plugin changed since you decided about it and was stopped (**Review and decide**), when a plugin that your setup uses stopped (**Plugins** and **Start again**), or when a plugin was withdrawn (**Plugins**). A notice never takes the focus and **Dismiss** hides it.
+- **Status bar.** While a plugin reads the data of ports or links, a chip to the left of the edition chip reads **Reading data**, or **Recording** when a plugin records. It opens Plugins. Switching a plugin on or off, or starting it again, also puts a short message in the status bar, such as "*name* is on.". A message in the status bar takes the place of the counts on the left (ports, links, receive and transmit rates, and the engine) until it goes, and then the counts come back. The chips on the right stay.
 - **Licence.** The row of the official plugins on the Licence page has a **Plugins** link.
 
 ## Decoding traffic
@@ -180,28 +236,72 @@ setup. While a plugin reads data, the status bar chip says **Reading data** or
 
 ## Adding and removing a plugin
 
-**Add a plugin...** asks for a plugin's folder and looks into it first. A
-question shows the plugin's version, who made it, what its signature says, its
-fingerprint and whether it can be used, and copies nothing until you choose
-**Add plugin**. A plugin that cannot be used cannot be added. The copy goes into
-your own plugin folder, for you only, and the new row is selected. Nothing runs,
-and Studio says to review the plugin before it runs. If the plugin is already installed for
-everyone on this computer, or came with Studio, that copy is the one that runs,
-so Studio does not add a second one for you and says so. A copy that is not used
-says which copy runs instead. The same question shows the command for installing
-it for everyone, `vss_cli plugin install <folder> --for-everyone`, as text to
-copy: Studio never asks for administrator rights. **Remove plugin...** asks first
-and deletes the plugin's folder; it does not go to the bin. Setups that use the
-plugin keep their parts, which stop working until the plugin is installed
-again. The plugin's saved data is kept unless you tick **Also delete its saved
-data**. It is for a plugin installed for you only: a plugin that your
-administrator installed or that came with Studio cannot be removed here. An
-administrator can also put a plugin's folder in the machine plugin folder, which
-the page shows under the list. If your administrator has turned your own plugin
-folder off, **Add a plugin...** and **Open the plugin folder** are disabled.
+**Add a plugin...** asks for a plugin's folder (**Choose a plugin's folder**) and
+looks into it first. A question called **Add** *name*? shows the plugin's
+version, who made it, what its signature says, its signing key and its
+fingerprint, says what is wrong with it or **Nothing is wrong with it.**, and
+copies nothing until you choose **Add plugin**. A folder with no `plugin.json`
+says **That folder is not a plugin. A plugin's folder holds a file named
+plugin.json.** A plugin that cannot be used cannot be added (**Studio cannot add
+this plugin.** and why). The copy goes into your own plugin folder, for you
+only, and the new row is selected. Nothing runs, and Studio says **Added for you
+only. Review it before it runs.** If you already have a copy that you added for
+yourself, the folder is another version of it: see [Upgrading a
+plugin](#upgrading-a-plugin). If the plugin is already installed for everyone on
+this computer, or came with Studio, that copy is the one that runs, so Studio
+does not add a second one for you and says so. A copy that is not used says which
+copy runs instead. For any folder that holds a plugin the same question shows
+the command for installing it for everyone, `vss_cli plugin install <folder>
+--for-everyone`, as text to copy: Studio never asks for administrator rights.
+**Remove plugin...** asks **Remove** *name*? first and deletes the plugin's
+folder; it does not go to the bin. Setups that use the plugin keep their parts,
+which stop working until the plugin is installed again. The plugin's saved data
+is kept unless you tick **Also delete its saved data**. It is for a plugin
+installed for you only: a plugin that your administrator installed or that came
+with Studio cannot be removed here (the button is disabled and its tool tip says
+**Installed by your administrator** or **Came with Studio**). An administrator
+can also put a plugin's folder in the machine plugin folder, which the page shows
+under the list. If your administrator has turned your own plugin folder off,
+**Add a plugin...** and **Open the plugin folder** are disabled.
 
 When Studio cannot use a plugin because of its `plugin.json`, the question says
 so and adds what is wrong, as Studio's check found it.
+
+## Upgrading a plugin
+
+To put a new version of a plugin that you added for yourself in place of the one
+you have, choose **Add a plugin...** and pick the folder of the new version.
+Studio sees that you have a copy of that plugin, and the question reads
+**Upgrade** *name*?. It lists the new version (**Version**) and the version you
+have (**Your version**). It replaces your copy only when you choose **Upgrade
+plugin**. Studio switches the plugin off first if it is running, waits until it
+has stopped, and replaces the plugin's folder. The plugin's settings, its
+instances and its saved data stay, and Studio says "Upgraded *name*. Review it
+before it runs."
+
+The new files are a version you have not decided about, so the plugin does not
+run until you do. Its row is in **Needs your decision**. If you had decided about
+your old copy, a notice says that the plugin changed and was stopped, the row
+says that it changed and that you are to review it again before it runs, and
+**Review and decide** says what changed since the version you allowed. You do not
+have to remove the plugin first.
+
+A folder with the same version as your copy but other files is offered as
+**Replace** *name*?, with the button **Replace plugin**. The question says **Your
+copy has the same version** and names it. A folder with an older version is
+offered as **Replace** *name* **with an older version?**, with the same button,
+and the question says **Your copy is version** and names it, then **This folder
+holds an older version.** Both are shown as a warning, and Studio says "Replaced
+*name*. Review it before it runs." when it is done.
+
+A folder with exactly the files you have is refused, because there is nothing to
+change: the question says that the plugin is already installed for you with the
+same files, and **Add plugin** stays disabled. A plugin that your administrator
+installed for everyone, or that came with Studio, is not replaced from here: that
+copy is the one that runs. The administrator replaces a copy for everyone with
+`vss_cli plugin install <folder> --for-everyone --replace`, and the question
+shows that command. For a copy that came with Studio the command has no
+`--replace`.
 
 ## Listing plugins with `vss_cli plugin list`
 
