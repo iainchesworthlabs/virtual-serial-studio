@@ -70,11 +70,16 @@ std::optional<std::string> read_signed_file(const fs::path& path)
 
 /// Writes `bytes` to a file beside `target` and renames it to `target`, so
 /// that no reader sees half a file. An existing `target` is replaced.
-bool write_whole_file(const fs::path& target, std::string_view bytes)
+bool write_whole_file(const fs::path& requested, std::string_view bytes)
 {
+    // The path is resolved to its canonical form first, so the file that is
+    // written is the one the path really leads to.
+    std::error_code failed;
+    const fs::path target = fs::weakly_canonical(requested, failed);
+    if (failed)
+        return false;
     fs::path temporary = target;
     temporary += ".part";
-    std::error_code failed;
     {
         std::ofstream out(temporary, std::ios::binary | std::ios::trunc);
         if (!out)

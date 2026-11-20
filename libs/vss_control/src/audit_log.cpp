@@ -532,13 +532,23 @@ result<std::unique_ptr<audit_log>> audit_log::open(audit_options options)
             platform::ensure_private_directory(options.directory))
         return failed;
 
+    // The files are read and written through the directory resolved to its
+    // canonical form, so a link in the path is followed once, here.  The
+    // path that is reported stays the one that was asked for.
+    std::error_code resolved;
+    const std::filesystem::path directory =
+        std::filesystem::weakly_canonical(options.directory, resolved);
+    if (resolved)
+        return make_error_code(errc::invalid_argument);
+
     const std::filesystem::path current = options.directory / file_name(0);
-    auto file = platform::open_private_append(current);
+    const std::filesystem::path opened = directory / file_name(0);
+    auto file = platform::open_private_append(opened);
     if (!file)
         return file.error();
 
     std::error_code measured;
-    std::uintmax_t size = std::filesystem::file_size(current, measured);
+    std::uintmax_t size = std::filesystem::file_size(opened, measured);
     if (measured)
         return make_error_code(errc::io_error);
 
@@ -547,7 +557,7 @@ result<std::unique_ptr<audit_log>> audit_log::open(audit_options options)
     // does not join it; `verify_audit_log` reports that line.
     bool ends_with_newline = true;
     std::optional<std::string> last =
-        read_last_line(current, ends_with_newline);
+        read_last_line(opened, ends_with_newline);
     if (last && !ends_with_newline)
     {
         if (const error_code failed = (*file)->append("\n"))
@@ -557,7 +567,7 @@ result<std::unique_ptr<audit_log>> audit_log::open(audit_options options)
     if (!last && size == 0)
     {
         bool ignored = true;
-        last = read_last_line(options.directory / file_name(1), ignored);
+        last = read_last_line(directory / file_name(1), ignored);
     }
 
     std::uint64_t sequence = 0;

@@ -47,9 +47,11 @@ bool handle_is_open(std::intptr_t handle);
 /// Every variable of the environment as "NAME=value".
 std::vector<std::string> environment();
 
-/// Starts this same program again (`self` is how it was started) with the
-/// one argument `--hang`.  The child shares standard output and standard
-/// error.  Its process id, or -1 when it could not be started.
+/// Starts a child that says "hanging" and then waits for ever, as this program
+/// does with the one argument `--hang`.  On Windows it starts this same
+/// program again (`self` is how it was started); elsewhere `self` is not
+/// used.  The child shares standard output and standard error.  Its process
+/// id, or -1 when it could not be started.
 long long start_idle_child(const char* self);
 
 /// Makes this process ignore the request to stop (SIGTERM).  Does nothing on

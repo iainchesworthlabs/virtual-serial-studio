@@ -136,15 +136,19 @@ std::vector<std::string> environment()
     return entries;
 }
 
-long long start_idle_child(const char* self)
+long long start_idle_child(const char*)
 {
     const pid_t child = ::fork();
     if (child < 0)
         return -1;
     if (child == 0)
     {
-        ::execl(self, self, "--hang", static_cast<char*>(nullptr));
-        ::_exit(127);
+        // What `--hang` does, without starting the program again: say so on
+        // standard output, then wait until something ends the process.
+        constexpr std::string_view text = "hanging\n";
+        static_cast<void>(::write(STDOUT_FILENO, text.data(), text.size()));
+        for (;;)
+            ::pause();
     }
     return static_cast<long long>(child);
 }
