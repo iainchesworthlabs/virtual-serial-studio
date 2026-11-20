@@ -104,7 +104,8 @@ notes from the pending fragments, needs no change to `CHANGELOG.md` and does not
 3. Tag the merged commit on `develop` and push the tag. The `package` jobs
    build, the owner approves the `release` environment, and the `publish` job
    signs, attests and publishes. For a final release it then moves `main` to
-   the tag.
+   the tag. After the update feed is attached, the `site` job moves the branch
+   `site` to the tag, which publishes the site (see [The site](#the-site)).
 
 ## Trying it first
 
@@ -114,6 +115,19 @@ on a pull request that changes the workflow, so a change to the install rules
 cannot go unseen for long. The Monday run is on `develop`, so it is the status of
 the packaging jobs for that branch. Unpack each package on its system and run
 `vss_cli selftest`; start `vss_gui` on a machine with a display.
+
+## The site
+
+The live site (at the address `site_url` gives in `mkdocs.yml`) describes the latest published release, a release candidate
+included. The company stack trusts a push to the branch `site` of this repository, and to no other branch, to deploy it. The `site` job
+of `release.yml` fast-forwards `site` to the tagged commit (the `version` job has already checked that the commit is on `develop`, so
+`site` only moves forward along `develop`). It runs after the `feed` job, so the site is built with the signed update feed that the
+release carries, and it uses the release bot's App token because a push made with `GITHUB_TOKEN` does not start workflows. The Docs
+workflow then builds and deploys ([Continuous integration](ci.md#publishing)). A release candidate moves `site` but never `main`.
+
+The shared publish workflow moves `main` only for a final release and has no way to move another branch for a release candidate, so the
+move is in this repository. The branch is created by the owner, who also allows the release bot to push to it in the rulesets. If the tag
+is not ahead of `site`, the job stops and the live site stays as it was.
 
 ## Where `main` fits
 
@@ -221,13 +235,14 @@ The job does this:
 - Add the private half of the first key as the secret `UPDATE_FEED_PRIVATE_KEY` of the `release`
   environment.
 
-**The website.** Studio reads the feed from `https://virtual-serial-studio.com/updates/v1/feed.json`.
-The Docs workflow downloads `update-feed.json` of the newest release that has one and writes it
-there unchanged (`tools/site_build.py --refresh-release`), and `tools/site_check.py` verifies the
-copy with the keys in `trusted_keys_release.cpp`. The push to `main` that a final release makes starts
-the Docs workflow before the `feed` job has attached the file, so after the `feed` job has
-finished, run the Docs workflow by hand on `main` (`gh workflow run docs.yml --ref main`). Do the same
-after a pre-release. Studio sees the new feed only when the site has been published.
+**The site.** Studio reads the feed from `https://virtual-serial-studio.com/updates/v1/feed.json`.
+The Docs workflow, on a push to `site`, downloads `update-feed.json` of the newest release that has
+one into `tools/docs/release/` (`tools/docs/refresh_release.py`), the site build copies it unchanged
+to `updates/v1/feed.json`, and `tools/ci/check_release_data.py` verifies the copy with the keys in
+`trusted_keys_release.cpp` ([Continuous integration](ci.md#release-data-and-the-update-feed)). The
+`site` job moves the `site` branch after the `feed` job has attached the file, so the Docs workflow
+that it starts sees the feed, for a final release and for a pre-release. Studio sees the new feed only
+when the site has been published.
 
 **Publishing a feed again between releases** (a summary corrected, a file withdrawn). There is no
 manual run of the job, because the private key is kept by the owner and a run in the `release`
@@ -248,7 +263,8 @@ The first `verify` prints the serial of the feed that is published. The new one 
 because Studio refuses a lower serial than it has accepted. To change a summary, edit
 `feed-input/stable/summary.txt` (or `preview`) before `payload`. To withdraw a release, leave its
 folder out of `payload`, so that the feed no longer names it ([Online updates](updates.md),
-section 10). Then run the Docs workflow as above.
+section 10). The site has the new feed at the next release. To publish it sooner, re-run the Docs workflow run of the last push to
+`site` (a re-run of a push run is still a push, so the deploy role accepts it).
 
 ## Linux packages
 

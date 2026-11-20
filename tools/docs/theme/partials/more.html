@@ -1,0 +1,8 @@
+{#-
+    SPDX-License-Identifier: GPL-3.0-or-later
+-#}
+{%- import "partials/links.html" as links with context -%}
+<nav class="vss-more" aria-label="More about Virtual Serial Studio"><div class="icl-wrap">
+  <p>Virtual Serial Studio is made by Iain Chesworth Labs.</p>
+  <ul>{% for path, label in links.more %}<li><a href="{{ base_url }}/{{ path }}">{{ label }}</a></li>{% endfor %}<li><a href="{{ config.repo_url }}/releases">Releases on GitHub</a></li><li><a href="{{ config.repo_url }}">Source on GitHub</a></li></ul>
+</div></nav>

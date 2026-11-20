@@ -2,7 +2,7 @@
 
 This page records who the window is for, how the two levels differ, and the
 human-factors reasoning behind the layout. The task-by-task instructions live
-in [user-guide.md](user-guide.md). The screen-by-screen specifications are in
+in [the user guide](user-guide/index.md). The screen-by-screen specifications are in
 [the screen specifications](https://github.com/iainchesworthlabs/virtual-serial-studio/blob/develop/docs/gui-design/docs/00-product-brief.md).
 
 ## Who it is for
@@ -215,10 +215,16 @@ the setup, log and environment; it never holds the bytes the ports carried.
 - **Theme and density follow the user.** The theme follows the desktop by
   default and can be forced, because lab machines and screenshots often need a
   fixed light or dark surface. Density is comfortable or compact.
-- **No fonts are shipped.** The window inherits the platform UI font, so text
-  metrics, scripts and accessibility settings match the rest of the desktop.
-- **Nine languages, right to left included.** Hebrew, Yiddish and Arabic mirror
-  the whole layout. See [i18n.md](i18n.md).
+- **Almost all text uses the platform font.** The window inherits the platform UI
+  font, so text metrics, scripts and accessibility settings match the rest of the
+  desktop. Three open-licence fonts are embedded for two jobs only: IBM Plex
+  Mono for the hex, byte and monitor columns, and Noto Sans Hebrew and Noto Sans
+  Arabic for the letters the system font cannot draw
+  (`THIRD_PARTY_NOTICES.md`, "Bundled fonts"). No Chinese or Japanese font is
+  included.
+- **English and eight translations, right to left included.** French, Spanish,
+  German, Hebrew, Yiddish, Japanese, Simplified Chinese and Arabic. Hebrew,
+  Yiddish and Arabic mirror the whole layout. See [i18n.md](i18n.md).
 
 ## Accessibility
 
