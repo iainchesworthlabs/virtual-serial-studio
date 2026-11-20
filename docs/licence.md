@@ -7,7 +7,7 @@ title_tag: "Licensing: Virtual Serial Studio"
 description: "Virtual Serial Studio is free software under the GPL, version 3 or later. How a licence file works for Pro, the Boost.VirtualSerial dependency and the driver."
 ---
 <!-- OWNER DECISION: the terms of Pro and Enterprise: the licence terms themselves, the definition of a seat, the trial terms, the grace period, the version window (updates_until), the warranty and liability wording, and what the commercial terms say about the Windows driver signed by Microsoft. None of it is decided in the repository, and this page states none of it. docs/licensing.md and docs/editions.md are design pages, and they describe more than is built. -->
-<!-- OWNER DECISION: the text of this page needs a solicitor. docs/editions.md names two points: copyright in code written with AI assistance, and the GPL-3.0 clause on installation information as it applies to a signed driver. -->
+<!-- OWNER DECISION: the text of this page needs a solicitor. docs/editions.md names two points: who holds the copyright in parts of the code (docs/editions.md says which), and the GPL-3.0 clause on installation information as it applies to a signed driver. -->
 
 # Licensing
 
