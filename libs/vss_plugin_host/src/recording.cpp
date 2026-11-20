@@ -191,10 +191,10 @@ constexpr unsigned all_six_lines =
 using sha256_hasher = boost::hash2::sha2_256;
 
 /// The parts one after the other as one text, for a message.
-std::string words(std::initializer_list<std::string_view> parts)
+std::string words(std::initializer_list<std::string> parts)
 {
     std::string out;
-    for (const std::string_view part : parts)
+    for (const std::string& part : parts)
         out.append(part);
     return out;
 }
@@ -1525,6 +1525,7 @@ private:
 std::optional<recording_event> parse_event(std::string_view line,
                                            std::string& why)
 {
+    // Each line is parsed strictly on its own and must be a JSON object.
     std::string what;
     const std::optional<json::value> root =
         plugin::detail::parse_strict(line, max_json_depth, what);
@@ -1540,6 +1541,8 @@ std::optional<recording_event> parse_event(std::string_view line,
     }
     const json::object& object = root->get_object();
 
+    // Every event has a time and a kind. The kind decides which other
+    // members are read below.
     recording_event event;
     const auto time = whole_number(object.if_contains("t_ns"));
     if (!time || *time > recording_max_number)
@@ -1555,6 +1558,7 @@ std::optional<recording_event> parse_event(std::string_view line,
         return std::nullopt;
     }
 
+    // Data: a direction, a byte count and the bytes as lower-case hex.
     if (*kind == "data")
     {
         event.kind = recording_event_kind::data;
@@ -1572,6 +1576,7 @@ std::optional<recording_event> parse_event(std::string_view line,
             why = "has bytes that is not a whole number of 1 to 4096";
             return std::nullopt;
         }
+        // The hex text must be exactly two digits for each byte counted.
         const auto hex = text_of(object.if_contains("hex"));
         const auto size = static_cast<std::size_t>(*count);
         if (!hex || hex->size() != 2 * size)
@@ -1588,6 +1593,8 @@ std::optional<recording_event> parse_event(std::string_view line,
         }
         return event;
     }
+    // Line change: the state of all six control lines, and the list of
+    // those that changed.
     if (*kind == "line")
     {
         event.kind = recording_event_kind::line;
@@ -1609,6 +1616,7 @@ std::optional<recording_event> parse_event(std::string_view line,
             }
             event.lines.set(line_id, state->get_bool());
         }
+        // The changed list holds known line names, each at most once.
         const json::value* names = object.if_contains("changed");
         if (names == nullptr || !names->is_array() ||
             names->get_array().empty() ||
@@ -1636,6 +1644,7 @@ std::optional<recording_event> parse_event(std::string_view line,
         }
         return event;
     }
+    // Fault: a short note of plain text.
     if (*kind == "fault")
     {
         event.kind = recording_event_kind::fault;
@@ -1649,6 +1658,7 @@ std::optional<recording_event> parse_event(std::string_view line,
         event.fault = std::string(*text);
         return event;
     }
+    // Dropped: how many bytes were lost between the events either side.
     if (*kind == "dropped")
     {
         event.kind = recording_event_kind::dropped;
@@ -1661,6 +1671,8 @@ std::optional<recording_event> parse_event(std::string_view line,
         event.lost = *count;
         return event;
     }
+    // Any other kind is refused, not skipped, so a newer file is not read
+    // as if it were complete.
     why = words({"has the kind ", plugin::detail::quoted(*kind),
                  ", which this reader does not know"});
     return std::nullopt;

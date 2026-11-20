@@ -454,6 +454,7 @@ TEST_CASE("share wizard: a click anywhere on a device row selects it")
     const auto centre_of_row = [&wizard](QRadioButton* radio)
     {
         QWidget* row = radio->parentWidget();
+        REQUIRE(row != nullptr);
         return row->mapTo(&wizard, QPoint(row->width() / 2, row->height() / 2));
     };
 
@@ -489,6 +490,7 @@ TEST_CASE("share wizard: a double-click or Enter on a device row goes on")
         const auto radios = wizard.findChildren<QRadioButton*>();
         REQUIRE_EQ(radios.size(), 2);
         QWidget* row = radios.at(1)->parentWidget();
+        REQUIRE(row != nullptr);
         vss_test::double_click_at(
             &wizard,
             row->mapTo(&wizard, QPoint(row->width() / 2, row->height() / 2)));

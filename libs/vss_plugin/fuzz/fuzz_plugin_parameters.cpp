@@ -95,8 +95,7 @@ void require_checked(const std::vector<plugin::checked_parameter>& values)
         if (item.scope)
         {
             const auto* const text = std::get_if<std::string>(&item.value);
-            require(text != nullptr);
-            require(*text == item.scope->path);
+            require(text != nullptr && *text == item.scope->path);
             require(!item.scope->path.empty());
             require(item.scope->path.size() <=
                     plugin::max_path_parameter_length);

@@ -217,6 +217,7 @@ reject_reason validate(const decoded_frame& frame, text_marks& marks)
 
 reject_reason validate(const decoded_trigger& trigger, text_marks& marks)
 {
+    // The kind and direction must be known values.
     if (trigger.kind < decode_trigger_kind::framing ||
         trigger.kind > decode_trigger_kind::custom ||
         (trigger.direction != decode_direction::rx &&
@@ -224,6 +225,7 @@ reject_reason validate(const decoded_trigger& trigger, text_marks& marks)
     {
         return reject_reason::bad_value;
     }
+    // A custom trigger carries a code, and only a custom trigger does.
     const bool custom = trigger.kind == decode_trigger_kind::custom;
     if (custom != !trigger.code.empty())
     {
@@ -237,6 +239,8 @@ reject_reason validate(const decoded_trigger& trigger, text_marks& marks)
     {
         return reject_reason::number_out_of_range;
     }
+    // Check the length and content of every text member. `fail` keeps the
+    // first reason, so the caller sees one cause.
     first_failure fail;
     fail(text_ok(trigger.place, 1, max_place, marks));
     fail(text_ok(trigger.sender, 0, max_place, marks));
@@ -261,10 +265,14 @@ reject_reason validate(const decoded_trigger& trigger, text_marks& marks)
     {
         return fail.reason;
     }
+    // An expected value makes no sense without the actual one, or the
+    // other way round.
     if (trigger.expected.empty() != trigger.actual.empty())
     {
         return reject_reason::bad_combination;
     }
+    // The frame the trigger points at: its span must fit and it must not
+    // end before it starts.
     if (trigger.frame)
     {
         const decode_trigger_frame& frame = *trigger.frame;
@@ -286,6 +294,7 @@ reject_reason validate(const decoded_trigger& trigger, text_marks& marks)
             return reject_reason::number_out_of_range;
         }
     }
+    // The range of events the trigger covers must run forwards.
     if (trigger.covers)
     {
         if (!number_ok(trigger.covers->first) ||
@@ -298,6 +307,8 @@ reject_reason validate(const decoded_trigger& trigger, text_marks& marks)
             return reject_reason::bad_combination;
         }
     }
+    // The cause is either a bus fault or one of the plugin's own actions;
+    // anything else is refused.
     if (trigger.cause)
     {
         const decode_cause& cause = *trigger.cause;

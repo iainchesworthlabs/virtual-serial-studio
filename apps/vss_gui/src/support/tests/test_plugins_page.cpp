@@ -200,13 +200,19 @@ QString removed_characters()
 TEST_CASE("plugins page: every state shows its chip, its sentence and its "
           "action, as the spec words them")
 {
+    // The fixture has one plugin in each state the page can show. Open the
+    // page and let it lay out before reading anything from it.
     fixture env;
     PluginsDialog dialog(env.backend);
     dialog.show();
     settle();
 
+    // The date in the "expired" sentence is written in the local format, so
+    // the expected text is built the same way.
     const QString date =
         QLocale().toString(QDate(2026, 6, 30), QLocale::LongFormat);
+    // What a row of the table below expects to see in the detail pane: the
+    // chip, the note (empty when there is none) and the action buttons.
     struct row
     {
         const char* id;
@@ -215,11 +221,19 @@ TEST_CASE("plugins page: every state shows its chip, its sentence and its "
         QString note;
         QStringList actions;
     };
+    // The sentence for a plugin that needs a licence is the reason from the
+    // licence module followed by what happens to the plugin's settings.
     const QString licence_note =
         reason_sentence(vss::license::reason::no_licence,
                         vss::license::no_licence()) +
         QStringLiteral(" Its settings are kept, and it runs again when a "
                        "licence allows it.");
+    // The table follows the states in order: running or starting, off,
+    // waiting for a decision, blocked by policy or by a lack of isolation,
+    // needing a licence, stopped, and the plugins that cannot be used. The
+    // words are the ones the spec gives for each. The first row names its
+    // folder, as two plugins share this identifier and the folder tells
+    // them apart.
     const std::vector<row> rows = {
         {"com.virtualserialstudio.modbus", "Modbus fixture", "On", {}, {}},
         {"org.example.replay",
@@ -332,13 +346,17 @@ TEST_CASE("plugins page: every state shows its chip, its sentence and its "
                         "this computer. Its parts of the setup are kept."),
          {}},
     };
+    // Select each plugin in turn and compare what the detail pane shows.
     for (const row& each : rows)
     {
         REQUIRE(dialog.select(QString::fromLatin1(each.id)));
         settle();
+        // Every state has a chip.
         StatusChip* chip = detail_chip(dialog);
         REQUIRE(chip != nullptr);
         REQUIRE_EQ(chip->text(), QString::fromLatin1(each.chip));
+        // A note is shown only when the row has words for it. Without one
+        // there must be no banner at all, not an empty one.
         NoteBanner* note = detail_note(dialog);
         if (each.note.isEmpty())
         {
@@ -349,6 +367,7 @@ TEST_CASE("plugins page: every state shows its chip, its sentence and its "
             REQUIRE(note != nullptr);
             REQUIRE_EQ(note->text(), each.note);
         }
+        // The buttons must match in text and in order, with none extra.
         REQUIRE_EQ(action_texts(dialog), each.actions);
     }
 
@@ -358,11 +377,14 @@ TEST_CASE("plugins page: every state shows its chip, its sentence and its "
                           QStringLiteral("C:/Users/you/Studio/plugins/Modbus "
                                          "fixture (your copy)")));
     settle();
+    // The copy that is not used has the chip and the sentence that say so,
+    // and the note names the kind of each copy.
     REQUIRE_EQ(detail_chip(dialog)->text(), QStringLiteral("Not used"));
     REQUIRE_EQ(detail_note(dialog)->text(),
                QStringLiteral("Another plugin with the same identifier is "
                               "installed, Official. This one, Unsigned, is "
                               "not used. They are not the same plugin."));
+    // Its first action leads to the copy that is used.
     REQUIRE_EQ(action_texts(dialog),
                (QStringList{QStringLiteral("Show the copy that is used"),
                             QStringLiteral("Copy details")}));
@@ -736,19 +758,13 @@ plugin_inspection_view inspection_of(const char* id, const QString& folder)
 
 } // namespace
 
-TEST_CASE("plugins page: Add a plugin looks first, shows what it found, and "
-          "copies only when the person confirms")
+namespace
 {
-    fixture env;
-    PluginsDialog dialog(env.backend);
-    QString chosen = QStringLiteral("C:/somewhere/plugin");
-    dialog.set_folder_picker([&chosen] { return chosen; });
-    dialog.show();
-    settle();
-    env.backend.set_inspection(chosen,
-                               inspection_of("org.hobby.scanner", chosen));
 
-    // Cancel: the folder was looked at and nothing was copied.
+/// Cancels the install dialog: the folder was looked at and nothing was
+/// copied.
+void cancel_the_add(fixture& env, PluginsDialog& dialog)
+{
     when_shown<PluginInstallDialog>([](PluginInstallDialog& each)
                                     { each.cancel_button()->click(); });
     env.backend.clear_requests();
@@ -762,8 +778,11 @@ TEST_CASE("plugins page: Add a plugin looks first, shows what it found, and "
     }
     REQUIRE_EQ(env.backend.inspected().size(), 1);
     REQUIRE(env.backend.requests().empty());
+}
 
-    // Confirm: the host is asked to add exactly that folder.
+/// Confirms the install dialog: the host is asked to add exactly that folder.
+void confirm_the_add(fixture& env, PluginsDialog& dialog, const QString& chosen)
+{
     when_shown<PluginInstallDialog>([](PluginInstallDialog& each)
                                     { each.add_button()->click(); });
     dialog.add_button()->click();
@@ -773,6 +792,24 @@ TEST_CASE("plugins page: Add a plugin looks first, shows what it found, and "
             return env.backend.count_of(plugin_request_kind::add_plugin) == 1;
         }));
     REQUIRE_EQ(env.backend.requests()[0].path, chosen);
+}
+
+} // namespace
+
+TEST_CASE("plugins page: Add a plugin looks first, shows what it found, and "
+          "copies only when the person confirms")
+{
+    fixture env;
+    PluginsDialog dialog(env.backend);
+    QString chosen = QStringLiteral("C:/somewhere/plugin");
+    dialog.set_folder_picker([&chosen] { return chosen; });
+    dialog.show();
+    settle();
+    env.backend.set_inspection(chosen,
+                               inspection_of("org.hobby.scanner", chosen));
+
+    cancel_the_add(env, dialog);
+    confirm_the_add(env, dialog, chosen);
 
     // A person who chose no folder looks at nothing.
     chosen.clear();

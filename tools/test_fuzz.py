@@ -11,8 +11,8 @@ import re
 import subprocess
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 import fuzz
 
@@ -86,7 +86,7 @@ class TimeBudget(unittest.TestCase):
         self.assertEqual(fuzz.seconds_per_target("regress", 8, 1), 0)
 
     def test_main_refuses_a_budget_that_is_too_small_and_runs_nothing(self):
-        with mock.patch.object(fuzz.subprocess, "run") as run:
+        with unittest.mock.patch.object(fuzz.subprocess, "run") as run:
             self.assertEqual(fuzz.main(["--mode", "nightly", "--budget-minutes", "1"]), 2)
         run.assert_not_called()
 
@@ -100,9 +100,9 @@ class TimeBudget(unittest.TestCase):
                 raise subprocess.TimeoutExpired(line, timeout)
             return subprocess.CompletedProcess(line, 0)
 
-        with tempfile.TemporaryDirectory() as work, mock.patch.object(
+        with tempfile.TemporaryDirectory() as work, unittest.mock.patch.object(
             fuzz, "harnesses", return_value=sources
-        ), mock.patch.object(fuzz.subprocess, "run", side_effect=fake_run):
+        ), unittest.mock.patch.object(fuzz.subprocess, "run", side_effect=fake_run):
             status = fuzz.main(["--mode", "short", "--work-dir", work])
         self.assertEqual(status, 1)
         self.assertEqual(calls, [("fuzz_a", 60 + fuzz.GRACE_SECONDS), ("fuzz_b", 60 + fuzz.GRACE_SECONDS)])

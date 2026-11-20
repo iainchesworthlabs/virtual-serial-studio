@@ -153,7 +153,7 @@ public:
     boost::asio::io_context io;
     std::unique_ptr<agent::local_stream> stream;
     agent::frame_reader reader;
-    std::array<byte, std::size_t{16} * 1024> chunk;
+    std::array<byte, std::size_t{16} * 1024> chunk{};
     bool reading = false;
     boost::system::error_code read_ec;
     std::size_t read_size = 0;

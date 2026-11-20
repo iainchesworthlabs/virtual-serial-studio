@@ -2100,6 +2100,67 @@ void PluginsDialog::on_key_file_read(quint64 request,
     }
 }
 
+// What the person is told when the host has finished adding a plugin.
+void PluginsDialog::on_plugin_added(const plugin_request_result& result)
+{
+    if (result.error == plugin_request_error::none)
+    {
+        const QString name = plain_text(result.plugin_name);
+        QString text;
+        switch (result.replaced)
+        {
+        case plugin_replacement::none:
+            text = QCoreApplication::translate(
+                "PluginsDialog",
+                "Added for you only. Review it before it runs.");
+            break;
+        case plugin_replacement::upgrade:
+            text = QCoreApplication::translate("PluginsDialog",
+                                               "Upgraded %1. Review it "
+                                               "before it runs.")
+                       .arg(name);
+            break;
+        case plugin_replacement::replace:
+        case plugin_replacement::downgrade:
+            text = QCoreApplication::translate("PluginsDialog",
+                                               "Replaced %1. Review it "
+                                               "before it runs.")
+                       .arg(name);
+            break;
+        }
+        ToastManager::instance().show(this, text);
+        return;
+    }
+    waiting_for_add_ = false;
+    if (result.error == plugin_request_error::already_installed)
+    {
+        show_message(NoteBanner::kind::warn,
+                     QCoreApplication::translate(
+                         "PluginsDialog", "%1 is already installed for you.")
+                         .arg(plain_text(result.plugin_name)));
+    }
+    else if (result.error == plugin_request_error::installed_for_everyone ||
+             result.error == plugin_request_error::came_with_studio)
+    {
+        show_message(
+            NoteBanner::kind::warn,
+            installed_elsewhere_text(
+                result.error == plugin_request_error::came_with_studio
+                    ? plugin_installed_for::with_studio
+                    : plugin_installed_for::everyone,
+                result.plugin_name));
+    }
+    else if (result.error == plugin_request_error::not_a_plugin)
+    {
+        show_message(
+            NoteBanner::kind::warn,
+            QCoreApplication::translate(
+                "PluginsDialog",
+                "That folder is not a plugin. A plugin's folder holds "
+                "a file named plugin.json."));
+    }
+}
+
 void PluginsDialog::on_request_finished(const plugin_request_result& result)
 {
     switch (result.kind)
@@ -2114,62 +2175,7 @@ void PluginsDialog::on_request_finished(const plugin_request_result& result)
                             nullptr, result.count));
         break;
     case plugin_request_kind::add_plugin:
-        if (result.error == plugin_request_error::none)
-        {
-            const QString name = plain_text(result.plugin_name);
-            QString text;
-            switch (result.replaced)
-            {
-            case plugin_replacement::none:
-                text = QCoreApplication::translate(
-                    "PluginsDialog",
-                    "Added for you only. Review it before it runs.");
-                break;
-            case plugin_replacement::upgrade:
-                text = QCoreApplication::translate("PluginsDialog",
-                                                   "Upgraded %1. Review it "
-                                                   "before it runs.")
-                           .arg(name);
-                break;
-            case plugin_replacement::replace:
-            case plugin_replacement::downgrade:
-                text = QCoreApplication::translate("PluginsDialog",
-                                                   "Replaced %1. Review it "
-                                                   "before it runs.")
-                           .arg(name);
-                break;
-            }
-            ToastManager::instance().show(this, text);
-            break;
-        }
-        waiting_for_add_ = false;
-        if (result.error == plugin_request_error::already_installed)
-        {
-            show_message(NoteBanner::kind::warn,
-                         QCoreApplication::translate(
-                             "PluginsDialog", "%1 is already installed for you.")
-                             .arg(plain_text(result.plugin_name)));
-        }
-        else if (result.error == plugin_request_error::installed_for_everyone ||
-                 result.error == plugin_request_error::came_with_studio)
-        {
-            show_message(
-                NoteBanner::kind::warn,
-                installed_elsewhere_text(
-                    result.error == plugin_request_error::came_with_studio
-                        ? plugin_installed_for::with_studio
-                        : plugin_installed_for::everyone,
-                    result.plugin_name));
-        }
-        else if (result.error == plugin_request_error::not_a_plugin)
-        {
-            show_message(
-                NoteBanner::kind::warn,
-                QCoreApplication::translate(
-                    "PluginsDialog",
-                    "That folder is not a plugin. A plugin's folder holds "
-                    "a file named plugin.json."));
-        }
+        on_plugin_added(result);
         break;
     case plugin_request_kind::approve_key:
         if (result.error == plugin_request_error::none)

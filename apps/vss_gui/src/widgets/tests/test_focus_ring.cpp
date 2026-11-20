@@ -198,8 +198,14 @@ QPushButton* push_button(const QString& text, const char* role,
 std::vector<control_case> control_cases()
 {
     using vss::gui::IconProvider;
+    // One case for each kind of control that can take the keyboard focus.
+    // The factory builds the control under a parent and says which widget
+    // takes the focus. The optional arguments after it mark a text field, a
+    // narrower rectangle for the ring, a case without a focus mark yet, and a
+    // control that draws its own edge.
     std::vector<control_case> cases;
 
+    // Push buttons come first, one for each role the style sheet knows.
     const std::pair<const char*, const char*> roles[] = {
         {"push button, secondary", "secondary"},
         {"push button, primary", "primary"},
@@ -215,6 +221,8 @@ std::vector<control_case> control_cases()
                                                        role, nullptr, parent));
                          }});
     }
+    // A button with no role, then the small size and the icon only form,
+    // whose padding and shape differ from the plain button.
     cases.push_back({"push button, no role", [](QWidget* parent)
                      {
                          return simple(push_button(QStringLiteral("Cancel"),
@@ -233,6 +241,8 @@ std::vector<control_case> control_cases()
                              QStringLiteral("copy"), colour_role::ink, 16));
                          return simple(button);
                      }});
+    // Tool buttons, alone and inside a tool bar. In the bar the button takes
+    // the focus with the Tab key, and the bar is what goes in the layout.
     cases.push_back({"tool button", [](QWidget* parent)
                      {
                          auto* button = new QToolButton(parent);
@@ -248,6 +258,7 @@ std::vector<control_case> control_cases()
                          bar->addWidget(button);
                          return made_control{bar, button};
                      }});
+    // Choice controls: check box, radio button and the switch.
     cases.push_back(
         {"check box", [](QWidget* parent)
          { return simple(new QCheckBox(QStringLiteral("Echo"), parent)); }});
@@ -259,6 +270,8 @@ std::vector<control_case> control_cases()
          {
              return simple(new vss::gui::Switch(QStringLiteral("DTR"), parent));
          }});
+    // The segmented control gives the focus to its first segment, a radio
+    // button inside it. These controls draw their own edge.
     cases.push_back(
         {"segmented control, segment",
          [](QWidget* parent)
@@ -273,6 +286,8 @@ std::vector<control_case> control_cases()
          {},
          true,
          true});
+    // The tile is fixed in width so that its text wraps the same way on
+    // every platform.
     cases.push_back(
         {"action tile",
          [](QWidget* parent)
@@ -288,6 +303,8 @@ std::vector<control_case> control_cases()
          {},
          true,
          true});
+    // Composite controls: the copy button, and a pick card, whose radio
+    // button takes the focus.
     cases.push_back({"copy button", [](QWidget* parent)
                      { return simple(new vss::gui::CopyButton(parent)); }});
     cases.push_back({"pick card, radio", [](QWidget* parent)
@@ -298,6 +315,8 @@ std::vector<control_case> control_cases()
                              parent);
                          return made_control{card, card->radio()};
                      }});
+    // Fields: they take text or a number, show a caret and mark the focus
+    // with the border, so the trailing true marks each as a field.
     cases.push_back({"combo box",
                      [](QWidget* parent)
                      {
@@ -311,6 +330,7 @@ std::vector<control_case> control_cases()
         {"line edit", [](QWidget* parent)
          { return simple(new QLineEdit(QStringLiteral("port-1"), parent)); },
          true});
+    // The search form of the line edit is chosen by a property on the widget.
     cases.push_back({"line edit, search",
                      [](QWidget* parent)
                      {
@@ -338,6 +358,8 @@ std::vector<control_case> control_cases()
                          return simple(edit);
                      },
                      true});
+    // Controls that are not fields: a slider, a label with a link in it that
+    // can be tabbed to, and (below) the current tab of a tab bar.
     cases.push_back({"slider", [](QWidget* parent)
                      {
                          auto* slider = new QSlider(Qt::Horizontal, parent);
@@ -372,6 +394,7 @@ std::vector<control_case> control_cases()
              // pill, and so the ring, is inside it.
              return bar->tabRect(bar->currentIndex()).adjusted(2, 2, -2, -2);
          }});
+    // The ring is checked against the cases above one by one by the caller.
     return cases;
 }
 

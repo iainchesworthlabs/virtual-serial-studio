@@ -725,6 +725,8 @@ TEST_CASE("plugin recording: a failed write is an error and stops the writer")
 
 TEST_CASE("plugin recording: all four kinds on two places read back as written")
 {
+    // Two places, one a port and one a link, with a name that has a quote
+    // and a non-ASCII character, and a seed at the largest exact number.
     const scratch_directory scratch;
     const fs::path folder = scratch.path() / "rec";
     recording_options options = options_with({"COM7", "tunnel \xC3\xA9 \"2\""});
@@ -737,6 +739,8 @@ TEST_CASE("plugin recording: all four kinds on two places read back as written")
     options.redactions.push_back({"COM7", 100, 200, "blanked"});
     recording_writer writer = opened(folder, options);
 
+    // Write one of each kind of event. The 5000 byte block is longer than
+    // one line of the file holds, so the writer has to split it.
     byte_buffer big(5000);
     for (std::size_t i = 0; i < big.size(); ++i)
         big[i] = static_cast<byte>(i);
@@ -755,10 +759,13 @@ TEST_CASE("plugin recording: all four kinds on two places read back as written")
                           lines_set({control_line::dcd, control_line::dsr}),
                           lines_set({control_line::dcd, control_line::dsr}))
                 .has_value());
+    // The writer's totals: 2 + 5000 data bytes, and the two dropped counts.
     REQUIRE_EQ(writer.bytes(), std::uint64_t{5002});
     REQUIRE_EQ(writer.dropped(), std::uint64_t{42});
     REQUIRE(writer.finish().has_value());
 
+    // Read it back. The index first: the header, the duration (the last
+    // event's time), the totals and each place with its own byte count.
     std::string detail;
     const auto found = read_recording(folder, &detail);
     REQUIRE(found.has_value());
@@ -784,6 +791,7 @@ TEST_CASE("plugin recording: all four kinds on two places read back as written")
     REQUIRE(index.places[1].kind == place_kind::link);
     REQUIRE_EQ(index.places[1].bytes, std::uint64_t{0});
 
+    // Read every event of one place until the reader reports the end.
     const auto walk = [&](std::size_t place)
     {
         auto reader = found->open_place(place);
@@ -804,6 +812,8 @@ TEST_CASE("plugin recording: all four kinds on two places read back as written")
         return events;
     };
 
+    // The first place: events come back in the order written, the long block
+    // as two data events, and the dropped count and the line change last.
     const auto first = walk(0);
     REQUIRE_EQ(first.size(), std::size_t{5});
     REQUIRE(first[0].kind == recording_event_kind::data);
@@ -825,6 +835,7 @@ TEST_CASE("plugin recording: all four kinds on two places read back as written")
     REQUIRE(first[4].changed ==
             lines_set({control_line::dcd, control_line::dsr}));
 
+    // The second place holds a line change, a fault and a dropped count.
     const auto second = walk(1);
     REQUIRE_EQ(second.size(), std::size_t{3});
     REQUIRE(second[0].kind == recording_event_kind::line);
@@ -834,6 +845,7 @@ TEST_CASE("plugin recording: all four kinds on two places read back as written")
     REQUIRE(second[2].kind == recording_event_kind::dropped);
     REQUIRE_EQ(second[2].lost, std::uint64_t{12});
 
+    // There is no third place to open.
     expect_code(found->open_place(2).error(), recording_errc::invalid_argument);
 }
 
@@ -905,12 +917,19 @@ std::string with_changed(std::string_view changed)
 
 TEST_CASE("plugin recording: a place file that breaks the format is refused")
 {
+    // A fault line padded to 20000 bytes, which is past the longest line the
+    // reader takes, and the hex of a data line of 5000 bytes (two digits a
+    // byte), which is past the most bytes one line may hold.
     const std::string padded_start =
         "{\"t_ns\":1,\"kind\":\"fault\",\"fault\":\"x\",\"pad\":\"";
     const std::string long_line =
         padded_start + std::string(20'000, 'a') + "\"}\n";
     const std::string hex5000(10'000, 'a');
 
+    // Each case is a label and the whole content of the place file. The
+    // cases run in groups: the file as a whole (line shape, repeated keys,
+    // order of times, line ends), then t_ns and kind, then data lines, line
+    // changes, faults and dropped counts. The index is right for all of them.
     const std::vector<std::pair<std::string, std::string>> cases{
         {"a kind it does not know",
          with_line_end("{\"t_ns\":1,\"kind\":\"mystery\"}")},
@@ -1024,12 +1043,17 @@ TEST_CASE("plugin recording: a place file that breaks the format is refused")
          with_line_end("{\"t_ns\":1,\"kind\":\"dropped\"}")},
     };
 
+    // Each case gets its own folder, so one bad file cannot affect the next.
     for (const auto& [label, content] : cases)
     {
         const scratch_directory scratch;
         const fs::path folder = scratch.path() / "rec";
+        // The index is made to match the file, so only the lines can be
+        // the reason for a refusal.
         write_hand_made(folder, content);
         std::string detail;
+        // Opening the recording must fail, and with place_invalid and not
+        // another error. A throw names the case, as REQUIRE would not.
         const auto found = read_recording(folder, &detail);
         if (found.has_value() ||
             found.error() != make_error_code(recording_errc::place_invalid))
@@ -1108,6 +1132,8 @@ TEST_CASE("plugin recording: a data line of 4096 bytes is read")
 
 TEST_CASE("plugin recording: an index that breaks the format is refused")
 {
+    // One change is a text found in the good index, what replaces it, and the
+    // error the reader must give. Most give index_invalid, the default.
     struct change
     {
         std::string label;
@@ -1115,6 +1141,8 @@ TEST_CASE("plugin recording: an index that breaks the format is refused")
         std::string to;
         recording_errc wanted = recording_errc::index_invalid;
     };
+    // The hash of the good place file, and the same hash in upper case, which
+    // the format does not allow.
     const std::string sha(golden_sha256);
     std::string upper_sha = sha;
     for (char& letter : upper_sha)
@@ -1122,10 +1150,16 @@ TEST_CASE("plugin recording: an index that breaks the format is refused")
         if (letter >= 'a' && letter <= 'f')
             letter = static_cast<char>(letter - 32);
     }
+    // The places member of the good index in full, so one case can replace
+    // the whole list.
     const std::string whole_places =
         "\"places\":[{\"file\":\"1.jsonl\",\"kind\":\"port\",\"name\":"
         "\"COM7\",\"settings\":\"19200 8N1\",\"bytes\":2,\"sha256\":\"" +
         sha + "\"}]";
+    // The cases run in this order: the format number, a member missing or of
+    // the wrong type, the time and the origin, the places and their files,
+    // redactions and rule sets, and last the checks of the place file itself
+    // (hash, size, duration and a repeated name), which have their own errors.
     const std::vector<change> changes{
         {"a format above 1", "\"recording_format\":1", "\"recording_format\":2",
          recording_errc::format_unsupported},
@@ -1251,21 +1285,27 @@ TEST_CASE("plugin recording: an index that breaks the format is refused")
              sha + "\"},{"},
     };
 
+    // Each case starts from a fresh good recording, so that only the one
+    // change is wrong in it.
     for (const change& item : changes)
     {
         const scratch_directory scratch;
         const fs::path folder = scratch.path() / "rec";
         write_golden(folder);
+        // Make the change in the index text and write it over the good one.
         std::string index = golden_index();
         replace_once(index, item.from, item.to);
         spit(folder / "recording.json", index);
 
+        // The reader must refuse, with the error this case wants. A throw
+        // names the case, which REQUIRE would not.
         std::string detail;
         const auto found = read_recording(folder, &detail);
         if (found.has_value() || found.error() != make_error_code(item.wanted))
         {
             throw std::runtime_error("wrong answer for: " + item.label);
         }
+        // A refusal also has to say why, in words.
         if (detail.empty())
             throw std::runtime_error("no words for: " + item.label);
     }

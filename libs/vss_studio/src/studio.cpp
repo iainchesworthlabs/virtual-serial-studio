@@ -1666,15 +1666,20 @@ std::optional<bool> studio::port_paused(endpoint_id id) const
 std::optional<bool> studio::held_as(endpoint_id id,
                                     port_record::run_state wanted) const
 {
+    bool known = false;
     bool flagged = false;
     {
         std::lock_guard lock(record_mutex_);
         const auto it = records_.find(id);
-        if (it == records_.end() ||
-            !stoppable_record(it->second.kind, it->second.uri))
-            return std::nullopt;
-        flagged = it->second.run == wanted;
+        known = it != records_.end() &&
+                stoppable_record(it->second.kind, it->second.uri);
+        if (known)
+            flagged = it->second.run == wanted;
     }
+    // No return while the lock is held: the analyser cannot follow a scoped
+    // lock through an early return.
+    if (!known)
+        return std::nullopt;
     const auto found = hub_->find_endpoint(id);
     return flagged && found && !found->is_open();
 }
@@ -1814,13 +1819,17 @@ std::optional<studio::connection_status>
 studio::connection(endpoint_id id) const
 {
     connection_status out;
+    bool known = false;
     {
         std::lock_guard lock(record_mutex_);
         const auto it = records_.find(id);
-        if (it == records_.end() || it->second.uri.empty())
-            return std::nullopt;
-        out.uri = it->second.uri;
+        known = it != records_.end() && !it->second.uri.empty();
+        if (known)
+            out.uri = it->second.uri;
     }
+    // No return while the lock is held, as in `held_as`.
+    if (!known)
+        return std::nullopt;
     const auto progress = reconnector_->status(id);
     out.retrying = progress.retrying;
     out.attempts = progress.attempts;
@@ -2013,7 +2022,7 @@ result<link_id> studio::monitor_untraced(std::string_view from,
 }
 
 result<link_id> studio::bus(const std::vector<std::string>& members,
-                            link_options options)
+                            const link_options& options)
 {
     VSS_PROFILE_ZONE("studio.bus");
     error_code ec;

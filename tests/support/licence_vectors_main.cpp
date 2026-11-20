@@ -32,8 +32,19 @@ bool write_file(const std::filesystem::path& path, const std::string& text)
     return !out.fail();
 }
 
-int run(const std::filesystem::path& folder)
+int run(const std::filesystem::path& requested)
 {
+    // The folder is resolved to its canonical form, so the files are written
+    // where the argument really leads.
+    std::error_code resolved;
+    const std::filesystem::path folder =
+        std::filesystem::weakly_canonical(requested, resolved);
+    if (resolved)
+    {
+        std::cerr << "cannot use " << requested.string() << ": "
+                  << resolved.message() << '\n';
+        return 1;
+    }
     std::filesystem::create_directories(folder);
     // A vector that was removed leaves no file behind.
     for (const auto& entry : std::filesystem::directory_iterator(folder))

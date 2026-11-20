@@ -740,8 +740,14 @@ context_for_this_computer(const computer_options& options,
     if (!options.trust_file.empty())
     {
         std::string trust_detail;
+        // The file is read through its canonical form, so a link in the path
+        // is followed once, here.
+        std::error_code resolved;
+        const fs::path trust_path =
+            fs::weakly_canonical(options.trust_file, resolved);
         result<trust_store> store =
-            load_trust_store(options.trust_file, &trust_detail);
+            resolved ? result<trust_store>(resolved)
+                     : load_trust_store(trust_path, &trust_detail);
         if (store.has_value())
         {
             out.trust = std::move(store).value();

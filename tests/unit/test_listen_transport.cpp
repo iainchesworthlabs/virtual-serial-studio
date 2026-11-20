@@ -616,7 +616,7 @@ std::string pattern(std::size_t offset, std::size_t size)
 /// Appends what `socket` has now to `into`, without waiting.
 void drain(asio::ip::tcp::socket& socket, std::string& into)
 {
-    std::array<char, 65536> buffer{};
+    std::vector<char> buffer(65536);
     boost::system::error_code ec;
     while (socket.available(ec) > 0 && !ec)
     {
