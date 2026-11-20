@@ -71,7 +71,7 @@ Serial Studio` in the same way, and on macOS the settings file is
 `com.iainchesworthlabs.Virtual Serial Studio.plist`. Settings made by builds
 before this naming are not carried over.
 
-![The Settings dialog on the General page, with Advanced mode, Default baud rate and the unsaved setup prompt](../images/settings-light.png)
+<picture><source srcset="../../images/settings-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/settings-light.png" width="860" height="760" alt="The Settings dialog on the General page, with Advanced mode, Default baud rate, the unsaved setup prompt and the Updates group; Running, Appearance and Performance are listed on the left"></picture>
 
 ## Help and diagnostics
 
@@ -84,7 +84,8 @@ before this naming are not carried over.
   **Set up Virtual Serial Studio** or **Update the driver**; see [The driver and
   its helper service](when-the-system-asks.md#windows). It also says whether
   Windows Firewall lets other computers reach a port you listen on (the
-  *Windows Firewall* row appears while a network endpoint is listening). On
+  *Windows Firewall* row reads OK and says the firewall is not involved while
+  nothing is waiting for other computers to connect). On
   Linux and macOS it looks at pseudo terminals and your serial port group, and
   adds rows for the firewall, confinement and local network access when they
   matter; see [When the operating system asks, or says
@@ -95,7 +96,7 @@ before this naming are not carried over.
   status bar chip shows "Setup ready" or "Setup needs attention" and opens the
   same dialog.
 
-![The Setup check dialog on Windows: the driver, administrator rights and real serial devices, each marked OK](../images/setup-check-light.png)
+<picture><source srcset="../../images/setup-check-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/setup-check-light.png" width="760" height="720" alt="The Setup check dialog on Windows: the driver, administrator rights, real serial devices and Windows Firewall, each marked OK, and a last row, Continue without a driver"></picture>
 
 - **Help → Why is nothing arriving?** walks five steps between the device and
   your program: *The port exists and is open*, *The port is linked to the
@@ -109,7 +110,7 @@ before this naming are not carried over.
   it cannot and reads "Not checked yet". The last check always reads "Not checked
   yet", because Studio cannot see inside your program.
 
-![The Why is nothing arriving dialog: the port is open, it has no link, and the later checks are not yet run](../images/troubleshoot-light.png)
+<picture><source srcset="../../images/troubleshoot-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/troubleshoot-light.png" width="640" height="760" alt="The Why is nothing arriving dialog: the port is open, it has no link, and the later checks are not yet run"></picture>
 
 - **File → Support bundle** saves a ZIP named `vss-support-<date>.zip` (the date
   as `yyyy-mm-dd`). The list on the left has a row for each part, and a row you

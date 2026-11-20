@@ -9,15 +9,10 @@ wires them together, and shows what flows through them. Most of it can also be
 scripted with `vss_cli`; the command equivalents are on the [Command line
 equivalents](command-line.md) page.
 
-The pictures were taken from Virtual Serial Studio running on Windows 11 and
-Ubuntu 26.04 test machines, in the light theme unless the text says
-otherwise. Where a dialog has changed since its picture was taken, the text
-describes the current dialog. The pictures of the whole window show an earlier
-layout. Now, at the Advanced level, a row of tool buttons sits
-above the diagram, with no New, Open or Save buttons (they are in the **File**
-menu), and the **Simple | Advanced** switch is at the right of the menu bar,
-beside the **Search actions** box. Port names such as `COM7` and `/dev/pts/1` are examples; yours will
-differ.
+The pictures show Virtual Serial Studio drawn with sample ports, in the light
+theme and in the dark theme; a page shows the one that matches the colour
+scheme of your browser. Port names such as `COM7` and `/dev/pts/1` are examples;
+yours will differ.
 
 ## Contents by task
 
