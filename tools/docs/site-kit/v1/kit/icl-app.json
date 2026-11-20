@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "name": "App Name",
+  "family": "test-equipment",
+  "summary": "One plain sentence, 120 characters at most.",
+  "tags": ["Windows", "Linux", "macOS"],
+  "status": "available",
+  "icon": "icon.svg",
+  "order": 100
+}

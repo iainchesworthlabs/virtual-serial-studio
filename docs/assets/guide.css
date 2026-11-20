@@ -1,0 +1,87 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* The guide and the pages for programmers are MkDocs Material. This file sets Material's colours from the palette (theme.css) and from the
+   system colours, so that they and the front pages look related and follow the device's light or dark setting, and styles the slim bar
+   above Material's header. It holds no colour of its own: Canvas and CanvasText are the browser's colours for the page and its text in
+   the current scheme. */
+html[data-app] { color-scheme: light dark; }
+body[data-md-color-scheme] {
+  color-scheme: light dark;
+  --md-primary-fg-color: var(--app-primary);
+  --md-primary-fg-color--light: var(--app-primary);
+  --md-primary-fg-color--dark: var(--app-primary);
+  --md-primary-bg-color: var(--app-on-primary);
+  --md-primary-bg-color--light: var(--app-on-primary);
+  --md-accent-fg-color: var(--app-link);
+  --md-typeset-a-color: var(--app-link);
+
+  --md-default-fg-color: CanvasText;
+  --md-default-fg-color--light: color-mix(in srgb, CanvasText 68%, Canvas);
+  --md-default-fg-color--lighter: color-mix(in srgb, CanvasText 45%, Canvas);
+  --md-default-fg-color--lightest: color-mix(in srgb, CanvasText 14%, Canvas);
+  --md-default-bg-color: Canvas;
+  --md-default-bg-color--light: color-mix(in srgb, Canvas 70%, transparent);
+  --md-default-bg-color--lighter: color-mix(in srgb, Canvas 30%, transparent);
+  --md-default-bg-color--lightest: color-mix(in srgb, Canvas 12%, transparent);
+  --md-code-fg-color: CanvasText;
+  --md-code-bg-color: color-mix(in srgb, CanvasText 6%, Canvas);
+  --md-code-hl-color: color-mix(in srgb, CanvasText 10%, transparent);
+  --md-typeset-color: CanvasText;
+  --md-typeset-table-color: color-mix(in srgb, CanvasText 12%, transparent);
+  --md-footer-bg-color: Canvas;
+  --md-footer-bg-color--dark: Canvas;
+  --md-footer-fg-color: CanvasText;
+  --md-footer-fg-color--light: color-mix(in srgb, CanvasText 68%, Canvas);
+}
+/* Material puts the slim bar in its announcement strip, which has a background of its own. */
+.md-banner { background: var(--app-gradient-from); color: var(--app-on-gradient); }
+.vss-guidebar { font-size: 0.8rem; }
+.vss-guidebar__in { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; max-width: 61rem; margin-inline: auto; padding: 0.25rem 0.8rem; }
+.vss-guidebar a { color: inherit; display: inline-block; padding: 0.4rem 0; }
+.vss-guidebar a:hover { text-decoration: underline; }
+.vss-guidebar__version { margin-left: auto; padding: 0.4rem 0; }
+
+/* ---- Reading: system fonts, a comfortable measure, clear headings ---- */
+body[data-md-color-scheme] {
+  --md-text-font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --md-code-font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.md-typeset { font-size: 0.82rem; line-height: 1.7; }
+.md-content__inner { max-width: 46rem; }
+.md-typeset h1 { font-weight: 750; letter-spacing: -0.02em; color: var(--md-default-fg-color); margin-bottom: 1.2rem; }
+.md-typeset h2 { font-weight: 700; letter-spacing: -0.01em; margin-top: 2.4em; padding-top: 0.4em; border-top: 1px solid var(--md-default-fg-color--lightest); }
+.md-typeset h3 { font-weight: 680; margin-top: 1.8em; }
+.md-typeset h2:first-of-type { border-top: 0; }
+.md-typeset a { text-underline-offset: 0.18em; }
+.md-typeset a:not(.headerlink):hover { text-decoration: underline; }
+.md-typeset :focus-visible, .md-header :focus-visible, .md-nav :focus-visible { outline: 3px solid var(--app-link); outline-offset: 2px; }
+
+/* ---- Tables: a clean grid that scrolls instead of overflowing ---- */
+.md-typeset table:not([class]) { display: block; max-width: 100%; overflow-x: auto; font-size: 0.78rem; border: 1px solid var(--md-default-fg-color--lightest); border-radius: 0.25rem; box-shadow: none; }
+.md-typeset table:not([class]) th { background: var(--app-tint); color: var(--md-default-fg-color); font-weight: 680; }
+.md-typeset table:not([class]) td, .md-typeset table:not([class]) th { padding: 0.6em 0.9em; vertical-align: top; }
+.md-typeset table:not([class]) tbody tr:hover { background: var(--md-default-bg-color); box-shadow: none; }
+
+/* ---- Code ---- */
+.md-typeset pre > code { border-radius: 0.25rem; border: 1px solid var(--md-default-fg-color--lightest); font-size: 0.78rem; line-height: 1.6; }
+.md-typeset :not(pre) > code { border-radius: 0.2rem; overflow-wrap: anywhere; }
+
+/* ---- Pictures of the program: a quiet frame, never wider than the text ---- */
+.md-typeset img { height: auto; max-width: 100%; }
+.md-typeset p > img[src*="images/"] { display: block; margin: 1.2rem auto; border: 1px solid var(--md-default-fg-color--lightest); }
+
+/* ---- Lists of definitions ---- */
+.md-typeset dl dt { font-weight: 700; margin-top: 1.4em; color: var(--md-default-fg-color); }
+.md-typeset dl dd { margin: 0.2em 0 0 0; padding-left: 1em; border-left: 3px solid var(--app-accent); }
+.md-typeset dl dd p { margin: 0.3em 0; }
+
+/* ---- Navigation: section titles read as labels, current page is clear ---- */
+.md-nav--primary .md-nav__title { font-weight: 700; }
+.md-nav__item .md-nav__link--active { font-weight: 700; color: var(--app-link); }
+.md-nav__link { font-size: 0.74rem; }
+.md-footer { background: var(--md-default-bg-color); color: var(--md-default-fg-color); border-top: 1px solid var(--md-default-fg-color--lightest); }
+.md-footer__link { color: var(--md-default-fg-color); }
+.md-footer__title { color: var(--md-default-fg-color); }
+.md-footer-meta { background: var(--md-default-bg-color); }
+.md-footer-meta__inner, .md-copyright { color: var(--md-default-fg-color--light); }
+.md-copyright a { color: var(--app-link); }
+@media (max-width: 44.9375em) { .md-content__inner { margin-inline: 0.8rem; } }

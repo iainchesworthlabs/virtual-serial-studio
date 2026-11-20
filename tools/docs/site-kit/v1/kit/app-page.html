@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en" data-app="{{SLUG}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{NAME}}: {{SHORT_DESCRIPTION}}</title>
+<meta name="description" content="{{DESCRIPTION}}">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1217" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://iainchesworthlabs.com/{{SLUG}}/">
+<meta property="og:url" content="https://iainchesworthlabs.com/{{SLUG}}/">
+<meta property="og:site_name" content="Iain Chesworth Labs">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{NAME}}">
+<meta property="og:description" content="{{DESCRIPTION}}">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="/assets/v1/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/v1/icl.css">
+<link rel="stylesheet" href="/audio/theme.css">
+<link rel="stylesheet" href="/games/theme.css">
+<link rel="stylesheet" href="/test-equipment/theme.css">
+<link rel="stylesheet" href="/pool/theme.css">
+<link rel="stylesheet" href="theme.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"{{NAME}}","description":"{{DESCRIPTION}}","url":"https://iainchesworthlabs.com/{{SLUG}}/","publisher":{"@type":"Organization","name":"Iain Chesworth Labs","url":"https://iainchesworthlabs.com/"}}
+</script>
+</head>
+<body>
+<a class="icl-skip" href="#main">Skip to content</a>
+<header class="icl-header icl-header--next"><div class="icl-wrap">
+  <a class="icl-brand" href="/"><svg class="icl-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="currentColor"/><path d="M11 8v13a3 3 0 0 0 3 3h8" fill="none" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Iain Chesworth Labs</span></a>
+  <nav aria-label="Main"><ul class="icl-nav">
+    <li><details class="icl-menu"><summary>Products</summary>
+    <div class="icl-menu__panel"><div class="icl-menu__inner">
+      <section class="icl-menu__fam" data-app="audio" aria-labelledby="m-audio"><h2 id="m-audio">Audio</h2><ul>
+        <li><span><strong>Forge</strong><small>Audio codec tools. Coming soon.</small></span></li>
+      </ul><a class="icl-menu__all" href="/audio/">All audio</a></section>
+      <section class="icl-menu__fam" data-app="games" aria-labelledby="m-games"><h2 id="m-games">Games</h2><ul>
+        <li><span><strong>Heart Boom Maths</strong><small>Ages 5 to 12. Coming soon.</small></span></li>
+        <li><a href="/snake/"><strong>Snake</strong><small>The Snake game</small></a></li>
+        <li><span><strong>Snap and Spell</strong><small>Boggle solver. Coming soon.</small></span></li>
+        <li><span><strong>Cubeulator</strong><small>Cube solver. Coming soon.</small></span></li>
+        <li><span><strong>CountdownSolver</strong><small>Countdown numbers solver. Coming soon.</small></span></li>
+      </ul><a class="icl-menu__all" href="/games/">All games</a></section>
+      <section class="icl-menu__fam" data-app="test-equipment" aria-labelledby="m-test-equipment"><h2 id="m-test-equipment">Test equipment</h2><ul>
+        <li><a href="/field-test/"><strong>Field Test</strong><small>Log errors during robot sessions</small></a></li>
+        <li><a href="/adl/"><strong>ARINC Data Loader</strong><small>ARINC 615A and 665 library and tools</small></a></li>
+        <li><span><strong>Virtual Serial Studio</strong><small>Serial port tools. Coming soon.</small></span></li>
+      </ul><a class="icl-menu__all" href="/test-equipment/">All test equipment</a></section>
+      <section class="icl-menu__fam" data-app="pool" aria-labelledby="m-pool"><h2 id="m-pool">Pool management</h2><ul>
+        <li><span><strong>Aqualink Automate</strong><small>Pool equipment control. Coming soon.</small></span></li>
+      </ul><a class="icl-menu__all" href="/pool/">All pool management</a></section>
+      <section class="icl-menu__side" aria-labelledby="m-co"><h2 id="m-co">Company</h2><ul>
+        <li><a href="/about/"><strong>About</strong></a></li>
+        <li><a href="/support/"><strong>Support</strong><small>Help and contact</small></a></li>
+        <li><a href="/privacy/"><strong>Privacy</strong><small>What this site collects</small></a></li>
+      </ul></section>
+    </div></div></details></li>
+    <li><a href="/support/">Support</a></li>
+    <li><a href="/about/">About</a></li>
+  </ul></nav>
+</div></header>
+
+<div class="icl-appbar"><div class="icl-wrap">
+  <a class="icl-appbar__name" href="./">{{NAME}}</a>
+  <nav aria-label="{{NAME}}"><a href="#features">Features</a><a href="#faq">FAQ</a><a href="privacy/">Privacy</a><a href="support/">Support</a></nav>
+  <a class="icl-button icl-button--small" href="#get">Get it</a>
+</div></div>
+<main id="main">
+<section class="icl-hero icl-hero--app"><div class="icl-wrap"><div class="icl-hero__grid icl-hero__grid--solo">
+  <div>
+    <p class="icl-eyebrow">{{PLATFORMS}}</p>
+    <h1>{{NAME}}</h1>
+    <p class="icl-lead">{{ONE_SENTENCE}}</p>
+    <div class="icl-actions" id="get"><a class="icl-button" href="{{GET_URL}}">{{GET_LABEL}}</a></div>
+  </div>
+</div></div></section>
+
+<section class="icl-section" id="features"><div class="icl-wrap">
+  <h2>Features</h2>
+  <ul class="icl-points">
+    <li><h3>{{FEATURE_1}}</h3><p>{{FEATURE_1_TEXT}}</p></li>
+    <li><h3>{{FEATURE_2}}</h3><p>{{FEATURE_2_TEXT}}</p></li>
+    <li><h3>{{FEATURE_3}}</h3><p>{{FEATURE_3_TEXT}}</p></li>
+  </ul>
+</div></section>
+
+<section class="icl-section icl-section--tint" id="faq" aria-labelledby="faq-h"><div class="icl-wrap">
+  <h2 id="faq-h">FAQ</h2>
+  <div class="icl-faq"><details open><summary>{{QUESTION}}</summary><p>{{ANSWER}}</p></details></div>
+</div></section>
+</main>
+<footer class="icl-footer"><div class="icl-wrap">
+  <div><h2>Audio</h2><ul><li><a href="/audio/">Forge</a></li></ul></div>
+  <div><h2>Games</h2><ul><li><a href="/games/">All games</a></li></ul></div>
+  <div><h2>Test equipment</h2><ul><li><a href="/test-equipment/">All test equipment</a></li><li><a href="/field-test/">Field Test</a></li><li><a href="/adl/">ARINC Data Loader</a></li></ul></div>
+  <div><h2>Pool management</h2><ul><li><a href="/pool/">Aqualink Automate</a></li></ul></div>
+  <div><h2>Company</h2><ul><li><a href="/about/">About</a></li><li><a href="/support/">Support and contact</a></li><li><a href="/privacy/">Privacy</a></li></ul></div>
+  <p class="icl-footer__note">&copy; 2026 Iain Chesworth Labs. This site sets no cookies, runs no analytics and loads nothing from other sites.</p>
+</div></footer>
+</body>
+</html>

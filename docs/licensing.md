@@ -5,9 +5,12 @@ them, what happens when one expires, and how the owner issues and tracks them.
 It follows the decisions in [Editions, licensing and plugins](editions.md).
 The owner has reviewed it, and the decisions are recorded at the end. The
 library, the tool and the screens are built (see [What is built, and in what
-order](#what-is-built-and-in-what-order)). The check gates nothing in this
-build yet: only the Licence page and the Support page ask what a licence
-grants, so a licence shows a state and unlocks nothing.
+order](#what-is-built-and-in-what-order)). The check gates nothing a user can
+use in this build. The Licence page and the Support page ask what a licence
+grants, the control gateway reads the licence to say which edition is in force,
+and the plugin host asks whether a licence covers an official plugin before it
+starts one. No official plugin exists yet, so a licence shows a state and
+unlocks nothing.
 
 The screens are specified in
 `docs/gui-design/docs/screens/09-licence-and-support.md`.
@@ -18,7 +21,7 @@ Studio is GPL software. Anyone may build a copy with the check removed, and the
 GPL gives them that right. So the check in Studio is not the lock. It tells an
 honest customer where they stand, and it tells Studio what to offer.
 
-What is sold is what a patched Studio cannot give:
+What is sold is what a patched Studio cannot give. None of these exists yet:
 
 * official plugins, which are commercial programs in their own processes and
   check the licence themselves;
@@ -495,8 +498,11 @@ that Studio does not link.
 file only after checking its size, copies an imported file to a new name in the
 per-user folder (it never replaces a file), and never writes to the per-machine
 folder. `vss_cli licence` prints what the store found, and
-`vss_cli licence import <file>` imports a file through it. The agent, the
-control gateway and the plugin host do not ask it yet.
+`vss_cli licence import <file>` imports a file through it. The control gateway
+(`vss_gate`) reads the licence folders through it as it starts and once a minute
+after that, and the plugin host is given the licence on this computer and
+asks whether it covers an official plugin. The agent (`vss_agent`) does not ask
+it.
 
 The plugin framework session should build its signature check on
 `vss::signed_file` and not write a second one. A note saying so is in the
@@ -697,13 +703,21 @@ framework. All four steps are built.
    `FakeStudioBackend`.
 4. The support bundle additions and the Support page.
 
+Built beyond those four steps: the licence store (`vss::license::store`, used by
+Studio, by `vss_cli licence`, and by `vss_gate`, which reads the licence folders
+as it starts and once a minute after that, so the `Edition:` line of
+`vss_cli control status` agrees with `vss_cli licence`), and the plugin host,
+which asks whether the licence on this computer covers an official plugin
+(`vss::plugin::check_licence`) before it starts one, and hands the plugin the
+licence file when it asks. The gateway only reads the folders; no command of
+the gateway needs a licence.
+
 What is not built: any use of `check(feature)` that changes what Studio offers
-(the Licence page and the Support page ask it, to say what the licence grants,
-and nothing else does), a licence service in the agent and the control
-gateway, so the gateway's `status` has no edition, and the plugin host that
-would run an official plugin. The licence store is built (`vss::license::store`,
-used by Studio and by `vss_cli licence`); the agent and the gateway do not ask
-it yet. `vss_license` is built with the tools and is not installed.
+to a user (the Licence page and the Support page ask it, to say what the
+licence grants, the plugin host asks it for an official plugin, and no official
+plugin exists), a licence service in the agent, and `vss_cli plugin run`
+reading the licence, which it does not. `vss_license` is built with the tools
+and is not installed.
 
 The private repository, its workflow, the environment and the real keys are
 the owner's to create. This repository gives them the tool and this page.
@@ -763,8 +777,10 @@ The owner settled the gaps found in the licence review on 16 November 2026:
     an official plugin, hands the plugin the licence file. The plugin verifies
     the signature, the dates and its own feature with a reader of its own, so
     it never takes the host's word. A third-party plugin may do the same to
-    protect itself. Two checks of one licence are fine when each is quick. Not
-    built yet.
+    protect itself. Two checks of one licence are fine when each is quick. The
+    host's side is built: it reads the licence and answers `licence.get` with
+    the licence file. The plugin's side is not, because no official plugin
+    exists.
 16. **A patched Studio is accepted.** Studio is GPL, so someone can build a copy
     that skips the host's check. That is the limit of a deterrent and the
     design accepts it. The check in the plugin is a second, separate check, and
