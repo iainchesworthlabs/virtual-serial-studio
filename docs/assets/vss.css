@@ -217,3 +217,17 @@
 .vss-appbar .icl-appbar__name, .vss-nav__link, .vss-drop > summary { white-space: nowrap; }
 .vss-appbar .vss-nav__list { gap: 0; }
 .vss-plans + p, .vss-plans + ul { margin-top: var(--icl-space-5); }
+
+/* The contact form of the Support page (docs/support.md). It posts to the company site's endpoint; the fields are the endpoint's. The trap field is
+   moved out of sight and out of the tab order; it is not display: none, so that a script that fills in what it finds still fills it in. */
+.vss-form { display: grid; gap: var(--icl-space-4); margin: var(--icl-space-5) 0; padding: var(--icl-space-5); background: var(--icl-surface-2); border: 1px solid var(--icl-border); border-radius: var(--icl-radius-m); }
+.vss-form label { display: block; margin-bottom: var(--icl-space-1); font-weight: 650; }
+.vss-form__opt { color: var(--icl-fg-muted); font-weight: 450; }
+.vss-form input[type="text"], .vss-form input[type="email"], .vss-form select, .vss-form textarea { display: block; width: 100%; min-height: 2.75rem; padding: var(--icl-space-2) var(--icl-space-3); background: var(--icl-surface); color: var(--icl-fg); border: 1px solid var(--icl-fg-muted); border-radius: var(--icl-radius-s); font: inherit; }
+.vss-form textarea { min-height: 9rem; resize: vertical; }
+.vss-form__help { margin: var(--icl-space-1) 0 0; color: var(--icl-fg-muted); font-size: var(--icl-step--1); }
+.vss-form__consent { display: grid; grid-template-columns: auto 1fr; gap: var(--icl-space-3); align-items: start; }
+.vss-form__consent input { width: 1.5rem; height: 1.5rem; margin: 0.125rem 0 0; }
+.vss-form__consent label { margin: 0; font-weight: 450; }
+.vss-form__trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.vss-form .icl-button { justify-self: start; cursor: pointer; }
