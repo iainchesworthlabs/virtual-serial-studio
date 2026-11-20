@@ -67,7 +67,7 @@ with Client.connect() as c:
 </div>
 </div>
 <p>If the bytes do not arrive in time, <code>expect_bytes</code> raises a <code>ControlError</code> whose code is <code>timeout</code>, and the report notes how the wait ended.</p>
-<ul class="vss-links"><li><a href="../../guide/control-from-a-script/">Controlling Studio from a script</a></li><li><a href="../../solutions/test-automation-and-ci/">Test automation and CI</a></li></ul>
+<ul class="vss-links"><li><a href="../../guide/control-from-a-script/">Controlling Studio from a script</a></li><li><a href="../../solutions/test-automation-and-ci/">Automate tests in a lab</a></li></ul>
 </div></section>
 
 <section class="icl-section"><div class="icl-wrap">

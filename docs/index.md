@@ -25,11 +25,11 @@ description: "Virtual serial ports, port sharing, a traffic monitor and test aut
 <li><article class="icl-card"><p class="vss-kicker">Virtual ports</p><h3><a href="solutions/develop-and-test-without-hardware/">Give a program a serial port</a></h3><p>Make a port for your program, or two ports joined like a null-modem cable, before the device exists or while it is somewhere else.</p></article></li>
 <li><article class="icl-card"><p class="vss-kicker">Port sharing</p><h3><a href="solutions/sharing-and-bridging-ports/">Share and bridge ports</a></h3><p>Give one real device to several programs, merge several senders into one device, share a bus, or put a port on the network.</p></article></li>
 <li><article class="icl-card"><p class="vss-kicker">Traffic monitor</p><h3><a href="solutions/capture-and-analysis/">Watch and record traffic</a></h3><p>See every byte on every port, in text or hex, record it with its time, export it, and play a recording back.</p></article></li>
-<li><article class="icl-card"><p class="vss-kicker">Device emulation</p><h3><a href="solutions/device-emulation/">Answer like a device</a></h3><p>Make a port reply from a script, or poll like a master, and replay what a device sent, with a delay you choose.</p></article></li>
+<li><article class="icl-card"><p class="vss-kicker">Device emulation</p><h3><a href="solutions/develop-and-test-without-hardware/">Answer like a device</a></h3><p>Make a port reply from a script, or poll like a master, and replay what a device sent, with a delay you choose.</p></article></li>
 <li><article class="icl-card"><p class="vss-kicker">Test automation</p><h3><a href="solutions/test-automation-and-ci/">Run tests with no window</a></h3><p>Run a saved setup from a terminal or a CI job, drive ports from a script, wait for a reply and keep a JUnit report.</p></article></li>
-<li><article class="icl-card"><p class="vss-kicker">Test benches</p><h3><a href="solutions/test-benches/">Build a bench and keep it</a></h3><p>Lay out ports, links, modem control lines and a multi-drop bus in a diagram, add delay and faults, and save it as a file.</p></article></li>
+<li><article class="icl-card"><p class="vss-kicker">Test benches</p><h3><a href="solutions/test-automation-and-ci/">Build a bench and keep it</a></h3><p>Lay out ports, links, modem control lines and a multi-drop bus in a diagram, add delay and faults, and save it as a file.</p></article></li>
 </ul>
-<ul class="vss-links"><li><a href="products/">The products</a></li><li><a href="solutions/">All seven solutions</a></li></ul>
+<ul class="vss-links"><li><a href="products/">The products</a></li><li><a href="solutions/">All solutions</a></li></ul>
 </div></section>
 
 <section class="icl-section icl-section--tint"><div class="icl-wrap">
