@@ -26,7 +26,7 @@ description: "Build a set of ports once, save it as a file, and bring it back th
 <p>Run a saved setup for an hour, and answer on the port a device would use:</p>
 <pre class="vss-code"><code>vss_cli run bench.json --seconds=3600
 vss_cli respond device.json --uri=serial://COM7</code></pre>
-<p>A mistake in a command line ends the command with exit code 2, so a CI job fails at once. On Linux and macOS the ports are pseudo terminals with stable names, and need no driver. On Windows they need the Studio driver (see <a href="../../products/drivers/">Drivers</a>).</p>
+<p>A mistake in a command line ends the command with exit code 2, so a CI job fails at once. On Linux and macOS the ports are pseudo terminals with stable names, and need no driver. On Windows they need the Studio driver (see <a href="../../guide/windows/">Windows in the guide</a>).</p>
 
 <h2>Wait for a reply and keep a test report</h2>
 <p>From a test script you can make ports, link them, send bytes, wait for a reply and keep the result as a JUnit file for your CI system. This needs the agent, the gateway and the Python client. <span class="vss-chip vss-chip--src">Built from source only</span></p>

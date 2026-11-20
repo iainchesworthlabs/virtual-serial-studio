@@ -112,6 +112,14 @@ Presented as a strength, naming only what the repository shows: the test suites 
 `SHA512SUMS`, an SPDX SBOM, provenance attestations); the security policy; and the no-telemetry rule. Each sentence
 is checked against a workflow or file before it is written.
 
+### Changed on 20 November 2026
+
+The owner reviewed the built site and asked for it to be simpler and aimed at customers. Removed: the Platforms section (its pages
+and menu), the Products overview, and the Command line and Drivers product pages. The command line stays in the guide
+(`user-guide/command-line.md`), and what each system needs is on Downloads and in the guide's Windows and "When the system asks"
+pages. Quality and trust and Security are now entries of the Resources menu, and "User guide" is a link in the bar. The Pro edition card no
+longer has a stronger border or button than the other two.
+
 ## 3. Page list
 
 Published at `/virtual-serial-studio/`:

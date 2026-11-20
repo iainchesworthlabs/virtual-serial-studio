@@ -4,26 +4,16 @@
 
     menus: the app bar of the front pages, in order. Each entry is (label, path, items). An entry with items is a menu that opens (a native
            <details>, no script); each item is (path, label, one line on what is there). An entry with no items is a plain link.
-           The menus of docs/plan/site.md. A menu only links to pages that exist. The guide is in Resources, and the Developers link goes to
-           the developer pages.
+           The menus of docs/plan/site.md. A menu only links to pages that exist. The User guide and Developers links go straight to the guide and to the developer pages, and the guide is first in Resources too.
     download: where the Download button of the app bar goes, as (path, label): the Downloads page.
     sales: the Contact sales button beside it, as (path, label): the "Talk to us" heading of the Support page.
     bar:   the slim bar above the guide's own header, back to the front pages.
     more:  the row of links above the company footer. -#}
 {%- set menus = [
-  ("Products", "products/", [
-    ("products/", "All products", "What is in the box, and what is in the packages today."),
+  ("Products", "products/studio/", [
     ("products/studio/", "Studio", "Make, share and link virtual serial ports, and watch the traffic."),
-    ("products/command-line/", "Command line", "vss_cli: ports, setups, capture, replay and scripted devices, with no window."),
     ("products/agent-gateway/", "Agent and gateway", "Drive ports from a test script, with a JUnit report. Built from source."),
     ("products/plugins/", "Plugins", "The plugin host, trust, signing and the sandbox."),
-    ("products/drivers/", "Drivers", "COM ports on Windows, and pseudo terminals on Linux and macOS."),
-  ]),
-  ("Platforms", "platforms/", [
-    ("platforms/", "All platforms", "What each system gets and what is tested on it."),
-    ("platforms/windows/", "Windows", "Installer, zip, the driver, and the limits."),
-    ("platforms/macos/", "macOS", "Disk image for Apple silicon, and what has not been tried."),
-    ("platforms/linux/", "Linux", "deb, rpm and archive, and what they need."),
   ]),
   ("Solutions", "solutions/", [
     ("solutions/", "All solutions", "Four jobs, each with an example and what is not built."),
@@ -33,14 +23,13 @@
     ("solutions/capture-and-analysis/", "Watch and record traffic", "See every byte with its time, keep it, and play it back."),
     ("solutions/test-automation-and-ci/", "Automate tests in a lab", "Run a saved setup with no window, and keep a report."),
   ]),
+  ("User guide", "guide/", []),
   ("Developers", "developers/", []),
-  ("Quality and security", "quality/", [
-    ("quality/", "Quality and trust", "Tests, sanitizers, fuzzing, coverage and signed releases."),
-    ("security/", "Security", "Report a vulnerability, verify a download, and what the program sends."),
-  ]),
   ("Pricing", "pricing/", []),
   ("Resources", "guide/", [
-    ("guide/", "Guide", "Organised by task, from the first port to the command line."),
+    ("guide/", "User guide", "Organised by task, from the first port to the command line."),
+    ("quality/", "Quality and trust", "Tests, sanitizers, fuzzing, coverage and signed releases."),
+    ("security/", "Security", "Report a vulnerability, verify a download, and what the program sends."),
     ("whats-new/", "What's new", "What changed in each release."),
     ("faq/", "FAQ", "The questions that come up first."),
     ("support/", "Support", "Report a problem, or talk to us about Pro and Enterprise."),
@@ -52,5 +41,5 @@
 ] -%}
 {%- set download = ("downloads/", "Download") -%}
 {%- set sales = ("support/#talk-to-us", "Contact sales") -%}
-{%- set bar = [("guide/", "Guide"), ("developers/", "Developers"), ("pricing/", "Pricing"), ("downloads/", "Downloads"), ("support/", "Support")] -%}
-{%- set more = [("products/", "Products"), ("platforms/", "Platforms"), ("solutions/", "Solutions"), ("pricing/", "Pricing"), ("quality/", "Quality"), ("security/", "Security"), ("guide/", "Guide"), ("developers/", "Developers"), ("downloads/", "Downloads"), ("whats-new/", "What's new"), ("faq/", "FAQ"), ("support/", "Support"), ("licensing/", "Licensing"), ("privacy/", "Privacy"), ("accessibility/", "Accessibility"), ("press/", "Press")] -%}
+{%- set bar = [("guide/", "User guide"), ("developers/", "Developers"), ("pricing/", "Pricing"), ("downloads/", "Downloads"), ("support/", "Support")] -%}
+{%- set more = [("products/studio/", "Studio"), ("products/agent-gateway/", "Agent and gateway"), ("products/plugins/", "Plugins"), ("solutions/", "Solutions"), ("pricing/", "Pricing"), ("quality/", "Quality"), ("security/", "Security"), ("guide/", "Guide"), ("developers/", "Developers"), ("downloads/", "Downloads"), ("whats-new/", "What's new"), ("faq/", "FAQ"), ("support/", "Support"), ("licensing/", "Licensing"), ("privacy/", "Privacy"), ("accessibility/", "Accessibility"), ("press/", "Press")] -%}

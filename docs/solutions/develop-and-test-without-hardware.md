@@ -42,7 +42,7 @@ description: "Give your program a serial port before the device exists, make the
 <h2>Things to know</h2>
 <ul>
 <li>A virtual port has no wire. A program that depends on the timing of a real device needs a delay or wire timing on the link.</li>
-<li>On Windows, a virtual <code>COM</code> port needs the Studio driver. It is test-signed, so Windows accepts it only where the certificate authority of Iain Chesworth Labs is trusted. See <a href="../../products/drivers/">Drivers</a>.</li>
+<li>On Windows, a virtual <code>COM</code> port needs the Studio driver. It is test-signed, so Windows accepts it only where the certificate authority of Iain Chesworth Labs is trusted. See <a href="../../guide/windows/">Windows in the guide</a>.</li>
 <li>On Linux and macOS the port is a pseudo terminal. A program that lists the serial ports on the computer does not see it, so give that program the path.</li>
 </ul>
 

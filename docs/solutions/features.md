@@ -68,6 +68,6 @@ description: "Every feature of Virtual Serial Studio in one list: virtual ports,
 <ul class="vss-links">
 <li><a href="../../guide/">The guide</a></li>
 <li><a href="../../guide/limits/">What this build cannot do</a></li>
-<li><a href="../../products/">Products</a></li>
+<li><a href="../../products/studio/">Studio</a></li>
 </ul>
 </div></div></section>

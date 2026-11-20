@@ -21,6 +21,8 @@ A release candidate or other pre-release is for trying out and for finding fault
 
 ## What your system needs
 
+Virtual Serial Studio runs on Windows, Linux and macOS.
+
 - **Windows:** x86-64 only. There is no Arm build. The virtual COM port driver is test-signed with a certificate from Iain Chesworth Labs' own certificate authority, so Windows accepts it only on a computer where that authority is installed. On any other computer the installer installs Studio and leaves the driver out.
 - **macOS:** Apple silicon only. The files are not signed or notarised, so macOS asks you to confirm before it opens Studio.
 - **Linux:** x86-64, with glibc 2.42 or newer and the C++ library from GCC 16, which is Ubuntu 26.04 or later. On Ubuntu 24.04 the packages refuse to install and the archive does not start.

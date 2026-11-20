@@ -95,7 +95,7 @@ description: "Studio makes virtual serial ports, shares one real device between 
 <li><strong>Linux:</strong> a virtual port is a pseudo terminal, so Studio needs no driver.</li>
 <li><strong>macOS:</strong> a virtual port is a pseudo terminal, so Studio needs no driver. The release is not signed, so macOS asks you to confirm before it opens Studio.</li>
 </ul>
-<ul class="vss-links"><li><a href="../../guide/windows/">Windows in the guide</a></li><li><a href="../../platforms/">Platforms</a></li><li><a href="../../guide/limits/#what-this-build-cannot-do">What this build cannot do</a></li></ul>
+<ul class="vss-links"><li><a href="../../guide/windows/">Windows in the guide</a></li><li><a href="../../guide/limits/#what-this-build-cannot-do">What this build cannot do</a></li></ul>
 </div>
 </div>
 </div></section>
