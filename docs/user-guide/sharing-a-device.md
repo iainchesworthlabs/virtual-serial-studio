@@ -2,9 +2,11 @@
 
 ## Sharing one device with several programs
 
-**Topology → Share a device** opens a wizard.
+**Topology → Share a device** opens a wizard with three steps, **Device**,
+**Programs** and **Ready**.
 
-1. **Choose the device** to share, and a name.
+1. **Which device?** Choose the device to share. Its settings are summarised
+   under **Device settings**, with **Change**.
 2. **How many programs?** (1 to 32). The table lists the port each program will
    open and whether other programs can open it. In step 1 you can change the
    device's settings or use **A network device instead**. On Windows with the
@@ -17,7 +19,7 @@
    offers **Create another pair** (administrator permission) or **Keep the
    third as Studio only**. On Linux and macOS every port is a pseudo terminal.
 3. **Share device** builds the ports and the split link, and ends on a summary
-   of what each program should open. If any step fails, the wizard removes what
+   of what each program should open, with **Copy**, **Open monitor** and **Done**. If any step fails, the wizard removes what
    it created. **Add another program** on the summary adds one more port
    (to 32). Studio makes the port and adds it to the link that exists. The link
    keeps its identity and the other programs keep their ports; no bytes are lost
@@ -49,7 +51,7 @@ against several device programs, and watch the line, without hardware.
 2. **Topology → Connect ports…**, choose **Shared bus**, tick the three ports
    and choose **Connect**. The sentence reads "Each of master, device 1 and
    device 2 hears what the others write, and none hears itself."
-3. Open one port in each program, as **Port ready** shows.
+3. Open one port in each program, as the dialog that opens when a port is made (titled, for example, **COM7 is ready**) shows.
 4. To listen without being on the line, add one more port, called *listener*,
    and choose **Join many ports into one**. Tick the three bus ports as the
    ports that send and *listener* as the target. Open an analyser on *listener*.

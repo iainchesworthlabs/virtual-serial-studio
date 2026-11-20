@@ -23,6 +23,18 @@ A setup is a JSON document that lists the ports and links.
 
 ![The Export as command dialog showing vss_cli run setup.json --seconds=60](../images/export-command-light.png)
 
+A setup file must have `"version": 1`, and a member of the wrong type or one
+Studio does not know (such as `"port"` for `"ports"`, or `"delay"` for
+`"delay_ms"`) is refused, so a misspelt name is found when the file is opened.
+The window and `vss_cli` say that the file could not be opened; they do not
+yet say which member is wrong. A file over 16 MiB is refused. Saving writes the
+setup to a new file beside yours, checks it and puts it in place of the old file
+in one step, so a full disk or a stopped Studio leaves your file as it was; a
+file you made read-only is not replaced. Nothing is forced to the disk, so a
+power cut during or just after a save can still leave the file empty or part
+written. A setup keeps its name, its description and the order of its ports when
+you open it and save it again.
+
 The same file can be replayed without the window:
 
 ```bash
@@ -68,7 +80,8 @@ back as they are. An entry that is malformed (no `id`, a `name` with a control
 character, `params` that is not an object) is an error, like any other mistake
 in the file.
 
-Studio does not yet run a plugin that a setup names for a port or a link. It
+A setup that names a plugin does not start it. You switch plugins on in **Tools
+→ Plugins...**, and the page of each plugin shows where the setup uses it. Studio
 checks the list when it reads a setup and keeps it with the port or the link,
 so a setup that is opened and saved again,
 from the window or from the command line, still has it. The list goes with its
@@ -95,9 +108,23 @@ The window is only for setting them up and watching them.
   starts Studio hidden when you sign in, so the ports are back after a restart
   without opening anything. It is off until you turn it on, and it is not
   available on macOS yet.
-- **Saved setups** are unchanged: **File → Open** replaces what runs with the
-  saved setup, which then runs until you quit or open another, and you can
-  change it and save it again.
+- **Saved setups** are unchanged: **File → Open**, a template from **File →
+  Setups and templates**, and **Apply changes** in **Topology JSON** replace what
+  runs with the setup you chose, which then runs until you quit or open
+  another, and you can change it and save it again. A port that is the same in
+  both (same name and settings) is not touched: it keeps its COM number, a
+  program that has it open keeps its handle and it keeps running. A link between
+  two such ports that is the same in both is not touched either. Every other
+  link is removed and made again, and data a port sends on it meanwhile is lost,
+  which can take a while when Windows has to install a new port. A port that is
+  not the same is removed and made again, and when it needs a COM number that
+  Windows has not given back yet, Studio waits for it. A setup in which two
+  driver ports ask for the same COM number is refused before anything changes.
+  If the new setup cannot be made, the ports that were running are put back as
+  far as possible; a port that comes back is a new port, and the rules, echo and
+  the wiring and owner of its links are not restored. While **Topology JSON** is
+  applying, **File → Open**, **File → New**, **File → Setups and templates**,
+  Quit and the close button do nothing until it has finished.
 - **Settings → Running → When I close the window** can make closing quit, as
   before.
 - On a desktop with no notification area, closing with ports running asks
@@ -129,6 +156,10 @@ Connections that Studio makes itself can be retried. `vss_cli run
 topology.json --reconnect` opens a `tcp://` or `rfc2217://` client again when
 its connection drops, after one second and then twice as long each time, up to
 thirty seconds, and logs each try as an event. Listeners and serial devices
-are not retried. In the engine, `studio::set_reconnect_policy` sets the delays
+are not retried. In the window, a network client made with **Create anyway and
+keep trying**, or opened again with **Start** while the other computer refuses,
+keeps trying the same way and shows **Retrying**; a setup that is opened with
+such a client whose server is not there still opens, and the client keeps
+trying. In the engine, `studio::set_reconnect_policy` sets the delays
 and the most tries, and `studio::reopen` opens any port that has an address
 again by hand.

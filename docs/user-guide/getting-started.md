@@ -77,27 +77,58 @@ on.
 
 - **Ports** (left): one row per port with its name, what it is for and its
   path (with a copy button), then its state, RX, TX and Dropped. **Filter
-  ports** narrows the list. The path is what your other program opens. Select a
-  port here, in the topology or in the monitor, and the other two follow.
+  ports** narrows the list, and `Esc` clears the filter. The path is what your
+  other program opens. Select a port here, in the topology or in the monitor,
+  and the other two follow. Click a column heading to sort by it, click again to
+  reverse and a third time to go back to the order Studio keeps (`Ctrl+Alt+S`
+  does the same from the keyboard). Drag a heading to move the column, drag its
+  divider (or `Ctrl+Alt+Left` and `Ctrl+Alt+Right`) to resize it, and right-click
+  a heading, or press `Ctrl+Alt+M`, to choose the columns: Kind, Address,
+  Settings, Baud rate, Data bits, Parity, Stop bits, Flow control and Errors can
+  be added, and **Reset columns** puts them back. The order, the columns and
+  their widths are kept for the next start.
 - **Topology** (centre): one box per port and one line per link. Click a box to
   inspect it and a line to select the link. The row of buttons above it holds
   **Attach real device**, **Connect ports**, **Mock fixture**, **Share a
   device**, **Fit**, **Remove port** and **Remove setup**. The toolbox on its
   left builds on the diagram; see [Building on the diagram](connecting-ports.md#building-on-the-diagram-advanced).
-  **View → Show links as a list** gives the same links as a list that a screen
-  reader can walk.
+  **View → Panes → Show links as a list** gives the same links as a list that a
+  screen reader can walk.
 - **Inspector** (right): details for the selected port and its control lines.
   A port that nothing has opened yet links to "Why is nothing arriving?".
 - **Send** (right): write bytes into an open port.
 - **Monitor** (bottom): traffic rows with time, port, direction, bytes and a
-  preview. Its two tabs, **Log** and **Topology JSON**, are shown from the
-  **View** menu. When the JSON has an error, the editor names the line, marks
-  it, and **Go to line** jumps to it. That covers syntax mistakes, bad names,
-  kinds, modes and links, and invalid serial settings.
+  preview. **Log** and **Topology JSON** are panes of their own that start in
+  the same tabs at the bottom; show or hide each from **View → Panes**. The
+  **Log** has a port picker, an **Events** menu (**Errors**, **Started**,
+  **Stopped** and **Other**), a search box and **Clear**. When the JSON has an
+  error, the editor names the line, marks it, and **Go to line** jumps to it.
+  That covers syntax mistakes, bad names, kinds, modes and links, and invalid
+  serial settings.
 - **Status bar**: port and link counts, receive and transmit rates, whether the
   engine is running ("Engine running" or "Engine stopped"), a chip that counts
   bytes dropped when there are any, a readiness chip that opens the setup
-  check, and, while profiling is on, its address.
+  check, the edition chip (see [Licences](licences.md)), an **Update available**
+  chip when a check has found one (see [Updates](updates.md)) and, while
+  profiling is on, its address.
+
+### Moving the panes
+
+**Ports**, **Inspector**, **Send**, **Monitor**, **Log**, **Topology JSON** and
+the links list are panes that you can move; the topology stays in the middle.
+Each has a title bar with a menu and a close button. Drag the title bar, or a
+tab, and drop guides appear: the centre square puts the pane in the same tabs as
+the pane under the pointer, the four squares around it put it left, right, above
+or below that pane, and squares at the edges of the window dock it there. A
+shaded area shows where it will land, and a pane dropped outside the window
+floats. From the keyboard, open the pane's menu and choose **Float** (or
+**Dock**), **Move to the window edge** (**Left**, **Right**, **Top**,
+**Bottom**) or **Beside** another pane (**Tab with**, **Left of**, **Right
+of**, **Above**, **Below**). **View → Panes** lists every pane with a check mark
+for each one that is open, so a pane you closed comes back from there;
+**Next pane** and **Previous pane** (`Ctrl+Tab` and `Ctrl+Shift+Tab`) move
+between them. The arrangement is kept between runs, and **View → Reset layout**
+puts the panes back where they start.
 
 To rename a port, select it and press `F2`, or use **Ports → Rename port** or
 the node's context menu. Links and the saved setup use the new name. A
@@ -105,7 +136,7 @@ pseudo terminal on Linux or macOS moves its stable path to the new name, so
 a program that opened it by that path needs the new one. The path of every
 other kind stays as it was made.
 
-The window opens at 1280 by 800 and works down to 960 by 640. Dock sizes are
+The window opens at 1280 by 800 and works down to 960 by 640. Pane sizes are
 remembered; **View → Reset layout** puts them back. **Theme** (follow the
 system, light or dark) and **Density** (comfortable or compact) are under
 **View** too.
@@ -154,7 +185,10 @@ A job opens a form. Its parts depend on the job:
   **Show me the data going through**.
 
 A sentence at the bottom says what will be built. **Create** builds it, and if a
-step fails Studio removes what it made.
+step fails Studio removes what it made. On Windows each new port can take up to
+a minute to install, so while Studio builds, the button reads **Creating**
+(**Applying** when you change a setup), the rest of the form is off and the
+window stays responsive.
 
 The page of a setup says what to do next:
 
@@ -167,6 +201,9 @@ The page of a setup says what to do next:
   set a different baud rate from the device's, a note says so. **Add a
   program** adds a port without interrupting the others, and the minus button
   closes one.
+- For programs that take turns, each row has a **Let this one send** button and
+  the program that has the turn shows **Sending now**. The others only listen.
+  Closing the program that has the turn gives it to the first one left.
 - **Type to** a port: a box for what you type and a view of what comes back.
   **Enter adds a line ending** is a switch.
 - **Data going through**: **Show me the data going through** starts a live
@@ -208,9 +245,10 @@ The launcher in the compact density at the smallest window size, 960 by 640:
 1. Choose **Give my program a serial port**, optionally give the port a name (on
    Windows with the Studio driver, pick a COM number), and press **Create**. At
    the Advanced level use **Ports → Add port** (`Ctrl+Shift+N`) and **Create
-   port**; the **Port ready** dialog opens instead of a setup page.
+   port**; a dialog titled with the name to open (**COM7 is ready**, or the path
+   itself on Linux and macOS) opens instead of a setup page.
 2. Studio shows the name to open, for example `COM7` on Windows or `/dev/pts/3`
-   on Linux. Press the copy button, or **Copy name** in **Port ready**.
+   on Linux. Press the copy button, or **Copy name** in that dialog.
 3. In the other program, choose that port. Whatever it writes appears in the
    setup's **Type to** view, or in the monitor.
 4. To try the port without another program, choose **I'll type to it from this
@@ -218,6 +256,6 @@ The launcher in the compact density at the smallest window size, 960 by 640:
    use the **Send** panel: pick the port, type text, press **Send**, and watch
    the monitor.
 
-On Linux the **Port ready** dialog looks like this:
+On Linux that dialog, whose title is the path, looks like this:
 
 ![The Port ready dialog on Linux, with /dev/pts/1 in large type and a Copy name button](../images/port-ready-linux-light.png)

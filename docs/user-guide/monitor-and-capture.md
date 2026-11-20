@@ -23,7 +23,19 @@ hub does not publish them.
 
 - **Pause** (or `Space` in the table) stops appending. Traffic still flows and
   is counted. **Clear** empties the view. **Follow** keeps the newest row
-  visible.
+  visible. Scrolling up, `Page Up`, `Up`, `Home` or selecting a row that is not
+  the newest unticks **Follow**, and the rows then stay where they are while new
+  ones arrive; scrolling back to the end, `End`, `Ctrl+End` or ticking **Follow**
+  turns it on again. **Pause**, **Resume** and **Clear** do not change it.
+- A serial break is a row of its own. Its **Preview** reads **Break** and the
+  length, **Break, at least** the length when a device did not report one, or
+  **Break, running** while it is held. A break goes over the links, delays and
+  buses that carry data, and the Log shows it as a **Break** event. A capture
+  file holds data only, so a break is not in it.
+- Columns can be resized by dragging a divider, or with `Ctrl+Alt+Left` and
+  `Ctrl+Alt+Right` with the cursor in the table, and `Ctrl+Alt+0` fits a column
+  to its heading and contents. The widths are kept. **Open in monitor** on a
+  port sets the port filter to that port and says so in the status bar.
 - The preview switch shows payloads as **ASCII** or **Hex**. You can filter by
   port and by RX, TX or Dropped, search the payload (`Ctrl+F`), and **Export**
   the visible rows as text. **Export capture** saves the same rows as a capture

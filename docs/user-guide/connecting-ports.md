@@ -14,29 +14,53 @@ makes the same ports and links as the dialogs, so use whichever you prefer.
 - **Add a tile**: drag it onto the diagram, or select it and press `Enter`. A
   small **Add** sheet asks for each end (a new port, a new fixture, a loopback or
   a port you already have) and a name, **How many** for a bundle with a count,
-  and baud rate and framing under **More settings**. **Add** makes the ports and
+  and baud rate and framing under **More settings**. On Windows the sheet for a
+  **Port** also has a **COM number** field, set to *Automatic*, with the free
+  numbers in its list; a number that is in use is refused beside the field and
+  the message says what holds it. For a **Monitor**, choosing a port that is
+  there as the watched end shows that port's baud rate and framing, taken from
+  the port, and uses them. **Add** makes the ports and
   the link in one step, and removes what it made if a step fails. **Device**,
   **Network** and **Share** open their own dialogs. **Topology → Add port**, **Add
   fixture** and **Add pair** do the same from the menu.
 - **Link two boxes**: drag from the round handle on the edge of one box onto
   another, then choose **Two-way**, **One way, from A to B** or **Monitor A on
   B**. Dropping on empty space offers **New port here**, **New fixture here** and
-  **New loopback here**. A drop that would close a loop is refused with "That
-  link would create a loop". With several boxes selected, **Link selected** in
+  **New loopback here** (the ways of linking then read **Two-way**, **One way,
+  to the new port** and **Monitor on the new port**), and also **Share <port>
+  over the network...** and **Connect <port> to a server...**, which open the
+  network dialog. Dropping on a port that is on a shared bus offers **Add <port>
+  to the bus with <port>**, and dropping on a port that is not on one offers
+  **Shared bus for <port> and <port>**. A drop that would close a loop is
+  refused with "That link would create a loop". With several boxes selected, **Link selected** in
   the box's menu builds a split, a join, a bus or a switch. From the keyboard,
   **Connect from here** (`Ctrl+L`) asks for the other port.
 - **Right-click a box** for **Inspect**, **Settings...** (baud rate, data bits,
   parity, stop bits, flow control and timeouts, as far as the kind of port has
   them), **Rename**, **Duplicate** (`Ctrl+D`; not for a real device or a network
   client, which can be opened only once), **Connect from here**, the port actions
-  (**Send bytes**, **Start repeat**, **Open in monitor**, and for a fixture
-  **Start generator** and **Echo received bytes**), **Copy name** and **Delete**.
+  (**Send bytes**, **Start repeat**, **Open in monitor**, **Decode as...** when
+  a plugin that decodes is on, and for a fixture **Start generator** and **Echo
+  received bytes**), **Share over the network...**, **Connect to a server...**
+  and **Make a bus with...**, **Pause** and **Stop** for a real device or a
+  network port (see [Stopping and pausing a
+  port](adding-ports.md#stopping-and-pausing-a-port-advanced)), **Copy name** and
+  **Delete**.
   **Right-click a line** for **Settings...** (see [Delay and
   jitter](timing-and-control-lines.md#delay-and-jitter-on-a-link)), **Reverse direction** (a one-way link)
   and **Delete**. Right-click empty space to add a port, a fixture, a loopback or
   a bundle, or **Select all**.
 - **Topology → Tidy layout** arranges the boxes, and **Fit** (`Ctrl+0`) fits them
   in the pane.
+- **Zoom**: a small bar in the bottom-right corner of the diagram has **Zoom
+  out**, the current zoom (press it to go back to 100 percent) and **Zoom in**.
+  `Ctrl` with the mouse wheel, or a pinch on a trackpad, zooms about the
+  pointer; `Ctrl+Plus` and `Ctrl+Minus` zoom, `Ctrl+1` returns to 100 percent
+  and `Ctrl+0` still fits everything. The zoom runs from 25 to 400 percent.
+- **Double-click** a box to open its **Settings...** (a network port opens its
+  network settings), and a line to open the link's settings. A monitor line has
+  no delay to set, so double-clicking it opens the port it watches in the
+  monitor.
 
 Most of these steps can be undone; see [What this build cannot do](limits.md#what-this-build-cannot-do).
 
@@ -53,6 +77,13 @@ link:
 | **Split one port to many** | Several programs must see the same device. | Each target receives a copy of the source. |
 | **Join many ports into one** | Several publishers feed one program. | The target receives every publisher's data. |
 | **Shared bus** | Several programs share one wire, like stations on an RS-485 line. | Every other port's data; never its own. |
+
+A monitor can copy only what the port's program writes (**Transmit only**),
+only what is written into the port (**Receive only**) or both (**Both
+directions**, the default). Choose it under **Direction** in **Settings...** for
+the monitor line, or in the Inspector of the port at the copy end. In a topology
+file it is `"direction"` on a monitor link, with `"both"`, `"transmit"` or
+`"receive"`; a file without it means `"both"`, and any other value is refused.
 
 The dialog lists only ports that exist, refuses a port linked to itself, needs
 at least two targets for a split, two publishers for a join and two ports for a

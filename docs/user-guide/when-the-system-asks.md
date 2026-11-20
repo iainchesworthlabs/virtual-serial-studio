@@ -14,15 +14,51 @@ follows three rules:
 
 ## Windows
 
+**The driver and its helper service.** A COM port that other programs can open
+needs a driver. The Setup check row *Virtual port driver* says which one Windows
+has: the Virtual Serial Studio driver (with its version), or com0com. When a
+piece of Studio's own set-up is missing, the row, the start page and the error
+of a port that could not be made name it: "The Virtual Serial Studio driver is
+not installed", "The Virtual Serial Studio helper is not installed", "The
+Virtual Serial Studio helper is not running", "The Virtual Serial Studio helper
+is out of date", "Your account cannot use the Virtual Serial Studio helper" or
+"The Virtual Serial Studio driver on this PC needs updating". Each comes with
+one button, **Set up Virtual Serial Studio**, or **Update the driver** when the
+driver is older than the one that comes with this copy of Studio.
+
+The button opens the *Set up Virtual Serial Studio* dialog. It installs or
+repairs the driver and the helper service through one Windows permission prompt,
+which names the program and its publisher; Studio itself keeps running without
+administrator rights. Nothing is downloaded: the files come from this copy of
+Studio. Studio checks the signatures first and installs nothing, and says so, when
+Windows does not trust them. The helper restarts, so the ports that are open
+are closed and Studio offers to make them again; an update can also ask for a
+Windows restart before the new driver is used. The dialog shows the same set-up
+as a command for you to run in a terminal opened as administrator, and **Copy
+details** copies what the check found for a request for help. With neither driver
+installed, the row offers **Install com0com** instead, which shows the steps
+and a link to the project page; Studio installs nothing for you there.
+
+Studio reads three driver versions: the one in the Windows driver store, the one
+that comes with this copy, and the one the running ports speak. The Setup check,
+the About tab of **Help → About** and the set-up dialog say in words
+which is older, the same or newer, and nothing needs updating when the
+installed one is the same or newer.
+
 **Administrator rights.** Studio and its command line run as you, and none of
 them asks for administrator rights when it starts. A step that needs them (a new
-com0com pair, a firewall rule) asks Windows for permission when you press its
-button. Windows shows its own **User Account Control** window; that window is
-the permission. The Setup check row *Administrator rights* says whether Windows
-will ask you only to confirm (your account is an administrator) or to type an
-administrator's password (it is not). *Restart as administrator* restarts the
-whole program with those rights; if you decline the prompt, Studio keeps running
-as before and says so.
+com0com pair, setting up the driver, a firewall rule) asks Windows for
+permission when you press its button. Windows shows its own **User Account
+Control** window; that window is the permission. The Setup check row
+*Administrator rights* reads one of three ways. With the Virtual Serial Studio
+driver installed, it says the driver makes ports without administrator rights.
+When Studio already runs as administrator, it says it can create linked pairs.
+Otherwise it says that a new linked pair needs administrator rights once per
+pair, adds whether Windows will ask you only to confirm (your account is an
+administrator) or to type an administrator's password (it is not), and offers
+**Restart as administrator**. That restarts the whole program with those rights,
+and the new Studio starts the same ports; if you decline the prompt, Studio keeps
+running as before and says so.
 
 **Windows Firewall.** Nothing is asked while Studio listens on this PC only
 (`127.0.0.1`). When a network endpoint waits for other computers on `0.0.0.0` or a
@@ -34,16 +70,23 @@ the Setup check shows a *Windows Firewall* row. They open a dialog that says:
   reads them);
 - the one rule Studio can add: this program, one protocol, one port, computers on
   your local network only, on the network you are on now (private, domain or
-  public) and no other;
+  public) and no other (when the PC is on all three at once, the rule is for the
+  private network, since a rule never covers every network);
 - the same rule as a `netsh` command, if you would rather run it yourself.
 
 **Allow in Windows Firewall** starts a small helper (`vss_cli`, the command line
 beside the program) through the Windows permission prompt. The helper does that
 one thing and refuses any program that is not Studio. A rule that blocks the
 program, or the *Block all incoming connections* setting, is never changed by
-Studio; the dialog says where to change it. Remove the rule in Windows Defender
-Firewall (its name starts with *Virtual Serial Studio*), or with the command
-`netsh advfirewall firewall delete rule name="…"` that the dialog shows.
+Studio; the dialog says where to change it. The Setup check row shows the same
+facts with the buttons **Allow through the firewall** (or **How to allow it**
+when this build cannot add the rule) and **How to change it**. It looks at ports
+that listen with `tcp-listen://`, `udp-listen://` and `rfc2217-listen://`,
+including addresses that end with `?allow=`. The rule is named for the program,
+protocol and port, for example `Virtual Serial Studio vss_gui.exe TCP 4001`.
+Remove it in Windows Defender Firewall (the name starts with *Virtual Serial
+Studio*), or with `netsh advfirewall firewall delete rule name="<the name>"`.
+The dialog shows the command that adds the rule, not the one that removes it.
 
 The same check is available from a terminal and changes nothing:
 
@@ -54,15 +97,21 @@ vss_cli permissions check --listen=tcp-listen://0.0.0.0:4001
 ## Linux
 
 **Serial devices.** Who may open `/dev/ttyUSB0` is decided by the group that owns
-it (`dialout` on Debian, Ubuntu and Fedora, `uucp` on Arch). The Setup check row
-*Serial device access* reads the owner and mode of each device it found and says
-which of four things is true:
+it (`dialout` on Debian, Ubuntu and Fedora, `uucp` on Arch). The Setup check has
+three rows for this: *Pseudo terminals* (whether `/dev/ptmx` exists, which new
+virtual ports need), *Serial port group membership* (whether your account is in
+the `dialout` group; **How to add me** shows `sudo usermod -aG dialout $USER`)
+and *Real serial devices*. When serial devices are found, the row *Serial device
+access* reads the owner and mode of each one and says which of four things is
+true:
 
 - you may open it;
-- your account is not in the group, and the row shows
-  `sudo usermod -aG dialout <you>`. If `pkexec` (polkit) is installed the dialog
-  also has **Add me to the dialout group**, which asks your desktop for your
-  password and runs that one command. Sign out and back in afterwards;
+- your account is not in the group, and the dialog shows
+  `sudo usermod -aG dialout <you>`. If `pkexec` (polkit) is installed the row's
+  button is **Add me to the group** and the dialog has **Add me to the dialout
+  group** (it names the device's group), which asks your desktop for your
+  password and runs that one command. Without `pkexec` the button is **How to add
+  me**. Sign out and back in afterwards;
 - your account is in the group but this login does not know yet (sign out and
   in, or `newgrp dialout` in one terminal);
 - the group may not read and write the device: the dialog shows the `ls -l`
@@ -71,7 +120,8 @@ which of four things is true:
 
 **When the file permissions allow it and it is still refused.** AppArmor, SELinux,
 Flatpak and Snap can refuse a device or the folder Studio keeps its link names in
-(`/run/vss`, then `/tmp/vss`). Studio recognises this when a device that the
+(`$XDG_RUNTIME_DIR/vss` when that is set, as it is in a desktop login, otherwise
+`/run/vss`, then `/tmp/vss`; `VSS_VPORT_DIR` names another one). Studio recognises this when a device that the
 permissions allow was refused, and the *Confinement* row (shown only when something
 confines the program) gives the fix for the one that applies:
 
@@ -116,7 +166,10 @@ is (**System Settings → Privacy & Security → Local Network**) for the case w
 you chose *Don't Allow* and other computers cannot connect.
 
 **Serial devices.** `/dev/cu.*` devices are ordinary files that an ordinary user
-may open, so the *Serial device access* row mostly says "you may open them". If a
+may open, so the *Serial device access* row mostly says "You may open the serial
+devices Studio found." The row *Serial port access* has no group check on macOS and
+reads "Not checked yet": if a device cannot be opened, look at its permissions in
+`/dev`. If a
 USB serial adapter does not appear at all on a Mac with Apple silicon, macOS may be
 asking you to allow the accessory (**System Settings → Privacy & Security → Allow
 accessories to connect**); that prompt cannot be read from here either.
@@ -125,7 +178,12 @@ accessories to connect**); that prompt cannot be read from here either.
 the entitlements `com.apple.security.device.serial`, `network.client` and
 `network.server`; the *Confinement* row names them if Studio finds itself sandboxed.
 
-**Downloaded builds.** Until a release is signed and notarised (see
-[Releasing](../releasing.md)), Gatekeeper asks you to allow the app: right-click it, choose
-**Open**, then **Open** again, or run `xattr -dr com.apple.quarantine
-vss_gui.app`.
+**Downloaded builds.** The macOS release is a disk image for Apple silicon. Open it,
+drag `vss_gui.app` onto the `Applications` link and eject the image; `bin/vss_cli`
+is in the image beside the app. Until a release is signed and notarised (see
+[Releasing](../releasing.md)), Gatekeeper refuses to open the app the first time
+("cannot be opened because the developer cannot be verified"). Try to open it once,
+then open **System Settings → Privacy & Security** and choose **Open Anyway** beside
+the message about `vss_gui`. On macOS 14 and earlier, Control-click the app, choose
+**Open**, then **Open** again. Removing the quarantine flag also works:
+`xattr -dr com.apple.quarantine /Applications/vss_gui.app`.

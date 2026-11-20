@@ -29,8 +29,14 @@ you add the port. The settings go in the address after the port:
 `rfc2217://lab:7001?baud=115200&data=8&parity=none&stop=1&flow=none`. Studio asks
 the server to use the COM-PORT option, and once it agrees:
 
-- The speed, data bits, parity, stop bits and flow control are sent, and sent
-  again when the port's settings change.
+- The settings of the server's port are the server's to say. With no settings
+  in the address, Studio asks the server for its speed, data bits, parity, stop
+  bits and flow control and uses the answer, so a device on a bus that runs at
+  9600 is not set to 115200. Settings in the address (`baud`, `data`, `parity`,
+  `stop` or `flow`), or `settings=own`, make Studio set them on the server, and
+  send them again when the port's settings change; `settings=device` asks for
+  the server's own. A speed or framing that a program sets on the other side of
+  the link is still sent to the server.
 - DTR and RTS follow the port's. CTS, DSR, DCD and RI that the server reports
   are the port's inputs.
 - A break that arrives at the port is sent as break on, a wait of the break's
@@ -44,12 +50,17 @@ the server to use the COM-PORT option, and once it agrees:
 
 A server that does not offer RFC 2217 is used as a plain byte stream, and the
 log says so. If the connection is lost the port stops, and a reconnect policy
-opens the address again, as it does for `tcp://`.
+opens the address again, as it does for `tcp://`. A framing, parity or overrun
+error that the server reports for a byte it received badly does not
+end the connection: it is counted in the port's error total and written to the
+log (at most once a second), and the port stays open. The client also takes part
+in the Telnet binary and suppress-go-ahead options that serial servers expect.
 
 To let other computers connect, allow the port through the host firewall and
 listen on an interface they can reach (`0.0.0.0` for all interfaces). Try
-`127.0.0.1` first. Apart from the check for updates (see [Updates](updates.md#updates)),
-Studio makes no network connection unless you add an endpoint like these.
+`127.0.0.1` first. Studio does not use the network unless you add an endpoint
+like these, apart from the check for updates, which is off until you turn it on
+(see [Updates](updates.md#updates)).
 
 ## Who may connect
 
@@ -111,8 +122,9 @@ other computer open it with a serial-over-network client such as pySerial's
 
 - **The member is there with or without the other computer.** With nobody
   connected, what the bus sends to it is dropped without an error and nothing
-  comes from it, which is what an unplugged device looks like. Studio does not
-  yet show whether a computer is connected.
+  comes from it, which is what an unplugged device looks like. The port's row
+  in the ports list says "Clients connected: 2", or "No remote connected" when
+  nobody has joined.
 - **Time is Studio's.** Bytes are stamped once, when they pass through Studio, with
   Studio's clock. The other computer's clock is not used, so a capture shows its
   device on the same time axis as the others.

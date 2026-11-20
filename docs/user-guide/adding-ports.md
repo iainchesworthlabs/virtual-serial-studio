@@ -19,8 +19,12 @@
 - **COM number** (Windows, with the Studio driver and its helper service, and
   only for *Best available*): *Automatic* takes a number Windows has kept for a
   port that is gone and nothing uses, lowest first (never COM1 or COM2), so
-  deleting COM17 and making a port again gives COM17. When there is none, it
-  takes a number above the ports this PC already has. Or type the number a
+  deleting COM17 and making a port again gives COM17; a number the computer
+  has had before is made in a fraction of a second, and one it has never had
+  takes about 30 seconds. Right after you delete a port Windows still counts
+  its number as taken for about 45 seconds, and Studio waits for it rather than
+  take another number. When there is none, it takes a number above the ports
+  this PC already has. Or type the number a
   program expects, 1 to 255. It names one port, so it is off when **How many**
   is above one. A number that is refused is explained under the field and
   nothing is made; see [Choosing a COM number
@@ -32,9 +36,12 @@
   no pseudo terminals, so *Pseudo terminal* is disabled there.
 
 A sentence under the form says what will be created. When you press **Create
-port**, the **Port ready** dialog opens with the path in large type, **Copy
+port**, a dialog opens with the path in large type (its title reads, for
+example, **COM7 is ready**; on Linux and macOS the title is the path), **Copy
 name**, a note on how to use it, and **Connect COM7 to something**, **Create
-another** and **Done**. **Show details** gives the saved-setup entry and the
+another** and **Done**. On Windows the button reads **Creating** while the
+port is made, which can take up to a minute for a COM number this computer has
+never had, and the window stays responsive. **Show details** gives the saved-setup entry and the
 equivalent `vss_cli` command. Without a driver on Windows the title reads
 "port-1 is ready inside Studio" and the dialog warns that other programs cannot
 open it, with a button for the setup check. With a driver installed and a
@@ -77,7 +84,9 @@ device** opens the device.
 
 The settings (baud rate, data bits, parity, stop bits, flow control) are folded
 away in Simple with a one-line summary and open in Advanced. **Use common
-defaults** sets 115200 8N1. Keep **Capture traffic in the monitor** ticked to
+defaults** sets 115200 8N1. The baud rate lists go up to 12000000, and a rate
+from 50 to 12000000 can be typed; whether a rate works still depends on the
+system and the device, and Studio reports a refusal when it applies the rate. Keep **Capture traffic in the monitor** ticked to
 record it. The dialog shows the address it will use, for example
 `serial://COM3?baud=115200`; in Advanced you can edit it and the edit wins over
 the fields.
@@ -91,24 +100,67 @@ that Studio creates, not the device.
 
 **Ports → Network endpoint** (**Put a device on the network**) bridges a real
 serial device to a network address, as `vss_cli bridge` does. Choose the
-**Device to share**, the transport (TCP, UDP or RFC 2217), then whether Studio
-**connects to a server** or **waits for other computers to connect (server)**,
-and the address and port. Waiting works for TCP, UDP and RFC 2217. **Start
-bridge** links the device and the address both ways. **Test from this PC first**
+**Port to share** (a device, a port already in Studio, or **A new port in
+Studio**), the transport under **Share it using** (TCP, UDP or RFC 2217), then
+whether Studio will **Connect to a server (client)** or **Wait for other
+computers to connect (server)**, and the address and port. Waiting works for TCP,
+UDP and RFC 2217. **Start bridge** links the port and the address both ways.
+Putting the network port on a port that is already in Studio links the two and
+does not open the device again. **Test from this PC first**
 picks the server role on `127.0.0.1`. **Edit address** lets you type the
 address yourself (see [network addresses](network.md#network-addresses)), and the dialog
-shows the equivalent `vss_cli bridge` command. To put a network port on a
+shows the equivalent `vss_cli bridge` command. If a client cannot connect
+because the other computer refuses at that moment, the error offers **Create
+anyway and keep trying**: the port is made now, waits, and connects when the
+other computer answers. Two network ports cannot listen on the same address and
+port: TCP and RFC 2217 share one set of port numbers, UDP has its own, and an
+address that covers every interface overlaps any other on that port. Studio
+says so before it makes anything, whether the other port is in the setup or
+another program holds it. To put a network port on a
 [shared bus](connecting-ports.md#connecting-ports) rather than bridge a device to it, write the
 port in a setup file or in **Topology JSON**; see [A device on another
 computer](network.md#a-device-on-another-computer).
 
 ![The Put a device on the network dialog with TCP chosen, a server address and the equivalent vss_cli bridge command](../images/network-endpoint-light.png)
 
+A network port can be changed after it is made. Choose **Settings...** on it
+(its context menu at the Advanced level, or double-click it). The **Network
+port settings** dialog changes server or client, the address, the port to bind
+and the allow list, and **Apply** keeps the port's name and its links.
+
+## Stopping and pausing a port (Advanced)
+
+A port made from an address, which is a real device or a network port, can be
+closed without removing it. **Stop** in the port's menu on the diagram, or the
+**Stop** button in the Inspector, closes it: a network client lets go of the
+other computer and does not try again, a server lets go of its address and
+drops its clients, and a serial device is closed so another program can use it.
+The port keeps its name and its links. It shows a **Stopped** chip, and
+**Start** opens it again; a client whose other computer refuses keeps trying.
+**Pause** and **Resume** do the same close and open, except that a paused port is
+saved in the setup file as `"paused": true`, so the setup opens with it still
+paused; a stopped port is not saved. What is sent to a stopped or paused port is
+lost, not held. A virtual port and a mock fixture have none of these buttons.
+A stopped port is not *Failed*, which is a port that stopped by itself.
+
+## A network client's state (Advanced)
+
+The ports list and the Inspector give a network client one of **Connecting**,
+**Connected**, **Failed** or **Retrying**, with a sentence that names the target
+and, for a failure, the reason, such as "Could not connect to
+tcp://192.168.1.50:4001: Connection refused. Trying again." On the diagram the
+client's tile shows the address it connects to. The Inspector also lists the
+remote address and port, when the connection came up, the last error with its
+code, when the next try is, what was received and sent since it came up, how
+many times it has reconnected and the last ten events with their times. The
+local address and port are not reported, and the Inspector says so.
+
 ## Mock fixture (Advanced)
 
 **Ports → Mock fixture** adds a scripted pretend device for tests without
 hardware. Give it a name and a baud rate, and choose a port to link it to
-two-way, or *Nothing yet*.
+two-way, or *Nothing yet*. When you choose a port that is there, the sheet starts
+at that port's baud rate. In **Settings...** for a port, a box offers to use the same settings for the ports linked to it, so linked ports keep one speed.
 
 ![The Add a mock fixture dialog with a name, baud rate and the port to link it to](../images/mock-fixture-light.png)
 
