@@ -1,0 +1,125 @@
+{
+  "comment": "The owner-approved exceptions to tools/ci/check_claims.py (docs/ci.md, 'The claims'). A page may not say that the program is certified, qualified, compliant, approved or guaranteed. An exception names one file and the words around the word, and says why the use is not a claim. An exception is approved when approved_by holds the name of the person who approved it; check_claims.py --strict fails while one in use is not. Only the owner fills in approved_by.",
+  "exceptions": [
+    {
+      "file": "SECURITY.md",
+      "phrase": "no guaranteed response time",
+      "reason": "A denial: it says no response time is promised.",
+      "approved_by": ""
+    },
+    {
+      "file": "changelog.d/plugin-install-command.added.md",
+      "phrase": "a key nobody has approved",
+      "reason": "A trust decision about a plugin's signing key that a person makes in Studio, not a claim about the program.",
+      "approved_by": ""
+    },
+    {
+      "file": "changelog.d/plugins-page.added.md",
+      "phrase": "an author you have not approved",
+      "reason": "The text of a trust label that Studio shows, as the Plugins page spells it.",
+      "approved_by": ""
+    },
+    {
+      "file": "docs/user-guide/plugins.md",
+      "phrase": "an author you have not approved",
+      "reason": "The text of a trust label that Studio shows, as the Plugins page spells it.",
+      "approved_by": ""
+    },
+    {
+      "file": "docs/break-event-plan.md",
+      "phrase": "Approved",
+      "reason": "An owner's decision recorded in a design page, not a claim about the program.",
+      "approved_by": ""
+    },
+    {
+      "file": "docs/wire-timing-plan.md",
+      "phrase": "the owner approved",
+      "reason": "An owner's decision recorded in a design page, not a claim about the program.",
+      "approved_by": ""
+    },
+    {
+      "file": "docs/wire-timing-plan.md",
+      "phrase": "schema addition approved",
+      "reason": "An owner's decision recorded in a design page, not a claim about the program.",
+      "approved_by": ""
+    },
+    {
+      "file": "docs/response-timing.md",
+      "phrase": "is approved too",
+      "reason": "An owner's decision recorded in a design page, not a claim about the program.",
+      "approved_by": ""
+    },
+    {
+      "file": "docs/debug-api.md",
+      "phrase": "A client that is not approved",
+      "reason": "Access control: a debug client has to be accepted by the person at the keyboard, not a claim about the program.",
+      "approved_by": ""
+    },
+    {
+      "file": "docs/licensing.md",
+      "phrase": "get a run approved",
+      "reason": "A person approves a workflow run in the release environment, not a claim about the program.",
+      "approved_by": ""
+    },
+    {
+      "file": "docs/updates.md",
+      "phrase": "is not an approved dependency",
+      "reason": "A quotation from docs/gui-design/design-deviations.md about a library, not a claim about the program.",
+      "approved_by": ""
+    },
+    {
+      "file": "docs/plugins.md",
+      "phrase": "a key nobody approved",
+      "reason": "A trust decision about a plugin's signing key that a person makes in Studio, not a claim about the program.",
+      "approved_by": ""
+    },
+    {
+      "file": "docs/plugins.md",
+      "phrase": "user's approved keys",
+      "reason": "A trust decision about a plugin's signing key that a person makes in Studio, not a claim about the program.",
+      "approved_by": ""
+    },
+    {
+      "file": "docs/plugins.md",
+      "phrase": "already approved with a different key",
+      "reason": "A trust decision about a plugin's signing key that a person makes in Studio, not a claim about the program.",
+      "approved_by": ""
+    },
+    {
+      "file": "docs/plugins.md",
+      "phrase": "key approved",
+      "reason": "A trust decision about a plugin's signing key that a person makes in Studio, not a claim about the program.",
+      "approved_by": ""
+    },
+    {
+      "file": "docs/plugins.md",
+      "phrase": "key that is not approved",
+      "reason": "A trust decision about a plugin's signing key that a person makes in Studio, not a claim about the program.",
+      "approved_by": ""
+    },
+    {
+      "file": "docs/plugins.md",
+      "phrase": "since you approved it",
+      "reason": "A trust decision about a plugin's signing key that a person makes in Studio, not a claim about the program.",
+      "approved_by": ""
+    },
+    {
+      "file": "docs/plugins.md",
+      "phrase": "after the user approved it",
+      "reason": "A trust decision about a plugin's signing key that a person makes in Studio, not a claim about the program.",
+      "approved_by": ""
+    },
+    {
+      "file": "docs/plugins.md",
+      "phrase": "is it approved",
+      "reason": "A trust decision about a plugin's signing key that a person makes in Studio, not a claim about the program.",
+      "approved_by": ""
+    },
+    {
+      "file": "docs/plugins.md",
+      "phrase": "key the user has approved",
+      "reason": "A trust decision about a plugin's signing key that a person makes in Studio, not a claim about the program.",
+      "approved_by": ""
+    }
+  ]
+}
