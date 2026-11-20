@@ -118,6 +118,12 @@ private:
     void update_plugin_chip();
     void update_update_chip();
 
+    /// Holds the counters and the dropped chip.  `QStatusBar` hides and shows
+    /// its plain widgets as one each time a message comes and goes, and shows
+    /// a hidden one again with the message still up.  So the labels inside are
+    /// hidden and shown here, never in the bar.
+    QWidget* counters_ = nullptr;
+
     StudioBackend& backend_;
     support::setup_report_cache setup_cache_;
     QLabel* ports_ = nullptr;

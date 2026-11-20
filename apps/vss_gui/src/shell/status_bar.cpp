@@ -120,21 +120,27 @@ StatusBar::StatusBar(StudioBackend& backend, QWidget* parent)
     rate_timer_.start();
     last_ns_ = rate_timer_.nsecsElapsed();
 
-    ports_ = new QLabel(this);
-    links_ = new QLabel(this);
-    rates_ = new QLabel(this);
-    hub_ = new QLabel(this);
+    counters_ = new QWidget(this);
+    auto* counters_row = new QHBoxLayout(counters_);
+    counters_row->setContentsMargins(0, 0, 0, 0);
+    counters_row->setSpacing(0);
+    ports_ = new QLabel(counters_);
+    links_ = new QLabel(counters_);
+    rates_ = new QLabel(counters_);
+    hub_ = new QLabel(counters_);
     for (QLabel* label : {ports_, links_, rates_, hub_})
     {
         label->setFont(Theme::instance().font(text_style::caption));
         label->setContentsMargins(0, 0, 12, 0);
-        addWidget(label, 0);
+        counters_row->addWidget(label);
     }
 
-    dropped_ = new StatusChip(tr("0 dropped"), StatusChip::kind::waiting, this);
+    dropped_ =
+        new StatusChip(tr("0 dropped"), StatusChip::kind::waiting, counters_);
     dropped_->set_small(true);
     dropped_->hide();
-    addWidget(dropped_, 0);
+    counters_row->addWidget(dropped_);
+    addWidget(counters_, 0);
 
     // Shown only while the profiler is listening, so a person can always see
     // that it is and on which port.
