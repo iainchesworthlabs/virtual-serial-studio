@@ -1,1 +1,0 @@
-**A website for the product.** The source of virtual-serial-studio.com is in `website/`: what Studio does, the editions, downloads, plugins, support, the licence, privacy and the security policy, as static pages with no scripts, cookies or trackers. It is published with the documentation, which moves under `docs/` on the same site and no longer loads a font from another host.

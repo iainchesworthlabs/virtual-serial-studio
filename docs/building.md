@@ -171,6 +171,8 @@ python -m mkdocs build --strict
 python tools/check_docs.py
 ```
 
-`mkdocs build --strict` fails on a broken link or anchor. `check_docs.py` checks
-that every preset a page names exists in `CMakePresets.json` and that every
-README badge names a workflow that exists.
+`mkdocs build --strict` fails on a broken link or anchor and writes the site to
+`build/docs`. `check_docs.py` checks that every preset a page names exists in
+`CMakePresets.json` and that every README badge names a workflow that exists. CI
+also runs the checks of the site on what the build wrote; they are in
+[Continuous integration](ci.md#documentation-site).

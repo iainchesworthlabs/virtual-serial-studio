@@ -1,1 +1,0 @@
-**The website says that a licence file carries the name and the email address the customer gave.** The Privacy page, still a draft for the solicitor, says what the file holds and that Studio sends it nowhere. The Support and Editions pages say a person who asks for a licence gives a name and an email address.

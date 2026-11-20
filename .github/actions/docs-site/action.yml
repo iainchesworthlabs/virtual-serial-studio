@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Build the documentation site
+description: >-
+  Builds the site from docs/ and mkdocs.yml with `mkdocs build --strict` into build/docs, with MkDocs
+  installed from the hash-locked requirements/docs.txt, and then checks what the build produced. The
+  strictness is more than MkDocs' default: mkdocs.yml turns a link that points nowhere, a heading anchor
+  that is not there and a page that is not in the navigation into errors. The checks of the company kit and
+  palette, of the site's address, of its layout, of its pages and of the release data and the update feed
+  (docs/ci.md, "Documentation site") run after it. The job must have checked the repository out. Used by
+  docs.yml, ci.yml and release.yml, so they cannot disagree about what a good build is.
+
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      with:
+        enable-cache: false
+
+    # Python 3.13 and not whatever the image has: the lock was made for 3.11 and later, and every wheel in it is
+    # checked against its hash. --no-build means nothing is compiled on the runner.
+    - name: Install MkDocs (hash-locked)
+      shell: bash
+      run: | # zizmor: ignore[github-env] RUNNER_TEMP-derived, not attacker-influenced
+        set -euo pipefail
+        uv venv --python 3.13 "$RUNNER_TEMP/docs-venv"
+        uv pip install --python "$RUNNER_TEMP/docs-venv/bin/python" --require-hashes --no-build \
+          --requirement requirements/docs.txt
+        echo "$RUNNER_TEMP/docs-venv/bin" >> "$GITHUB_PATH"
+
+    - name: Build the site (strict)
+      shell: bash
+      env:
+        NO_MKDOCS_2_WARNING: "true"
+      run: mkdocs build --strict
+
+    # The pinned company kit and the palette (Node is on every hosted image), the one place the address is written, the
+    # table that says where each page is, the built pages (titles, headings, links, anchors, nothing loaded from
+    # another host) and the release data (every address a release of this repository, the update feed verified with the
+    # keys Studio trusts and the same bytes as the stored copy). What the build is not able to say for itself.
+    - name: Check the kit, the address, the layout, the pages and the release data
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 tools/ci/check_site_kit.py
+        python3 tools/ci/check_site_address.py
+        python3 tools/ci/check_site_layout.py --site build/docs
+        python3 tools/ci/check_site_pages.py --site build/docs
+        python3 tools/ci/check_release_data.py --site build/docs
+        python3 tools/ci/check_claims.py

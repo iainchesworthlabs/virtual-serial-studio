@@ -1,0 +1,15 @@
+# Input of docs.txt, the hash-locked tool the documentation workflow builds the site with
+# (mkdocs.yml at the root of the repository; docs/ci.md, "Documentation site"):
+#   uv pip compile --universal --generate-hashes --python-version 3.11 --exclude-newer 2026-11-13 docs.in --output-file docs.txt
+# (--exclude-newer: nothing published in the week before the lock was made, the cooldown Dependabot keeps.)
+# Dependabot's pip ecosystem for /requirements keeps both files current.
+#
+# MkDocs stays on 1.6: 2.0 drops the plugin system and the theme API this site's configuration uses
+# (hooks, the `validation` block).
+mkdocs>=1.6,<2
+mkdocs-material>=9.8.0,<10
+# mkdocs.yml names pymdownx.slugs.slugify directly, so it is listed here and not left to Material.
+pymdown-extensions>=12.3
+# certifi: the floor is the version that a sibling repository chose for an advisory on older bundles (GHSA-6q48-6c7w-9gw2); it comes in
+# through requests, which mkdocs uses. It was not looked up again here.
+certifi>=2026.10.23

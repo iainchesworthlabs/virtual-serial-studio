@@ -1,7 +1,21 @@
 # The per-user agent
 
-Status: **proposed**. This page is a decision record for the owner. Section 11 lists the decisions to make; nothing
-outside the first slice (section 10, PR 1) is built until they are made.
+Status: **the first slice is built; the rest is proposed**. This page is a decision record for the owner. Section 11
+lists the decisions to make; nothing outside the first slice (section 10, PR 1) is built until they are made.
+
+**What is built.** `libs/vss_agent_proto` (the frames, messages and errors), `libs/vss_agent` (the local transport, the
+server and the client), the program `vss_agent` and the commands `vss_cli agent status`, `ports`, `create-port`,
+`remove-port`, `connect`, `write`, `watch` and `stop`. They are built from source and run, with tests that start real
+processes. Two requests came after the slice and are built too: taking a link away (`disconnect`) and renaming a port,
+and a connection can be marked read-only. The control gateway (`apps/vss_gate`, `libs/vss_control`;
+[remote-control.md](remote-control.md)) is a client of the agent and uses all of this.
+
+**What is not built.** Studio does not use the agent: the ports in its window are in its own process, and the agent and
+the gateway do not see them. The agent makes loopback ports only (no pseudo terminals, no driver ports, no serial
+devices). Nothing starts it on demand, and it does not exit when idle, restore a running setup, refuse to run
+elevated or carry the plugin host (Studio's own process does). It is not in the installers or packages: the owner has
+decided that `vss_agent` and `vss_gate` will be, and `apps/vss_agent/CMakeLists.txt` says it is not installed yet. The marks below say
+the same line by line.
 
 Each claim below carries one of two marks:
 
@@ -457,7 +471,7 @@ The slice came out at a little more than one line of test for each line of code,
 
 | PR | What | Size |
 |---|---|---|
-| 1 (this slice) | This page; `libs/vss_agent_proto`; `libs/vss_agent` (transport, server, client); `vss_agent`; `vss_cli agent`; the tests of section 9. Loopback ports only, not in the installers yet | 10 700 measured: 4 800 of code, 5 400 of tests and the fuzz harness, 500 of documents |
+| 1 (this slice, built) | This page; `libs/vss_agent_proto`; `libs/vss_agent` (transport, server, client); `vss_agent`; `vss_cli agent`; the tests of section 9. Loopback ports only, not in the installers yet | 10 700 measured: 4 800 of code, 5 400 of tests and the fuzz harness, 500 of documents |
 | 2 | The whole snapshot (full port and link views, capabilities by name), the rest of the quick operations, the error table for Asio and serial categories | 4 000 |
 | 3 | Late replies: progress, cancel, the asynchronous client; driver ports, COM numbers, `attach_serial`, `share`, `bridge`, `apply`, the benchmark | 5 000 |
 | 4 | `batch` with rollback and the single writer; the free-COM-number search in the agent | 2 500 |

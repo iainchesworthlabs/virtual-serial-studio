@@ -1,0 +1,12 @@
+/* Copy to <slug>/theme.css. One rule, exactly these 8 roles, each light-dark(#rrggbb, #rrggbb). Replace <slug>.
+   Check with: node check-palette.mjs --shell icl.css <slug>/theme.css (the folder name must equal the slug). */
+[data-app="<slug>"] {
+  --app-primary:       light-dark(#b4410f, #f08a4b);
+  --app-on-primary:    light-dark(#ffffff, #1a0e05);
+  --app-accent:        light-dark(#d9640f, #f4a261);
+  --app-link:          light-dark(#a33a0c, #f6a56f);
+  --app-tint:          light-dark(#fdf1e8, #231710);
+  --app-gradient-from: light-dark(#8a2f08, #3a1c0a);
+  --app-gradient-to:   light-dark(#c2570f, #7a3a12);
+  --app-on-gradient:   light-dark(#ffffff, #fff4ec);
+}

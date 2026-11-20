@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "name": "Virtual Serial Studio",
+  "family": "test-equipment",
+  "summary": "Virtual serial ports, port sharing, a traffic monitor and test automation on one computer.",
+  "tags": ["Windows", "Linux", "macOS"],
+  "status": "available",
+  "icon": "icon.svg",
+  "order": 30
+}

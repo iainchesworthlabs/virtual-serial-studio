@@ -1,44 +1,79 @@
 # The plugin framework (design)
 
 Status: **reviewed**. The owner went through this design on 13 November 2026. Section 17 records each decision
-and lists what is still open. Part of it is built, as a library with no plugin host: see
-[What is built](#what-is-built). It builds on the decisions in
+and lists what is still open. Part of it is built: the checks, the plugin host, the sandbox on Windows and the Plugins
+page. See [What is built](#what-is-built) for what runs and what does not. It builds on the decisions in
 [Editions, licensing and plugins](editions.md) and on the protocol of [the per-user agent](agent.md), and it does not
 repeat them.
 
 ## What is built
 
-The checks that come before a plugin runs are a library, `libs/vss_plugin`, with tests. **This build runs no plugin.**
-There is no supervisor, no launcher, no plugin host, no Plugins page in the window and no operation of the plugin API
-beyond the message codec. The one way in for a user is `vss_cli plugin list`, which reads the plugin folders and shows
-what discovery finds.
+Studio runs plugins. The checks that come before a plugin runs are a library, `libs/vss_plugin`. The plugin host,
+`libs/vss_plugin_host`, starts each installed plugin that may run as a process of its own, keeps it running and stops
+it. The window has a Plugins page (**Tools, Plugins...**), and `vss_cli plugin run <id>` runs one plugin from a command
+line. Each of these has tests. **No official plugin exists yet**, so what runs today is a plugin that someone installs
+and decides about, and the test plugin of the test suite.
+
+The ways in for a user:
+
+- **The window.** The Plugins page lists the plugins on this computer with their trust line, state and a switch. It asks
+  before a plugin runs, shows what the plugin may do and how far this computer keeps it apart, and shows its status and
+  messages as plain text. Plugins also appear in the Advanced toolbox and on the canvas, in the status bar and in
+  notices. Studio stops the plugins, each asked first, when it closes.
+- **`vss_cli plugin list`, `verify`, `install` and `remove`.** They read the plugin folders, check a plugin and put one
+  on the computer or take it off. They run nothing from a plugin.
+- **`vss_cli plugin run <id>`.** It runs one installed plugin under the plugin host and prints each change of its state
+  and each line of its output. It makes no decision about trust: a plugin that needs one is not run, and the command
+  says to decide in Studio. `--instance <kind>:<type>[=<params>]` makes an instance of an extension point from the
+  command line.
+- **A setup file.** A port or a link may name the plugins it needs (`plugins`). Studio checks the list when it reads
+  the setup and never needs the plugin to do so.
+
+`libs/vss_plugin` is the library of checks.
 
 | Part | File in `libs/vss_plugin/src` | Used by |
 |---|---|---|
-| The manifest reader, its limits and the parameter types | `manifest.cpp` | Discovery, `verify`, a fuzz target |
+| The manifest reader, its limits and the parameter types | `manifest.cpp`, `parameters.cpp` | Discovery, `verify`, the Plugins page, a fuzz target |
 | The reason codes (section 12) | `error.cpp` | Everything below |
 | The hash of a plugin and the check of its files against the manifest | `hash.cpp`, `measure.cpp` | Discovery |
-| Discovery: the plugin folders, which copy counts (`shadowed`), `too_many` | `discover.cpp`, `locations.cpp` | `vss_cli plugin list` |
-| Who may write a file, and so the kind of install | `access.cpp` and the files under `platform` | `vss_cli plugin list` |
-| The administrator's policy file | `policy.cpp` | `vss_cli plugin list` reads it and says where it is and whether it can be used. Nothing applies it |
-| The official key list, the plugin signature and the revocation list signature | `signature.cpp`, `official_roots.cpp`, `revocations.cpp` | The tests and a fuzz target |
-| The trust store (`trust.json`) | `trust_store.cpp` | The tests and a fuzz target |
-| `verify`: whether a plugin may run | `verify.cpp` | `inspect_plugin`, and so `vss_cli plugin list` and `verify` |
-| Looking at a plugin folder, installing and removing a plugin | `install.cpp` | `vss_cli plugin verify`, `install` and `remove` |
-| The licence question for an official plugin | `licence.cpp` | Tests only |
-| The messages `hello`, `hello_ack`, `ping`, `pong`, `status`, `log`, `shutdown`, `bye`, `ok` and `error` | `protocol.cpp` | The tests and a fuzz target |
-| The messages of the extension points (instances and parameters, generators, fixtures and rules, modifiers, adapters, capture, bundle sections, decoders and triggers, and the licence file) | `api_*.cpp`, listed in [the API reference](plugin-api-reference.md) | The tests and a fuzz target |
-| The session with one plugin: who speaks first, the time limits, the size limits | `session.cpp` | Tests only |
-| The restart and quarantine rules | `lifecycle.cpp` | Tests only |
+| Discovery: the plugin folders, which copy counts (`shadowed`), `too_many` | `discover.cpp`, `locations.cpp` | The plugin host, `vss_cli plugin list` |
+| Who may write a file, and so the kind of install | `access.cpp` and the files under `platform` | The plugin host, `vss_cli plugin list` |
+| The administrator's policy file | `policy.cpp` | `verify`, and so the plugin host (which plugins may run, the least sandbox, whether the per-user folder counts) and `vss_cli plugin list`, which says where the file is and whether it can be used |
+| The official key list, the plugin signature and the revocation list signature | `signature.cpp`, `official_roots.cpp`, `revocations.cpp` | `verify`, and a fuzz target. The key list is built into the library |
+| The trust store (`trust.json`) | `trust_store.cpp` | The plugin host, which writes the user's decisions to it, and a fuzz target |
+| `verify`: whether a plugin may run | `verify.cpp` | `inspect_plugin`, and so the plugin host, `vss_cli plugin list` and `verify` |
+| Looking at a plugin folder, installing and removing a plugin | `install.cpp` | `vss_cli plugin verify`, `install` and `remove`, and the Plugins page |
+| The licence question for an official plugin | `licence.cpp` | The plugin host, which asks it at every scan of the plugin folders |
+| The messages `hello`, `hello_ack`, `ping`, `pong`, `status`, `log`, `shutdown`, `bye`, `ok` and `error` | `protocol.cpp` | The plugin host, the tests and a fuzz target |
+| The messages of the extension points (instances and parameters, generators, fixtures and rules, modifiers, adapters, capture, bundle sections, decoders and triggers, and the licence file) | `api_*.cpp`, listed in [the API reference](plugin-api-reference.md) | The plugin host (see below), the tests and a fuzz target |
+| The session with one plugin: who speaks first, the time limits, the size limits | `session.cpp` | The plugin host |
+| The restart and quarantine rules | `lifecycle.cpp` | The plugin host |
 
-The messages of the extension points (sections 7.3 to 7.8, 19 and 20) are typed in `api_*.hpp`, and each can be read
-from and written to an `api_message`. Nothing sends or receives them yet: the host that does is not built.
+`libs/vss_plugin_host` is the host. Its parts, each with its own tests:
 
-`vss_cli plugin list` and `vss_cli plugin verify` check the signature, run `verify` and, for an official plugin that names
-an edition, the licence question, as far as a command line can: it reads the policy file, the official key list built
-into the library and the date of the computer, and it has no licence, no revocation list and no engine capabilities.
-`vss_cli plugin install` and `remove` put a plugin on the computer and take it off. Everything else in this design (the supervisor, the launcher and the sandbox, the instance types, the
-modifiers, the decoders, the Plugins page and the trust dialog) is not built.
+| Part | File in `libs/vss_plugin_host/src` | What it does |
+|---|---|---|
+| The service | `service.cpp`, `start_plan.cpp`, `runner.cpp` | Finds the plugins, checks each, says whether and how it runs, keeps it running, starts it again after a failure by the rules of `lifecycle.cpp`, and writes the user's decisions to the trust store |
+| The process | `process.cpp`, `platform/` | Starts the plugin as a process of its own with its program and arguments, an environment made for it and a private channel to the host, and nothing else. Captures its output, and ending it ends everything it started |
+| The sandbox | `sandbox.cpp`, `platform/windows` | On Windows, a job object and an AppContainer of its own (section 9.2). On Linux and macOS no confinement, and the start says so |
+| Instances | `instances.cpp`, `extension.cpp` | Makes the instances wanted of a plugin, tells it when their parameters change and makes them again when the plugin starts again |
+| Generators | `generator_point.cpp`, `generator_feed.cpp` | Writes a plugin's bytes to a port within the credit it was given. Patterns are not made yet |
+| Decoders | `decoder_point.cpp`, `decode_store.cpp`, `traffic_tap.cpp` | Sends a decoder the traffic of the places the user chose and keeps the frames and triggers it finds, within limits |
+| Capture and replay | `capture_point.cpp`, `recording.cpp`, `timeline_point.cpp` | Records the traffic of the places a plugin names into its data folder, and plays a recording onto a port at its recorded time, never early |
+| Bundle sections | `bundle_point.cpp`, `bundle_sections.cpp` | Asks a plugin for its sections of a support bundle and checks each file. The support bundle dialog does not ask for one yet |
+| The licence file | `licence_point.cpp` | Hands the licence file to a plugin that asks (`licence.get`), always to an official plugin and to any other only with `licence.read`, and keeps what the plugin reports of its check for the Plugins page |
+| Secrets and control | `secret_point.cpp`, `control_point.cpp`, `control_relay.cpp` | Shows a code a plugin has for the user once, and gives a plugin a session with the control gateway only after the user allows it, through a token the plugin never sees |
+
+Not built, as the design describes it: a separate launcher program (`apps/vss_plugin_launcher`; the host starts the
+process itself), the sandbox on Linux and macOS, fixtures that the engine runs as a device, behaviour modifiers on the
+route stage, automation adapters beyond the capture the host offers, the pattern generator, any official plugin, and
+the plugin host in the agent (it lives in Studio's own process today). Section 14 says which part of the code layout
+is built, and the sections below mark what is designed and not built.
+
+`vss_cli plugin list` and `vss_cli plugin verify` check the signature, run `verify` and, for an official plugin that
+names an edition, the licence question, as far as a command line can: they read the policy file, the official key list
+built into the library and the date of the computer, and they have no licence, no revocation list and no engine
+capabilities. `vss_cli plugin install` and `remove` put a plugin on the computer and take it off.
 
 ## 1. Scope and what is already decided
 
@@ -255,7 +290,7 @@ newer version in a user's folder. There is one agent for each user (`docs/agent.
 starts the agent that lies beside it only when none is running. So today the agent that runs is the one whose
 window or command was started first, and a window from the other copy would talk to it. For plugins that is not
 good enough, because the agent decides the install root, the launcher and the kind of install. Needed, as an
-addition to the agent's `hello` when the host is built:
+addition to the agent's `hello` when the agent owns the host (today Studio's own process does):
 
 - The agent's reply to `hello` carries the folder it runs from and the kind of install.
 - A client that finds an agent from another folder says so ("Another copy of Studio is running the ports:
@@ -1070,7 +1105,8 @@ A policy file `policy.json` in the machine configuration directory (`%ProgramDat
 
 ### 8.7 Licence and edition
 
-The host asks the licensing work's one question, as proposed in `docs/licensing.md`:
+The host asks the licensing work's one question, as `docs/licensing.md` has it (built as `vss::plugin::check_licence` in
+`libs/vss_plugin/src/licence.cpp`, which the plugin host calls at every scan of the plugin folders):
 
 ```
 entitlement licence_service::check(feature) ->
@@ -1086,8 +1122,8 @@ Points taken from that page, so the two stay in step:
 
 - **An official plugin checks the licence itself as well**, with the same library, because Studio is GPL and can be
   patched. The host's check is for telling the user the truth; the plugin's own check is the enforcement.
-- **A plugin that is running when the grace period ends keeps running until it is stopped** (proposed there, for
-  the owner to confirm). The host does not kill on a licence change; it refuses the next start.
+- **A plugin that is running when the grace period ends keeps running until it is stopped** (decision 8 of that
+  page). The host does not kill on a licence change; it refuses the next start.
 - **The version window** (`updates_until`) needs a release date in the signed manifest. The manifest gains an
   optional `released` date for it (section 13).
 - A third-party or unsigned plugin is never asked about a licence.
@@ -1156,7 +1192,7 @@ certificate authority with the certificate replaced by one line of a signed list
 |---|---|---|---|
 | **Root key** | An Ed25519 key pair | The private half offline, with the owner, kept as the owner's root certificate authority is. The public half is compiled into Studio (a current one and a next one, so the root itself can be replaced by a release) | Only to sign a new key list |
 | **Signing keys** | Ed25519 key pairs | The private half in the secret store of the owner's signing job, or on a hardware token | To sign an official plugin or a revocation list |
-| **The official key list** | A `vss::signed_file` envelope with the purpose `key-list`, signed by the root | Public. The first list is `libs/vss_plugin/keys/official-keys.json` in the repository, signed on 14 November 2026. **No build installs or embeds it yet**, so a shipped Studio has no key list to read. The design is that it is in every release, and importable from a file as a revocation list is | Read by the verifier |
+| **The official key list** | A `vss::signed_file` envelope with the purpose `key-list`, signed by the root | Public. The first list is `libs/vss_plugin/keys/official-keys.json` in the repository, signed on 14 November 2026. **It is built into `libs/vss_plugin`** (`CMakeLists.txt` reads the file into the library), so every build that checks a plugin has it. Importing a newer list from a file, as a revocation list can be, is not built | Read by the verifier |
 
 So there are two secrets, and neither is ever on a computer that runs Studio or in this repository.
 
@@ -1179,7 +1215,8 @@ So there are two secrets, and neither is ever on a computer that runs Studio or 
 - **How a new list reaches a computer.** The framework has no network code, so the design has three routes: inside a
   Studio release, beside a plugin (a plugin folder may hold a newer `official-keys.json`), or as a file an
   administrator or a user imports. Delivering a list over the update feed is left out of the first version
-  ([Online updates](updates.md), section 10). **None is built.** A key list beside a plugin would today be refused
+  ([Online updates](updates.md), section 10). **Only the first, a list inside the release, is built**, and it is the list
+  that was signed on 14 November 2026. A key list beside a plugin would today be refused
   as `unlisted_file`, for a plugin that lists its files, and nothing reads a key list from there or imports one
   outside the tests.
 - **Replacing a signing key:** add its line, sign a list with the next serial. **Revoking one:** move its id to
@@ -1332,7 +1369,7 @@ processes alone are not a sandbox, because a plugin that can read the user's fil
 names the least level it will take; when this computer cannot apply that much, nothing is started
 (`sandbox_insufficient`).
 
-**What is built** (`libs/vss_plugin_host`, used by tests only so far):
+**What is built** (`libs/vss_plugin_host`; Studio and `vss_cli plugin run` use it):
 
 - **Windows: all parts, level `full`.** A job object (kill on close, a memory limit, a limit on the number of
   processes, a cap on processor time, no desktop, clipboard or window handles) and an AppContainer made for the
@@ -1349,7 +1386,8 @@ names the least level it will take; when this computer cannot apply that much, n
   reached from this computer itself until Windows is told to allow it (a loopback exemption, which needs an
   administrator).
 - **Linux and macOS: nothing yet, level `none`.** The process group ends with the host's kill, but a child
-  that makes a session of its own leaves it, so not even containment is claimed.
+  that makes a session of its own leaves it, so not even containment is claimed. Official plugins run there without
+  confinement and say so; any other plugin runs there only when the user chooses to run that one without isolation.
 
 The sandbox is **defence in depth, not the trust boundary**. The boundary is the three trust levels and the user's
 decision. The unofficial warning in `editions.md` ("It can do anything Studio can") stays as written because the
@@ -1411,6 +1449,10 @@ never looked for in a plugin directory.
 
 The launcher is a separate executable listed in the installers (`agent.md` says each installer holds a fixed list of
 programs). It does not link Qt or the engine.
+
+**Built so far.** The plugin host runs inside Studio's own process, not in the agent, so it starts the plugin process
+itself and applies the sandbox itself (`libs/vss_plugin_host/src/process.cpp` and `sandbox.cpp`); a start passes nothing
+to the plugin but the channel. The separate launcher stays the design for when the agent owns the host.
 
 ## 10. Failure modes and what the user sees
 
@@ -1593,11 +1635,11 @@ because which files make the plugin is a question for the hash. The numbers and 
 
 | Library | Content | Depends on |
 |---|---|---|
-| `libs/vss_plugin` (built) | The manifest reader and the parameter model, the hash and the measurer of a plugin folder, discovery, signatures and the official key list, revocation, the policy file, the trust store, the licence question, the access check, `verify`, the message codec (`protocol.cpp`), the session and the lifecycle state machine with the back-off logic. It does I/O: it reads plugin folders and the policy file, reads and writes the trust store, and asks the operating system who may write a file. It starts no process | `vss_core`, `vss_agent_proto` (the frame), `vss::signed_file` and the licence check from `libs/vss_license`, Boost.JSON. Not `vss_config` |
-| `libs/vss_plugin_host` (not built) | The supervisor, the channel, process start through the launcher, the budgets, the handling of the API messages and the instance types. Uses `vss_agent_proto` framing | `vss_plugin`, `vss_agent_proto`, `vss_studio` |
-| `apps/vss_plugin_launcher` (not built) | The sandbox application and the exec. Platform files chosen **in CMake**, no `#if` | none |
-| `apps/vss_agent` (not built for plugins) | Starts the launcher first; owns the host | |
-| `apps/vss_gui` (not built for plugins) | The Plugins page, the trust dialog, the settings form from parameters, the link/port indicators | |
+| `libs/vss_plugin` (built, used by Studio and `vss_cli`) | The manifest reader and the parameter model, the hash and the measurer of a plugin folder, discovery, signatures and the official key list, revocation, the policy file, the trust store, the licence question, the access check, `verify`, the message codec (`protocol.cpp`), the session and the lifecycle state machine with the back-off logic. It does I/O: it reads plugin folders and the policy file, reads and writes the trust store, and asks the operating system who may write a file. It starts no process | `vss_core`, `vss_agent_proto` (the frame), `vss::signed_file` and the licence check from `libs/vss_license`, Boost.JSON. Not `vss_config` |
+| `libs/vss_plugin_host` (built, used by Studio and `vss_cli plugin run`) | The supervisor, the channel, process start, the sandbox on Windows, the handling of the API messages of generators, decoders, capture, replay, bundle sections, the licence file, secrets and the control relay, and the instances. It starts the process itself: there is no separate launcher. Not built: fixtures run by the engine, modifiers, adapters other than capture. Uses `vss_agent_proto` framing | `vss_plugin`, `vss_agent_proto`, `vss_studio` |
+| `apps/vss_plugin_launcher` (not built) | The sandbox application and the exec. Platform files chosen **in CMake**, no `#if`. The host applies the sandbox itself today (`libs/vss_plugin_host/src/sandbox.cpp`) | none |
+| `apps/vss_agent` (not built for plugins) | Starts the launcher first; owns the host. Studio's own process owns the host today | |
+| `apps/vss_gui` (built) | The Plugins page, the trust dialog, the settings form from parameters, the link/port indicators | |
 | `tests/…` | In the project's own framework | |
 
 The parameter model is in `vss_plugin`, so that Studio can render and validate without the host. The rule-set model
@@ -1764,7 +1806,7 @@ The owner went through these on 13 November 2026. Each line says what was decide
 **Closed since the review:**
 
 - **The first official key list**: signed with the root key `root-2026` on 14 November 2026
-  (`libs/vss_plugin/keys/official-keys.json`; section 8.9). How it reaches a release is not built.
+  (`libs/vss_plugin/keys/official-keys.json`; section 8.9). It is built into `libs/vss_plugin`, and so into every build.
 - **Studio installed for one user**: investigated (section 5.2). No installer gets a second mode; Studio tells
   the kind of install from its folder; the agent's `hello` has to say which copy it is.
 - **Licence files and the key list**: the owner decided that licence files do not use it (section 8.9).

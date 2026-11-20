@@ -1911,7 +1911,7 @@ class VerifyWithKeysTests(ToolTestCase):
         self.assertEqual(self.verify(feed, "--min-serial", "12").returncode, 0)
         self.assertEqual(self.verify(feed, "--min-serial", "13").returncode, 1)
 
-    def test_the_function_the_website_check_calls(self) -> None:
+    def test_the_function_the_release_data_check_calls(self) -> None:
         feed = self.sign(KEY, "upd-2026-a")
         data = feed.read_bytes()
         self.assertEqual(uf.verify_with_keys_file(data, "feed.json", str(self.keys)), 12)
