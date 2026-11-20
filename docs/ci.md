@@ -40,7 +40,8 @@ was cancelled or was skipped.
 |---|---|---|
 | `fuzz.yml` | Push to `develop`, every night | Fuzzes each target for 60 seconds, or 10 minutes at night, within a budget for the whole run; see [Fuzzing](fuzzing.md) |
 | `release.yml` | A `v*` tag, every Monday, on request | Builds the packages and publishes them for a tag; see [Releasing](releasing.md) |
-| `docs.yml` | A pull request that changes the docs (also when it closes), a push to `develop` or `site` | Checks the presets and badges against the repository, then builds this site with `mkdocs build --strict` and checks it (see [Documentation site](#documentation-site)). A push to `site` first refreshes the release data and the update feed from GitHub (see [Release data and the update feed](#release-data-and-the-update-feed)). A pull request from this repository gets a preview on the company site, and a push to `site` deploys the live site (see [Publishing](#publishing)). The push to `develop` gives the branch a status of its own |
+| `docs.yml` | A pull request that changes the docs (also when it closes), a push to `develop` or `site` | Checks the presets and badges against the repository, then builds this site with `mkdocs build --strict` and checks it (see [Documentation site](#documentation-site)). A push to `site` first refreshes the release data and the update feed from GitHub (see [Release data and the update feed](#release-data-and-the-update-feed)). A pull request from this repository gets a preview on the company site, and a push to `site` is checked, so that only site files or a release change it, and then deploys the live site (see [Publishing](#publishing)). The push to `develop` gives the branch a status of its own |
+| `publish-site.yml` | A push to `develop` that changes a site file, on request | Shows which site files would change on the branch `site`, waits for the owner's approval in the environment `site-release`, then publishes them without a release (see [Publishing the site between releases](#publishing-the-site-between-releases)) |
 | `cache-hygiene.yml` | After a CI run on `develop`, a closed pull request, on request | Deletes Actions caches that nothing can restore any more, to keep the repository within its cache quota |
 | `dependabot-auto-merge.yml` | Dependabot pull requests | Turns on auto-merge for minor and patch updates of actions |
 
@@ -284,8 +285,9 @@ release data hook and the refresh have theirs in `tools/ci/test_site_release.py`
 the other tests of `tools/ci`.
 
 A change to the documentation tooling alone (`mkdocs.yml`, `tools/docs/`, `tools/ci/site_*.py`, `tools/ci/check_site_*.py`,
-`tools/ci/check_release_data.py`, `tools/ci/check_claims.py`, `tools/ci/test_check_claims.py`, `tools/ci/test_site_*.py`, `requirements/docs.*` and `.github/actions/docs-site/`) is listed under
-`docs` in `.github/ci/plan.json`, so it does not start the build legs.
+`tools/ci/check_release_data.py`, `tools/ci/check_claims.py`, `tools/ci/test_check_claims.py`, `tools/ci/test_site_*.py`, `tools/ci/test_publish_site.py`, `requirements/docs.*` and `.github/actions/docs-site/`) is listed under
+`docs` in `.github/ci/plan.json`, so it does not start the build legs. These are also the site paths of
+[Publishing the site between releases](#publishing-the-site-between-releases), which can put such a change live without a release.
 
 ### Publishing
 
@@ -317,6 +319,73 @@ hand cannot deploy, because the role the company stack creates trusts only a pus
 
 The old GitHub Pages site never served anything and is no longer published from this repository. Turn Pages off in the repository settings
 when the second domain answers (the plan, `docs/plan/site.md`, has the steps).
+
+### Publishing the site between releases
+
+A release moves `site`, so a fix to a page would wait for the next release. `publish-site.yml` ("Publish the site") puts a change that
+touches only site files live without a release and without the application CI.
+
+**The site paths.** `tools/docs/site_paths.json` is the one list of what the site is made of: `docs/**`, `mkdocs.yml`,
+`requirements/docs.in` and `requirements/docs.txt`, `tools/docs/**`, `.github/actions/docs-site/**`, and the site's checks and their
+tests in `tools/ci/`. A pattern is relative to the root of the repository; `*` stays within one folder name and `**` crosses folders. The
+`paths:` of the push trigger in `publish-site.yml` is the same list, and `tools/ci/test_publish_site.py` fails when the two differ. The
+list leaves out `CHANGELOG.md`, `README.md`, `CMakeLists.txt`, `libs/`, `apps/`, the workflows and everything else.
+
+**What the workflow does.** A push to `develop` that changes a site path starts it, and so does a run by hand from `develop`.
+
+1. `plan` compares the site paths of the pushed commit with the site paths of `site`, and writes the files that would change into the
+   job summary (A added, M changed, D deleted). When nothing differs it says so and the run ends. When the branch `site` does not exist
+   yet it says that and ends: the first release creates it.
+2. `release` runs in the environment `site-release`. When the environment has a required reviewer, the job waits there until the owner
+   approves it. Then it builds one commit with `tools/docs/publish_site.py build`: the tree of `site` with each file under a site path
+   replaced by its version in the pushed commit (a site file that the pushed commit no longer has is deleted), and `site` as its only
+   parent. Nothing outside the site paths is touched. It pushes the commit to `site` with the release bot's App token
+   (`RELEASE_BOT_APP_ID` and `RELEASE_BOT_PRIVATE_KEY`, the secrets that `release.yml` uses). The push is never forced, so it is a
+   fast-forward or it fails. The token reaches git through the environment and is masked, so it is on no command line. The job summary
+   holds the commit and the files.
+3. The push is what `docs.yml` listens for: it builds the site, and the deploy runs as it does for a release.
+
+Runs go one at a time, in the order of the pushes (`concurrency: publish-site`), and a run that is waiting is not cancelled by a later
+one. Each run publishes the site files of the commit that started it, so approve the newest run when there is more than one. A run whose
+commit is already in the history of `site` (a release was cut after it) publishes nothing.
+
+**What is never published this way.** Application code, the build files, the workflows, `CHANGELOG.md` and `README.md` reach `site` only
+with a release, so the app code on `site` stays at the last release until the next one. A page that depends on a code or build change (a
+new download, a changed command) goes out with the release that has the change.
+
+**The guard.** The rulesets decide who may push to `site`, so the Docs workflow also checks every push to it before it deploys. The job
+`guard` runs `tools/docs/publish_site.py guard --before <sha> --after <sha>`. The push passes when every file it changed is a site path, or
+when the tree of the new tip is the tree of a tag that matches `v*` (the move of a release: a fast-forward to the tag, or the merge commit
+described below). A push that creates the branch passes. Any other push fails the job and lists the files that are not site paths, and the
+`deploy` job, which needs the guard, does not run.
+
+**The environment `site-release`.** The workflow names the environment and the owner creates it, because a pull request does not change
+repository settings. With a required reviewer on it, the `release` job waits for that person. Without a reviewer the environment does not
+wait, and the workflow publishes at once. This command, in PowerShell 5.1, makes the environment with the owner as the reviewer:
+
+```powershell
+$id = gh api user --jq .id
+$body = ConvertTo-Json -Compress -Depth 5 -InputObject @{ reviewers = @(@{ type = "User"; id = [int]$id }); deployment_branch_policy = $null }
+$file = Join-Path $env:TEMP "site-release.json"
+[System.IO.File]::WriteAllText($file, $body, (New-Object System.Text.UTF8Encoding($false)))
+gh api --method PUT repos/iainchesworthlabs/virtual-serial-studio/environments/site-release --input $file
+Remove-Item $file
+```
+
+The release bot must be allowed to push to `site` in the rulesets, as it is for a release (step 4 of [Publishing](#publishing)).
+
+**How a release still moves `site`.** The `site` job of `release.yml` always makes a fast-forward. It reads where `site` is and asks
+the compare API for `<site>...<tag>`. When the answer is `ahead` or `identical` (nothing was published between releases) it moves `site`
+to the tag. When `site` has commits that the tag does not have, it makes a merge commit through the API, with the tree of the tag and
+with the current `site` and the tag as parents, and the message "Publish the site from <tag>", and moves `site` to that commit with
+`force=false`. The site files that were published in between are in the tag already, because they came from `develop`. When the answer is
+`behind`, `site` is already past the tag (a re-run of an old release finds it so), and the job leaves `site` alone and says so. See
+[Releasing](releasing.md#the-site).
+
+The tests in `tools/ci/test_publish_site.py` use temporary git repositories: a site-only change is published and a code change is not
+copied, a deleted site file is deleted, a file outside the site paths is left alone, nothing to publish exits with 3, and the guard
+accepts a site-only push, a release tree and a new branch and refuses a push that changes code. They cannot run the workflows, which run
+only on GitHub.
 
 ## Windows signing
 

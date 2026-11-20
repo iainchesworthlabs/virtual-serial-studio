@@ -538,11 +538,14 @@ jobs:
 
   # The live site describes the latest published release, release candidates included. The company site trusts a push
   # to the branch `site` of this repository and to no other branch (icl-site, infra/lib/apps.ts), and the Docs workflow
-  # deploys on that push. This job fast-forwards `site` to the tagged commit, which the version job has checked is on
-  # develop, so `site` only ever moves forward along develop. It runs last, after the feed job has attached
-  # update-feed.json, so that the site is built with the feed. The push is made with the release bot's App token,
-  # because a push made with GITHUB_TOKEN does not start workflows. The shared publish workflow moves `main` for a final
-  # release and has no way to move a branch for a release candidate, so the move is here (docs/releasing.md, "The site").
+  # deploys on that push. This job moves `site` to the tagged commit, which the version job has checked is on
+  # develop, and the move is always a fast-forward: when `site` has no commit that the tag lacks (the usual case) it is
+  # the tagged commit itself, and when a site-only update has been published between releases (publish-site.yml) it is a
+  # merge commit that has the tagged commit's tree and the current `site` and the tagged commit as parents. It runs last,
+  # after the feed job has attached update-feed.json, so that the site is built with the feed. The push is made with the
+  # release bot's App token, because a push made with GITHUB_TOKEN does not start workflows. The shared publish workflow
+  # moves `main` for a final release and has no way to move a branch for a release candidate, so the move is here
+  # (docs/releasing.md, "The site").
   site:
     name: Move the site branch
     needs: [publish, feed]
@@ -559,17 +562,41 @@ jobs:
           private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
           permission-contents: write
 
-      - name: Fast-forward the site branch
+      - name: Move the site branch
         shell: bash
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
           REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          # force=false: the move must be a fast-forward, so a tag that is not ahead of the branch stops here.
-          if gh api "repos/$REPO/git/ref/heads/site" >/dev/null 2>&1; then
-            gh api --method PATCH "repos/$REPO/git/refs/heads/site" -f sha="$GITHUB_SHA" -F force=false
-          else
+          # force=false on every move: the branch only ever moves forward.
+          if ! site_sha=$(gh api "repos/$REPO/git/ref/heads/site" --jq .object.sha 2>/dev/null); then
             gh api --method POST "repos/$REPO/git/refs" -f ref="refs/heads/site" -f sha="$GITHUB_SHA"
+            echo "The site branch was created at $GITHUB_SHA. The Docs workflow publishes the site from it." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
-          echo "The site branch is now at $GITHUB_SHA. The Docs workflow publishes the site from it." >> "$GITHUB_STEP_SUMMARY"
+          status=$(gh api "repos/$REPO/compare/$site_sha...$GITHUB_SHA" --jq .status)
+          case "$status" in
+            ahead | identical)
+              # The tagged commit has everything that site has: move site to it.
+              gh api --method PATCH "repos/$REPO/git/refs/heads/site" -f sha="$GITHUB_SHA" -F force=false
+              echo "The site branch is now at $GITHUB_SHA. The Docs workflow publishes the site from it." >> "$GITHUB_STEP_SUMMARY"
+              ;;
+            behind)
+              # The tagged commit is already in the history of site, so site is past this tag (a re-run of an old tag).
+              # A merge that has the tag's tree would put older files over newer ones.
+              echo "::warning::The site branch ($site_sha) is already past $TAG, so it was not moved."
+              echo "The site branch is at $site_sha, which already contains $TAG, so it was not moved." >> "$GITHUB_STEP_SUMMARY"
+              ;;
+            *)
+              # Site has commits that the tag does not have: a site-only update published between releases. The new
+              # commit has the tag's tree, and site and the tag as its parents, so the move from site to it is a fast-forward.
+              tree=$(gh api "repos/$REPO/git/commits/$GITHUB_SHA" --jq .tree.sha)
+              merge=$(gh api --method POST "repos/$REPO/git/commits" \
+                -f message="Publish the site from $TAG" -f tree="$tree" \
+                -f "parents[]=$site_sha" -f "parents[]=$GITHUB_SHA" --jq .sha)
+              gh api --method PATCH "repos/$REPO/git/refs/heads/site" -f sha="$merge" -F force=false
+              echo "The site branch had commits that $TAG does not have (status $status). It is now at the merge commit $merge, which has the tree of $TAG. The Docs workflow publishes the site from it." >> "$GITHUB_STEP_SUMMARY"
+              ;;
+          esac
