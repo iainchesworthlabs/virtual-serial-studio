@@ -104,8 +104,9 @@ The site has three kinds of page.
 The files of `docs/` do not move: the code, the tests, `CONTRIBUTING.md` and the other pages cite them by path. The site's addresses
 are different. `tools/docs/site_layout.json` is the table: for each page of `docs/` it gives the address on the site, or `null` when
 the page is published on GitHub only. Nothing was ever public at an older address, so the table has no old addresses and nothing
-forwards. The user's guide, `docs/user-guide.md`, is `/virtual-serial-studio/guide/`, and the pages that are about using the studio are
-under `guide/` beside it. The pages for programmers are under `developers/`.
+forwards. The user's guide is the folder `docs/user-guide/`: `index.md` is `/virtual-serial-studio/guide/`, and each other page is one address under it
+(`docs/user-guide/windows.md` is `guide/windows/`). The pages that are about using the studio are under `guide/` beside them. The pages for
+programmers are under `developers/`.
 
 - `tools/docs/site_layout_hook.py` applies the table while the site is built, and stops the build when it and `exclude_docs` disagree.
 - `tools/ci/check_site_layout.py` checks the table and the built site: every file in the table is in `docs/`, every page of `docs/` is

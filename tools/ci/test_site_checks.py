@@ -182,7 +182,7 @@ class Address(unittest.TestCase):
         text = "https://virtual-serial-studio.com/updates/v1/feed.json\n"
         for name in ("apps/vss_gui/src/updates/update_types.hpp", "apps/vss_gui/src/support/app_identity.cpp",
                      "apps/vss_gui/src/support/tests/test_app_identity.cpp", "apps/vss_gui/translations/vss_gui_fr.ts",
-                     "docs/updates.md", "docs/user-guide.md", "docs/support.md", "docs/press.md", "changelog.d/x.added.md"):
+                     "docs/updates.md", "docs/user-guide/updates.md", "docs/support.md", "docs/press.md", "changelog.d/x.added.md"):
             self.put(name, text)
         self.assertEqual(check_site_address.check(self.root), [])
 
@@ -359,7 +359,8 @@ class LayoutHook(unittest.TestCase):
     def test_the_table_of_the_repository_names_each_page_once(self) -> None:
         sources = [entry["src"] for entry in json.loads((REPO / "tools" / "docs" / "site_layout.json").read_text(encoding="utf-8"))["pages"]]
         self.assertEqual(len(sources), len(set(sources)))
-        self.assertIn("user-guide.md", sources)
+        self.assertIn("user-guide/index.md", sources)
+        self.assertNotIn("user-guide.md", sources)
 
 
 def front(title: str, body: str = "<h1>t</h1>", head: str = "", description: str | None = None, lang: str = "en-AU") -> str:

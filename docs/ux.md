@@ -2,7 +2,7 @@
 
 This page records who the window is for, how the two levels differ, and the
 human-factors reasoning behind the layout. The task-by-task instructions live
-in [user-guide.md](user-guide.md). The screen-by-screen specifications are in
+in [the user guide](user-guide/index.md). The screen-by-screen specifications are in
 [the screen specifications](https://github.com/iainchesworthlabs/virtual-serial-studio/blob/develop/docs/gui-design/docs/00-product-brief.md).
 
 ## Who it is for

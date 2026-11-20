@@ -8,7 +8,7 @@
 5. Spec compliance: every string, default and state in the relevant `docs/screens/` file is present. Differences are listed in `docs/design-deviations.md` with a reason.
 6. Accessibility rules in `06-accessibility.md` hold for every new dialog and widget.
 7. `changelog.d/` fragment added and `python tools/changelog.py --check` passes. SPDX header on new files. `clang-format` clean. Commit messages pass the repository hook.
-8. Docs updated: `docs/user-guide.md` and `docs/ux.md` describe what changed.
+8. Docs updated: `docs/user-guide/` and `docs/ux.md` describe what changed.
 
 ## Matrix to exercise before release
 | Axis | Values |

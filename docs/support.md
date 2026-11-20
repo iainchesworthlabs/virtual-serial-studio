@@ -12,7 +12,7 @@ description: "How to get help with Virtual Serial Studio, report a problem or a 
 
 ## Before you ask
 
-- The [guide](user-guide.md) is organised by task. Its [troubleshooting](user-guide.md#troubleshooting) lists what Studio shows and what to check, starting with the most common.
+- The [guide](user-guide/index.md) is organised by task. Its [troubleshooting](user-guide/troubleshooting.md#troubleshooting) lists what Studio shows and what to check, starting with the most common.
 - The [FAQ](faq.md) answers the questions that come up first.
 - The [platform pages](platforms/index.md) say what each system needs and what has not been tried, so you can tell whether a problem is a known gap.
 

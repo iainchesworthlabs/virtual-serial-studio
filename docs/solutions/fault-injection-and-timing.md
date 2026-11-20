@@ -48,9 +48,9 @@ description: "Slow a link with delay and jitter, pace it like a wire, raise a br
 
 <h2>More</h2>
 <ul class="vss-links">
-<li><a href="../../guide/#delay-and-jitter-on-a-link">Delay and jitter on a link</a></li>
-<li><a href="../../guide/#wire-timing-on-a-link">Wire timing on a link</a></li>
-<li><a href="../../guide/#rs-485-is-half-duplex-and-a-bus-can-be">Half-duplex buses</a></li>
-<li><a href="../../guide/#mock-fixture-advanced">Mock fixture</a></li>
+<li><a href="../../guide/timing-and-control-lines/#delay-and-jitter-on-a-link">Delay and jitter on a link</a></li>
+<li><a href="../../guide/timing-and-control-lines/#wire-timing-on-a-link">Wire timing on a link</a></li>
+<li><a href="../../guide/timing-and-control-lines/#rs-485-is-half-duplex-and-a-bus-can-be">Half-duplex buses</a></li>
+<li><a href="../../guide/adding-ports/#mock-fixture-advanced">Mock fixture</a></li>
 </ul>
 </div></div></section>

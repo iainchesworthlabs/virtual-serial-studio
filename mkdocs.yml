@@ -98,8 +98,8 @@ hooks:
   - tools/docs/site_address_hook.py
   # The company shell (tools/docs/site-kit/) for the front pages and the guide.
   - tools/docs/site_shell_hook.py
-  # Where each page lives on the site (tools/docs/site_layout.json): user-guide.md is guide/, the pages for programmers
-  # are under developers/. The files do not move in the repository.
+  # Where each page lives on the site (tools/docs/site_layout.json): the pages of docs/user-guide/ are guide/ and the addresses
+  # under it, the pages for programmers are under developers/. The files do not move in the repository.
   - tools/docs/site_layout_hook.py
   # The version of the program the pages describe, from CMakeLists.txt, for the templates (extra.version).
   - tools/docs/site_version_hook.py
@@ -153,7 +153,25 @@ markdown_extensions:
 
 nav:
   - Guide:
-      - User guide: user-guide.md
+      - User guide:
+          - Contents: user-guide/index.md
+          - Getting started: user-guide/getting-started.md
+          - Adding ports: user-guide/adding-ports.md
+          - Links between ports: user-guide/connecting-ports.md
+          - Sharing a device: user-guide/sharing-a-device.md
+          - Timing and control lines: user-guide/timing-and-control-lines.md
+          - Windows: user-guide/windows.md
+          - Monitor and capture: user-guide/monitor-and-capture.md
+          - Setups: user-guide/setups.md
+          - Network addresses: user-guide/network.md
+          - When the system asks: user-guide/when-the-system-asks.md
+          - Settings and help: user-guide/settings-and-help.md
+          - Plugins: user-guide/plugins.md
+          - Updates: user-guide/updates.md
+          - Licences: user-guide/licences.md
+          - What this build cannot do: user-guide/limits.md
+          - Troubleshooting: user-guide/troubleshooting.md
+          - Command line equivalents: user-guide/command-line.md
       - Scenarios: scenarios.md
       - Controlling Studio from a script: control-how-to.md
       - Virtual ports on Linux and macOS: posix-virtual-ports.md

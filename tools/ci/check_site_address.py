@@ -51,7 +51,7 @@ COMPILED_IN = (
     "docs/plan/",
     "docs/gui-design/",  # the screen specifications copy the dialogs' text
     "docs/updates.md",  # the design of the update check, which asks that address
-    "docs/user-guide.md",  # says what the update check asks, and where
+    "docs/user-guide/updates.md",  # says what the update check asks, and where
     "docs/releasing.md",  # the feed is published at that address
     "docs/editions.md",  # the proposal for the editions page
     "docs/support.md",  # the support address (support@virtual-serial-studio.com) in plain text; the program has it compiled in too

@@ -72,7 +72,7 @@ description: "Install Virtual Serial Studio on Windows with the installer or the
 </ul>
 </div>
 </div>
-<ul class="vss-links"><li><a href="../../guide/#old-programs-on-windows">Old programs on Windows</a></li><li><a href="../../guide/#choosing-a-com-number-windows">Choosing a COM number</a></li><li><a href="../../guide/#when-the-operating-system-asks-or-says-no">When the operating system asks</a></li></ul>
+<ul class="vss-links"><li><a href="../../guide/windows/#old-programs-on-windows">Old programs on Windows</a></li><li><a href="../../guide/windows/#choosing-a-com-number-windows">Choosing a COM number</a></li><li><a href="../../guide/when-the-system-asks/#when-the-operating-system-asks-or-says-no">When the operating system asks</a></li></ul>
 </div></section>
 
 <section class="icl-section icl-section--tint"><div class="icl-wrap">

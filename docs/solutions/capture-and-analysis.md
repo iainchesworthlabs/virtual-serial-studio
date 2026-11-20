@@ -49,9 +49,9 @@ vss_cli play bus.cap --uri=serial://COM6 --speed=2</code></pre>
 
 <h2>More</h2>
 <ul class="vss-links">
-<li><a href="../../guide/#the-monitor-and-the-send-panel">The Monitor and the Send panel</a></li>
-<li><a href="../../guide/#capture-files">Capture files</a></li>
-<li><a href="../../guide/#replaying-with-vss_cli-play">Replaying with vss_cli play</a></li>
+<li><a href="../../guide/monitor-and-capture/#the-monitor-and-the-send-panel">The Monitor and the Send panel</a></li>
+<li><a href="../../guide/monitor-and-capture/#capture-files">Capture files</a></li>
+<li><a href="../../guide/command-line/#replaying-with-vss_cli-play">Replaying with vss_cli play</a></li>
 <li><a href="../../products/studio/">Studio</a></li>
 </ul>
 </div></div></section>

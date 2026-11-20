@@ -92,7 +92,7 @@ the code that makes it true (section 12, step 6):
 | `docs/plugins.md`, sections 1, 2, 8.5 and 8.9 | "No network from the GUI"; "an update client or any network access" is a non-goal; "There is no network, so..." |
 | `docs/editions.md`, Licence files | "There is no activation server and no telemetry." This stays true. The page gains one sentence on the update check |
 | `docs/licensing.md`, Seats and Revocation | "the GUI makes no network connection". Activation and seat counting stay offline; the sentence is narrowed |
-| `docs/user-guide.md`, Network addresses | "Studio does not use the network unless you add an endpoint" |
+| `docs/user-guide/network.md`, Network addresses | "Studio does not use the network unless you add an endpoint" |
 | The privacy page of the site | "No network connection of its own... It does not check for updates." |
 | `docs/gui-design/design-deviations.md` | `Qt6::Network` "is not an approved dependency". The shell already links it for the single-instance socket; the update check is its second use |
 

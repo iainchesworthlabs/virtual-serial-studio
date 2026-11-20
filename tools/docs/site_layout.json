@@ -122,8 +122,76 @@
    "new": "press/"
   },
   {
-   "src": "user-guide.md",
+   "src": "user-guide/index.md",
    "new": "guide/"
+  },
+  {
+   "src": "user-guide/getting-started.md",
+   "new": "guide/getting-started/"
+  },
+  {
+   "src": "user-guide/adding-ports.md",
+   "new": "guide/adding-ports/"
+  },
+  {
+   "src": "user-guide/connecting-ports.md",
+   "new": "guide/connecting-ports/"
+  },
+  {
+   "src": "user-guide/sharing-a-device.md",
+   "new": "guide/sharing-a-device/"
+  },
+  {
+   "src": "user-guide/timing-and-control-lines.md",
+   "new": "guide/timing-and-control-lines/"
+  },
+  {
+   "src": "user-guide/windows.md",
+   "new": "guide/windows/"
+  },
+  {
+   "src": "user-guide/monitor-and-capture.md",
+   "new": "guide/monitor-and-capture/"
+  },
+  {
+   "src": "user-guide/setups.md",
+   "new": "guide/setups/"
+  },
+  {
+   "src": "user-guide/network.md",
+   "new": "guide/network/"
+  },
+  {
+   "src": "user-guide/when-the-system-asks.md",
+   "new": "guide/when-the-system-asks/"
+  },
+  {
+   "src": "user-guide/settings-and-help.md",
+   "new": "guide/settings-and-help/"
+  },
+  {
+   "src": "user-guide/plugins.md",
+   "new": "guide/plugins/"
+  },
+  {
+   "src": "user-guide/updates.md",
+   "new": "guide/updates/"
+  },
+  {
+   "src": "user-guide/licences.md",
+   "new": "guide/licences/"
+  },
+  {
+   "src": "user-guide/limits.md",
+   "new": "guide/limits/"
+  },
+  {
+   "src": "user-guide/troubleshooting.md",
+   "new": "guide/troubleshooting/"
+  },
+  {
+   "src": "user-guide/command-line.md",
+   "new": "guide/command-line/"
   },
   {
    "src": "scenarios.md",

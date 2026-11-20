@@ -81,5 +81,5 @@ description: "Install Virtual Serial Studio on macOS from the disk image. What i
 </ul>
 </div>
 </div>
-<ul class="vss-links"><li><a href="../">Platforms</a></li><li><a href="../../guide/virtual-ports-on-linux-and-macos/">Virtual ports on Linux and macOS</a></li><li><a href="../../guide/#when-the-operating-system-asks-or-says-no">When the operating system asks</a></li><li><a href="../../downloads/">Downloads</a></li></ul>
+<ul class="vss-links"><li><a href="../">Platforms</a></li><li><a href="../../guide/virtual-ports-on-linux-and-macos/">Virtual ports on Linux and macOS</a></li><li><a href="../../guide/when-the-system-asks/#when-the-operating-system-asks-or-says-no">When the operating system asks</a></li><li><a href="../../downloads/">Downloads</a></li></ul>
 </div></section>

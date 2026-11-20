@@ -38,7 +38,7 @@ abstraction that lets the transport be replaced.
 
 ## Documentation
 
-- [docs/user-guide.md](docs/user-guide.md) — how to use the application: both modes, everyday jobs, network tools and troubleshooting.
+- [docs/user-guide/](docs/user-guide/index.md) — how to use the application, in pages by task: both modes, everyday jobs, network tools and troubleshooting.
 - [docs/ux.md](docs/ux.md) — who the interface is for, the simple/advanced design, and the human-factors decisions.
 - [docs/architecture.md](docs/architecture.md) — how the libraries, hub and transports fit together.
 - [docs/scenarios.md](docs/scenarios.md) — worked recipes for share, join, bridge and loopback.
