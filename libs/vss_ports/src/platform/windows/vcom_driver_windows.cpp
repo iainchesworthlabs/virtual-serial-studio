@@ -1163,7 +1163,7 @@ private:
                 return;
             if (!queue_.empty())
             {
-                slot = std::move(parked_);
+                slot.emplace(std::move(*parked_));
                 parked_.reset();
                 bool whole = true;
                 auto& front = queue_.front();
@@ -1196,7 +1196,7 @@ private:
             {
                 ec = *pending_error_;
                 pending_error_.reset();
-                slot = std::move(parked_);
+                slot.emplace(std::move(*parked_));
                 parked_.reset();
             }
             else if (!raw_reading_ && open_.load())

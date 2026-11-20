@@ -42,6 +42,15 @@ constexpr qreal kScaleTolerance = 0.3;
 /// How long the zoom must be still before textures are made sharp again.
 constexpr int kSettleMs = 120;
 
+/// The revision of what an item draws, or 0 for an item that has none.  It
+/// takes the item by reference, so the caller's pointer is not tied to the
+/// result of the cast.
+quint64 revision_of(const QGraphicsItem& item)
+{
+    const auto* const reports = dynamic_cast<const content_revision*>(&item);
+    return reports != nullptr ? reports->revision() : 0;
+}
+
 QPointF snapped(QPointF position, qreal pixel_ratio)
 {
     return {std::round(position.x() * pixel_ratio) / pixel_ratio,
@@ -336,8 +345,7 @@ void GpuCanvas::draw_items(QCanvasPainter& painter, const QTransform& to_view,
         qreal scale = zoom * pixel_ratio;
         scale = std::min({scale, kMaxTexture / local.width(),
                           kMaxTexture / local.height()});
-        const auto* reports = dynamic_cast<const content_revision*>(item);
-        const quint64 revision = reports != nullptr ? reports->revision() : 0;
+        const quint64 revision = revision_of(*item);
         auto found = cache_.find(item);
         const bool have = found != cache_.end() && !found->image.isNull() &&
                           found->local == local && found->revision == revision;
