@@ -42,5 +42,5 @@ description: "The facts a writer needs about Virtual Serial Studio: what it does
 <h2>More</h2>
 <p>These pages say what is built, what is planned and what the limits are.</p>
 </div>
-<ul class="vss-links"><li><a href="../products/">Products</a></li><li><a href="../platforms/">Platforms</a></li><li><a href="../solutions/">Solutions</a></li><li><a href="../quality/">Quality and trust</a></li><li><a href="../security/">Security</a></li><li><a href="../whats-new/">What's new</a></li></ul>
+<ul class="vss-links"><li><a href="../products/studio/">Studio</a></li><li><a href="../solutions/">Solutions</a></li><li><a href="../quality/">Quality and trust</a></li><li><a href="../security/">Security</a></li><li><a href="../whats-new/">What's new</a></li></ul>
 </div></section>

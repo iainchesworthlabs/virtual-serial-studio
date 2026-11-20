@@ -54,7 +54,7 @@ description: "How to report a vulnerability in Virtual Serial Studio privately, 
 <li>The macOS app is not signed or notarised, so macOS asks you to confirm before it opens it. Check the download against the signature and the checksums first.</li>
 <li>A Linux package is signed by the GPG signature on the file and nothing more.</li>
 </ul>
-<ul class="vss-links"><li><a href="../platforms/macos/">macOS</a></li><li><a href="../products/drivers/">Drivers</a></li></ul>
+<ul class="vss-links"><li><a href="../guide/when-the-system-asks/">When the system asks</a></li><li><a href="../guide/windows/">Windows</a></li></ul>
 </div>
 </div>
 </div></section>

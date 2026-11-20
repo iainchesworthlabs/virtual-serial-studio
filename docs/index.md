@@ -11,7 +11,7 @@ description: "Virtual serial ports, port sharing, a traffic monitor and test aut
 <h1>Virtual Serial Studio</h1>
 <p class="icl-lead">Virtual serial ports, port sharing, a traffic monitor and test automation on one computer.</p>
 <div class="icl-actions"><a class="icl-button" href="downloads/">Download</a><a class="icl-button icl-button--ghost" href="guide/">Read the guide</a></div>
-<ul class="icl-tags"><li>Windows, Linux and macOS</li><li>Free under GPL-3.0-or-later</li><li>Signed releases with a bill of materials</li></ul>
+<ul class="icl-tags"><li>Windows, Linux and macOS</li></ul>
 </div>
 <figure class="vss-hero-shot"><picture><source srcset="images/site/advanced-diagram-dark.png" media="(prefers-color-scheme: dark)"><img src="images/site/advanced-diagram-light.png" width="1280" height="800" alt="The Studio window at the Advanced level. A Ports list on the left shows console, logger and modem. The diagram shows console linked two-way to logger, with a modem fixture not yet linked. An Inspector and a Send panel are on the right, and the Monitor below lists RX and TX rows of an AT command."></picture></figure>
 </div></div></section>
@@ -29,7 +29,7 @@ description: "Virtual serial ports, port sharing, a traffic monitor and test aut
 <li><article class="icl-card"><p class="vss-kicker">Test automation</p><h3><a href="solutions/test-automation-and-ci/">Run tests with no window</a></h3><p>Run a saved setup from a terminal or a CI job, drive ports from a script, wait for a reply and keep a JUnit report.</p></article></li>
 <li><article class="icl-card"><p class="vss-kicker">Test benches</p><h3><a href="solutions/test-benches/">Build a bench and keep it</a></h3><p>Lay out ports, links, modem control lines and a multi-drop bus in a diagram, add delay and faults, and save it as a file.</p></article></li>
 </ul>
-<ul class="vss-links"><li><a href="products/">The products</a></li><li><a href="solutions/">All seven solutions</a></li></ul>
+<ul class="vss-links"><li><a href="products/studio/">Studio</a></li><li><a href="solutions/">All seven solutions</a></li></ul>
 </div></section>
 
 <section class="icl-section icl-section--tint"><div class="icl-wrap">
@@ -46,7 +46,7 @@ description: "Virtual serial ports, port sharing, a traffic monitor and test aut
 <div>
 <h3>A test lab that drives Studio from a harness</h3>
 <p>You run the same setup every time, from a script, with no window. <code>vss_cli</code> runs a saved setup and records and replays traffic. A Python client lets a test make ports, send bytes, wait for a reply and hand back a JUnit report. The agent, the gateway and the client are built from source today. <span class="vss-chip vss-chip--src">Built from source only</span></p>
-<ul class="vss-links"><li><a href="products/command-line/">Command line</a></li><li><a href="products/agent-gateway/">Agent and gateway</a></li></ul>
+<ul class="vss-links"><li><a href="guide/command-line/">Command line</a></li><li><a href="products/agent-gateway/">Agent and gateway</a></li></ul>
 </div>
 </div>
 </div></section>
@@ -58,7 +58,7 @@ description: "Virtual serial ports, port sharing, a traffic monitor and test aut
 </div>
 <ul class="vss-plans">
 <li class="vss-plan"><h3>Community</h3><p class="vss-plan__price">Free<small>GPL-3.0-or-later</small></p><p class="vss-plan__for">Studio, the command line and the source, with help on GitHub.</p><a class="icl-button icl-button--ghost" href="downloads/">Download</a></li>
-<li class="vss-plan vss-plan--featured"><h3>Pro</h3><p class="vss-plan__price">Price on request</p><p class="vss-plan__for">For test labs: a licence file and support.</p><a class="icl-button" href="pricing/">See Pro</a></li>
+<li class="vss-plan"><h3>Pro</h3><p class="vss-plan__price">Price on request</p><p class="vss-plan__for">For test labs: a licence file and support.</p><a class="icl-button icl-button--ghost" href="pricing/">See Pro</a></li>
 <li class="vss-plan"><h3>Enterprise</h3><p class="vss-plan__price">Price on request</p><p class="vss-plan__for">Negotiated terms, seats and computers, and a support agreement.</p><a class="icl-button icl-button--ghost" href="pricing/">See Enterprise</a></li>
 </ul>
 <ul class="vss-links"><li><a href="pricing/">Compare the editions</a></li><li><a href="licensing/">Licensing</a></li></ul>
@@ -86,15 +86,9 @@ description: "Virtual serial ports, port sharing, a traffic monitor and test aut
 
 <section class="icl-section"><div class="icl-wrap">
 <div class="vss-intro">
-<h2>Platforms</h2>
-<p>Studio and <code>vss_cli</code> run on all three systems. Each page lists what the system needs and what has not been tried.</p>
+<h2>Windows, Linux and macOS</h2>
+<p>Studio and <code>vss_cli</code> run on Windows, Linux and macOS. <a href="downloads/">Downloads</a> has the files for each system and says what each one needs.</p>
 </div>
-<ul class="icl-grid vss-grid-3">
-<li><article class="icl-card"><h3><a href="platforms/windows/">Windows</a></h3><p>An installer and a zip, for x86-64. Virtual ports are <code>COM</code> ports made by the Studio driver.</p></article></li>
-<li><article class="icl-card"><h3><a href="platforms/macos/">macOS</a></h3><p>A disk image and an archive, for Apple silicon. Virtual ports are pseudo terminals.</p></article></li>
-<li><article class="icl-card"><h3><a href="platforms/linux/">Linux</a></h3><p>A deb, an rpm and an archive, for x86-64. Virtual ports are pseudo terminals with stable names.</p></article></li>
-</ul>
-<ul class="vss-links"><li><a href="platforms/">All platforms</a></li><li><a href="downloads/">Downloads</a></li></ul>
 </div></section>
 
 <section class="icl-section icl-section--tint icl-cta"><div class="icl-wrap">

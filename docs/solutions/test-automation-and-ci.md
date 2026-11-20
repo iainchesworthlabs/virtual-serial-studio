@@ -50,7 +50,7 @@ vss_cli control run report --out=smoke.xml</code></pre>
 <h2>More</h2>
 <ul class="vss-links">
 <li><a href="../../products/agent-gateway/">Agent, gateway and Python client</a></li>
-<li><a href="../../products/command-line/">Command line</a></li>
+<li><a href="../../guide/command-line/">Command line</a></li>
 <li><a href="../../guide/control-from-a-script/">Controlling Studio from a script</a></li>
 <li><a href="../../developers/testing/">Testing</a></li>
 </ul>

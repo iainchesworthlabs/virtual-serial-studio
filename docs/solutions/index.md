@@ -38,8 +38,8 @@ description: "Seven jobs people use Virtual Serial Studio for, from developing w
 <ul class="vss-links">
 <li><a href="../guide/scenarios/">Scenario recipes</a></li>
 <li><a href="../guide/">The guide</a></li>
-<li><a href="../products/">Products</a></li>
-<li><a href="../platforms/">Platforms</a></li>
+<li><a href="../products/studio/">Studio</a></li>
+<li><a href="../downloads/">Downloads</a></li>
 </ul>
 </div>
 </div>

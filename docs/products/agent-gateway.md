@@ -6,7 +6,6 @@ description: "vss_agent keeps ports running for one user, vss_gate lets a test s
 ---
 <!-- OWNER DECISION: when the agent and the gateway go into the packages. docs/agent.md says the owner has decided that vss_agent and vss_gate will be in the installers and packages, and gives no release. Until then this page says they are built from source only. -->
 <section class="vss-head"><div class="icl-wrap">
-<p class="icl-crumb"><a href="../">Products</a> / Agent, gateway and Python client</p>
 <h1>Agent, gateway and Python client</h1>
 <p class="icl-lead">Let a test script make ports, send bytes, wait for a reply and keep a JUnit report, on one computer. <span class="vss-chip vss-chip--src">Built from source only</span></p>
 </div></section>
@@ -23,7 +22,7 @@ description: "vss_agent keeps ports running for one user, vss_gate lets a test s
 <tr><th scope="row"><code>vss_gate</code></th><td>The control gateway. It serves the control API to this user's programs over a pipe or socket that only this user can open, and it needs a running agent. Programs may only look unless you start it with <code>--local-role=control</code>.</td></tr>
 <tr><th scope="row"><code>vss_control</code></th><td>The Python client for the gateway. It needs Python 3.9 or later and nothing else, and it makes and links ports, sends bytes, waits for bytes and reads the event and traffic streams.</td></tr>
 </tbody></table></div>
-<p><code>vss_cli agent</code> and <code>vss_cli control</code>, which are in the packages, are the command line for the agent and the gateway. They have nothing to talk to until the two programs run. See <a href="../command-line/">Command line</a>.</p>
+<p><code>vss_cli agent</code> and <code>vss_cli control</code>, which are in the packages, are the command line for the agent and the gateway. They have nothing to talk to until the two programs run. See <a href="../../guide/command-line/">Command line</a>.</p>
 </div></section>
 
 <section class="icl-section icl-section--tint"><div class="icl-wrap">

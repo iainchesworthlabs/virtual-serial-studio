@@ -129,7 +129,7 @@ description: "How Virtual Serial Studio is tested, fuzzed, analysed and released
 <li>A hosted runner shows that the program builds and the tests pass on a real installation of that system. It does not show that anyone has seen the program on a real display.</li>
 <li>The result of each run is on GitHub, in the run list of the Platform matrix workflow.</li>
 </ul>
-<ul class="vss-links"><li><a href="../platforms/">Platforms</a></li><li><a href="https://github.com/iainchesworthlabs/virtual-serial-studio/actions/workflows/platform-matrix.yml">The Platform matrix workflow</a></li></ul>
+<ul class="vss-links"><li><a href="../downloads/">Downloads</a></li><li><a href="https://github.com/iainchesworthlabs/virtual-serial-studio/actions/workflows/platform-matrix.yml">The Platform matrix workflow</a></li></ul>
 </div></section>
 
 <section class="icl-section icl-section--tint"><div class="icl-wrap">

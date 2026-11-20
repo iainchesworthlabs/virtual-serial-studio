@@ -85,11 +85,13 @@ The site has three kinds of page.
 
 - **Front pages.** Markdown with `template: marketing.html` in the front matter. That template (`tools/docs/theme/marketing.html`) is
   plain HTML on the company shell. It does not extend Material and ships no script. Their links are relative. They are the home page,
-  Products, Platforms and Solutions, Downloads (`docs/downloads.md`, made from the release data: see [Release data and the update
+  Products (Studio, Agent and gateway, Plugins) and Solutions, Downloads (`docs/downloads.md`, made from the release data: see [Release data and the update
   feed](#release-data-and-the-update-feed)), Pricing, Quality and trust, Security, What's new, FAQ, Support, Licensing (`docs/licence.md`,
   because `docs/licensing.md` is the design of licence files), Privacy, Accessibility and Press. What's new is made from `CHANGELOG.md`
   (see [What's new](#whats-new)). The menus of the app bar are one list in `tools/docs/theme/partials/links.html`; a menu with items
-  opens as a native `<details>`, so it works with no script, and below 64rem the menus fold into one Menu. Only pages that exist are in it.
+  opens as a native `<details>`, so it works with no script, and below 64rem the menus fold into one Menu. Only pages that exist are in it. The
+  bar has the menus Products, Solutions and Resources (the User guide, Quality and trust, Security and the rest) and the plain links User guide,
+  Developers and Pricing. There is no Platforms section and no Products overview: what each system needs is on Downloads and in the guide.
 - **The guide** (`/virtual-serial-studio/guide/`) **and the pages for programmers** (`/virtual-serial-studio/developers/`). They are
   Material pages, with Material's colours set from the palette and from the browser's own light and dark colours
   (`docs/assets/guide.css`). The menu holds these two groups only.

@@ -7,7 +7,6 @@ description: "Studio and vss_cli run plugins as programs of their own after you 
 <!-- OWNER DECISION: official plugins. None exist in the repository, so the page says Planned. Which plugins come first, who signs them, and whether any needs a licence are not decided. -->
 <!-- OWNER DECISION: how a plugin author gets the plugin API and a manifest guide. Today there is the plugin API reference in the developer pages and the design in docs/plugins.md; there is no SDK package beyond the licence reader in sdk/licence-reader. -->
 <section class="vss-head"><div class="icl-wrap">
-<p class="icl-crumb"><a href="../">Products</a> / Plugins</p>
 <h1>Plugins and the plugin host</h1>
 <p class="icl-lead">A plugin adds something to Studio and runs as a program of its own. The host starts it, keeps it running, stops it, and keeps it apart from your files where the computer can. <span class="vss-chip vss-chip--ok">Plugin host in the packages</span> <span class="vss-chip vss-chip--plan">Official plugins: Planned</span></p>
 </div></section>
@@ -90,7 +89,7 @@ description: "Studio and vss_cli run plugins as programs of their own after you 
 vss_cli plugin install ./modbus-fixture
 vss_cli plugin run com.example.modbus-fixture --seconds 30 --instance fixture:meter</code></pre>
 <p><code>plugin run</code> prints one line each time the plugin's state changes, including the process id, how far it is confined and what was not applied. <code>--json</code> prints one JSON object on each line instead. It exits with 0 when the plugin ran and was stopped, and 1 when it never ran or failed too often.</p>
-<ul class="vss-links"><li><a href="../../developers/plugin-api/">The plugin API</a></li><li><a href="../../guide/plugins/#plugins">Plugins in the guide</a></li><li><a href="../command-line/">Command line</a></li></ul>
+<ul class="vss-links"><li><a href="../../developers/plugin-api/">The plugin API</a></li><li><a href="../../guide/plugins/#plugins">Plugins in the guide</a></li><li><a href="../../guide/command-line/">Command line</a></li></ul>
 </div></section>
 
 <section class="icl-section"><div class="icl-wrap">

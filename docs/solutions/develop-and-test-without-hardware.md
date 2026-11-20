@@ -42,7 +42,7 @@ description: "Give a program a virtual serial port, or join two programs with a 
 <ul class="vss-links">
 <li><a href="../../guide/getting-started/#quick-start">Quick start</a></li>
 <li><a href="../../guide/adding-ports/#adding-a-port">Adding a port</a></li>
-<li><a href="../../products/drivers/">Drivers and virtual ports</a></li>
+<li><a href="../../guide/windows/">Windows</a></li>
 <li><a href="../../products/studio/">Studio</a></li>
 </ul>
 </div></div></section>

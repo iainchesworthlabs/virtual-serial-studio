@@ -21,6 +21,8 @@ A release candidate or other pre-release is for trying out and for finding fault
 
 ## Before you install
 
+Virtual Serial Studio runs on Windows, Linux and macOS. What each system needs is below.
+
 - The Windows files are for x86-64 only; there is no Arm build.
 - The Windows driver is test-signed with a certificate from the certificate authority of Iain Chesworth Labs, so Windows accepts it
   only on a computer where that authority has been installed; on any other computer the installer installs Studio and leaves the

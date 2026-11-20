@@ -5,7 +5,6 @@ title_tag: "Studio, the application: Virtual Serial Studio"
 description: "Studio makes virtual serial ports, shares a real device with several programs, links ports in a diagram and records traffic, at a Simple or an Advanced level."
 ---
 <section class="vss-head"><div class="icl-wrap">
-<p class="icl-crumb"><a href="../">Products</a> / Studio</p>
 <h1>Studio, the application</h1>
 <p class="icl-lead">Make a serial port for a program, share a real device with several programs, link ports to each other, and watch the traffic on every port, from one window.</p>
 <div class="icl-actions"><a class="icl-button" href="../../downloads/">Download</a><a class="icl-button icl-button--ghost" href="../../guide/">Read the guide</a></div>
@@ -109,7 +108,7 @@ description: "Studio makes virtual serial ports, shares a real device with sever
 <h2>Setups as JSON, and templates</h2>
 <p>A setup is a JSON document that lists the ports and the links. <strong>File, Save</strong> writes it and <strong>File, Open</strong> applies it. <code>vss_cli run</code> runs the same file without the window.</p>
 <p><strong>File, Setups and templates</strong> opens four templates: a test bench with no hardware, a device shared with three programs, a device on the network, and two programs sharing one device one at a time. At the Advanced level, <strong>Export as command</strong> shows the <code>vss_cli</code> command that builds the current setup, and the Topology JSON tab edits the setup as text and names the line of a mistake.</p>
-<ul class="vss-links"><li><a href="../../guide/setups/#saving-opening-and-templates">Saving and templates</a></li><li><a href="../command-line/">Command line</a></li></ul>
+<ul class="vss-links"><li><a href="../../guide/setups/#saving-opening-and-templates">Saving and templates</a></li><li><a href="../../guide/command-line/">Command line</a></li></ul>
 </div>
 <div>
 <h2>Plugins</h2>
@@ -147,5 +146,5 @@ description: "Studio makes virtual serial ports, shares a real device with sever
 </ul>
 </div>
 </div>
-<ul class="vss-links"><li><a href="../../guide/limits/#what-this-build-cannot-do">What this build cannot do</a></li><li><a href="../../platforms/">Platforms</a></li><li><a href="../../downloads/">Downloads</a></li></ul>
+<ul class="vss-links"><li><a href="../../guide/limits/#what-this-build-cannot-do">What this build cannot do</a></li><li><a href="../../downloads/">Downloads</a></li></ul>
 </div></section>

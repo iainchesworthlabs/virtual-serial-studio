@@ -185,7 +185,6 @@
 /* The editions: three cards side by side */
 .vss-plans { display: grid; gap: var(--icl-space-5); grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); margin: 0; padding: 0; list-style: none; }
 .vss-plan { display: flex; flex-direction: column; gap: var(--icl-space-3); padding: var(--icl-space-5); background: var(--icl-surface); border: 1px solid var(--icl-border); border-radius: var(--icl-radius-m); }
-.vss-plan--featured { border: 2px solid var(--app-primary); }
 .vss-plan h3 { margin: 0; font-size: var(--icl-step-2); }
 .vss-plan__for { margin: 0; color: var(--icl-fg-muted); }
 .vss-plan__price { margin: 0; font-size: var(--icl-step-2); font-weight: 750; letter-spacing: -0.02em; }

@@ -10,16 +10,8 @@
    "new": "downloads/"
   },
   {
-   "src": "products/index.md",
-   "new": "products/"
-  },
-  {
    "src": "products/studio.md",
    "new": "products/studio/"
-  },
-  {
-   "src": "products/command-line.md",
-   "new": "products/command-line/"
   },
   {
    "src": "products/agent-gateway.md",
@@ -28,26 +20,6 @@
   {
    "src": "products/plugins.md",
    "new": "products/plugins/"
-  },
-  {
-   "src": "products/drivers.md",
-   "new": "products/drivers/"
-  },
-  {
-   "src": "platforms/index.md",
-   "new": "platforms/"
-  },
-  {
-   "src": "platforms/windows.md",
-   "new": "platforms/windows/"
-  },
-  {
-   "src": "platforms/macos.md",
-   "new": "platforms/macos/"
-  },
-  {
-   "src": "platforms/linux.md",
-   "new": "platforms/linux/"
   },
   {
    "src": "solutions/index.md",
