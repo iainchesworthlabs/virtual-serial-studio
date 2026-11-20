@@ -6,7 +6,7 @@ title_tag: "Support: Virtual Serial Studio"
 description: "How to get help with Virtual Serial Studio, report a problem or a security issue, ask about Pro and Enterprise, and what support each edition includes."
 ---
 <!-- OWNER DECISION: the support channel, hours and response times for Pro and Enterprise, the supported versions, the update policy, and the sales channel. They are not decided, so the table below says "details on request". -->
-<!-- OWNER DECISION: where mail to the support address goes. virtual-serial-studio.com had no MX record when this page was written (docs/plan/site.md, section 1), so mail to it does not arrive until the owner decides. The address is shown as plain text and not as a link, as the plan says. The form below posts to the company site's contact endpoint, which emails the owner of the company site and keeps a copy for 30 days; it works once the company stack has been redeployed with the source virtual-serial-studio, and a pull request preview cannot send it. -->
+<!-- OWNER DECISION: where mail to the support address goes. The zone of virtual-serial-studio.com has MX records to iCloud Mail (read on 20 November), so mail to the address can arrive; the owner confirms that support@ is an address or alias of that mailbox before the page is published. The address is shown as plain text and not as a link, as the plan says. The form below posts to the company site's contact endpoint, which emails the owner of the company site and keeps a copy for 30 days; it works once the company stack has been redeployed with the source virtual-serial-studio, and a pull request preview cannot send it. -->
 
 # Support
 
