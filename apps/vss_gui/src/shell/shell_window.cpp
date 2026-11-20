@@ -2144,20 +2144,19 @@ void ShellWindow::apply_compact()
 
     update_toolbar_style();
     // A pane the user has moved is not put back by a window size change.
-    if (layout_customised_)
+    if (!layout_customised_)
     {
-    }
-    else if (compact)
-    {
-        if (!tabifiedDockWidgets(inspector_dock_).contains(send_dock_))
+        const bool tabbed =
+            tabifiedDockWidgets(inspector_dock_).contains(send_dock_);
+        if (compact && !tabbed)
         {
             tabifyDockWidget(inspector_dock_, send_dock_);
             inspector_dock_->raise();
         }
-    }
-    else if (tabifiedDockWidgets(inspector_dock_).contains(send_dock_))
-    {
-        splitDockWidget(inspector_dock_, send_dock_, Qt::Vertical);
+        else if (!compact && tabbed)
+        {
+            splitDockWidget(inspector_dock_, send_dock_, Qt::Vertical);
+        }
     }
     if (ports_panel_ != nullptr)
         ports_panel_->set_compact(compact_);

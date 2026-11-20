@@ -133,6 +133,7 @@ private:
 
     void build();
     void on_snapshot_changed();
+    void on_plugin_added(const plugin_request_result& result);
     void on_request_finished(const plugin_request_result& result);
     void on_key_file_read(quint64 request, const plugin_key_file_view& key);
     void on_plugin_inspected(quint64 request,
