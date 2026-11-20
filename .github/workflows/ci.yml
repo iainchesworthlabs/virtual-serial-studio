@@ -99,24 +99,27 @@ jobs:
           python3 tools/ci/plan_legs.py --event "$EVENT" --draft "${DRAFT:-false}" \
             --plan "$RUNNER_TEMP/plan.txt" --changed "$RUNNER_TEMP/changed.txt" \
             --config .github/ci/plan.json --summary "$GITHUB_STEP_SUMMARY" >> "$GITHUB_OUTPUT"
-      # Where the Linux jobs run. The self-hosted fleet (iainchesworthlabs/ci-runners) takes a push to
-      # develop, a merge-queue entry, a manual run, and a pull request whose branch is in this
-      # repository. A pull request from a fork gets a GitHub-hosted runner, so fork code never reaches
-      # the fleet. This step runs in the pull request's own copy of the workflow, so it is a
-      # convenience and not the gate: the gate is "Require approval for all outside collaborators"
-      # in the repository's Actions settings, which holds a fork run until a person has read it.
-      # Set the repository variable RUNNER_LINUX to "github-hosted" to send every run to GitHub.
+      # Where the Linux jobs run. They run on GitHub-hosted runners. Set the repository variable
+      # RUNNER_OVERFLOW to "true" to send them to the self-hosted fleet (iainchesworthlabs/ci-runners)
+      # instead: its on-prem runners take a job first, and the AWS spot runners take what is queued
+      # beyond them when this repository is in repository_white_list of ci-runners/terraform-aws. Set it
+      # back to anything else, or delete it, to return to GitHub. Only a push to develop, a merge-queue
+      # entry, a manual run and a pull request whose branch is in this repository can reach the fleet.
+      # A pull request from a fork always gets a GitHub-hosted runner, so fork code never reaches it.
+      # This step runs in the pull request's own copy of the workflow, so it is a convenience and not
+      # the gate: the gate is "Require approval for all outside collaborators" in the repository's
+      # Actions settings, which holds a fork run until a person has read it.
       - name: Choose the Linux runner
         id: runners
         env:
           EVENT: ${{ github.event_name }}
           REPO: ${{ github.repository }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-          OVERRIDE: ${{ vars.RUNNER_LINUX }}
+          OVERFLOW: ${{ vars.RUNNER_OVERFLOW }}
         run: |
           set -euo pipefail
           runner='"ubuntu-26.04"'
-          if [ "$OVERRIDE" != "github-hosted" ]; then
+          if [ "$OVERFLOW" = "true" ]; then
             case "$EVENT" in
               push | merge_group | workflow_dispatch)
                 runner='["self-hosted","Linux","X64","shared"]' ;;
@@ -127,7 +130,7 @@ jobs:
             esac
           fi
           echo "runner_linux=$runner" >> "$GITHUB_OUTPUT"
-          echo "Linux jobs run on: $runner" >> "$GITHUB_STEP_SUMMARY"
+          echo "Linux jobs run on: $runner (RUNNER_OVERFLOW='$OVERFLOW')" >> "$GITHUB_STEP_SUMMARY"
 
   changelog:
     runs-on: ubuntu-latest
