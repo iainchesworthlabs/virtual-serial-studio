@@ -386,6 +386,8 @@ PluginKeyImportDialog::PluginKeyImportDialog(PluginBackend& backend,
                                              QWidget* parent)
     : QDialog(parent), backend_(backend), key_(key)
 {
+    // The dialog shows the key's author, id, fingerprint and file, two
+    // warnings, and a box that must be ticked before the key can be approved.
     setObjectName(QStringLiteral("pluginKeyImportDialog"));
     const QString author = plain_text(key.author);
     frame parts = build_frame(
@@ -401,6 +403,8 @@ PluginKeyImportDialog::PluginKeyImportDialog(PluginBackend& backend,
         560);
     QVBoxLayout* body = parts.body;
 
+    // Details form: author and key id come from the key file and are shown as
+    // plain text.
     QFormLayout* form = make_form(this);
     auto* who = make_plain_label(key.author, this, text_style::body, true);
     who->setObjectName(QStringLiteral("keyAuthor"));
@@ -412,6 +416,9 @@ PluginKeyImportDialog::PluginKeyImportDialog(PluginBackend& backend,
     add_row(form,
             QCoreApplication::translate("PluginKeyImportDialog", "Key id"), id);
 
+    // The fingerprint is shown in groups for reading aloud and compared by
+    // eye, so a screen reader gets a spoken form and a copy button is next to
+    // it.
     auto* print_row = new QWidget(this);
     auto* print_layout = new QHBoxLayout(print_row);
     print_layout->setContentsMargins(0, 0, 0, 0);
@@ -446,6 +453,8 @@ PluginKeyImportDialog::PluginKeyImportDialog(PluginBackend& backend,
             file);
     body->addLayout(form);
 
+    // Always tell the person to compare the fingerprint with the author's
+    // published one before approving.
     compare_note_ = make_plain_note(this);
     compare_note_->setObjectName(QStringLiteral("keyCompareNote"));
     compare_note_->set_kind(NoteBanner::kind::warn);
@@ -456,6 +465,8 @@ PluginKeyImportDialog::PluginKeyImportDialog(PluginBackend& backend,
         "key."));
     body->addWidget(compare_note_);
 
+    // A key stored inside the plugin folder proves little, so this second
+    // warning shows only in that case.
     inside_note_ = make_plain_note(this);
     inside_note_->setObjectName(QStringLiteral("keyInsideNote"));
     inside_note_->set_kind(NoteBanner::kind::warn);
@@ -467,6 +478,8 @@ PluginKeyImportDialog::PluginKeyImportDialog(PluginBackend& backend,
     inside_note_->setVisible(key.inside_plugin_folder);
     body->addWidget(inside_note_);
 
+    // Approve stays disabled until the box is ticked, so approval is a
+    // separate, deliberate step.
     confirm_ =
         new QCheckBox(QCoreApplication::translate(
                           "PluginKeyImportDialog",
@@ -477,6 +490,8 @@ PluginKeyImportDialog::PluginKeyImportDialog(PluginBackend& backend,
     body->addWidget(confirm_);
     body->addStretch(1);
 
+    // Footer: Cancel takes the initial focus, and the tab order runs from
+    // Cancel through the tick box to Approve.
     cancel_ = footer_button(
         parts.footer,
         QCoreApplication::translate("PluginKeyImportDialog", "Cancel"), nullptr,
@@ -1291,6 +1306,8 @@ PluginControlDialog::PluginControlDialog(const plugin_control_request& request,
                                          QWidget* parent)
     : QDialog(parent)
 {
+    // The dialog shows who asks, why, what the plugin wants to do and how long
+    // it lasts. Everything the plugin supplied goes through plain_text first.
     setObjectName(QStringLiteral("pluginControlDialog"));
     frame parts = build_frame(
         this,
@@ -1303,6 +1320,8 @@ PluginControlDialog::PluginControlDialog(const plugin_control_request& request,
         560);
     QVBoxLayout* body = parts.body;
 
+    // The other computer is named by the plugin and is not checked, so the
+    // wording says "it says" and an empty name is stated plainly.
     const QString peer = plain_text(request.peer).trimmed();
     auto* who = make_plain_label(
         peer.isEmpty()
@@ -1315,6 +1334,8 @@ PluginControlDialog::PluginControlDialog(const plugin_control_request& request,
     who->setObjectName(QStringLiteral("controlWho"));
     body->addWidget(who);
 
+    // The reason is shown quoted in its own box, so it reads as the plugin's
+    // words and not as the application's. A missing reason shows no box.
     const QString reason = plain_text(request.reason).trimmed();
     if (!reason.isEmpty())
     {
@@ -1336,6 +1357,8 @@ PluginControlDialog::PluginControlDialog(const plugin_control_request& request,
         QCoreApplication::translate("PluginControlDialog",
                                     "It asks to be allowed to:"),
         this, text_style::heading));
+    // One row per distinct scope. A scope that exposes or sends data is
+    // marked amber, and any such row adds a warning note after the list.
     QStringList seen;
     bool any_data = false;
     for (const QString& scope : request.scopes)
@@ -1346,6 +1369,7 @@ PluginControlDialog::PluginControlDialog(const plugin_control_request& request,
         bool amber = false;
         const QString sentence = control_scope_sentence(scope, &amber);
         any_data = any_data || amber;
+        // Keep the sentences so the text of the dialog can be read back.
         sentences_ << sentence;
         QFrame* row = make_permission_row(sentence, amber, true, {}, {}, this);
         row->setObjectName(QStringLiteral("controlScope"));
@@ -1367,6 +1391,8 @@ PluginControlDialog::PluginControlDialog(const plugin_control_request& request,
         body->addWidget(data_note_);
     }
 
+    // The length is given in whole hours when it divides evenly, otherwise in
+    // minutes rounded up, and never less than one minute.
     const int life = std::max(0, request.life_seconds);
     const QString length =
         (life % 3600 == 0 && life >= 3600)
@@ -1386,6 +1412,8 @@ PluginControlDialog::PluginControlDialog(const plugin_control_request& request,
     body->addWidget(life_);
     body->addStretch(1);
 
+    // Footer: Refuse comes first and takes the initial focus, so Enter never
+    // grants access by accident.
     refuse_ = footer_button(
         parts.footer,
         QCoreApplication::translate("PluginControlDialog", "Refuse"), nullptr,

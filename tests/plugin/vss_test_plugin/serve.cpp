@@ -464,6 +464,11 @@ private:
 
 bool take_serve_modifier(std::string_view argument, serve_options& options)
 {
+    // Each flag sets one member of the options and answers true. A flag that
+    // is not one of these, or whose value is not valid, answers false, and
+    // the caller then treats the argument as unknown.
+
+    // What the plugin says in its hello, or whether it says one at all.
     if (const auto text = value_after(argument, "--hello-id="))
     {
         options.hello_id = std::string(*text);
@@ -484,6 +489,8 @@ bool take_serve_modifier(std::string_view argument, serve_options& options)
         options.hello_twice = true;
         return true;
     }
+    // What the plugin does once it is ready: leave with a code (which must
+    // be a number) or crash.
     if (const auto text = value_after(argument, "--exit-after-ready="))
     {
         if (const auto code = parse_number<int>(*text))
@@ -498,6 +505,7 @@ bool take_serve_modifier(std::string_view argument, serve_options& options)
         options.crash_after_ready = true;
         return true;
     }
+    // Requests from the host that the plugin does not answer.
     if (argument == "--ignore-shutdown")
     {
         options.ignore_shutdown = true;
@@ -508,6 +516,7 @@ bool take_serve_modifier(std::string_view argument, serve_options& options)
         options.ignore_ping = true;
         return true;
     }
+    // Text the plugin reports, and an operation it sends on its own.
     if (const auto text = value_after(argument, "--status="))
     {
         options.status = std::string(*text);
@@ -523,6 +532,9 @@ bool take_serve_modifier(std::string_view argument, serve_options& options)
         options.send_op = std::string(*text);
         return true;
     }
+    // Headers sent as given. Only the shape is checked here: the text must
+    // start with { and end with }, ignoring white space, and what is inside
+    // is left to the host to refuse.
     if (const auto text = value_after(argument, "--send-header="))
     {
         const std::size_t first = text->find_first_not_of(" \t\r\n");
@@ -543,6 +555,8 @@ bool take_serve_modifier(std::string_view argument, serve_options& options)
         options.notify_headers.emplace_back(*text);
         return true;
     }
+    // Operations the plugin echoes or refuses. Each flag may be given more
+    // than once, and every value is kept.
     if (const auto text = value_after(argument, "--echo-op="))
     {
         options.echo_ops.emplace_back(*text);
@@ -553,6 +567,8 @@ bool take_serve_modifier(std::string_view argument, serve_options& options)
         options.refuse_ops.emplace_back(*text);
         return true;
     }
+    // Misbehaviour after ready: bytes that are not a message, a flood of
+    // messages (the count must be a number) and lines on the error stream.
     if (argument == "--garbage-after-ready")
     {
         options.garbage_after_ready = true;
@@ -572,6 +588,7 @@ bool take_serve_modifier(std::string_view argument, serve_options& options)
         options.stderr_each = std::string(*text);
         return true;
     }
+    // Not a modifier of serve mode.
     return false;
 }
 

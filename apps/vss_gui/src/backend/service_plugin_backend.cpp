@@ -1243,23 +1243,29 @@ void ServicePluginBackend::remove_key(const QString& key_id)
 
 quint64 ServicePluginBackend::inspect_plugin(const QString& folder)
 {
+    // Reading and hashing a folder is slow, so it runs on the slow executor.
+    // The request number lets the caller match the answer to its question.
     const quint64 number = next_request_.fetch_add(1);
     boost::asio::post(
         slow_,
         [this, number, folder]
         {
+            // Look at the folder as if it were installed for this user.
             plugin_inspection_view out;
             out.folder = folder;
             const fs::path source = to_path(folder);
             const plug::inspect_context context = context_now();
             const plug::inspection found =
                 plug::inspect_plugin(source, context);
+            // Without a readable manifest there is nothing more to show.
             if (!found.declared.has_value())
             {
                 out.failure = plugin_inspection_view::problem::not_a_plugin;
                 notify_plugin_inspected(number, out);
                 return;
             }
+            // Fill the plugin view from the manifest, then from the signature
+            // and file hash that the inspection found.
             plugin_view& view = out.plugin;
             fill_view_from_manifest(view, *found.declared);
             view.folder = path_text(source);
@@ -1271,6 +1277,8 @@ quint64 ServicePluginBackend::inspect_plugin(const QString& folder)
                 view.fingerprint =
                     QString::fromStdString(found.hash.short_text());
             }
+            // Translate the trust level from the plugin library into the one
+            // the interface uses. No level means the signature is bad.
             if (found.level.has_value())
             {
                 switch (*found.level)
@@ -1289,6 +1297,8 @@ quint64 ServicePluginBackend::inspect_plugin(const QString& folder)
                     break;
                 }
             }
+            // How well this computer can keep the plugin apart; for a partial
+            // level also record what is missing.
             view.isolation =
                 context.sandbox == plug::sandbox_level::full
                     ? plugin_isolation::full
@@ -1306,6 +1316,8 @@ quint64 ServicePluginBackend::inspect_plugin(const QString& folder)
                 view.note = plugin_note::invalid_manifest;
                 view.reason_code =
                     QString::fromStdString(found.problem.message());
+                // A problem from the plugin library has its own state and
+                // note; any other problem stays an invalid manifest.
                 if (found.problem.category() == plug::plugin_category())
                 {
                     const auto reason = state_for_reason(
@@ -1323,6 +1335,9 @@ quint64 ServicePluginBackend::inspect_plugin(const QString& folder)
             else if (found.run.failed() &&
                      found.run.category() == plug::plugin_category())
             {
+                // The files are fine but the plugin could not run here. The
+                // administrator's rules decide whether isolation can be
+                // overridden.
                 const auto reason = state_for_reason(
                     static_cast<plug::plugin_errc>(found.run.value()),
                     plug::may_override_sandbox(context.rules ? &*context.rules
@@ -1339,6 +1354,8 @@ quint64 ServicePluginBackend::inspect_plugin(const QString& folder)
             }
             view.detail = QString::fromStdString(found.run_detail);
 
+            // Now decide whether the folder can be installed for this user.
+            // The rules and the copies already installed can still stop it.
             out.failure = plugin_inspection_view::problem::none;
             out.can_install = !plug::blocks_install(found);
             if (options_.user_root.empty() ||
@@ -1376,6 +1393,8 @@ quint64 ServicePluginBackend::inspect_plugin(const QString& folder)
                     view.note == plugin_note::decision_first)
                     view.note = plugin_note::decision_changed;
             }
+            // Report from this worker thread; the notification marshals the
+            // result to the interface.
             notify_plugin_inspected(number, out);
         });
     return number;

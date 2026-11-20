@@ -1269,8 +1269,11 @@ result<reply_body> read_reply_body(const json::object& header,
 
 operation operation_of(const request_body& body)
 {
+    // One overload per request type, each returning its operation. A new
+    // request type without an overload here fails to compile.
     struct visitor
     {
+        // Session set up and status.
         operation operator()(const hello_request&) const noexcept
         {
             return operation::hello;
@@ -1279,6 +1282,7 @@ operation operation_of(const request_body& body)
         {
             return operation::status;
         }
+        // Reading ports and links.
         operation operator()(const ports_list_request&) const noexcept
         {
             return operation::ports_list;
@@ -1295,6 +1299,7 @@ operation operation_of(const request_body& body)
         {
             return operation::links_get;
         }
+        // Keep alive, closing the session, auditing and stopping an endpoint.
         operation operator()(const ping_request&) const noexcept
         {
             return operation::ping;
@@ -1311,6 +1316,7 @@ operation operation_of(const request_body& body)
         {
             return operation::endpoint_stop;
         }
+        // Access tokens.
         operation operator()(const tokens_create_request&) const noexcept
         {
             return operation::tokens_create;
@@ -1323,6 +1329,7 @@ operation operation_of(const request_body& body)
         {
             return operation::tokens_revoke;
         }
+        // Event and traffic subscriptions.
         operation operator()(const events_subscribe_request&) const noexcept
         {
             return operation::events_subscribe;
@@ -1339,6 +1346,7 @@ operation operation_of(const request_body& body)
         {
             return operation::traffic_unsubscribe;
         }
+        // Session management.
         operation operator()(const sessions_list_request&) const noexcept
         {
             return operation::sessions_list;
@@ -1347,6 +1355,7 @@ operation operation_of(const request_body& body)
         {
             return operation::sessions_kick;
         }
+        // Changing ports and links, and sending data.
         operation operator()(const ports_create_request&) const noexcept
         {
             return operation::ports_create;
@@ -1371,6 +1380,7 @@ operation operation_of(const request_body& body)
         {
             return operation::ports_send;
         }
+        // Test support: expecting bytes, test runs and the JUnit report.
         operation operator()(const expect_bytes_request&) const noexcept
         {
             return operation::expect_bytes;

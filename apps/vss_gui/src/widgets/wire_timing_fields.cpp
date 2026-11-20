@@ -41,6 +41,8 @@ QLabel* make_hint(const QString& text, QWidget* parent)
 
 WireTimingFields::WireTimingFields(QWidget* parent) : QWidget(parent)
 {
+    // Top level: the enable box and its hint, then one block of rows that is
+    // greyed out while wire timing is off.
     setObjectName(QStringLiteral("wireTimingFields"));
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -64,6 +66,8 @@ WireTimingFields::WireTimingFields(QWidget* parent) : QWidget(parent)
     rows->setContentsMargins(0, 0, 0, 0);
     rows->setSpacing(10);
 
+    // Bit rate: zero is the "use the port's own rate" value, shown as text
+    // through the special value text.
     bit_rate_ = new QSpinBox(rows_);
     bit_rate_->setObjectName(QStringLiteral("wireTimingBitRate"));
     bit_rate_->setRange(0, static_cast<int>(vss::max_bus_bit_rate));
@@ -80,6 +84,8 @@ WireTimingFields::WireTimingFields(QWidget* parent) : QWidget(parent)
            "not paced."),
         rows_));
 
+    // Framing: three combo boxes side by side. The item data holds the
+    // engine enum value, so options() can read it back without parsing text.
     framing_row_ = new QWidget(rows_);
     framing_row_->setObjectName(QStringLiteral("wireTimingFraming"));
     auto* framing = new QHBoxLayout(framing_row_);
@@ -91,6 +97,7 @@ WireTimingFields::WireTimingFields(QWidget* parent) : QWidget(parent)
     data_bits_->setAccessibleName(tr("Data bits"));
     for (int bits = 5; bits <= 8; ++bits)
         data_bits_->addItem(QString::number(bits), bits);
+    // Index 3 is eight data bits, the usual default.
     data_bits_->setCurrentIndex(3);
 
     parity_ = new QComboBox(framing_row_);
@@ -121,6 +128,8 @@ WireTimingFields::WireTimingFields(QWidget* parent) : QWidget(parent)
         rows_));
     layout->addWidget(rows_);
 
+    // Every edit refreshes which rows are usable and tells the owner that
+    // the link settings have changed.
     connect(enable_, &QCheckBox::toggled, this,
             [this]
             {
@@ -137,6 +146,8 @@ WireTimingFields::WireTimingFields(QWidget* parent) : QWidget(parent)
         connect(box, &QComboBox::currentIndexChanged, this,
                 [this] { Q_EMIT changed(); });
 
+    // Keyboard order follows the visual order, top to bottom and left to
+    // right.
     setTabOrder(enable_, bit_rate_);
     setTabOrder(bit_rate_, data_bits_);
     setTabOrder(data_bits_, parity_);

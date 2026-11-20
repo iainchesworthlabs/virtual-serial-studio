@@ -142,6 +142,8 @@ studio_provider::studio_provider(studio& target, trace::recorder* source)
 
 std::string studio_provider::snapshot_json() const
 {
+    // Take every list from the studio once, up front, so the endpoint loop
+    // below works from one consistent view.
     const auto now = studio_->engine().now();
     const auto infos = studio_->endpoint_infos();
     const auto peers = studio_->peer_states();
@@ -149,6 +151,7 @@ std::string studio_provider::snapshot_json() const
     const auto lost = studio_->lost_ports();
     const std::set<endpoint_id> lost_ids(lost.begin(), lost.end());
 
+    // One object per endpoint. Identity, state and path come first.
     json::array endpoints;
     for (const endpoint_info& info : infos)
     {
@@ -160,6 +163,8 @@ std::string studio_provider::snapshot_json() const
         item["open"] = info.open;
         if (!info.path.empty())
             item["path"] = info.path;
+        // The advertised path is only reported when it differs from the
+        // path the endpoint opened.
         const std::string advertised = studio_->advertised_path(info.id);
         if (!advertised.empty() && advertised != info.path)
             item["advertised"] = advertised;
@@ -171,6 +176,8 @@ std::string studio_provider::snapshot_json() const
         if (info.clients)
             item["clients"] = *info.clients;
 
+        // Traffic counters for the endpoint, with the time since it last
+        // did anything.
         json::object counters;
         counters["bytes_rx"] = info.stats.bytes_rx;
         counters["bytes_tx"] = info.stats.bytes_tx;
@@ -184,6 +191,7 @@ std::string studio_provider::snapshot_json() const
             age_ms(info.stats.last_activity, now);
         item["counters"] = std::move(counters);
 
+        // Run state, loss, and the peer and driver port when there are any.
         if (const auto stopped = studio_->port_stopped(info.id))
             item["run_state"] =
                 *stopped ? "stopped"
@@ -195,6 +203,7 @@ std::string studio_provider::snapshot_json() const
             item["peer"] = peer_text(peer->second);
         if (const auto driver = drivers.find(info.id); driver != drivers.end())
             item["driver_port"] = driver->second;
+        // Network endpoints also report their connection and retry state.
         if (const auto connection = studio_->connection(info.id))
         {
             json::object network;
@@ -220,6 +229,7 @@ std::string studio_provider::snapshot_json() const
         endpoints.push_back(std::move(item));
     }
 
+    // One object per link: its ends, options and counters.
     json::array links;
     for (const link_info& info : studio_->link_infos())
     {
@@ -264,6 +274,8 @@ std::string studio_provider::snapshot_json() const
     recorder["last_seq"] = recorder_->last_seq();
     recorder["overwritten"] = recorder_->overwritten();
 
+    // Assemble the document. The driver failure is read through a lambda so
+    // the temporary values stay out of the enclosing scope.
     json::object out;
     out["hub"] = std::move(hub);
     out["endpoints"] = std::move(endpoints);
@@ -465,6 +477,7 @@ op_result studio_provider::traffic(const std::string& args_json)
 
 op_result studio_provider::run(const std::string& args_json)
 {
+    // The arguments arrive as JSON text and must be an object.
     boost::system::error_code ec;
     const json::value given = json::parse(args_json, ec);
     if (ec || !given.is_object())
@@ -473,11 +486,15 @@ op_result studio_provider::run(const std::string& args_json)
     const auto& object = given.as_object();
     const std::string operation = text(object, "op");
 
+    // Note where the recorder is before the operation so that only the calls
+    // it causes are returned afterwards, and start the clock.
     const std::uint64_t before = recorder_->last_seq();
     const auto started = std::chrono::steady_clock::now();
     error_code failure;
     json::object extra;
 
+    // Looks up the "port" argument. A missing port sets the failure, so the
+    // operation is skipped and the result reports not found.
     const auto need_port = [&]() -> std::shared_ptr<endpoint>
     {
         auto port = find_port(*studio_, object, "port");
@@ -486,6 +503,8 @@ op_result studio_provider::run(const std::string& args_json)
         return port;
     };
 
+    // Choose the operation. A bad argument returns at once; a studio error
+    // is kept in `failure` and reported in the result below.
     if (operation == "add_monitor")
     {
         const std::string from = text(object, "from");
@@ -504,10 +523,14 @@ op_result studio_provider::run(const std::string& args_json)
         if (const auto port = need_port())
         {
             const endpoint_id id = port->id();
+            // A restart with new settings reconfigures the port. Every other
+            // case in this group is a plain stop, start or reopen.
             const json::value* settings = object.if_contains("settings");
             if (operation == "restart_port" && settings != nullptr &&
                 settings->is_object())
             {
+                // Start from the current settings and change only the
+                // members that were given.
                 serial_settings next =
                     studio_->port_settings(id).value_or(port->info().serial);
                 const auto& given_settings = settings->as_object();
@@ -568,6 +591,7 @@ op_result studio_provider::run(const std::string& args_json)
 
     const auto elapsed = std::chrono::steady_clock::now() - started;
 
+    // Collect the calls recorded since the operation began, up to a limit.
     trace::filter what;
     what.after_seq = before;
     what.limit = chain_most;
@@ -575,6 +599,7 @@ op_result studio_provider::run(const std::string& args_json)
     for (const auto& item : recorder_->read(what))
         chain.push_back(entry_object(item));
 
+    // The reply: success flag, the error if any, timing and extra values.
     json::object out;
     out["op"] = operation;
     out["ok"] = !failure;

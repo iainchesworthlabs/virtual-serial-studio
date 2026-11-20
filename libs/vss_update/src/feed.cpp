@@ -875,6 +875,8 @@ operating_system_from(std::string_view text) noexcept
 
 result<feed> parse_feed_payload(std::string_view payload, std::string* detail)
 {
+    // `state` collects the first problem. Every failure return goes through
+    // `failure`, which copies that problem to the caller's detail string.
     reading state;
     const auto failure = [&](update_errc code) -> result<feed>
     {
@@ -882,6 +884,7 @@ result<feed> parse_feed_payload(std::string_view payload, std::string* detail)
         return code;
     };
 
+    // Parse strictly, and require a JSON object at the top.
     std::string what;
     const std::optional<json::value> root = detail::parse_strict(payload, what);
     if (!root)
@@ -909,6 +912,8 @@ result<feed> parse_feed_payload(std::string_view payload, std::string* detail)
         state.fail("feed_version", "must be a whole number");
         return failure(update_errc::feed_malformed);
     }
+    // A whole number that is not the version this code reads is reported as
+    // an unsupported version, not as a broken feed.
     if (!format->is_int64() ||
         format->get_int64() != std::int64_t{feed_format_version})
     {
@@ -917,6 +922,8 @@ result<feed> parse_feed_payload(std::string_view payload, std::string* detail)
         return failure(update_errc::feed_version_unsupported);
     }
 
+    // With the format known, check the top level keys against the allowed
+    // set, then read the serial number and the issue time.
     if (object_of(state, *root, "feed", top_keys) == nullptr)
         return failure(update_errc::feed_malformed);
 
@@ -931,11 +938,14 @@ result<feed> parse_feed_payload(std::string_view payload, std::string* detail)
             state.fail("issued_at",
                        "must be a UTC time such as 2026-12-01T03:40:00Z");
     }
+    // Both members are read before this check so that one pass reports
+    // whichever of the two is wrong.
     if (serial)
         out.serial = *serial;
     if (state.failed())
         return failure(update_errc::feed_malformed);
 
+    // The Studio releases. Each channel may appear only once.
     const auto studio_list =
         list_member(state, top, "", "studio", max_studio_releases, false);
     if (!studio_list)
@@ -959,6 +969,7 @@ result<feed> parse_feed_payload(std::string_view payload, std::string* detail)
         out.studio.push_back(std::move(*release));
     }
 
+    // The plugin releases. Each plugin id may appear only once.
     const auto plugin_list =
         list_member(state, top, "", "plugins", max_plugins, true);
     if (!plugin_list)
@@ -981,6 +992,7 @@ result<feed> parse_feed_payload(std::string_view payload, std::string* detail)
         out.plugins.push_back(std::move(*release));
     }
 
+    // Everything read cleanly, so clear the caller's detail string.
     set_detail(detail, {});
     return out;
 }

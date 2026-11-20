@@ -890,9 +890,13 @@ struct accepted_batch
 /// hold in any state.
 void random_run(std::uint64_t seed)
 {
+    // The seed fixes everything: the generator, whether the feed runs in
+    // rules mode (odd seeds) or async mode, and the window limits below.
     lcg random{seed * 7919 + 13};
     const bool rules = (seed % 2) == 1;
     feed_options options = rules ? rules_options() : async_options();
+    // Small and odd limits make the window, the batch cap and the refusal
+    // count reach their edges often.
     options.window_bytes = 64 + random.below(2000);
     options.window_batches = static_cast<std::uint32_t>(1 + random.below(12));
     options.max_batch_bytes = 1 + random.below(options.window_bytes);
@@ -904,6 +908,8 @@ void random_run(std::uint64_t seed)
     generator_feed feed{options};
     fake_port port;
 
+    // Bookkeeping kept beside the feed: the bytes it accepted, in order, and
+    // where each batch began, so the port's writes can be checked at the end.
     feed_time now = t0;
     std::chrono::nanoseconds last_offset{0};
     std::vector<byte> expected;
@@ -914,6 +920,8 @@ void random_run(std::uint64_t seed)
     std::uint64_t window_bytes = options.window_bytes;
     feed_time run_start = t0;
     bool started_once = false;
+    // Every fifth seed leaves the feed unstarted so that calls made before
+    // start are covered.
     if (seed % 5 != 0)
     {
         feed.start(t0);
@@ -922,6 +930,8 @@ void random_run(std::uint64_t seed)
 
     for (int step = 0; step < 300; ++step)
     {
+        // Time moves forward by up to 20 ms, and the port's state is drawn
+        // anew: sometimes not ready, sometimes short of room, rarely failed.
         now += std::chrono::duration_cast<feed_time::duration>(
             std::chrono::microseconds{random.below(20'000)});
         port.clock = now;
@@ -931,6 +941,9 @@ void random_run(std::uint64_t seed)
                          : std::numeric_limits<std::size_t>::max();
         port.failed = random.below(400) == 0;
 
+        // Pick one call by weight: start 4%, a batch 56%, the timer 20%,
+        // port ready 8%, done 5%, stop 1%, plugin gone 1%, a jump to the
+        // time the feed asked for 5%.
         feed_output out;
         const std::uint64_t pick = random.below(100);
         const std::uint64_t accepted_before = feed.stats().accepted_batches;
@@ -951,11 +964,15 @@ void random_run(std::uint64_t seed)
             size = random.below(10) == 0
                        ? static_cast<std::size_t>(random.below(5000))
                        : static_cast<std::size_t>(1 + random.below(200));
+            // The bytes count up, so a wrong order shows in the comparison.
             feed_batch batch;
             for (std::size_t index = 0; index < size; ++index)
             {
                 batch.data.push_back(static_cast<byte>(counter++ & 0xff));
             }
+            // In rules mode most batches carry an offset that drifts up and
+            // down but never below zero; in async mode a few carry one that
+            // the feed must ignore or refuse.
             if (rules && random.below(12) != 0)
             {
                 std::int64_t delta =
@@ -972,6 +989,8 @@ void random_run(std::uint64_t seed)
             {
                 batch.offset = 1ms;
             }
+            // The earliest time a write of this batch may happen: the offset
+            // scaled by the time scale, from the start of the run.
             if (batch.offset.has_value() && rules)
             {
                 const std::uint64_t scaled =
@@ -982,6 +1001,8 @@ void random_run(std::uint64_t seed)
                                std::chrono::nanoseconds{
                                    static_cast<std::int64_t>(scaled)});
             }
+            // Keep a copy, since the batch is moved. Record it only when the
+            // feed counted it as accepted, not when it was refused.
             const byte_buffer copy = batch.data;
             out = feed.on_batch(std::move(batch), now, port);
             if (feed.stats().accepted_batches > accepted_before)
@@ -1026,6 +1047,7 @@ void random_run(std::uint64_t seed)
         }
 
         // What must hold after any call.
+        // The end is announced once, and after it the feed is silent.
         const feed_stats stats = feed.stats();
         for (const feed_event& event : out.events)
         {
@@ -1044,6 +1066,7 @@ void random_run(std::uint64_t seed)
         }
         was_ended = feed.state() == feed_state::ended;
         REQUIRE((ended_events == 1) == was_ended);
+        // Credit never exceeds the window, and what is held is within it.
         if (out.credit.has_value())
         {
             REQUIRE(out.credit->bytes <= window_bytes);
@@ -1051,6 +1074,8 @@ void random_run(std::uint64_t seed)
         }
         REQUIRE(stats.held_batches <= options.window_batches);
         REQUIRE(stats.held_bytes <= window_bytes);
+        // While live, the window is always split exactly between credit
+        // given, bytes held and bytes owed, so none is lost or made up.
         if (feed.state() == feed_state::running ||
             feed.state() == feed_state::draining)
         {
@@ -1060,12 +1085,15 @@ void random_run(std::uint64_t seed)
                            stats.held_batches + stats.owed_batches,
                        std::uint64_t{options.window_batches});
         }
+        // An ended feed holds nothing and wants no wake-up.
         if (feed.state() == feed_state::ended)
         {
             REQUIRE_EQ(stats.held_bytes, std::uint64_t{0});
             REQUIRE_EQ(stats.held_batches, std::uint32_t{0});
             REQUIRE(!feed.next_wake().has_value());
         }
+        // Nothing is written that was not accepted, and each refusal that
+        // was reported is counted.
         REQUIRE(stats.written_bytes <= stats.accepted_bytes);
         REQUIRE(stats.refused_batches >= refusals_of(out).size());
     }
@@ -1089,6 +1117,7 @@ void random_run(std::uint64_t seed)
         }
         position += entry.data.size();
     }
+    // The writes add up to exactly what the feed says it wrote.
     REQUIRE_EQ(std::uint64_t{position}, feed.stats().written_bytes);
 }
 
