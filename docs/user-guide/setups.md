@@ -16,12 +16,12 @@ A setup is a JSON document that lists the ports and links.
   that needs a real device says "Needs a real device" and cannot be used yet;
   **Use template** opens one that does not.
 
-![The Setups dialog with four templates; two say Needs a real device](../images/templates-light.png)
+<picture><source srcset="../../images/templates-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/templates-light.png" width="920" height="700" alt="The Setups dialog with four templates; two say Needs a real device"></picture>
 
 - **File → Export as command** (Advanced) shows the `vss_cli` command that
   builds the current setup.
 
-![The Export as command dialog showing vss_cli run setup.json --seconds=60](../images/export-command-light.png)
+<picture><source srcset="../../images/export-command-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/export-command-light.png" width="640" height="320" alt="The Export as command dialog showing vss_cli run setup.json --seconds=60"></picture>
 
 A setup file must have `"version": 1`, and a member of the wrong type or one
 Studio does not know (such as `"port"` for `"ports"`, or `"delay"` for

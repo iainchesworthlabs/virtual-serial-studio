@@ -236,15 +236,11 @@ It opens with a strip that says whether this PC is ready to create ports other
 programs can open. Below the cards, **Saved setups** shows your most recent file
 with **Open** and **Browse**. The launcher goes away when the first port exists.
 
-![The launcher on Windows 11: a setup warning strip, four job cards and the Saved setups row](../images/launcher-light.png)
-
-The launcher in the dark theme:
-
-![The launcher in the dark theme, with the same four job cards on a dark background](../images/launcher-dark.png)
+<picture><source srcset="../../images/launcher-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/launcher-light.png" width="1280" height="800" alt="The launcher at the Advanced level on Windows: a setup warning strip, four job cards and the Saved setups row, with the Simple | Advanced switch beside Search actions"></picture>
 
 The launcher in the compact density at the smallest window size, 960 by 640:
 
-![The launcher in the compact density at 960 by 640, with a toolbar of icons only](../images/launcher-compact-light.png)
+<picture><source srcset="../../images/launcher-compact-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/launcher-compact-light.png" width="960" height="640" alt="The launcher in the compact density at 960 by 640, with the Search actions box and the Simple | Advanced switch at the right of the menu bar"></picture>
 
 ## Quick start
 
@@ -264,4 +260,4 @@ The launcher in the compact density at the smallest window size, 960 by 640:
 
 On Linux that dialog, whose title is the path, looks like this:
 
-![The Port ready dialog on Linux, with /dev/pts/1 in large type and a Copy name button](../images/port-ready-linux-light.png)
+<picture><source srcset="../../images/port-ready-linux-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/port-ready-linux-light.png" width="760" height="720" alt="The Port ready dialog on Linux, with /dev/pts/1 in large type and a Copy name button"></picture>

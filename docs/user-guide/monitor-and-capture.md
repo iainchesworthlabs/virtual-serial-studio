@@ -11,7 +11,7 @@ the watched port and brings the monitor forward. The monitor is not filtered to
 that port; you can set the port filter yourself. At the Simple level,
 **Show me the data going through** on a setup's page also shows the traffic, without making a watcher port.
 
-![The Watch traffic dialog with the port to watch, the watcher name and Open the monitor when it is ready ticked](../images/watch-traffic-light.png)
+<picture><source srcset="../../images/watch-traffic-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/watch-traffic-light.png" width="760" height="600" alt="The Watch traffic dialog with the port to watch, the watcher name and Open the monitor when it is ready ticked"></picture>
 
 ## The monitor and the Send panel
 

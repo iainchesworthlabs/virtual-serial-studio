@@ -10,24 +10,26 @@ description: "How to get help with Virtual Serial Studio, report a problem or a 
 
 # Support
 
-## Before you ask
+How to get help, how to report a problem, and how to talk to us about Pro or Enterprise.
 
-- The [guide](user-guide/index.md) is organised by task. Its [troubleshooting](user-guide/troubleshooting.md#troubleshooting) lists what Studio shows and what to check, starting with the most common.
+## Get help
+
+- The [guide](user-guide/index.md) is organised by what you want to do. [Troubleshooting](user-guide/troubleshooting.md#troubleshooting) lists what Studio shows when something is wrong and what to check, starting with the most common.
 - The [FAQ](faq.md) answers the questions that come up first.
-- The [platform pages](platforms/index.md) say what each system needs and what has not been tried, so you can tell whether a problem is a known gap.
+- [What this build cannot do](user-guide/limits.md) lists the known gaps, so you can tell whether your problem is one of them.
 
-In Studio, **Help, Why is nothing arriving?** walks through a port that is open and silent, and **Tools, Setup check** says what the computer is missing for ports that other programs can open.
+In Studio, **Help, Why is nothing arriving?** walks through a port that is open and silent. **Tools, Setup check** tells you what your computer is missing for ports that other programs can open.
 
 ## Report a problem
 
-Open an issue on the project's [GitHub issues](https://github.com/iainchesworthlabs/virtual-serial-studio/issues) page. It helps to say:
+Open an issue on the project's [GitHub issues](https://github.com/iainchesworthlabs/virtual-serial-studio/issues) page. Please include:
 
-- the version, which the About window, `vss_gui --version` and `vss_cli --version` show, and the system;
+- the version, which **Help, About** shows, and your system;
 - what happened and what you expected;
-- the steps to reproduce it;
+- the steps to repeat it;
 - the text of any message.
 
-The smallest setup file or command line that shows the problem helps most. **File, Support bundle** saves a ZIP with the version, the driver state, your setup, the event log and the serial ports on the computer. It never holds the bytes that your ports sent or received, and you can read each file before you save it. Nothing is sent: you attach it yourself if you want to.
+The smallest setup or command that shows the problem helps most. **File, Support bundle** saves a ZIP with the version, the driver state, your setup, the event log and the serial ports on your computer. It never holds the bytes your ports sent or received, and you can read each file before you save it. Nothing is sent: you attach it yourself if you want to.
 
 **Do not attach a capture or any data taken from a customer's equipment, or from equipment that is not yours.** Make a small one that shows the problem.
 
@@ -35,11 +37,11 @@ Studio is maintained by one person, so there is no promised response time and no
 
 ## Report a security problem
 
-Report it privately, not as a public issue. Use [GitHub's private vulnerability reporting](https://github.com/iainchesworthlabs/virtual-serial-studio/security/advisories/new). If you cannot, open an issue that says only that you have a security matter, with no details, and the maintainer will arrange a private channel. [The security policy](https://github.com/iainchesworthlabs/virtual-serial-studio/blob/develop/SECURITY.md) says what counts, and [Security](security.md) says what the program sends over a network and where its protections stop.
+Report it privately, not as a public issue. Use [GitHub's private vulnerability reporting](https://github.com/iainchesworthlabs/virtual-serial-studio/security/advisories/new). If you cannot, open an issue that says only that you have a security matter, with no details, and the maintainer will arrange a private channel. [Security](security.md) says what counts, and what the program sends over a network.
 
 ## Talk to us { #talk-to-us }
 
-For Pro, Enterprise, a trial, plugins or anything else that is not a fault in the program, use the form below or write to support@virtual-serial-studio.com. Say what you want to do, which edition you are asking about, how many people and computers will use it, and which systems and versions you run.
+For Pro, Enterprise, a trial, plugins or anything that is not a fault in the program, use the form below or write to support@virtual-serial-studio.com. Tell us what you want to do, which edition you are asking about, how many people and computers will use it, and which systems you run.
 
 The form goes to one person and to no one else. Nothing you write is published, and there is no automatic reply: we answer by email, from our own address. Please put nothing confidential in it, and do not send a capture or any data from a customer's equipment. <a href="/privacy/#contact-form">What the form keeps, and for how long</a>.
 

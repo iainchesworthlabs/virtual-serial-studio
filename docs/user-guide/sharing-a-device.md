@@ -33,11 +33,11 @@ Advanced, **Share a device** is also on the toolbar.
 The three steps of the wizard, on Windows. The second picture shows the case
 where no driver pair is free, so the ports work only inside Studio.
 
-![Share step 1: choose the device, COM3, and review its settings](../images/share-device-light.png)
+<picture><source srcset="../../images/share-device-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/share-device-light.png" width="760" height="700" alt="Share step 1: choose the device, COM3, and review its settings"></picture>
 
-![Share step 2: three programs, the port each will open, and a warning offering Create another pair](../images/share-programs-light.png)
+<picture><source srcset="../../images/share-programs-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/share-programs-light.png" width="760" height="760" alt="Share step 2: three programs, the port each will open, and a warning offering Create another pair"></picture>
 
-![Share step 3: terminal on COM7, test-tool on COM8 and logger as Studio only](../images/share-ready-light.png)
+<picture><source srcset="../../images/share-ready-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/share-ready-light.png" width="760" height="640" alt="Share step 3: terminal on COM7, test-tool on COM8 and logger as Studio only"></picture>
 
 ## One master, several programs and a silent listener
 

@@ -9,7 +9,7 @@
   They do not make anything yet: **Create port** stays off. Use **Ports →
   Network endpoint** and **Ports → Mock fixture** instead (see below).
 
-![The Add a port dialog with five choices and the Virtual port settings below](../images/add-port-light.png)
+<picture><source srcset="../../images/add-port-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/add-port-light.png" width="760" height="840" alt="The Add a port dialog with five choices and the Virtual port settings below"></picture>
 
 ## Virtual port
 
@@ -68,7 +68,7 @@ wirings and kinds are disabled with "Not available in this build".
 The picture shows a Windows PC with no free com0com pairs: **Create pair** is
 off and the dialog points to the setup check.
 
-![The Connect two programs dialog with Create pair disabled and a warning that there are not enough free driver pairs](../images/linked-pair-light.png)
+<picture><source srcset="../../images/linked-pair-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/linked-pair-light.png" width="760" height="700" alt="The Connect two programs dialog with Create pair disabled and a warning that there are not enough free driver pairs"></picture>
 
 ## Real device
 
@@ -94,7 +94,7 @@ the fields.
 Studio opens the device once and keeps it open. Your programs open the port
 that Studio creates, not the device.
 
-![The Attach a real device dialog listing COM3 as available, with the address serial://COM3?baud=115200](../images/attach-device-light.png)
+<picture><source srcset="../../images/attach-device-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/attach-device-light.png" width="760" height="960" alt="The Attach a real device dialog listing COM3 as available, with the address serial://COM3?baud=115200"></picture>
 
 ## Network endpoint (Advanced)
 
@@ -121,7 +121,7 @@ another program holds it. To put a network port on a
 port in a setup file or in **Topology JSON**; see [A device on another
 computer](network.md#a-device-on-another-computer).
 
-![The Put a device on the network dialog with TCP chosen, a server address and the equivalent vss_cli bridge command](../images/network-endpoint-light.png)
+<picture><source srcset="../../images/network-endpoint-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/network-endpoint-light.png" width="760" height="900" alt="The Put a device on the network dialog with TCP chosen, a server address and the equivalent vss_cli bridge command"></picture>
 
 A network port can be changed after it is made. Choose **Settings...** on it
 (its context menu at the Advanced level, or double-click it). The **Network
@@ -162,7 +162,7 @@ hardware. Give it a name and a baud rate, and choose a port to link it to
 two-way, or *Nothing yet*. When you choose a port that is there, the sheet starts
 at that port's baud rate. In **Settings...** for a port, a box offers to use the same settings for the ports linked to it, so linked ports keep one speed.
 
-![The Add a mock fixture dialog with a name, baud rate and the port to link it to](../images/mock-fixture-light.png)
+<picture><source srcset="../../images/mock-fixture-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/mock-fixture-light.png" width="760" height="620" alt="The Add a mock fixture dialog with a name, baud rate and the port to link it to"></picture>
 
 A fixture can do two things by itself. In the Inspector (or the port's context
 menu) **Echo received bytes** sends every byte written to it straight back. The
@@ -192,4 +192,4 @@ null-modem cable (DTR to DSR and DCD, RTS to CTS) and one wiring serves both
 directions of the link. The wiring lasts while Studio runs and is not saved in a
 setup file. A port whose driver cannot set RI shows it in Studio only.
 
-![The line matrix and faults dialog for a fixture: six Inject buttons, the Injected so far list and the control line state](../images/fixture-faults-light.png)
+<picture><source srcset="../../images/fixture-faults-dark.png" media="(prefers-color-scheme: dark)"><img src="../../images/fixture-faults-light.png" width="1100" height="760" alt="The line matrix and faults dialog for a fixture: six Inject buttons, the Injected so far list and the control line state"></picture>
