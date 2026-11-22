@@ -39,6 +39,7 @@ using clock_type = std::chrono::steady_clock;
 struct timing
 {
     double median = 0;
+    double p95 = 0;
     double p99 = 0;
     double worst = 0;
 };
@@ -47,13 +48,15 @@ timing summarise(std::vector<double> milliseconds)
 {
     std::sort(milliseconds.begin(), milliseconds.end());
     return {milliseconds[milliseconds.size() / 2],
+            milliseconds[milliseconds.size() * 95 / 100],
             milliseconds[milliseconds.size() * 99 / 100], milliseconds.back()};
 }
 
 void report(const char* what, const timing& result)
 {
-    std::cout << what << ": median " << result.median << " ms, p99 "
-              << result.p99 << " ms, worst " << result.worst << " ms\n";
+    std::cout << what << ": median " << result.median << " ms, p95 "
+              << result.p95 << " ms, p99 " << result.p99 << " ms, worst "
+              << result.worst << " ms\n";
 }
 
 double elapsed_ms(clock_type::time_point from, clock_type::time_point to)
@@ -274,15 +277,27 @@ TEST_CASE("system: a client linked to an RFC 2217 server carries the frames of "
     report("poll to its answer, at the application", poll_round);
     report("gap between frames at the application, less the gap sent", spacing);
 
+    // A shared runner can stop the whole process for tens of milliseconds
+    // once or twice in a run (a GitHub-hosted macOS runner did, for 82 ms),
+    // and every timing here sees it together. With 200 frames the 99th
+    // percentile is the second-worst one, so such a pause decides it. The
+    // 95th percentile leaves out the nine worst, which a pause does not fill
+    // and a link that holds frames back does. The worst case keeps a loose
+    // bound, so a frame that never catches up still fails.
+    constexpr double longest_pause = 1000.0;
     REQUIRE(device_to_application.median < 20.0);
-    REQUIRE(device_to_application.p99 < 100.0);
+    REQUIRE(device_to_application.p95 < 100.0);
+    REQUIRE(device_to_application.worst < longest_pause);
     REQUIRE(application_to_device.median < 20.0);
-    REQUIRE(application_to_device.p99 < 100.0);
+    REQUIRE(application_to_device.p95 < 100.0);
+    REQUIRE(application_to_device.worst < longest_pause);
     REQUIRE(poll_round.median < 40.0);
-    REQUIRE(poll_round.p99 < 150.0);
+    REQUIRE(poll_round.p95 < 150.0);
+    REQUIRE(poll_round.worst < longest_pause);
     // Batching shows as a gap that is longer than the one sent, followed by
     // one that is shorter.
-    REQUIRE(spacing.p99 < 80.0);
+    REQUIRE(spacing.p95 < 80.0);
+    REQUIRE(spacing.worst < longest_pause);
 }
 
 TEST_CASE("system: a network client keeps its connection when the device "
