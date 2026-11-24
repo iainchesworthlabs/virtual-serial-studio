@@ -110,7 +110,7 @@ jobs:
       # by hand and cancelled by hand reports nothing: the person who cancelled it knows.
       - name: Report the failure
         if: ${{ (failure() || (cancelled() && github.event_name == 'schedule')) && github.ref == 'refs/heads/develop' }}
-        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@7298129e789aab3e34c523aace5c699dc24e0001 # v0.1.25
         with:
           engine: clang-tidy
           detail: clang-tidy reported a finding in the nightly check set (the job fails on any), or the debug build it analyses failed. The run log names the file and the check, and the alert is in Security > Code scanning under the tool clang-tidy.
@@ -165,7 +165,7 @@ jobs:
 
       - name: Report the failure
         if: ${{ (failure() || (cancelled() && github.event_name == 'schedule')) && github.ref == 'refs/heads/develop' }}
-        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@7298129e789aab3e34c523aace5c699dc24e0001 # v0.1.25
         with:
           engine: cppcheck
           detail: cppcheck reported a finding (the job fails on any). The run log names the file and the check, and the alert is in Security > Code scanning under the tool cppcheck.
@@ -207,7 +207,7 @@ jobs:
 
       - name: Report the failure
         if: ${{ (failure() || (cancelled() && github.event_name == 'schedule')) && github.ref == 'refs/heads/develop' }}
-        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+        uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@7298129e789aab3e34c523aace5c699dc24e0001 # v0.1.25
         with:
           engine: zizmor
           detail: zizmor reported a workflow finding of medium severity or above, in the nightly run. The run log names the file and the audit, and the alert is in Security > Code scanning under the tool zizmor.

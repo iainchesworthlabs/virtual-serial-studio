@@ -61,7 +61,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           if [[ "$version" == *-* ]]; then echo "prerelease=true" >> "$GITHUB_OUTPUT"; else echo "prerelease=false" >> "$GITHUB_OUTPUT"; fi
       - name: Check the release has notes
-        uses: iainchesworthlabs/icl-common-infra/actions/release-notes@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+        uses: iainchesworthlabs/icl-common-infra/actions/release-notes@7298129e789aab3e34c523aace5c699dc24e0001 # v0.1.25
         with:
           version: ${{ steps.tag.outputs.version }}
           prerelease: ${{ steps.tag.outputs.prerelease }}
@@ -166,7 +166,7 @@ jobs:
 
       - name: Check the glibc the package needs
         if: runner.os == 'Linux'
-        uses: iainchesworthlabs/icl-common-infra/actions/check-glibc-floor@ac3ee29b71f27ff63b1e0db61cb335764ed56940 # v0.1.23
+        uses: iainchesworthlabs/icl-common-infra/actions/check-glibc-floor@7298129e789aab3e34c523aace5c699dc24e0001 # v0.1.25
         with:
           folder: stage
           # Boost.Asio's serial port code calls cfsetspeed, which glibc 2.42 (Ubuntu 26.04, the runner) versions anew.
